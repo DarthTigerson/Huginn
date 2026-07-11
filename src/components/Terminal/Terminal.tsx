@@ -4,6 +4,10 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useTerminalStore } from '@/stores/terminalStore'
 
+function hasValidSize(cols: number, rows: number): boolean {
+  return cols > 0 && rows > 0
+}
+
 export function Terminal() {
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
@@ -40,7 +44,9 @@ export function Terminal() {
 
     const observer = new ResizeObserver(() => {
       fit.fit()
-      window.api.termResize(xterm.cols, xterm.rows)
+      if (hasValidSize(xterm.cols, xterm.rows)) {
+        window.api.termResize(xterm.cols, xterm.rows)
+      }
     })
     observer.observe(containerRef.current)
 

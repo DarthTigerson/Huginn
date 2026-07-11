@@ -5,8 +5,13 @@ import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 
+function hasValidSize(cols: number, rows: number): boolean {
+  return cols > 0 && rows > 0
+}
+
 export function Chat() {
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const assistant = useClaudeStore((s) => s.assistant)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
@@ -36,13 +41,17 @@ export function Chat() {
     fit.fit()
     xtermRef.current = xterm
 
-    window.api.claudeSpawn(projectRoot)
-    const cleanupData = window.api.onClaudeData((data) => xterm.write(data))
-    const onDataDisposable = xterm.onData((data) => window.api.claudeWrite(data))
+    window.api.assistantSpawn(projectRoot, assistant)
+    const cleanupData = window.api.onAssistantData((source, data) => {
+      if (source === assistant) xterm.write(data)
+    })
+    const onDataDisposable = xterm.onData((data) => window.api.assistantWrite(assistant, data))
 
     const observer = new ResizeObserver(() => {
       fit.fit()
-      window.api.claudeResize(xterm.cols, xterm.rows)
+      if (hasValidSize(xterm.cols, xterm.rows)) {
+        window.api.assistantResize(assistant, xterm.cols, xterm.rows)
+      }
     })
     observer.observe(containerRef.current)
 
@@ -52,8 +61,9 @@ export function Chat() {
       observer.disconnect()
       xterm.dispose()
       xtermRef.current = null
+      spawnedRef.current = false
     }
-  }, [projectRoot])
+  }, [projectRoot, assistant])
 
   useEffect(() => {
     if (isFirstRestart.current) {
@@ -70,7 +80,7 @@ export function Chat() {
       ) : (
         <div className="flex-1 flex items-center justify-center px-6">
           <p className="text-xs text-gray-500 text-center leading-relaxed">
-            Open a folder to start Claude
+            Open a folder to start {assistant === 'claude' ? 'Claude Code' : 'Codex'}
           </p>
         </div>
       )}

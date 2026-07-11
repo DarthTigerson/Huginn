@@ -7,6 +7,10 @@ const shell =
     ? 'powershell.exe'
     : process.env.SHELL ?? '/bin/zsh'
 
+function hasValidSize(cols: number, rows: number): boolean {
+  return Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0
+}
+
 export class PtyManager {
   private proc: pty.IPty | null = null
   private win: BrowserWindow
@@ -38,7 +42,9 @@ export class PtyManager {
     })
 
     ipcMain.on('term:resize', (_event, cols: number, rows: number) => {
-      this.proc?.resize(cols, rows)
+      if (!hasValidSize(cols, rows)) return
+
+      this.proc?.resize(Math.floor(cols), Math.floor(rows))
     })
   }
 

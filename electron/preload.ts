@@ -17,14 +17,15 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('term:data', handler)
   },
 
-  claudeSpawn: (cwd: string, mode?: 'new' | 'continue') =>
-    ipcRenderer.invoke('claude:spawn', cwd, mode),
-  claudeWrite: (data: string) => ipcRenderer.send('claude:write', data),
-  claudeResize: (cols: number, rows: number) =>
-    ipcRenderer.send('claude:resize', cols, rows),
-  onClaudeData: (cb: (data: string) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, data: string) => cb(data)
-    ipcRenderer.on('claude:data', handler)
-    return () => ipcRenderer.removeListener('claude:data', handler)
+  assistantSpawn: (cwd: string, assistant: 'claude' | 'codex', mode?: 'new' | 'continue') =>
+    ipcRenderer.invoke('assistant:spawn', cwd, assistant, mode),
+  assistantWrite: (assistant: 'claude' | 'codex', data: string) =>
+    ipcRenderer.send('assistant:write', assistant, data),
+  assistantResize: (assistant: 'claude' | 'codex', cols: number, rows: number) =>
+    ipcRenderer.send('assistant:resize', assistant, cols, rows),
+  onAssistantData: (cb: (assistant: 'claude' | 'codex', data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, assistant: 'claude' | 'codex', data: string) => cb(assistant, data)
+    ipcRenderer.on('assistant:data', handler)
+    return () => ipcRenderer.removeListener('assistant:data', handler)
   },
 })

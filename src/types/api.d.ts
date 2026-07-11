@@ -1,5 +1,7 @@
 import type { FileNode } from './index'
 
+export type AssistantKind = 'claude' | 'codex'
+
 declare global {
   interface Window {
     api: {
@@ -13,10 +15,10 @@ declare global {
       termResize: (cols: number, rows: number) => void
       onTermData: (cb: (data: string) => void) => () => void
 
-      claudeSpawn: (cwd: string, mode?: 'new' | 'continue') => Promise<void>
-      claudeWrite: (data: string) => void
-      claudeResize: (cols: number, rows: number) => void
-      onClaudeData: (cb: (data: string) => void) => () => void
+      assistantSpawn: (cwd: string, assistant: AssistantKind, mode?: 'new' | 'continue') => Promise<void>
+      assistantWrite: (assistant: AssistantKind, data: string) => void
+      assistantResize: (assistant: AssistantKind, cols: number, rows: number) => void
+      onAssistantData: (cb: (assistant: AssistantKind, data: string) => void) => () => void
     }
   }
 }
