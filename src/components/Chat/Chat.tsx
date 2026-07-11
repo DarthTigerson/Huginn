@@ -4,9 +4,35 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
+import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
   return cols > 0 && rows > 0
+}
+
+interface AssistantTerminal {
+  host: HTMLDivElement
+  xterm: XTerm
+  fit: FitAddon
+  cleanupData: () => void
+  onDataDisposable: { dispose: () => void }
+}
+
+const ASSISTANTS: AssistantKind[] = ['claude', 'codex']
+
+function createXTerm(): XTerm {
+  return new XTerm({
+    theme: {
+      background: '#1a1a1a',
+      foreground: '#cccccc',
+      cursor: '#ffffff',
+      selectionBackground: '#264f78',
+    },
+    fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
+    fontSize: 13,
+    cursorBlink: true,
+    convertEol: true,
+  })
 }
 
 export function Chat() {
@@ -14,63 +40,98 @@ export function Chat() {
   const assistant = useClaudeStore((s) => s.assistant)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const containerRef = useRef<HTMLDivElement>(null)
-  const xtermRef = useRef<XTerm | null>(null)
-  const spawnedRef = useRef(false)
+  const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
+  const activeAssistantRef = useRef<AssistantKind>(assistant)
   const isFirstRestart = useRef(true)
 
   useEffect(() => {
-    if (!projectRoot || !containerRef.current || spawnedRef.current) return
-    spawnedRef.current = true
+    activeAssistantRef.current = assistant
+  }, [assistant])
 
-    const xterm = new XTerm({
-      theme: {
-        background: '#1a1a1a',
-        foreground: '#cccccc',
-        cursor: '#ffffff',
-        selectionBackground: '#264f78',
-      },
-      fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
-      fontSize: 13,
-      cursorBlink: true,
-      convertEol: true,
+  useEffect(() => {
+    if (!projectRoot || !containerRef.current) return
+
+    const container = containerRef.current
+
+    const ensureTerminal = (kind: AssistantKind): AssistantTerminal => {
+      const existing = terminalsRef.current[kind]
+      if (existing) return existing
+
+      const host = document.createElement('div')
+      host.className = 'h-full w-full overflow-hidden'
+      host.style.display = kind === assistant ? 'block' : 'none'
+      container.appendChild(host)
+
+      const xterm = createXTerm()
+      const fit = new FitAddon()
+      xterm.loadAddon(fit)
+      xterm.open(host)
+
+      window.api.assistantSpawn(projectRoot, kind)
+      const cleanupData = window.api.onAssistantData((source, data) => {
+        if (source === kind) xterm.write(data)
+      })
+      const onDataDisposable = xterm.onData((data) => window.api.assistantWrite(kind, data))
+
+      const terminal = { host, xterm, fit, cleanupData, onDataDisposable }
+      terminalsRef.current[kind] = terminal
+      return terminal
+    }
+
+    ASSISTANTS.forEach((kind) => {
+      const terminal = kind === assistant ? ensureTerminal(kind) : terminalsRef.current[kind]
+      if (!terminal) return
+
+      terminal.host.style.display = kind === assistant ? 'block' : 'none'
     })
 
-    const fit = new FitAddon()
-    xterm.loadAddon(fit)
-    xterm.open(containerRef.current)
-    fit.fit()
-    xtermRef.current = xterm
-
-    window.api.assistantSpawn(projectRoot, assistant)
-    const cleanupData = window.api.onAssistantData((source, data) => {
-      if (source === assistant) xterm.write(data)
+    const activeTerminal = ensureTerminal(assistant)
+    requestAnimationFrame(() => {
+      activeTerminal.fit.fit()
+      if (hasValidSize(activeTerminal.xterm.cols, activeTerminal.xterm.rows)) {
+        window.api.assistantResize(assistant, activeTerminal.xterm.cols, activeTerminal.xterm.rows)
+      }
     })
-    const onDataDisposable = xterm.onData((data) => window.api.assistantWrite(assistant, data))
+  }, [projectRoot, assistant])
+
+  useEffect(() => {
+    if (!projectRoot || !containerRef.current) return
 
     const observer = new ResizeObserver(() => {
-      fit.fit()
-      if (hasValidSize(xterm.cols, xterm.rows)) {
-        window.api.assistantResize(assistant, xterm.cols, xterm.rows)
+      const activeAssistant = activeAssistantRef.current
+      const activeTerminal = terminalsRef.current[activeAssistant]
+      if (!activeTerminal) return
+
+      activeTerminal.fit.fit()
+      if (hasValidSize(activeTerminal.xterm.cols, activeTerminal.xterm.rows)) {
+        window.api.assistantResize(activeAssistant, activeTerminal.xterm.cols, activeTerminal.xterm.rows)
       }
     })
     observer.observe(containerRef.current)
 
     return () => {
-      cleanupData()
-      onDataDisposable.dispose()
       observer.disconnect()
-      xterm.dispose()
-      xtermRef.current = null
-      spawnedRef.current = false
     }
-  }, [projectRoot, assistant])
+  }, [projectRoot])
+
+  useEffect(() => {
+    return () => {
+      Object.values(terminalsRef.current).forEach((terminal) => {
+        terminal.cleanupData()
+        terminal.onDataDisposable.dispose()
+        terminal.xterm.dispose()
+        terminal.host.remove()
+      })
+      terminalsRef.current = {}
+    }
+  }, [projectRoot])
 
   useEffect(() => {
     if (isFirstRestart.current) {
       isFirstRestart.current = false
       return
     }
-    xtermRef.current?.clear()
+    terminalsRef.current[activeAssistantRef.current]?.xterm.clear()
   }, [restartToken])
 
   return (
