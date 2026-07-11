@@ -6,19 +6,25 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: { entry: 'electron/main.ts' }
+      lib: { entry: { index: 'electron/main.ts' } }
     }
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: { entry: 'electron/preload.ts' }
+      lib: { entry: { index: 'electron/preload.ts' } }
     }
   },
   renderer: {
+    root: resolve(__dirname),
     resolve: {
       alias: { '@': resolve(__dirname, 'src') }
     },
-    plugins: [react()]
+    plugins: [react()],
+    build: {
+      rollupOptions: {
+        input: resolve(__dirname, 'index.html')
+      }
+    }
   }
 })
