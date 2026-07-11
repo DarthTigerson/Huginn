@@ -157,7 +157,7 @@ export default function App() {
             {
               id: 'git',
               icon: <GitIcon />,
-              title: 'Source Control',
+              title: 'Git',
               active: leftPanel === 'git',
               onClick: () => setLeftPanel((p) => (p === 'git' ? null : 'git')),
             },

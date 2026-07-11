@@ -199,13 +199,12 @@ export function FastIcon() {
 
 export function GitIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3.5" y="3.5" width="13" height="13" rx="2" transform="rotate(45 10 10)" fill="#F05033"/>
-      <circle cx="10" cy="5.5" r="1.6" fill="white"/>
-      <circle cx="14" cy="11" r="1.6" fill="white"/>
-      <circle cx="10" cy="14.5" r="1.6" fill="white"/>
-      <line x1="10" y1="7.1" x2="10" y2="12.9" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-      <line x1="11" y1="6.8" x2="13" y2="9.7" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="18" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="12" cy="19" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M12 7v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M13.4 6.2C15 8 16.5 9.5 16 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
