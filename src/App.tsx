@@ -7,6 +7,7 @@ import { Chat } from './components/Chat/Chat'
 import {
   ActivityBar,
   FilesIcon,
+  SettingsIcon,
   ClaudeIcon,
   CodexIcon,
   NewSessionIcon,
@@ -17,6 +18,7 @@ import {
   ModelIcon,
   FastIcon,
 } from './components/ActivityBar/ActivityBar'
+import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
@@ -33,7 +35,7 @@ export default function App() {
   const assistant = useClaudeStore((s) => s.assistant)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [leftPanel, setLeftPanel] = useState<'files' | 'settings' | null>('files')
   const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
@@ -143,15 +145,22 @@ export default function App() {
             id: 'files',
             icon: <FilesIcon />,
             title: 'Explorer',
-            active: sidebarVisible,
-            onClick: () => setSidebarVisible((v) => !v),
+            active: leftPanel === 'files',
+            onClick: () => setLeftPanel((p) => (p === 'files' ? null : 'files')),
+          }]]}
+          bottomGroups={[[{
+            id: 'settings',
+            icon: <SettingsIcon />,
+            title: 'Settings',
+            active: leftPanel === 'settings',
+            onClick: () => setLeftPanel((p) => (p === 'settings' ? null : 'settings')),
           }]]}
         />
         <PanelGroup direction="horizontal" className="flex-1">
-          {sidebarVisible && (
+          {leftPanel && (
             <>
               <Panel defaultSize={20} minSize={12} maxSize={40} id="sidebar" order={1}>
-                <Sidebar />
+                {leftPanel === 'files' ? <Sidebar /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>
