@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -20,14 +21,9 @@ interface AssistantTerminal {
 
 const ASSISTANTS: AssistantKind[] = ['claude', 'codex']
 
-function createXTerm(): XTerm {
+function createXTerm(themeId: ThemeId): XTerm {
   return new XTerm({
-    theme: {
-      background: '#1a1a1a',
-      foreground: '#cccccc',
-      cursor: '#ffffff',
-      selectionBackground: '#264f78',
-    },
+    theme: XTERM_THEMES[themeId],
     fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
     fontSize: 13,
     cursorBlink: true,
@@ -39,6 +35,7 @@ export function Chat() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const assistant = useClaudeStore((s) => s.assistant)
   const restartToken = useClaudeStore((s) => s.restartToken)
+  const theme = useThemeStore((s) => s.theme)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
   const activeAssistantRef = useRef<AssistantKind>(assistant)
@@ -62,7 +59,7 @@ export function Chat() {
       host.style.display = kind === assistant ? 'block' : 'none'
       container.appendChild(host)
 
-      const xterm = createXTerm()
+      const xterm = createXTerm(useThemeStore.getState().theme)
       const fit = new FitAddon()
       xterm.loadAddon(fit)
       xterm.open(host)
@@ -93,6 +90,12 @@ export function Chat() {
       }
     })
   }, [projectRoot, assistant])
+
+  useEffect(() => {
+    Object.values(terminalsRef.current).forEach((terminal) => {
+      terminal.xterm.options.theme = XTERM_THEMES[theme]
+    })
+  }, [theme])
 
   useEffect(() => {
     if (!projectRoot || !containerRef.current) return

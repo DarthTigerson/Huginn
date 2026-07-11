@@ -3,6 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useTerminalStore } from '@/stores/terminalStore'
+import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 
 function hasValidSize(cols: number, rows: number): boolean {
   return cols > 0 && rows > 0
@@ -13,17 +14,13 @@ export function Terminal() {
   const xtermRef = useRef<XTerm | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const hide = useTerminalStore((s) => s.hide)
+  const theme = useThemeStore((s) => s.theme)
 
   useEffect(() => {
     if (!containerRef.current || xtermRef.current) return
 
     const xterm = new XTerm({
-      theme: {
-        background: '#1a1a1a',
-        foreground: '#cccccc',
-        cursor: '#ffffff',
-        selectionBackground: '#264f78',
-      },
+      theme: XTERM_THEMES[useThemeStore.getState().theme],
       fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
       fontSize: 13,
       cursorBlink: true,
@@ -57,6 +54,11 @@ export function Terminal() {
       xtermRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    if (!xtermRef.current) return
+    xtermRef.current.options.theme = XTERM_THEMES[theme]
+  }, [theme])
 
   return (
     <div className="h-full flex flex-col bg-bg border-t border-border overflow-hidden">
