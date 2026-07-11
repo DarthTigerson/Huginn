@@ -1,3 +1,10 @@
 .superpowers/
 node_modules/
 out/
+
+# TypeScript composite build artifacts (electron-vite handles the real build)
+electron/*.js
+electron/*.d.ts
+src/**/*.js
+src/**/*.d.ts
+*.tsbuildinfo
