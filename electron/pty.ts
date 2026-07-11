@@ -28,6 +28,9 @@ export class PtyManager {
       this.proc.onData((data) => {
         this.win.webContents.send('term:data', data)
       })
+      this.proc.onExit(() => {
+        this.proc = null
+      })
     })
 
     ipcMain.on('term:write', (_event, data: string) => {

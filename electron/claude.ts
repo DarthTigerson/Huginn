@@ -13,7 +13,8 @@ export class ClaudeManager {
     ipcMain.handle('claude:spawn', (_event, cwd: string) => {
       if (this.proc) return
       try {
-        this.proc = pty.spawn('claude', [], {
+        const shell = process.env.SHELL ?? '/bin/zsh'
+        this.proc = pty.spawn(shell, ['-lic', 'claude'], {
           name: 'xterm-color',
           cols: 80,
           rows: 24,
@@ -22,6 +23,9 @@ export class ClaudeManager {
         })
         this.proc.onData((data) => {
           this.win.webContents.send('claude:data', data)
+        })
+        this.proc.onExit(() => {
+          this.proc = null
         })
       } catch {
         this.win.webContents.send(
