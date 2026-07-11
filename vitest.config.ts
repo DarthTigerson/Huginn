@@ -8,6 +8,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/stores/__tests__/**/*.test.ts']
+    include: ['src/stores/__tests__/**/*.test.ts', 'electron/__tests__/**/*.test.ts']
   }
 })

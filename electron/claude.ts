@@ -26,6 +26,7 @@ function hasValidSize(cols: number, rows: number): boolean {
 
 export class ClaudeManager {
   private procs: Partial<Record<AssistantKind, pty.IPty>> = {}
+  private procCwd: Partial<Record<AssistantKind, string>> = {}
   private activeAssistant: AssistantKind = 'claude'
   private win: BrowserWindow
 
@@ -39,10 +40,12 @@ export class ClaudeManager {
       const selectedMode = mode === 'continue' || mode === 'new' ? mode : 'attach'
       this.activeAssistant = selectedAssistant
 
-      if (selectedMode === 'attach' && this.procs[selectedAssistant]) return
+      const attachingToSameCwd = this.procs[selectedAssistant] && this.procCwd[selectedAssistant] === cwd
+      if (selectedMode === 'attach' && attachingToSameCwd) return
 
       this.procs[selectedAssistant]?.kill()
       delete this.procs[selectedAssistant]
+      delete this.procCwd[selectedAssistant]
 
       try {
         const shell = process.env.SHELL ?? '/bin/zsh'
@@ -55,11 +58,15 @@ export class ClaudeManager {
           env: process.env as Record<string, string>,
         })
         this.procs[selectedAssistant] = proc
+        this.procCwd[selectedAssistant] = cwd
         proc.onData((data) => {
           this.win.webContents.send('assistant:data', selectedAssistant, data)
         })
         proc.onExit(() => {
-          if (this.procs[selectedAssistant] === proc) delete this.procs[selectedAssistant]
+          if (this.procs[selectedAssistant] === proc) {
+            delete this.procs[selectedAssistant]
+            delete this.procCwd[selectedAssistant]
+          }
         })
       } catch {
         this.win.webContents.send(
