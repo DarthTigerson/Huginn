@@ -54,9 +54,6 @@ export function Chat() {
 
   return (
     <div className="h-full flex flex-col bg-[#1a1a1a] border-l border-border overflow-hidden">
-      <div className="flex items-center px-3 h-7 border-b border-border shrink-0 bg-tab-bar">
-        <span className="text-xs text-gray-400 font-medium">Claude</span>
-      </div>
       {projectRoot ? (
         <div ref={containerRef} className="flex-1 overflow-hidden p-1" />
       ) : (

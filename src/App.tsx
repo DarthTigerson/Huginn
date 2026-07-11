@@ -32,6 +32,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  useEffect(() => {
+    useFileStore.getState().restoreRoot()
+  }, [])
+
   return (
     <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col">
       <div

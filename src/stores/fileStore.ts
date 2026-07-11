@@ -15,10 +15,13 @@ function setNodeChildren(
   })
 }
 
+const LAST_ROOT_KEY = 'huginn:lastProjectRoot'
+
 interface FileState {
   projectRoot: string | null
   tree: FileNode[]
   selectedPath: string | null
+  restoreRoot: () => Promise<void>
   openFolder: () => Promise<void>
   refreshRoot: () => Promise<void>
   expandDir: (dirPath: string) => Promise<void>
@@ -29,6 +32,17 @@ export const useFileStore = create<FileState>((set, get) => ({
   projectRoot: null,
   tree: [],
   selectedPath: null,
+
+  restoreRoot: async () => {
+    const lastRoot = localStorage.getItem(LAST_ROOT_KEY)
+    if (!lastRoot) return
+    try {
+      const tree = await window.api.readDir(lastRoot)
+      set({ projectRoot: lastRoot, tree })
+    } catch {
+      localStorage.removeItem(LAST_ROOT_KEY)
+    }
+  },
 
   refreshRoot: async () => {
     const { projectRoot } = get()
@@ -41,6 +55,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     const root = await window.api.openFolder()
     if (!root) return
     const tree = await window.api.readDir(root)
+    localStorage.setItem(LAST_ROOT_KEY, root)
     set({ projectRoot: root, tree })
   },
 
