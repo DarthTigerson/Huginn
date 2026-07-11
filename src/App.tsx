@@ -23,6 +23,7 @@ import {
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { TodoPanel } from './components/Todos/TodoPanel'
 import { GitPanel } from './components/Git/GitPanel'
+import { StatusBar } from './components/StatusBar/StatusBar'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
@@ -294,6 +295,7 @@ export default function App() {
             ]]}
         />
       </div>
+      <StatusBar />
     </div>
   )
 }
