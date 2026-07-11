@@ -7,6 +7,7 @@ import { Chat } from './components/Chat/Chat'
 import {
   ActivityBar,
   FilesIcon,
+  GitIcon,
   TodoIcon,
   SettingsIcon,
   ClaudeIcon,
@@ -21,6 +22,7 @@ import {
 } from './components/ActivityBar/ActivityBar'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { TodoPanel } from './components/Todos/TodoPanel'
+import { GitPanel } from './components/Git/GitPanel'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
@@ -37,7 +39,7 @@ export default function App() {
   const assistant = useClaudeStore((s) => s.assistant)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'todos' | 'settings' | null>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'settings' | null>('files')
   const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
@@ -152,6 +154,13 @@ export default function App() {
               onClick: () => setLeftPanel((p) => (p === 'files' ? null : 'files')),
             },
             {
+              id: 'git',
+              icon: <GitIcon />,
+              title: 'Source Control',
+              active: leftPanel === 'git',
+              onClick: () => setLeftPanel((p) => (p === 'git' ? null : 'git')),
+            },
+            {
               id: 'todos',
               icon: <TodoIcon />,
               title: 'To Do',
@@ -171,7 +180,7 @@ export default function App() {
           {leftPanel && (
             <>
               <Panel defaultSize={20} minSize={12} maxSize={40} id="sidebar" order={1}>
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'todos' ? <TodoPanel /> : <SettingsPanel />}
+                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>

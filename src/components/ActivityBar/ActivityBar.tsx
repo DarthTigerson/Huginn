@@ -197,6 +197,19 @@ export function FastIcon() {
   )
 }
 
+export function GitIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="6" cy="18" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="18" cy="18" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M6 15.5V10a2 2 0 0 1 2-2h4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M15.5 18H8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M18 8.5V15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 export function TodoIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
