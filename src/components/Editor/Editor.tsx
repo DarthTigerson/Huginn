@@ -28,7 +28,7 @@ export function Editor() {
       {activeTab ? (
         isVirtual ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-600 text-sm">Themes — coming soon</p>
+            <p className="text-fg-subtle text-sm">Themes — coming soon</p>
           </div>
         ) : (
           <div className="flex-1 overflow-hidden">
@@ -53,7 +53,7 @@ export function Editor() {
         )
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-600 text-sm">Open a file to start editing</p>
+          <p className="text-fg-subtle text-sm">Open a file to start editing</p>
         </div>
       )}
     </div>

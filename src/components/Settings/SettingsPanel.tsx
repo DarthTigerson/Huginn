@@ -5,7 +5,7 @@ export function SettingsPanel() {
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
       <div className="px-3 py-2 border-b border-border shrink-0">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+        <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider truncate">
           Settings
         </span>
       </div>
@@ -15,7 +15,7 @@ export function SettingsPanel() {
           onClick={() =>
             useEditorStore.getState().openTab({ path: THEMES_TAB_PATH, content: '', dirty: false })
           }
-          className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+          className="w-full text-left px-3 py-1.5 text-sm text-fg hover:bg-white/5 hover:text-fg transition-colors"
         >
           Themes
         </button>

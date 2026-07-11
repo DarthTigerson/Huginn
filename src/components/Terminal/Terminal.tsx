@@ -59,11 +59,11 @@ export function Terminal() {
   }, [])
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1a1a] border-t border-border overflow-hidden">
+    <div className="h-full flex flex-col bg-bg border-t border-border overflow-hidden">
       <div className="flex items-center px-3 h-7 border-b border-border shrink-0 bg-tab-bar">
-        <span className="text-xs text-gray-400 font-medium">Terminal</span>
+        <span className="text-xs text-fg-muted font-medium">Terminal</span>
         <button
-          className="ml-auto text-gray-500 hover:text-gray-300 text-sm leading-none transition-colors"
+          className="ml-auto text-fg-muted hover:text-fg text-sm leading-none transition-colors"
           onClick={hide}
         >
           ✕

@@ -85,7 +85,7 @@ export default function App() {
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         {repoName && (
-          <span className="text-sm font-medium text-gray-400">{repoName}</span>
+          <span className="text-sm font-medium text-fg-muted">{repoName}</span>
         )}
         <div
           className="absolute right-3 top-1/2 -translate-y-1/2"
@@ -97,10 +97,10 @@ export default function App() {
             onClick={() => setAssistantMenuOpen((open) => !open)}
             aria-label="Assistant"
             aria-expanded={assistantMenuOpen}
-            className="flex h-6 min-w-[126px] items-center justify-between gap-2 rounded border border-border bg-panel px-2 text-xs font-medium text-gray-300 outline-none transition-colors hover:border-gray-600 focus:border-accent"
+            className="flex h-6 min-w-[126px] items-center justify-between gap-2 rounded border border-border bg-panel px-2 text-xs font-medium text-fg outline-none transition-colors hover:border-fg-subtle focus:border-accent"
           >
             <span className="flex items-center gap-1.5">
-              <span className="text-gray-400">
+              <span className="text-fg-muted">
                 {assistant === 'claude' ? <ClaudeIcon /> : <CodexIcon />}
               </span>
               {assistantLabel}
@@ -108,7 +108,7 @@ export default function App() {
             <ChevronDownIcon open={assistantMenuOpen} />
           </button>
           {assistantMenuOpen && (
-            <div className="fixed right-3 top-9 z-[100] w-40 rounded border border-border bg-[#202020] p-1 shadow-2xl shadow-black/50">
+            <div className="fixed right-3 top-9 z-[100] w-40 rounded border border-border bg-sidebar p-1 shadow-2xl shadow-black/50">
               {ASSISTANT_OPTIONS.map((option) => {
                 const selected = option.id === assistant
                 return (
@@ -122,11 +122,11 @@ export default function App() {
                     className={[
                       'flex h-8 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors',
                       selected
-                        ? 'bg-accent/20 text-white'
-                        : 'text-gray-400 hover:bg-white/5 hover:text-gray-200',
+                        ? 'bg-accent/20 text-fg'
+                        : 'text-fg-muted hover:bg-white/5 hover:text-fg',
                     ].join(' ')}
                   >
-                    <span className={selected ? 'text-white' : 'text-gray-500'}>
+                    <span className={selected ? 'text-fg' : 'text-fg-subtle'}>
                       {option.id === 'claude' ? <ClaudeIcon /> : <CodexIcon />}
                     </span>
                     <span className="flex-1">{option.label}</span>

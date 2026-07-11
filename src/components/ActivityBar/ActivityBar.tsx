@@ -41,10 +41,10 @@ function ActivityBarButton({ item, showAccent, side, dense }: { item: ActivityBa
         className={[
           'transition-opacity',
           item.disabled
-            ? 'text-gray-600 opacity-30'
+            ? 'text-fg-subtle opacity-30'
             : item.active
-              ? 'text-white opacity-100'
-              : 'text-gray-500 opacity-50 group-hover:opacity-80 group-hover:text-gray-300',
+              ? 'text-fg opacity-100'
+              : 'text-fg-muted opacity-50 group-hover:opacity-80 group-hover:text-fg',
         ].join(' ')}
       >
         {item.icon}

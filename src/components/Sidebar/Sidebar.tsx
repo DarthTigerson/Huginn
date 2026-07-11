@@ -37,13 +37,13 @@ export function Sidebar() {
       {projectRoot ? (
         <>
           <div className="px-3 py-2 flex items-center justify-between border-b border-border shrink-0 group">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+            <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider truncate">
               {projectRoot.split('/').pop()}
             </span>
             <button
               onClick={startCreate}
               title="New File"
-              className="text-gray-500 hover:text-gray-300 transition-colors opacity-0 group-hover:opacity-100 shrink-0 ml-1"
+              className="text-fg-muted hover:text-fg transition-colors opacity-0 group-hover:opacity-100 shrink-0 ml-1"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -63,7 +63,7 @@ export function Sidebar() {
                 }}
                 onBlur={cancelCreate}
                 placeholder="filename.ext"
-                className="w-full bg-panel border border-accent rounded px-2 py-0.5 text-sm text-gray-200 placeholder-gray-600 outline-none"
+                className="w-full bg-panel border border-accent rounded px-2 py-0.5 text-sm text-fg placeholder-fg-subtle outline-none"
                 style={{ userSelect: 'text' }}
               />
             </div>
@@ -75,10 +75,10 @@ export function Sidebar() {
         </>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
-          <p className="text-xs text-gray-500 text-center">No folder open</p>
+          <p className="text-xs text-fg-muted text-center">No folder open</p>
           <button
             onClick={openFolder}
-            className="px-3 py-1.5 text-sm bg-accent hover:bg-blue-500 text-white rounded transition-colors"
+            className="px-3 py-1.5 text-sm bg-accent hover:bg-accent/80 text-panel rounded transition-colors"
           >
             Open Folder
           </button>

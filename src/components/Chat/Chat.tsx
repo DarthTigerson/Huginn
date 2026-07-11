@@ -135,12 +135,12 @@ export function Chat() {
   }, [restartToken])
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1a1a] border-l border-border overflow-hidden">
+    <div className="h-full flex flex-col bg-bg border-l border-border overflow-hidden">
       {projectRoot ? (
         <div ref={containerRef} className="flex-1 overflow-hidden p-1" />
       ) : (
         <div className="flex-1 flex items-center justify-center px-6">
-          <p className="text-xs text-gray-500 text-center leading-relaxed">
+          <p className="text-xs text-fg-muted text-center leading-relaxed">
             Open a folder to start {assistant === 'claude' ? 'Claude Code' : 'Codex'}
           </p>
         </div>

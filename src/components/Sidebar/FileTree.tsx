@@ -34,12 +34,12 @@ export function FileTree({ nodes, depth = 0 }: FileTreeProps) {
         <li key={node.path}>
           <button
             className={`flex items-center gap-1 w-full text-left py-0.5 text-sm hover:bg-white/5 rounded truncate ${
-              selectedPath === node.path ? 'bg-accent/20 text-white' : 'text-gray-300'
+              selectedPath === node.path ? 'bg-accent/20 text-fg' : 'text-fg'
             }`}
             style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
             onClick={() => handleClick(node)}
           >
-            <span className="shrink-0 text-xs w-3 text-gray-500">
+            <span className="shrink-0 text-xs w-3 text-fg-subtle">
               {node.isDirectory
                 ? expanded[node.path]
                   ? '▾'
@@ -51,7 +51,7 @@ export function FileTree({ nodes, depth = 0 }: FileTreeProps) {
             ) : (
               <FileIcon name={node.name} />
             )}
-            <span className={`truncate ${node.isDirectory ? 'text-gray-200' : 'text-gray-300'}`}>
+            <span className="truncate text-fg">
               {node.name}
             </span>
           </button>
