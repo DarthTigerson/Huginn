@@ -7,6 +7,7 @@ import { Chat } from './components/Chat/Chat'
 import {
   ActivityBar,
   FilesIcon,
+  TodoIcon,
   SettingsIcon,
   ClaudeIcon,
   CodexIcon,
@@ -19,6 +20,7 @@ import {
   FastIcon,
 } from './components/ActivityBar/ActivityBar'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
+import { TodoPanel } from './components/Todos/TodoPanel'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
@@ -35,7 +37,7 @@ export default function App() {
   const assistant = useClaudeStore((s) => s.assistant)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'settings' | null>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'todos' | 'settings' | null>('files')
   const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
@@ -141,13 +143,22 @@ export default function App() {
       <div className="flex flex-1 min-h-0">
         <ActivityBar
           side="left"
-          groups={[[{
-            id: 'files',
-            icon: <FilesIcon />,
-            title: 'Explorer',
-            active: leftPanel === 'files',
-            onClick: () => setLeftPanel((p) => (p === 'files' ? null : 'files')),
-          }]]}
+          groups={[[
+            {
+              id: 'files',
+              icon: <FilesIcon />,
+              title: 'Explorer',
+              active: leftPanel === 'files',
+              onClick: () => setLeftPanel((p) => (p === 'files' ? null : 'files')),
+            },
+            {
+              id: 'todos',
+              icon: <TodoIcon />,
+              title: 'To Do',
+              active: leftPanel === 'todos',
+              onClick: () => setLeftPanel((p) => (p === 'todos' ? null : 'todos')),
+            },
+          ]]}
           bottomGroups={[[{
             id: 'settings',
             icon: <SettingsIcon />,
@@ -160,7 +171,7 @@ export default function App() {
           {leftPanel && (
             <>
               <Panel defaultSize={20} minSize={12} maxSize={40} id="sidebar" order={1}>
-                {leftPanel === 'files' ? <Sidebar /> : <SettingsPanel />}
+                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'todos' ? <TodoPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>
