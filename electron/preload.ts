@@ -16,4 +16,14 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('term:data', handler)
     return () => ipcRenderer.removeListener('term:data', handler)
   },
+
+  claudeSpawn: (cwd: string) => ipcRenderer.invoke('claude:spawn', cwd),
+  claudeWrite: (data: string) => ipcRenderer.send('claude:write', data),
+  claudeResize: (cols: number, rows: number) =>
+    ipcRenderer.send('claude:resize', cols, rows),
+  onClaudeData: (cb: (data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, data: string) => cb(data)
+    ipcRenderer.on('claude:data', handler)
+    return () => ipcRenderer.removeListener('claude:data', handler)
+  },
 })

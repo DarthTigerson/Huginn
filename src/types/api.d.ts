@@ -12,6 +12,11 @@ declare global {
       termWrite: (data: string) => void
       termResize: (cols: number, rows: number) => void
       onTermData: (cb: (data: string) => void) => () => void
+
+      claudeSpawn: (cwd: string) => Promise<void>
+      claudeWrite: (data: string) => void
+      claudeResize: (cols: number, rows: number) => void
+      onClaudeData: (cb: (data: string) => void) => () => void
     }
   }
 }

@@ -3,6 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
+import { ClaudeManager } from './claude'
 
 interface FileNode {
   name: string
@@ -70,6 +71,8 @@ app.whenReady().then(() => {
   const win = createWindow()
   const ptyMgr = new PtyManager(win)
   ptyMgr.registerHandlers()
+  const claudeMgr = new ClaudeManager(win)
+  claudeMgr.registerHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
