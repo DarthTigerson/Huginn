@@ -1,14 +1,17 @@
 import { useEffect } from 'react'
 import MonacoEditor from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editorStore'
+import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import { isSettingsTab } from '@/components/Settings/paths'
+import { ThemesPage } from '@/components/Settings/ThemesPage'
 
 export function Editor() {
   const { tabs, activeTabPath, updateContent } = useEditorStore()
   const activeTab = tabs.find((t) => t.path === activeTabPath)
   const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
+  const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
 
   useEffect(() => {
     if (!activeTab || isVirtual) return
@@ -27,16 +30,14 @@ export function Editor() {
       <TabBar />
       {activeTab ? (
         isVirtual ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-fg-subtle text-sm">Themes — coming soon</p>
-          </div>
+          <ThemesPage />
         ) : (
           <div className="flex-1 overflow-hidden">
             <MonacoEditor
               key={activeTab.path}
               value={activeTab.content}
               language={detectLang(activeTab.path)}
-              theme="vs-dark"
+              theme={monacoTheme}
               options={{
                 fontSize: 13,
                 fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
