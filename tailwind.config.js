@@ -8,11 +8,15 @@ module.exports = {
         mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
-        panel: '#1e1e1e',
-        sidebar: '#252526',
-        'tab-bar': '#2d2d2d',
-        border: '#3c3c3c',
-        accent: '#0078d4',
+        bg:          'var(--color-bg)',
+        panel:       'var(--color-panel)',
+        sidebar:     'var(--color-sidebar)',
+        'tab-bar':   'var(--color-tab-bar)',
+        border:      'var(--color-border)',
+        accent:      'rgb(var(--color-accent) / <alpha-value>)',
+        fg:          'var(--color-fg)',
+        'fg-muted':  'var(--color-fg-muted)',
+        'fg-subtle': 'var(--color-fg-subtle)',
       }
     }
   },

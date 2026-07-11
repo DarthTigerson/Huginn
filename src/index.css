@@ -4,10 +4,60 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* accent is stored as R G B channels so Tailwind opacity modifiers (bg-accent/20) work */
+
+[data-theme="claude-dark"] {
+  --color-bg:        #1a1a1a;
+  --color-panel:     #1e1e1e;
+  --color-sidebar:   #252526;
+  --color-tab-bar:   #2d2d2d;
+  --color-border:    #3c3c3c;
+  --color-accent:    217 119 87;   /* #d97757 */
+  --color-fg:        #cccccc;
+  --color-fg-muted:  #858585;
+  --color-fg-subtle: #555555;
+}
+
+[data-theme="claude-light"] {
+  --color-bg:        #f3f3f3;
+  --color-panel:     #ffffff;
+  --color-sidebar:   #ececec;
+  --color-tab-bar:   #e8e8e8;
+  --color-border:    #e0e0e0;
+  --color-accent:    196 97 61;    /* #c4613d */
+  --color-fg:        #1e1e1e;
+  --color-fg-muted:  #717171;
+  --color-fg-subtle: #999999;
+}
+
+[data-theme="codex-dark"] {
+  --color-bg:        #1a1a1a;
+  --color-panel:     #202020;
+  --color-sidebar:   #1a1a1a;
+  --color-tab-bar:   #202020;
+  --color-border:    #333333;
+  --color-accent:    255 255 255;  /* #ffffff */
+  --color-fg:        #cccccc;
+  --color-fg-muted:  #8a8a8a;
+  --color-fg-subtle: #555555;
+}
+
+[data-theme="codex-light"] {
+  --color-bg:        #fafafa;
+  --color-panel:     #ffffff;
+  --color-sidebar:   #fafafa;
+  --color-tab-bar:   #f6f6f6;
+  --color-border:    #d0d7de;
+  --color-accent:    9 105 218;    /* #0969da */
+  --color-fg:        #24292f;
+  --color-fg-muted:  #6e7781;
+  --color-fg-subtle: #aaaaaa;
+}
+
 body {
   overflow: hidden;
-  background: #1e1e1e;
-  color: #cccccc;
+  background: var(--color-bg);
+  color: var(--color-fg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
@@ -15,5 +65,4 @@ body {
 
 #root { width: 100vw; height: 100vh; }
 
-/* Allow text selection inside the editor */
 .monaco-editor { user-select: text; }
