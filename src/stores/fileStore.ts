@@ -20,6 +20,7 @@ interface FileState {
   tree: FileNode[]
   selectedPath: string | null
   openFolder: () => Promise<void>
+  refreshRoot: () => Promise<void>
   expandDir: (dirPath: string) => Promise<void>
   select: (path: string) => void
 }
@@ -28,6 +29,13 @@ export const useFileStore = create<FileState>((set, get) => ({
   projectRoot: null,
   tree: [],
   selectedPath: null,
+
+  refreshRoot: async () => {
+    const { projectRoot } = get()
+    if (!projectRoot) return
+    const tree = await window.api.readDir(projectRoot)
+    set({ tree })
+  },
 
   openFolder: async () => {
     const root = await window.api.openFolder()
