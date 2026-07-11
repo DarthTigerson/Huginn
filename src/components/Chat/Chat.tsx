@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
+import { useFontSizeStore } from '@/stores/fontSizeStore'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -36,6 +37,7 @@ export function Chat() {
   const assistant = useClaudeStore((s) => s.assistant)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
+  const fontSize = useFontSizeStore((s) => s.fontSize)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
   const activeAssistantRef = useRef<AssistantKind>(assistant)
@@ -96,6 +98,13 @@ export function Chat() {
       terminal.xterm.options.theme = XTERM_THEMES[theme]
     })
   }, [theme])
+
+  useEffect(() => {
+    Object.values(terminalsRef.current).forEach((terminal) => {
+      terminal.xterm.options.fontSize = fontSize
+      terminal.fit.fit()
+    })
+  }, [fontSize])
 
   useEffect(() => {
     if (!projectRoot || !containerRef.current) return

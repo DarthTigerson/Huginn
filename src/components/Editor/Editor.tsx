@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import MonacoEditor from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
+import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import { isSettingsTab } from '@/components/Settings/paths'
@@ -12,6 +13,7 @@ export function Editor() {
   const activeTab = tabs.find((t) => t.path === activeTabPath)
   const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
+  const fontSize = useFontSizeStore((s) => s.fontSize)
 
   useEffect(() => {
     if (!activeTab || isVirtual) return
@@ -39,7 +41,7 @@ export function Editor() {
               language={detectLang(activeTab.path)}
               theme={monacoTheme}
               options={{
-                fontSize: 13,
+                fontSize,
                 fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,

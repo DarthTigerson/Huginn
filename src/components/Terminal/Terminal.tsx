@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useTerminalStore } from '@/stores/terminalStore'
 import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
+import { useFontSizeStore } from '@/stores/fontSizeStore'
 
 function hasValidSize(cols: number, rows: number): boolean {
   return cols > 0 && rows > 0
@@ -15,6 +16,7 @@ export function Terminal() {
   const fitRef = useRef<FitAddon | null>(null)
   const hide = useTerminalStore((s) => s.hide)
   const theme = useThemeStore((s) => s.theme)
+  const fontSize = useFontSizeStore((s) => s.fontSize)
 
   useEffect(() => {
     if (!containerRef.current || xtermRef.current) return
@@ -59,6 +61,12 @@ export function Terminal() {
     if (!xtermRef.current) return
     xtermRef.current.options.theme = XTERM_THEMES[theme]
   }, [theme])
+
+  useEffect(() => {
+    if (!xtermRef.current) return
+    xtermRef.current.options.fontSize = fontSize
+    fitRef.current?.fit()
+  }, [fontSize])
 
   return (
     <div className="h-full flex flex-col bg-bg border-t border-border overflow-hidden">

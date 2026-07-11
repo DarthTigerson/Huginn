@@ -9,6 +9,7 @@ interface FontSizeStore {
   fontSize: number
   increase: () => void
   decrease: () => void
+  reset: () => void
 }
 
 const stored = Number(localStorage.getItem(STORAGE_KEY) || DEFAULT)
@@ -25,5 +26,9 @@ export const useFontSizeStore = create<FontSizeStore>((set, get) => ({
     const next = Math.max(get().fontSize - 1, MIN)
     localStorage.setItem(STORAGE_KEY, String(next))
     set({ fontSize: next })
+  },
+  reset: () => {
+    localStorage.setItem(STORAGE_KEY, String(DEFAULT))
+    set({ fontSize: DEFAULT })
   },
 }))
