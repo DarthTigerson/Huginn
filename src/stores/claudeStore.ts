@@ -10,6 +10,8 @@ interface ClaudeState {
   compact: () => void
   clearContext: () => void
   usage: () => void
+  model: () => void
+  fast: () => void
 }
 
 export const useClaudeStore = create<ClaudeState>((set) => ({
@@ -37,4 +39,6 @@ export const useClaudeStore = create<ClaudeState>((set) => ({
   usage: () => {
     if (useClaudeStore.getState().assistant === 'claude') window.api.assistantWrite('claude', '/usage\r')
   },
+  model: () => window.api.assistantWrite('codex', '/model\r'),
+  fast: () => window.api.assistantWrite('codex', '/fast\r'),
 }))

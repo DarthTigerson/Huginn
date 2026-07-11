@@ -14,6 +14,8 @@ import {
   CompactIcon,
   ClearIcon,
   UsageIcon,
+  ModelIcon,
+  FastIcon,
 } from './components/ActivityBar/ActivityBar'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
@@ -243,7 +245,24 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => useClaudeStore.getState().usage(),
               }]]
-            : undefined}
+            : [[
+              {
+                id: 'model',
+                icon: <ModelIcon />,
+                title: 'Model',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => useClaudeStore.getState().model(),
+              },
+              {
+                id: 'fast',
+                icon: <FastIcon />,
+                title: 'Fast',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => useClaudeStore.getState().fast(),
+              },
+            ]]}
         />
       </div>
     </div>

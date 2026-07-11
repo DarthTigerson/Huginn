@@ -179,3 +179,20 @@ export function UsageIcon() {
     </svg>
   )
 }
+
+export function ModelIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3L19 7V15L12 21L5 15V7L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M12 3V11M19 7L12 11M5 7L12 11M12 21V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+export function FastIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M13 2L5 13H11L9 22L19 9H13L13 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
