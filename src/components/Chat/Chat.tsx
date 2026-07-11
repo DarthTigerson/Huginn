@@ -35,7 +35,7 @@ export function Chat() {
 
     window.api.claudeSpawn(projectRoot)
     const cleanupData = window.api.onClaudeData((data) => xterm.write(data))
-    xterm.onData((data) => window.api.claudeWrite(data))
+    const onDataDisposable = xterm.onData((data) => window.api.claudeWrite(data))
 
     const observer = new ResizeObserver(() => {
       fit.fit()
@@ -45,6 +45,7 @@ export function Chat() {
 
     return () => {
       cleanupData()
+      onDataDisposable.dispose()
       observer.disconnect()
       xterm.dispose()
       xtermRef.current = null
