@@ -4,9 +4,19 @@ import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { Terminal } from './components/Terminal/Terminal'
 import { Chat } from './components/Chat/Chat'
-import { ActivityBar, FilesIcon, ClaudeIcon } from './components/ActivityBar/ActivityBar'
+import {
+  ActivityBar,
+  FilesIcon,
+  ClaudeIcon,
+  NewSessionIcon,
+  PreviousSessionIcon,
+  CompactIcon,
+  ClearIcon,
+  UsageIcon,
+} from './components/ActivityBar/ActivityBar'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
+import { useClaudeStore } from './stores/claudeStore'
 
 export default function App() {
   const termVisible = useTerminalStore((s) => s.visible)
@@ -49,13 +59,13 @@ export default function App() {
       <div className="flex flex-1 min-h-0">
         <ActivityBar
           side="left"
-          items={[{
+          groups={[[{
             id: 'files',
             icon: <FilesIcon />,
             title: 'Explorer',
             active: sidebarVisible,
             onClick: () => setSidebarVisible((v) => !v),
-          }]}
+          }]]}
         />
         <PanelGroup direction="horizontal" className="flex-1">
           {sidebarVisible && (
@@ -100,13 +110,60 @@ export default function App() {
         <ActivityBar
           side="right"
           showAccent={false}
-          items={[{
-            id: 'claude',
-            icon: <ClaudeIcon />,
-            title: 'Claude Code',
-            active: chatVisible,
-            onClick: () => setChatVisible((v) => !v),
-          }]}
+          dense
+          groups={[
+            [{
+              id: 'claude',
+              icon: <ClaudeIcon />,
+              title: 'Claude Code',
+              active: chatVisible,
+              onClick: () => setChatVisible((v) => !v),
+            }],
+            [
+              {
+                id: 'new-session',
+                icon: <NewSessionIcon />,
+                title: 'New Session',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => projectRoot && useClaudeStore.getState().newSession(projectRoot),
+              },
+              {
+                id: 'previous-session',
+                icon: <PreviousSessionIcon />,
+                title: 'Previous Session',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => projectRoot && useClaudeStore.getState().previousSession(projectRoot),
+              },
+            ],
+            [
+              {
+                id: 'compact',
+                icon: <CompactIcon />,
+                title: 'Compact',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => useClaudeStore.getState().compact(),
+              },
+              {
+                id: 'clear',
+                icon: <ClearIcon />,
+                title: 'Clear',
+                active: false,
+                disabled: !projectRoot,
+                onClick: () => useClaudeStore.getState().clearContext(),
+              },
+            ],
+          ]}
+          bottomGroups={[[{
+            id: 'usage',
+            icon: <UsageIcon />,
+            title: 'Usage',
+            active: false,
+            disabled: !projectRoot,
+            onClick: () => useClaudeStore.getState().usage(),
+          }]]}
         />
       </div>
     </div>

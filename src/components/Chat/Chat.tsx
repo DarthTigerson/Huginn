@@ -3,12 +3,15 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
+import { useClaudeStore } from '@/stores/claudeStore'
 
 export function Chat() {
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const restartToken = useClaudeStore((s) => s.restartToken)
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<XTerm | null>(null)
   const spawnedRef = useRef(false)
+  const isFirstRestart = useRef(true)
 
   useEffect(() => {
     if (!projectRoot || !containerRef.current || spawnedRef.current) return
@@ -51,6 +54,14 @@ export function Chat() {
       xtermRef.current = null
     }
   }, [projectRoot])
+
+  useEffect(() => {
+    if (isFirstRestart.current) {
+      isFirstRestart.current = false
+      return
+    }
+    xtermRef.current?.clear()
+  }, [restartToken])
 
   return (
     <div className="h-full flex flex-col bg-[#1a1a1a] border-l border-border overflow-hidden">

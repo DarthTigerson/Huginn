@@ -10,11 +10,13 @@ export class ClaudeManager {
   }
 
   registerHandlers(): void {
-    ipcMain.handle('claude:spawn', (_event, cwd: string) => {
-      if (this.proc) return
+    ipcMain.handle('claude:spawn', (_event, cwd: string, mode: 'new' | 'continue' = 'new') => {
+      this.proc?.kill()
+      this.proc = null
       try {
         const shell = process.env.SHELL ?? '/bin/zsh'
-        this.proc = pty.spawn(shell, ['-lic', 'claude'], {
+        const command = mode === 'continue' ? 'claude --continue' : 'claude'
+        this.proc = pty.spawn(shell, ['-lic', command], {
           name: 'xterm-color',
           cols: 80,
           rows: 24,

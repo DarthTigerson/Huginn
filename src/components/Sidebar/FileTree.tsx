@@ -2,23 +2,7 @@ import { useState } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
-
-const EXT_COLOR: Record<string, string> = {
-  ts: 'text-blue-400', tsx: 'text-blue-400',
-  js: 'text-yellow-400', jsx: 'text-yellow-400',
-  css: 'text-purple-400', scss: 'text-purple-400',
-  html: 'text-orange-400',
-  json: 'text-yellow-300',
-  md: 'text-gray-400',
-  py: 'text-green-400',
-  rs: 'text-orange-500',
-  go: 'text-cyan-400',
-}
-
-function fileColor(name: string): string {
-  const ext = name.split('.').pop() ?? ''
-  return EXT_COLOR[ext] ?? 'text-gray-300'
-}
+import { FileIcon, FolderIcon } from './FileIcon'
 
 interface FileTreeProps {
   nodes: FileNode[]
@@ -62,7 +46,12 @@ export function FileTree({ nodes, depth = 0 }: FileTreeProps) {
                   : '▸'
                 : ''}
             </span>
-            <span className={node.isDirectory ? 'text-gray-200' : fileColor(node.name)}>
+            {node.isDirectory ? (
+              <FolderIcon open={!!expanded[node.path]} />
+            ) : (
+              <FileIcon name={node.name} />
+            )}
+            <span className={`truncate ${node.isDirectory ? 'text-gray-200' : 'text-gray-300'}`}>
               {node.name}
             </span>
           </button>
