@@ -9,6 +9,7 @@ import {
   FilesIcon,
   GitIcon,
   TodoIcon,
+  PhoneIcon,
   SettingsIcon,
   TerminalIcon,
   ClaudeIcon,
@@ -24,6 +25,7 @@ import {
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { TodoPanel } from './components/Todos/TodoPanel'
 import { GitPanel } from './components/Git/GitPanel'
+import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { CommandPalette } from './components/Search/CommandPalette'
 import { SearchModal } from './components/Search/SearchModal'
@@ -75,8 +77,8 @@ export default function App() {
   const usageOpen = useClaudeStore((s) => s.usageOpen)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'settings' | null>('files')
-  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'settings'>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'settings' | null>('files')
+  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [chatVisible, setChatVisible] = useState(true)
@@ -275,6 +277,13 @@ export default function App() {
               active: leftPanel === 'todos',
               onClick: () => setLeftPanel((p) => (p === 'todos' ? null : 'todos')),
             },
+            {
+              id: 'mobile',
+              icon: <PhoneIcon />,
+              title: 'Mobile Display',
+              active: leftPanel === 'mobile',
+              onClick: () => setLeftPanel((p) => (p === 'mobile' ? null : 'mobile')),
+            },
           ]]}
           bottomGroups={[[
             {
@@ -305,7 +314,7 @@ export default function App() {
                 order={1}
                 onResize={saveSidebarSize}
               >
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : <SettingsPanel />}
+                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>
