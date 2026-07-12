@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['src/test-setup.ts'],
     include: [
       'src/stores/__tests__/**/*.test.ts',
       'src/components/**/__tests__/**/*.test.ts',
