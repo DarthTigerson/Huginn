@@ -1,7 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { readdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
@@ -33,6 +33,9 @@ function registerFsHandlers(): void {
   ipcMain.handle('fs:writeFile', (_e, path: string, content: string) =>
     writeFile(path, content, 'utf-8')
   )
+  ipcMain.handle('fs:mkdir', (_e, path: string) => mkdir(path, { recursive: false }))
+  ipcMain.handle('fs:rename', (_e, from: string, to: string) => rename(from, to))
+  ipcMain.handle('fs:trash', (_e, path: string) => shell.trashItem(path))
   ipcMain.handle('dialog:openFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled ? null : result.filePaths[0]

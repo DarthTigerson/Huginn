@@ -8,6 +8,9 @@ declare global {
       readDir: (path: string) => Promise<FileNode[]>
       readFile: (path: string) => Promise<string>
       writeFile: (path: string, content: string) => Promise<void>
+      mkdir: (path: string) => Promise<void>
+      renamePath: (from: string, to: string) => Promise<void>
+      trashPath: (path: string) => Promise<void>
       openFolder: () => Promise<string | null>
 
       gitBranch: (cwd: string) => Promise<string | null>

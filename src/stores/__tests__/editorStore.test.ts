@@ -47,4 +47,11 @@ describe('editorStore', () => {
     expect(tab.content).toBe('changed')
     expect(tab.dirty).toBe(true)
   })
+
+  it('markSaved clears dirty for a tab', () => {
+    useEditorStore.getState().openTab({ path: '/a.ts', content: 'original', dirty: false })
+    useEditorStore.getState().updateContent('/a.ts', 'changed')
+    useEditorStore.getState().markSaved('/a.ts')
+    expect(useEditorStore.getState().tabs[0].dirty).toBe(false)
+  })
 })

@@ -8,7 +8,7 @@ export function SettingsPanel() {
 
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
-      <div className="px-3 py-2 border-b border-border shrink-0">
+      <div className="h-9 px-3 border-b border-border shrink-0 flex items-center">
         <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider truncate">
           Settings
         </span>

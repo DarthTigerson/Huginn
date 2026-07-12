@@ -8,6 +8,7 @@ interface EditorState {
   closeTab: (path: string) => void
   setActive: (path: string) => void
   updateContent: (path: string, content: string) => void
+  markSaved: (path: string) => void
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -39,6 +40,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       tabs: state.tabs.map((t) =>
         t.path === path ? { ...t, content, dirty: true } : t
+      ),
+    })),
+
+  markSaved: (path: string) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) =>
+        t.path === path ? { ...t, dirty: false } : t
       ),
     })),
 }))

@@ -31,6 +31,25 @@ export function Editor() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
 
+  function saveActiveTab() {
+    const { tabs, activeTabPath, markSaved } = useEditorStore.getState()
+    const tab = tabs.find((t) => t.path === activeTabPath)
+    if (!tab) return
+    if (
+      isSettingsTab(tab.path) ||
+      isGitDiffTab(tab.path) ||
+      isGitLogTab(tab.path) ||
+      isGitGraphTab(tab.path) ||
+      isGitBranchDiffTab(tab.path)
+    ) return
+
+    window.api.writeFile(tab.path, tab.content).then(() => {
+      markSaved(tab.path)
+      const root = useFileStore.getState().projectRoot
+      if (root) useGitStore.getState().refreshStatus(root)
+    })
+  }
+
   useEffect(() => {
     if (!activeTab || !isDiff || !projectRoot) {
       setDiffContent(null)
@@ -51,9 +70,7 @@ export function Editor() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
-        window.api.writeFile(activeTab.path, activeTab.content).then(() => {
-          if (projectRoot) useGitStore.getState().refreshStatus(projectRoot)
-        })
+        saveActiveTab()
       }
     }
     window.addEventListener('keydown', handler)
@@ -111,6 +128,11 @@ export function Editor() {
                 automaticLayout: true,
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
+              onMount={(editor, monaco) => {
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                  saveActiveTab()
+                })
+              }}
             />
           </div>
         )

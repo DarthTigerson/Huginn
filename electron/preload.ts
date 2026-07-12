@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('api', {
   readFile: (path: string) => ipcRenderer.invoke('fs:readFile', path),
   writeFile: (path: string, content: string) =>
     ipcRenderer.invoke('fs:writeFile', path, content),
+  mkdir: (path: string) => ipcRenderer.invoke('fs:mkdir', path),
+  renamePath: (from: string, to: string) => ipcRenderer.invoke('fs:rename', from, to),
+  trashPath: (path: string) => ipcRenderer.invoke('fs:trash', path),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
 
   gitBranch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
