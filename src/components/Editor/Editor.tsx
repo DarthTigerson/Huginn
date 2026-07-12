@@ -110,7 +110,6 @@ export function Editor() {
 
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
-      <TabBar />
       {tabs.length > 0 ? (
         <div className="flex-1 min-h-0">
           <EditorLayout node={layout} />
@@ -212,11 +211,13 @@ function EditorPane({ paneId }: { paneId: string }) {
   return (
     <div
       className={[
-        'h-full min-h-0 bg-panel overflow-hidden outline outline-1 -outline-offset-1',
+        'h-full min-h-0 flex flex-col bg-panel overflow-hidden outline outline-1 -outline-offset-1',
         isActivePane ? 'outline-accent/50' : 'outline-transparent',
       ].join(' ')}
       onMouseDown={activatePane}
     >
+      <TabBar paneId={paneId} />
+      <div className="flex-1 min-h-0 overflow-hidden">
       {activeTab ? (
         isVirtual ? (
           activeTab.path === GIT_SETTINGS_TAB_PATH ? (
@@ -299,6 +300,7 @@ function EditorPane({ paneId }: { paneId: string }) {
           <p className="text-fg-subtle text-sm">Select a tab for this pane</p>
         </div>
       )}
+      </div>
     </div>
   )
 }
