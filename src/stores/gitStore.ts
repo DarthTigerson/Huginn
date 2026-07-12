@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import type { GitStatus, GitAheadBehind, GitCommandAction } from '@/types/index'
+import { useEditorStore } from './editorStore'
+import { useGitLogStore } from './gitLogStore'
 
 interface GitStore {
   branch: string | null
@@ -28,27 +30,21 @@ export const useGitStore = create<GitStore>((set, get) => {
     if (get().commandStatus === 'running') return
     const id = crypto.randomUUID()
 
+    useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
+    useGitLogStore.getState().append(`\n> git ${action === 'forcePush' ? 'push --force' : action === 'forcePushLease' ? 'push --force-with-lease' : action}\n`)
+
     set({ commandStatus: 'running' })
 
-    const cleanupData = window.api.onGitLogData(async (evtId, data) => {
+    const cleanupData = window.api.onGitLogData((evtId, data) => {
       if (evtId !== id) return
-      const { useGitLogStore } = await import('./gitLogStore')
       useGitLogStore.getState().append(data)
     })
-    const cleanupExit = window.api.onGitLogExit(async (evtId, code) => {
+    const cleanupExit = window.api.onGitLogExit((evtId, code) => {
       if (evtId !== id) return
       cleanupData()
       cleanupExit()
       set({ commandStatus: 'idle' })
       if (code === 0) get().refresh(cwd)
-    })
-
-    // Open/focus the git log tab and append a header line (async, non-blocking)
-    import('./editorStore').then(({ useEditorStore }) => {
-      useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
-    })
-    import('./gitLogStore').then(({ useGitLogStore }) => {
-      useGitLogStore.getState().append(`\n> git ${action === 'forcePush' ? 'push --force' : action === 'forcePushLease' ? 'push --force-with-lease' : action}\n`)
     })
 
     await window.api.gitRunCommand(id, cwd, action)
