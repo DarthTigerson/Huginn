@@ -5,6 +5,7 @@ export interface ActivityBarItem {
   icon: React.ReactNode
   title: string
   active: boolean
+  badge?: string | number
   disabled?: boolean
   onClick: () => void
 }
@@ -49,6 +50,11 @@ function ActivityBarButton({ item, showAccent, side, dense }: { item: ActivityBa
       >
         {item.icon}
       </span>
+      {item.badge !== undefined && item.badge !== null && item.badge !== '' && (
+        <span className="absolute right-1 bottom-1 min-w-4 h-4 rounded-full bg-accent px-1 text-[9px] font-bold leading-4 text-bg shadow shadow-black/40">
+          {item.badge}
+        </span>
+      )}
       <span
         className={[
           'pointer-events-none absolute z-50 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-gray-200 opacity-0 transition-opacity duration-100 delay-150 group-hover:opacity-100',

@@ -27,6 +27,7 @@ import { StatusBar } from './components/StatusBar/StatusBar'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
+import { useGitStore } from './stores/gitStore'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -37,6 +38,8 @@ const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
 export default function App() {
   const termVisible = useTerminalStore((s) => s.visible)
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const gitStatus = useGitStore((s) => s.status)
+  const refreshGitStatus = useGitStore((s) => s.refreshStatus)
   const assistant = useClaudeStore((s) => s.assistant)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
@@ -47,6 +50,11 @@ export default function App() {
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : 'Codex'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : 'New Codex Session'
   const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : 'Resume Latest Codex Session'
+  const uncommittedChangeCount = new Set([
+    ...gitStatus.staged.map((file) => file.path),
+    ...gitStatus.unstaged.map((file) => file.path),
+  ]).size
+  const gitBadge = uncommittedChangeCount > 99 ? '99+' : uncommittedChangeCount || undefined
 
   useEffect(() => {
     if (!assistantMenuOpen) return
@@ -81,6 +89,19 @@ export default function App() {
 
   useEffect(() => {
     useFileStore.getState().restoreRoot()
+  }, [])
+
+  useEffect(() => {
+    refreshGitStatus(projectRoot)
+    const onFocus = () => refreshGitStatus(projectRoot)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [projectRoot, refreshGitStatus])
+
+  useEffect(() => {
+    return window.api.onMenuOpenProject(() => {
+      useFileStore.getState().openFolder()
+    })
   }, [])
 
   return (
@@ -159,6 +180,7 @@ export default function App() {
               icon: <GitIcon />,
               title: 'Git',
               active: leftPanel === 'git',
+              badge: gitBadge,
               onClick: () => setLeftPanel((p) => (p === 'git' ? null : 'git')),
             },
             {

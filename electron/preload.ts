@@ -56,4 +56,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('assistant:data', handler)
     return () => ipcRenderer.removeListener('assistant:data', handler)
   },
+
+  onMenuOpenProject: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:openProject', handler)
+    return () => ipcRenderer.removeListener('menu:openProject', handler)
+  },
 })
