@@ -2,8 +2,24 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useGitStore } from '../gitStore'
 import type { GitStatus, GitAheadBehind } from '@/types/index'
 
-vi.mock('@/stores/editorStore', () => ({ useEditorStore: { getState: () => ({ openTab: vi.fn() }) } }))
+const editorStoreMock = vi.hoisted(() => ({
+  tabs: [] as Array<{ path: string; content: string; dirty: boolean }>,
+  openTab: vi.fn(),
+}))
+const gitGraphLoadMock = vi.hoisted(() => vi.fn())
+
+vi.mock('@/stores/editorStore', () => ({
+  useEditorStore: {
+    getState: () => ({
+      tabs: editorStoreMock.tabs,
+      openTab: editorStoreMock.openTab,
+    }),
+  },
+}))
 vi.mock('@/stores/gitLogStore', () => ({ useGitLogStore: { getState: () => ({ append: vi.fn() }) } }))
+vi.mock('@/stores/gitGraphStore', () => ({
+  useGitGraphStore: { getState: () => ({ load: gitGraphLoadMock }) },
+}))
 
 const emptyStatus: GitStatus = { staged: [], unstaged: [] }
 const mockStatus: GitStatus = {
@@ -29,7 +45,9 @@ vi.stubGlobal('window', {
 })
 
 describe('gitStore', () => {
-  beforeEach(() =>
+  beforeEach(() => {
+    vi.clearAllMocks()
+    editorStoreMock.tabs = []
     useGitStore.setState({
       branch: null,
       aheadBehind: null,
@@ -38,7 +56,7 @@ describe('gitStore', () => {
       commitError: null,
       commandStatus: 'idle',
     })
-  )
+  })
 
   it('starts empty', () => {
     const { branch, aheadBehind, status, commitMessage, commitError } = useGitStore.getState()
@@ -131,6 +149,24 @@ describe('gitStore', () => {
     expect(commitMessage).toBe('')
     expect(commitError).toBeNull()
     expect(status).toEqual(mockStatus)
+  })
+
+  it('commit refreshes the git graph when the graph tab is open', async () => {
+    editorStoreMock.tabs = [{ path: 'git-graph://Graph', content: '', dirty: false }]
+    useGitStore.setState({ commitMessage: 'fix bug' })
+
+    await useGitStore.getState().commit('/proj')
+
+    expect(gitGraphLoadMock).toHaveBeenCalledWith('/proj')
+  })
+
+  it('commit does not refresh the git graph when the graph tab is closed', async () => {
+    editorStoreMock.tabs = [{ path: 'git-log://Git Log', content: '', dirty: false }]
+    useGitStore.setState({ commitMessage: 'fix bug' })
+
+    await useGitStore.getState().commit('/proj')
+
+    expect(gitGraphLoadMock).not.toHaveBeenCalled()
   })
 
   it('commit sets commitError and keeps the message on failure', async () => {

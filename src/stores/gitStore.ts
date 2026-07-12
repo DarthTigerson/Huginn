@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { GitStatus, GitAheadBehind, GitCommandAction } from '@/types/index'
 import { useEditorStore } from './editorStore'
 import { useGitLogStore } from './gitLogStore'
+import { useGitGraphStore } from './gitGraphStore'
+import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 
 interface GitStore {
   branch: string | null
@@ -26,6 +28,11 @@ interface GitStore {
 }
 
 export const useGitStore = create<GitStore>((set, get) => {
+  const refreshGraphIfOpen = async (cwd: string) => {
+    const graphOpen = useEditorStore.getState().tabs.some((tab) => tab.path === GIT_GRAPH_TAB_PATH)
+    if (graphOpen) await useGitGraphStore.getState().load(cwd)
+  }
+
   const runCommand = async (cwd: string, action: GitCommandAction) => {
     if (get().commandStatus === 'running') return
     const id = crypto.randomUUID()
@@ -135,6 +142,7 @@ export const useGitStore = create<GitStore>((set, get) => {
     if (result.ok) {
       set({ commitMessage: '', commitError: null })
       await get().refresh(cwd)
+      await refreshGraphIfOpen(cwd)
     } else {
       set({ commitError: result.error })
     }
