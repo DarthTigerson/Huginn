@@ -1,0 +1,95 @@
+import { useEditorStore } from '@/stores/editorStore'
+import { useClaudeStore } from '@/stores/claudeStore'
+import {
+  GIT_GRAPH_TAB_PATH,
+  GIT_BRANCH_DIFF_TAB_PATH,
+  DISPLAY_TAB_PATH,
+  EDITOR_SETTINGS_TAB_PATH,
+  GIT_SETTINGS_TAB_PATH,
+  buildTerminalPath,
+} from '@/components/Settings/paths'
+import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
+
+export interface Command {
+  id: string
+  label: string
+  description?: string
+  keywords?: string[]
+  condition?: () => boolean
+  action: () => void
+}
+
+function openTab(path: string) {
+  useEditorStore.getState().openTab({ path, content: '', dirty: false })
+}
+
+export const COMMANDS: Command[] = [
+  {
+    id: 'new-terminal',
+    label: 'New Terminal',
+    description: 'Open a terminal tab in the active pane',
+    keywords: ['shell', 'bash', 'zsh', 'console'],
+    action: () => {
+      const id = Date.now().toString(36)
+      openTab(buildTerminalPath(id))
+    },
+  },
+  {
+    id: 'git-graph',
+    label: 'Git: Graph',
+    description: 'Open the git commit graph',
+    keywords: ['commits', 'history', 'log', 'tree'],
+    action: () => openTab(GIT_GRAPH_TAB_PATH),
+  },
+  {
+    id: 'git-log',
+    label: 'Git: Log',
+    description: 'Open the git log view',
+    keywords: ['commits', 'history'],
+    action: () => openTab(GIT_LOG_TAB_PATH),
+  },
+  {
+    id: 'git-branch-diff',
+    label: 'Git: Branch Diff',
+    description: 'Compare branches',
+    keywords: ['compare', 'diff', 'branch'],
+    action: () => openTab(GIT_BRANCH_DIFF_TAB_PATH),
+  },
+  {
+    id: 'settings-display',
+    label: 'Settings: Display',
+    description: 'Theme, panel style',
+    keywords: ['theme', 'appearance', 'colour', 'color'],
+    action: () => openTab(DISPLAY_TAB_PATH),
+  },
+  {
+    id: 'settings-editor',
+    label: 'Settings: Editor',
+    description: 'Font size, auto-save',
+    keywords: ['font', 'autosave', 'editor'],
+    action: () => openTab(EDITOR_SETTINGS_TAB_PATH),
+  },
+  {
+    id: 'settings-git',
+    label: 'Settings: Git',
+    description: 'Remote, identity',
+    keywords: ['remote', 'origin', 'identity'],
+    action: () => openTab(GIT_SETTINGS_TAB_PATH),
+  },
+  {
+    id: 'switch-to-codex',
+    label: 'Switch to Codex',
+    description: 'Use Codex as the AI assistant',
+    keywords: ['assistant', 'model'],
+    condition: () => useClaudeStore.getState().assistant === 'claude',
+    action: () => useClaudeStore.getState().setAssistant('codex'),
+  },
+  {
+    id: 'switch-to-claude',
+    label: 'Switch to Claude',
+    description: 'Use Claude Code as the AI assistant',
+    keywords: ['assistant', 'model'],
+    condition: () => useClaudeStore.getState().assistant === 'codex',
+    action: () => useClaudeStore.getState().setAssistant('claude'),
+  },
+]

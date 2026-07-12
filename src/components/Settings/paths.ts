@@ -1,3 +1,8 @@
+const TERMINAL_PREFIX = 'terminal://'
+export function isTerminalTab(path: string): boolean { return path.startsWith(TERMINAL_PREFIX) }
+export function buildTerminalPath(id: string): string { return TERMINAL_PREFIX + id }
+export function getTerminalId(path: string): string { return path.slice(TERMINAL_PREFIX.length) }
+
 export const DISPLAY_TAB_PATH = 'settings://Display'
 export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'

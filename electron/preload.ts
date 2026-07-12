@@ -43,14 +43,20 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
 
-  termSpawn: () => ipcRenderer.invoke('term:spawn'),
-  termWrite: (data: string) => ipcRenderer.send('term:write', data),
-  termResize: (cols: number, rows: number) =>
-    ipcRenderer.send('term:resize', cols, rows),
-  onTermData: (cb: (data: string) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, data: string) => cb(data)
+  termSpawn: (id: string, cwd?: string) => ipcRenderer.invoke('term:spawn', id, cwd),
+  termKill: (id: string) => ipcRenderer.invoke('term:kill', id),
+  termWrite: (id: string, data: string) => ipcRenderer.send('term:write', id, data),
+  termResize: (id: string, cols: number, rows: number) =>
+    ipcRenderer.send('term:resize', id, cols, rows),
+  onTermData: (cb: (id: string, data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, data: string) => cb(id, data)
     ipcRenderer.on('term:data', handler)
     return () => ipcRenderer.removeListener('term:data', handler)
+  },
+  onTermExit: (cb: (id: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string) => cb(id)
+    ipcRenderer.on('term:exit', handler)
+    return () => ipcRenderer.removeListener('term:exit', handler)
   },
 
   assistantSpawn: (cwd: string, assistant: 'claude' | 'codex', mode?: 'new' | 'continue') =>

@@ -34,10 +34,12 @@ declare global {
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
 
-      termSpawn: () => Promise<void>
-      termWrite: (data: string) => void
-      termResize: (cols: number, rows: number) => void
-      onTermData: (cb: (data: string) => void) => () => void
+      termSpawn: (id: string, cwd?: string) => Promise<void>
+      termKill: (id: string) => Promise<void>
+      termWrite: (id: string, data: string) => void
+      termResize: (id: string, cols: number, rows: number) => void
+      onTermData: (cb: (id: string, data: string) => void) => () => void
+      onTermExit: (cb: (id: string) => void) => () => void
 
       assistantSpawn: (cwd: string, assistant: AssistantKind, mode?: 'new' | 'continue') => Promise<void>
       assistantWrite: (assistant: AssistantKind, data: string) => void

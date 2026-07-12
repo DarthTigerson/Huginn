@@ -12,7 +12,8 @@ function hasValidSize(cols: number, rows: number): boolean {
 }
 
 export class PtyManager {
-  private proc: pty.IPty | null = null
+  private procs = new Map<string, pty.IPty>()
+  private killedIds = new Set<string>() // tracks intentional kills
   private win: BrowserWindow
 
   constructor(win: BrowserWindow) {
@@ -20,36 +21,50 @@ export class PtyManager {
   }
 
   registerHandlers(): void {
-    ipcMain.handle('term:spawn', () => {
-      if (this.proc) return
-      this.proc = pty.spawn(shell, [], {
+    ipcMain.handle('term:spawn', (_event, id: string, cwd?: string) => {
+      if (this.procs.has(id)) return
+      const proc = pty.spawn(shell, [], {
         name: 'xterm-color',
         cols: 80,
         rows: 24,
-        cwd: process.env.HOME,
+        cwd: cwd ?? process.env.HOME,
         env: process.env as Record<string, string>,
       })
-      this.proc.onData((data) => {
-        this.win.webContents.send('term:data', data)
+      this.procs.set(id, proc)
+      proc.onData((data) => {
+        this.win.webContents.send('term:data', id, data)
       })
-      this.proc.onExit(() => {
-        this.proc = null
+      proc.onExit(() => {
+        if (this.killedIds.has(id)) {
+          this.killedIds.delete(id) // intentional kill — no notification
+          return
+        }
+        this.procs.delete(id)
+        this.win.webContents.send('term:exit', id)
       })
     })
 
-    ipcMain.on('term:write', (_event, data: string) => {
-      this.proc?.write(data)
+    ipcMain.handle('term:kill', (_event, id: string) => {
+      const proc = this.procs.get(id)
+      if (!proc) return
+      this.killedIds.add(id) // mark as intentional before kill fires onExit
+      this.procs.delete(id)
+      proc.kill()
     })
 
-    ipcMain.on('term:resize', (_event, cols: number, rows: number) => {
+    ipcMain.on('term:write', (_event, id: string, data: string) => {
+      this.procs.get(id)?.write(data)
+    })
+
+    ipcMain.on('term:resize', (_event, id: string, cols: number, rows: number) => {
       if (!hasValidSize(cols, rows)) return
-
-      this.proc?.resize(Math.floor(cols), Math.floor(rows))
+      this.procs.get(id)?.resize(Math.floor(cols), Math.floor(rows))
     })
   }
 
   dispose(): void {
-    this.proc?.kill()
-    this.proc = null
+    for (const proc of this.procs.values()) proc.kill()
+    this.procs.clear()
+    this.killedIds.clear()
   }
 }

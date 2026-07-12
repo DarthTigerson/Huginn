@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
-import { Terminal } from './components/Terminal/Terminal'
+import { ActionPalette } from './components/Search/ActionPalette'
 import { Chat } from './components/Chat/Chat'
 import {
   ActivityBar,
@@ -10,6 +10,7 @@ import {
   GitIcon,
   TodoIcon,
   SettingsIcon,
+  TerminalIcon,
   ClaudeIcon,
   CodexIcon,
   NewSessionIcon,
@@ -26,12 +27,12 @@ import { GitPanel } from './components/Git/GitPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { CommandPalette } from './components/Search/CommandPalette'
 import { SearchModal } from './components/Search/SearchModal'
-import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
+import { buildTerminalPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -67,7 +68,6 @@ function loadChatSize(): number {
 }
 
 export default function App() {
-  const termVisible = useTerminalStore((s) => s.visible)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const gitStatus = useGitStore((s) => s.status)
   const refreshGitStatus = useGitStore((s) => s.refreshStatus)
@@ -84,6 +84,7 @@ export default function App() {
   const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
   const searchOpen = useSearchStore((s) => s.searchOpen)
   const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
+  const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : 'Codex'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : 'New Codex Session'
@@ -93,6 +94,11 @@ export default function App() {
     ...gitStatus.unstaged.map((file) => file.path),
   ]).size
   const gitBadge = uncommittedChangeCount > 99 ? '99+' : uncommittedChangeCount || undefined
+
+  function openNewTerminal() {
+    const id = Date.now().toString(36)
+    useEditorStore.getState().openTab({ path: buildTerminalPath(id), content: '', dirty: false })
+  }
 
   function saveSidebarSize(size: number) {
     const nextSize = clampSize(size, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
@@ -132,10 +138,6 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === '`') {
-        e.preventDefault()
-        useTerminalStore.getState().toggle()
-      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault()
         setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
@@ -149,6 +151,15 @@ export default function App() {
         if (!useFileStore.getState().projectRoot) return
         e.preventDefault()
         useSearchStore.getState().openSearch(e.shiftKey)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'p') {
+        e.preventDefault()
+        useSearchStore.getState().openActionPalette()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 't' && !e.shiftKey) {
+        if (!useFileStore.getState().projectRoot) return
+        e.preventDefault()
+        openNewTerminal()
       }
     }
     window.addEventListener('keydown', handler)
@@ -265,13 +276,23 @@ export default function App() {
               onClick: () => setLeftPanel((p) => (p === 'todos' ? null : 'todos')),
             },
           ]]}
-          bottomGroups={[[{
-            id: 'settings',
-            icon: <SettingsIcon />,
-            title: 'Settings',
-            active: leftPanel === 'settings',
-            onClick: () => setLeftPanel((p) => (p === 'settings' ? null : 'settings')),
-          }]]}
+          bottomGroups={[[
+            {
+              id: 'terminal',
+              icon: <TerminalIcon />,
+              title: 'New Terminal',
+              active: false,
+              disabled: !projectRoot,
+              onClick: openNewTerminal,
+            },
+            {
+              id: 'settings',
+              icon: <SettingsIcon />,
+              title: 'Settings',
+              active: leftPanel === 'settings',
+              onClick: () => setLeftPanel((p) => (p === 'settings' ? null : 'settings')),
+            },
+          ]]}
         />
         <PanelGroup direction="horizontal" className="flex-1">
           {leftPanel && (
@@ -291,20 +312,7 @@ export default function App() {
           )}
 
           <Panel id="center" order={2}>
-            <PanelGroup direction="vertical" className="h-full">
-              <Panel id="editor" order={1}>
-                <Editor />
-              </Panel>
-
-              {termVisible && (
-                <>
-                  <PanelResizeHandle className="h-px bg-border hover:bg-accent/60 transition-colors cursor-row-resize" />
-                  <Panel defaultSize={28} minSize={10} id="terminal" order={2}>
-                    <Terminal />
-                  </Panel>
-                </>
-              )}
-            </PanelGroup>
+            <Editor />
           </Panel>
 
           <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
@@ -409,6 +417,9 @@ export default function App() {
           caseSensitive={searchCaseSensitive}
           onClose={() => useSearchStore.getState().closeSearch()}
         />
+      )}
+      {actionPaletteOpen && (
+        <ActionPalette onClose={() => useSearchStore.getState().closeActionPalette()} />
       )}
     </div>
   )

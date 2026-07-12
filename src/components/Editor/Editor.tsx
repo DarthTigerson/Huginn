@@ -17,10 +17,13 @@ import {
   isGitLogTab,
   isGitGraphTab,
   isGitBranchDiffTab,
+  isTerminalTab,
+  getTerminalId,
   DISPLAY_TAB_PATH,
   EDITOR_SETTINGS_TAB_PATH,
   GIT_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
+import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
@@ -31,7 +34,7 @@ import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import type { GitDiffContent, Tab } from '@/types/index'
 
 function isVirtualTab(tab: Tab | null): boolean {
-  return !!tab && isSettingsTab(tab.path)
+  return !!tab && (isSettingsTab(tab.path) || isTerminalTab(tab.path))
 }
 
 function isReadOnlyTab(tab: Tab | null): boolean {
@@ -40,7 +43,8 @@ function isReadOnlyTab(tab: Tab | null): boolean {
     isGitDiffTab(tab.path) ||
     isGitLogTab(tab.path) ||
     isGitGraphTab(tab.path) ||
-    isGitBranchDiffTab(tab.path)
+    isGitBranchDiffTab(tab.path) ||
+    isTerminalTab(tab.path)
   )
 }
 
@@ -172,6 +176,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
   const isActivePane = activePaneId === paneId
   const isVirtual = isVirtualTab(activeTab)
+  const isTerminal = !!activeTab && isTerminalTab(activeTab.path)
   const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
@@ -251,7 +256,9 @@ function EditorPane({ paneId }: { paneId: string }) {
       <TabBar paneId={paneId} />
       <div className="flex-1 min-h-0 overflow-hidden">
       {activeTab ? (
-        isVirtual ? (
+        isTerminal ? (
+          <TerminalTab key={activeTab.path} terminalId={getTerminalId(activeTab.path)} />
+        ) : isVirtual ? (
           activeTab.path === GIT_SETTINGS_TAB_PATH ? (
             <GitSettingsPage />
           ) : activeTab.path === EDITOR_SETTINGS_TAB_PATH ? (
@@ -333,6 +340,14 @@ function EditorPane({ paneId }: { paneId: string }) {
                 )
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
                   useSearchStore.getState().openCommandPalette()
+                })
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP,
+                  () => { useSearchStore.getState().openActionPalette() }
+                )
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => {
+                  const id = Date.now().toString(36)
+                  useEditorStore.getState().openTab({ path: `terminal://${id}`, content: '', dirty: false })
                 })
 
                 // handle reveal if request was set before this editor mounted
