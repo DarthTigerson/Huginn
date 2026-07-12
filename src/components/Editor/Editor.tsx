@@ -1,24 +1,45 @@
-import { useEffect } from 'react'
-import MonacoEditor from '@monaco-editor/react'
+import { useEffect, useState } from 'react'
+import MonacoEditor, { DiffEditor } from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
+import { useFileStore } from '@/stores/fileStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import { isSettingsTab } from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
+import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import type { GitDiffContent } from '@/types/index'
 
 export function Editor() {
   const { tabs, activeTabPath, updateContent } = useEditorStore()
   const activeTab = tabs.find((t) => t.path === activeTabPath)
   const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
+  const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
 
   useEffect(() => {
-    if (!activeTab || isVirtual) return
+    if (!activeTab || !isDiff || !projectRoot) {
+      setDiffContent(null)
+      return
+    }
+    const { path, staged } = parseGitDiffPath(activeTab.path)
+    let cancelled = false
+    window.api.gitDiff(projectRoot, path, staged).then((content) => {
+      if (!cancelled) setDiffContent(content)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab?.path, isDiff, projectRoot])
+
+  useEffect(() => {
+    if (!activeTab || isVirtual || isDiff) return
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
@@ -27,7 +48,7 @@ export function Editor() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTab, isVirtual])
+  }, [activeTab, isVirtual, isDiff])
 
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
@@ -35,6 +56,27 @@ export function Editor() {
       {activeTab ? (
         isVirtual ? (
           <DisplayPage />
+        ) : isDiff ? (
+          <div className="flex-1 overflow-hidden">
+            {diffContent && (
+              <DiffEditor
+                key={activeTab.path}
+                original={diffContent.original}
+                modified={diffContent.modified}
+                language={detectLang(activeTab.path)}
+                theme={monacoTheme}
+                options={{
+                  readOnly: true,
+                  renderSideBySide: true,
+                  fontSize,
+                  fontFamily: font,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                }}
+              />
+            )}
+          </div>
         ) : (
           <div className="flex-1 overflow-hidden">
             <MonacoEditor
