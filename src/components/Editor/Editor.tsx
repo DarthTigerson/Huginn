@@ -6,8 +6,7 @@ import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab, DISPLAY_TAB_PATH } from '@/components/Settings/paths'
-import { ThemesPage } from '@/components/Settings/ThemesPage'
+import { isSettingsTab } from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 
 export function Editor() {
@@ -35,7 +34,7 @@ export function Editor() {
       <TabBar />
       {activeTab ? (
         isVirtual ? (
-          activeTab.path === DISPLAY_TAB_PATH ? <DisplayPage /> : <ThemesPage />
+          <DisplayPage />
         ) : (
           <div className="flex-1 overflow-hidden">
             <MonacoEditor
