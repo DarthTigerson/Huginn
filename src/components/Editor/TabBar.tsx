@@ -5,10 +5,17 @@ import { FileIcon } from '@/components/Sidebar/FileIcon'
 export function TabBar({ paneId }: { paneId: string }) {
   const tabs = useEditorStore((s) => s.tabs)
   const paneTabs = useEditorStore((s) => s.paneTabs)
-  const closeTab = useEditorStore((s) => s.closeTab)
-  const moveTab = useEditorStore((s) => s.moveTab)
+  const paneTabLists = useEditorStore((s) => s.paneTabLists)
+  const closeTabInPane = useEditorStore((s) => s.closeTabInPane)
+  const moveTabWithinPane = useEditorStore((s) => s.moveTabWithinPane)
+  const moveTabBetweenPanes = useEditorStore((s) => s.moveTabBetweenPanes)
   const setPaneActive = useEditorStore((s) => s.setPaneActive)
+
   const activePath = paneTabs[paneId] ?? null
+  const paneTabPaths = paneTabLists[paneId] ?? []
+  const paneTabs_ = paneTabPaths
+    .map((path) => tabs.find((t) => t.path === path))
+    .filter((t): t is (typeof tabs)[number] => t !== undefined)
 
   const [draggedPath, setDraggedPath] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{
@@ -16,7 +23,7 @@ export function TabBar({ paneId }: { paneId: string }) {
     placement: 'before' | 'after'
   } | null>(null)
 
-  if (tabs.length === 0) return null
+  if (paneTabs_.length === 0) return null
 
   function getDropPlacement(e: React.DragEvent<HTMLElement>): 'before' | 'after' {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -30,7 +37,7 @@ export function TabBar({ paneId }: { paneId: string }) {
 
   return (
     <div className="flex bg-tab-bar border-b border-border overflow-x-auto shrink-0 select-none">
-      {tabs.map((tab) => {
+      {paneTabs_.map((tab) => {
         const name = tab.path.split('/').pop() ?? tab.path
         const isActive = activePath === tab.path
         const isDragging = draggedPath === tab.path
@@ -71,9 +78,9 @@ export function TabBar({ paneId }: { paneId: string }) {
                 dropTarget?.path === tab.path ? dropTarget.placement : getDropPlacement(e)
               if (sourcePath && sourcePath !== tab.path) {
                 if (sourcePaneId !== paneId) {
-                  setPaneActive(paneId, sourcePath)
+                  moveTabBetweenPanes(sourcePaneId, paneId, sourcePath)
                 } else {
-                  moveTab(sourcePath, tab.path, placement)
+                  moveTabWithinPane(paneId, sourcePath, tab.path, placement)
                 }
               }
               clearDragState()
@@ -110,7 +117,7 @@ export function TabBar({ paneId }: { paneId: string }) {
               className="text-fg-subtle hover:text-fg text-base leading-none ml-1"
               onClick={(e) => {
                 e.stopPropagation()
-                closeTab(tab.path)
+                closeTabInPane(paneId, tab.path)
               }}
             >
               ×

@@ -8,6 +8,7 @@ describe('editorStore', () => {
     layout: { type: 'pane', id: 'pane-1' },
     activePaneId: 'pane-1',
     paneTabs: { 'pane-1': null },
+    paneTabLists: { 'pane-1': [] },
   }))
 
   it('starts empty', () => {
@@ -50,15 +51,15 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().activeTabPath).toBe('/a.ts')
   })
 
-  it('moveTab reorders tabs before or after a target tab', () => {
+  it('moveTab reorders tabs in the active pane', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
     store.openTab({ path: '/b.ts', content: '', dirty: false })
     store.openTab({ path: '/c.ts', content: '', dirty: false })
     store.moveTab('/c.ts', '/a.ts', 'before')
-    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/c.ts', '/a.ts', '/b.ts'])
+    expect(useEditorStore.getState().paneTabLists['pane-1']).toEqual(['/c.ts', '/a.ts', '/b.ts'])
     store.moveTab('/c.ts', '/b.ts', 'after')
-    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts', '/b.ts', '/c.ts'])
+    expect(useEditorStore.getState().paneTabLists['pane-1']).toEqual(['/a.ts', '/b.ts', '/c.ts'])
   })
 
   it('setActive updates the active pane tab', () => {
@@ -69,7 +70,7 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().paneTabs['pane-1']).toBe('/a.ts')
   })
 
-  it('splitActivePane creates a right split with the active tab in the new pane', () => {
+  it('splitActivePane moves the active tab into the new pane', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
     store.openTab({ path: '/b.ts', content: '', dirty: false })
@@ -80,12 +81,15 @@ describe('editorStore', () => {
     expect(state.layout.direction).toBe('horizontal')
     expect(state.layout.children[0]).toEqual({ type: 'pane', id: 'pane-1' })
     expect(state.activePaneId).not.toBe('pane-1')
+    // active tab moved to new pane; old pane gets the fallback
     expect(state.paneTabs['pane-1']).toBe('/a.ts')
     expect(state.paneTabs[state.activePaneId]).toBe('/b.ts')
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts'])
+    expect(state.paneTabLists[state.activePaneId]).toEqual(['/b.ts'])
     expect(state.activeTabPath).toBe('/b.ts')
   })
 
-  it('splitActivePane creates a down split with the active tab in the new pane', () => {
+  it('splitActivePane vertical moves the active tab into the new pane', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
     store.openTab({ path: '/b.ts', content: '', dirty: false })
@@ -94,11 +98,11 @@ describe('editorStore', () => {
     expect(state.layout.type).toBe('split')
     if (state.layout.type !== 'split') return
     expect(state.layout.direction).toBe('vertical')
-    expect(state.paneTabs['pane-1']).toBe('/a.ts')
-    expect(state.paneTabs[state.activePaneId]).toBe('/b.ts')
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts'])
+    expect(state.paneTabLists[state.activePaneId]).toEqual(['/b.ts'])
   })
 
-  it('splitActivePane does nothing with fewer than two tabs', () => {
+  it('splitActivePane does nothing when the active pane has fewer than two tabs', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
     store.splitActivePane('horizontal')
@@ -107,23 +111,60 @@ describe('editorStore', () => {
     expect(state.activePaneId).toBe('pane-1')
   })
 
-  it('closeTab collapses splits when one tab remains', () => {
+  it('closeTabInPane only removes from that pane, not from another pane showing the same tab', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
     store.openTab({ path: '/b.ts', content: '', dirty: false })
     store.splitActivePane('horizontal')
-    store.closeTab('/b.ts')
+    // pane-1 has [/a.ts], new pane has [/b.ts]
+    // Manually put /b.ts into pane-1 too so both panes show it
+    const newPaneId = useEditorStore.getState().activePaneId
+    useEditorStore.setState((s) => ({
+      paneTabLists: { ...s.paneTabLists, 'pane-1': ['/a.ts', '/b.ts'] },
+      paneTabs: { ...s.paneTabs, 'pane-1': '/b.ts' },
+    }))
+    store.closeTabInPane('pane-1', '/b.ts')
+    const state = useEditorStore.getState()
+    // /b.ts removed from pane-1 but still exists globally (new pane still has it)
+    expect(state.tabs.map((t) => t.path)).toContain('/b.ts')
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts'])
+    expect(state.paneTabLists[newPaneId]).toEqual(['/b.ts'])
+  })
+
+  it('closeTabInPane collapses the pane when its last tab is closed', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.splitActivePane('horizontal')
+    // active pane (new) has [/b.ts]; close it
+    const newPaneId = useEditorStore.getState().activePaneId
+    store.closeTabInPane(newPaneId, '/b.ts')
     const state = useEditorStore.getState()
     expect(state.layout).toEqual({ type: 'pane', id: 'pane-1' })
     expect(state.activePaneId).toBe('pane-1')
     expect(state.paneTabs).toEqual({ 'pane-1': '/a.ts' })
+    expect(state.paneTabLists).toEqual({ 'pane-1': ['/a.ts'] })
   })
 
-  it('closeTab last tab sets activeTabPath to null', () => {
+  it('closeTab last tab in single pane sets activeTabPath to null', () => {
     useEditorStore.getState().openTab({ path: '/a.ts', content: '', dirty: false })
     useEditorStore.getState().closeTab('/a.ts')
     expect(useEditorStore.getState().tabs).toHaveLength(0)
     expect(useEditorStore.getState().activeTabPath).toBeNull()
+  })
+
+  it('moveTabBetweenPanes moves a tab and collapses source pane when empty', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.splitActivePane('horizontal')
+    const newPaneId = useEditorStore.getState().activePaneId
+    // pane-1: [/a.ts], newPane: [/b.ts]
+    store.moveTabBetweenPanes(newPaneId, 'pane-1', '/b.ts')
+    const state = useEditorStore.getState()
+    // source pane (new) was empty after move → collapsed
+    expect(state.layout).toEqual({ type: 'pane', id: 'pane-1' })
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts', '/b.ts'])
   })
 
   it('updateContent sets new content and marks dirty', () => {

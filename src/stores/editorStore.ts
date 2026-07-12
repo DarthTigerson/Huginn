@@ -28,6 +28,15 @@ function replacePane(
   }
 }
 
+function removePane(node: EditorLayoutNode, paneId: string): EditorLayoutNode | null {
+  if (node.type === 'pane') return node.id === paneId ? null : node
+  const left = removePane(node.children[0], paneId)
+  const right = removePane(node.children[1], paneId)
+  if (left === null) return right
+  if (right === null) return left
+  return { ...node, children: [left, right] }
+}
+
 function collectPaneIds(node: EditorLayoutNode): string[] {
   if (node.type === 'pane') return [node.id]
   return [...collectPaneIds(node.children[0]), ...collectPaneIds(node.children[1])]
@@ -39,10 +48,14 @@ interface EditorState {
   layout: EditorLayoutNode
   activePaneId: string
   paneTabs: Record<string, string | null>
+  paneTabLists: Record<string, string[]>
   openTab: (tab: Tab) => void
+  closeTabInPane: (paneId: string, path: string) => void
   closeTab: (path: string) => void
   closeActiveTab: () => void
+  moveTabWithinPane: (paneId: string, path: string, targetPath: string, placement: 'before' | 'after') => void
   moveTab: (path: string, targetPath: string, placement: 'before' | 'after') => void
+  moveTabBetweenPanes: (sourcePaneId: string, targetPaneId: string, path: string) => void
   setActive: (path: string) => void
   setActivePane: (paneId: string) => void
   setPaneActive: (paneId: string, path: string) => void
@@ -59,80 +72,154 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   layout: createDefaultLayout(),
   activePaneId: ROOT_PANE_ID,
   paneTabs: { [ROOT_PANE_ID]: null },
+  paneTabLists: { [ROOT_PANE_ID]: [] },
 
   openTab: (tab: Tab) => {
-    const { tabs, activePaneId } = get()
+    const { tabs, activePaneId, paneTabLists } = get()
+    const currentList = paneTabLists[activePaneId] ?? []
+    const alreadyInPane = currentList.includes(tab.path)
+
     if (tabs.some((t) => t.path === tab.path)) {
       set((state) => ({
-        tabs: tabs.map((t) =>
+        tabs: state.tabs.map((t) =>
           t.path === tab.path ? { ...t, missing: tab.missing ?? false } : t
         ),
         activeTabPath: tab.path,
         paneTabs: { ...state.paneTabs, [activePaneId]: tab.path },
+        paneTabLists: alreadyInPane
+          ? state.paneTabLists
+          : { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
       }))
     } else {
       set((state) => ({
-        tabs: [...tabs, tab],
+        tabs: [...state.tabs, tab],
         activeTabPath: tab.path,
         paneTabs: { ...state.paneTabs, [activePaneId]: tab.path },
+        paneTabLists: { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
       }))
     }
   },
 
-  closeTab: (path: string) => {
-    const { tabs, activeTabPath, paneTabs } = get()
-    const closedIndex = tabs.findIndex((t) => t.path === path)
-    const remaining = tabs.filter((t) => t.path !== path)
-    const fallbackPath = remaining[Math.min(closedIndex, remaining.length - 1)]?.path ?? null
-    const newActive =
-      activeTabPath === path
-        ? fallbackPath
-        : activeTabPath
-    const nextPaneTabs = Object.fromEntries(
-      Object.entries(paneTabs).map(([paneId, tabPath]) => [
-        paneId,
-        tabPath === path ? fallbackPath : tabPath,
-      ])
+  closeTabInPane: (paneId: string, path: string) => {
+    const state = get()
+    const paneList = state.paneTabLists[paneId] ?? []
+    const closedIndex = paneList.indexOf(path)
+    if (closedIndex === -1) return
+
+    const newPaneList = paneList.filter((p) => p !== path)
+    const newPaneActive = state.paneTabs[paneId] === path
+      ? (newPaneList[Math.min(closedIndex, newPaneList.length - 1)] ?? null)
+      : state.paneTabs[paneId]
+
+    const allPaneIds = collectPaneIds(state.layout)
+    const stillInAnotherPane = allPaneIds.some(
+      (pid) => pid !== paneId && (state.paneTabLists[pid] ?? []).includes(path)
     )
-    const shouldResetLayout = remaining.length <= 1
-    set({
-      tabs: remaining,
-      activeTabPath: newActive,
-      paneTabs: nextPaneTabs,
-      ...(shouldResetLayout
-        ? {
-            layout: createDefaultLayout(),
-            activePaneId: ROOT_PANE_ID,
-            paneTabs: { [ROOT_PANE_ID]: newActive },
-          }
-        : {}),
-    })
+    const newTabs = stillInAnotherPane ? state.tabs : state.tabs.filter((t) => t.path !== path)
+
+    const otherPaneIds = allPaneIds.filter((pid) => pid !== paneId)
+    const shouldCollapse = newPaneList.length === 0 && otherPaneIds.length > 0
+
+    if (shouldCollapse) {
+      const newLayout = removePane(state.layout, paneId) ?? createDefaultLayout()
+      const newActivePaneId = otherPaneIds.includes(state.activePaneId)
+        ? state.activePaneId
+        : otherPaneIds[0]
+      const newActiveTabPath = state.activePaneId === paneId
+        ? (state.paneTabs[newActivePaneId] ?? null)
+        : state.activeTabPath
+
+      const newPaneTabs = { ...state.paneTabs }
+      const newPaneTabLists = { ...state.paneTabLists }
+      delete newPaneTabs[paneId]
+      delete newPaneTabLists[paneId]
+
+      set({
+        tabs: newTabs,
+        layout: newLayout,
+        activePaneId: newActivePaneId,
+        activeTabPath: newActiveTabPath,
+        paneTabs: newPaneTabs,
+        paneTabLists: newPaneTabLists,
+      })
+    } else {
+      set({
+        tabs: newTabs,
+        activeTabPath: state.activePaneId === paneId ? newPaneActive : state.activeTabPath,
+        paneTabs: { ...state.paneTabs, [paneId]: newPaneActive },
+        paneTabLists: { ...state.paneTabLists, [paneId]: newPaneList },
+      })
+    }
+  },
+
+  closeTab: (path: string) => {
+    const { activePaneId, closeTabInPane } = get()
+    closeTabInPane(activePaneId, path)
   },
 
   closeActiveTab: () => {
-    const { activeTabPath, closeTab } = get()
-    if (activeTabPath) closeTab(activeTabPath)
+    const { activePaneId, paneTabs, closeTabInPane } = get()
+    const path = paneTabs[activePaneId]
+    if (path) closeTabInPane(activePaneId, path)
   },
 
-  moveTab: (path: string, targetPath: string, placement: 'before' | 'after') =>
+  moveTabWithinPane: (paneId: string, path: string, targetPath: string, placement: 'before' | 'after') =>
     set((state) => {
       if (path === targetPath) return state
-
-      const moving = state.tabs.find((t) => t.path === path)
-      if (!moving) return state
-
-      const withoutMoving = state.tabs.filter((t) => t.path !== path)
-      const targetIndex = withoutMoving.findIndex((t) => t.path === targetPath)
+      const paneList = state.paneTabLists[paneId] ?? []
+      const withoutPath = paneList.filter((p) => p !== path)
+      const targetIndex = withoutPath.indexOf(targetPath)
       if (targetIndex === -1) return state
-
       const insertIndex = placement === 'after' ? targetIndex + 1 : targetIndex
-      const tabs = [
-        ...withoutMoving.slice(0, insertIndex),
-        moving,
-        ...withoutMoving.slice(insertIndex),
+      const newList = [
+        ...withoutPath.slice(0, insertIndex),
+        path,
+        ...withoutPath.slice(insertIndex),
       ]
+      return { paneTabLists: { ...state.paneTabLists, [paneId]: newList } }
+    }),
 
-      return { tabs }
+  moveTab: (path: string, targetPath: string, placement: 'before' | 'after') => {
+    const { activePaneId, moveTabWithinPane } = get()
+    moveTabWithinPane(activePaneId, path, targetPath, placement)
+  },
+
+  moveTabBetweenPanes: (sourcePaneId: string, targetPaneId: string, path: string) =>
+    set((state) => {
+      const sourceList = state.paneTabLists[sourcePaneId] ?? []
+      const closedIndex = sourceList.indexOf(path)
+      const newSourceList = sourceList.filter((p) => p !== path)
+      const newSourceActive = state.paneTabs[sourcePaneId] === path
+        ? (newSourceList[Math.min(closedIndex, newSourceList.length - 1)] ?? null)
+        : state.paneTabs[sourcePaneId]
+      const newTargetList = [...(state.paneTabLists[targetPaneId] ?? []), path]
+
+      const allPaneIds = collectPaneIds(state.layout)
+      const otherPaneIds = allPaneIds.filter((pid) => pid !== sourcePaneId)
+      const shouldCollapseSource = newSourceList.length === 0 && otherPaneIds.length > 0
+
+      if (shouldCollapseSource) {
+        const newLayout = removePane(state.layout, sourcePaneId) ?? createDefaultLayout()
+        const newActivePaneId = state.activePaneId === sourcePaneId ? targetPaneId : state.activePaneId
+        const newPaneTabs = { ...state.paneTabs }
+        const newPaneTabLists = { ...state.paneTabLists }
+        delete newPaneTabs[sourcePaneId]
+        delete newPaneTabLists[sourcePaneId]
+        return {
+          layout: newLayout,
+          activePaneId: newActivePaneId,
+          activeTabPath: path,
+          paneTabs: { ...newPaneTabs, [targetPaneId]: path },
+          paneTabLists: { ...newPaneTabLists, [targetPaneId]: newTargetList },
+        }
+      }
+
+      return {
+        activePaneId: targetPaneId,
+        activeTabPath: path,
+        paneTabs: { ...state.paneTabs, [sourcePaneId]: newSourceActive, [targetPaneId]: path },
+        paneTabLists: { ...state.paneTabLists, [sourcePaneId]: newSourceList, [targetPaneId]: newTargetList },
+      }
     }),
 
   setActive: (path: string) =>
@@ -165,13 +252,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   splitActivePane: (direction: EditorSplitDirection) =>
     set((state) => {
-      if (!state.activeTabPath || state.tabs.length < 2) return state
+      if (!state.activeTabPath) return state
+      const currentPaneList = state.paneTabLists[state.activePaneId] ?? []
+      if (currentPaneList.length < 2) return state
 
-      const activeIndex = state.tabs.findIndex((tab) => tab.path === state.activeTabPath)
-      const fallbackPath = state.tabs[
-        activeIndex === state.tabs.length - 1 ? activeIndex - 1 : activeIndex + 1
-      ]?.path
-      if (!fallbackPath) return state
+      const activeIndex = currentPaneList.indexOf(state.activeTabPath)
+      const newCurrentList = currentPaneList.filter((p) => p !== state.activeTabPath)
+      const fallbackPath = newCurrentList[Math.min(activeIndex, newCurrentList.length - 1)] ?? null
 
       const nextPaneNumber = collectPaneIds(state.layout).length + 1
       const nextPaneId = `pane-${Date.now()}-${nextPaneNumber}`
@@ -192,6 +279,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           ...state.paneTabs,
           [state.activePaneId]: fallbackPath,
           [nextPaneId]: state.activeTabPath,
+        },
+        paneTabLists: {
+          ...state.paneTabLists,
+          [state.activePaneId]: newCurrentList,
+          [nextPaneId]: [state.activeTabPath],
         },
       }
     }),

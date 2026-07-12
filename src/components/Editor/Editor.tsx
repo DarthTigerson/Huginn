@@ -83,7 +83,7 @@ export function Editor() {
         saveActiveTab({ allowCreateMissing: true })
       }
 
-      if (key === 'd' && tabs.length > 1) {
+      if (key === 'd') {
         e.preventDefault()
         splitActivePane(e.shiftKey ? 'vertical' : 'horizontal')
       }
@@ -91,7 +91,7 @@ export function Editor() {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [tabs.length, splitActivePane])
+  }, [splitActivePane])
 
   useEffect(() => {
     if (!autoSaveEnabled || !activeTab?.dirty || isReadOnlyTab(activeTab)) return
