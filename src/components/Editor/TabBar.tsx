@@ -2,8 +2,14 @@ import { useState } from 'react'
 import { useEditorStore } from '@/stores/editorStore'
 import { FileIcon } from '@/components/Sidebar/FileIcon'
 
-export function TabBar() {
-  const { tabs, activeTabPath, setActive, closeTab, moveTab } = useEditorStore()
+export function TabBar({ paneId }: { paneId: string }) {
+  const tabs = useEditorStore((s) => s.tabs)
+  const paneTabs = useEditorStore((s) => s.paneTabs)
+  const closeTab = useEditorStore((s) => s.closeTab)
+  const moveTab = useEditorStore((s) => s.moveTab)
+  const setPaneActive = useEditorStore((s) => s.setPaneActive)
+  const activePath = paneTabs[paneId] ?? null
+
   const [draggedPath, setDraggedPath] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{
     path: string
@@ -26,7 +32,7 @@ export function TabBar() {
     <div className="flex bg-tab-bar border-b border-border overflow-x-auto shrink-0 select-none">
       {tabs.map((tab) => {
         const name = tab.path.split('/').pop() ?? tab.path
-        const isActive = activeTabPath === tab.path
+        const isActive = activePath === tab.path
         const isDragging = draggedPath === tab.path
         const isDropTarget = dropTarget?.path === tab.path && draggedPath !== tab.path
         return (
@@ -38,31 +44,37 @@ export function TabBar() {
                 ? 'bg-panel text-fg border-t-2 border-t-accent -mt-px'
                 : 'text-fg-muted hover:text-fg hover:bg-white/5'
             } ${isDragging ? 'opacity-45' : ''}`}
-            onClick={() => setActive(tab.path)}
+            onClick={() => setPaneActive(paneId, tab.path)}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = 'move'
               e.dataTransfer.setData('text/plain', tab.path)
+              e.dataTransfer.setData('application/x-huginn-pane', paneId)
               setDraggedPath(tab.path)
             }}
             onDragOver={(e) => {
-              if (!draggedPath || draggedPath === tab.path) return
+              if (!e.dataTransfer.types.includes('text/plain')) return
+              if (draggedPath === tab.path) return
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
               setDropTarget({ path: tab.path, placement: getDropPlacement(e) })
             }}
             onDragLeave={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                setDropTarget((target) => target?.path === tab.path ? null : target)
+                setDropTarget((target) => (target?.path === tab.path ? null : target))
               }
             }}
             onDrop={(e) => {
               e.preventDefault()
-              const sourcePath = draggedPath ?? e.dataTransfer.getData('text/plain')
-              const placement = dropTarget?.path === tab.path
-                ? dropTarget.placement
-                : getDropPlacement(e)
+              const sourcePath = e.dataTransfer.getData('text/plain')
+              const sourcePaneId = e.dataTransfer.getData('application/x-huginn-pane')
+              const placement =
+                dropTarget?.path === tab.path ? dropTarget.placement : getDropPlacement(e)
               if (sourcePath && sourcePath !== tab.path) {
-                moveTab(sourcePath, tab.path, placement)
+                if (sourcePaneId !== paneId) {
+                  setPaneActive(paneId, sourcePath)
+                } else {
+                  moveTab(sourcePath, tab.path, placement)
+                }
               }
               clearDragState()
             }}
@@ -87,7 +99,9 @@ export function TabBar() {
               </span>
             )}
             {tab.dirty && (
-              <span className="text-accent" title="Unsaved changes">●</span>
+              <span className="text-accent" title="Unsaved changes">
+                ●
+              </span>
             )}
             <button
               type="button"
