@@ -69,9 +69,11 @@ export default function App() {
   const gitStatus = useGitStore((s) => s.status)
   const refreshGitStatus = useGitStore((s) => s.refreshStatus)
   const assistant = useClaudeStore((s) => s.assistant)
+  const usageOpen = useClaudeStore((s) => s.usageOpen)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
   const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'settings' | null>('files')
+  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [chatVisible, setChatVisible] = useState(true)
@@ -119,10 +121,18 @@ export default function App() {
   }, [chatVisible])
 
   useEffect(() => {
+    if (leftPanel !== null) lastLeftPanelRef.current = leftPanel
+  }, [leftPanel])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault()
         useTerminalStore.getState().toggle()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault()
+        setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
       }
     }
     window.addEventListener('keydown', handler)
@@ -349,7 +359,7 @@ export default function App() {
                 id: 'usage',
                 icon: <UsageIcon />,
                 title: 'Usage',
-                active: false,
+                active: usageOpen,
                 disabled: !projectRoot,
                 onClick: () => useClaudeStore.getState().usage(),
               }]]
