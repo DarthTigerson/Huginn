@@ -1,14 +1,14 @@
 import type { GitCommit } from '@/types/index'
 
 export const LANE_COLORS = [
-  'var(--color-accent)',
-  '#e879f9',
-  '#38bdf8',
-  '#34d399',
-  '#fb923c',
-  '#f87171',
-  '#a78bfa',
-  '#fbbf24',
+  '#2563eb',
+  '#dc2626',
+  '#16a34a',
+  '#facc15',
+  '#06b6d4',
+  '#f97316',
+  '#9333ea',
+  '#ec4899',
 ]
 
 export interface RowEdge {

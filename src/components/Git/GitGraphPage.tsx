@@ -4,21 +4,27 @@ import { useFileStore } from '@/stores/fileStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
 
-const ROW_H = 28
-const LANE_W = 16
-const DOT_R = 4
+const ROW_H = 72
+const LANE_W = 46
+const LANE_PAD = 28
+const DOT_R = 11
+const MIN_GRAPH_W = 420
 
-function laneX(lane: number): number {
-  return lane * LANE_W + LANE_W / 2
+function laneX(lane: number, railWidth: number, laneCount: number): number {
+  const visibleLanes = Math.max(1, laneCount)
+  const laneSpan = (visibleLanes - 1) * LANE_W
+  return (railWidth - laneSpan) / 2 + lane * LANE_W
 }
 
-function edgePath(edge: RowEdge): string {
-  const x1 = laneX(edge.fromLane)
-  const x2 = laneX(edge.toLane)
+function edgePath(edge: RowEdge, railWidth: number, laneCount: number): string {
+  const x1 = laneX(edge.fromLane, railWidth, laneCount)
+  const x2 = laneX(edge.toLane, railWidth, laneCount)
   if (x1 === x2) {
     return `M ${x1} 0 L ${x2} ${ROW_H}`
   }
-  return `M ${x1} 0 C ${x1} ${ROW_H * 0.4}, ${x2} ${ROW_H * 0.6}, ${x2} ${ROW_H}`
+  return `M ${x1} 0 C ${x1} ${ROW_H * 0.35}, ${x2} ${ROW_H * 0.65}, ${x2} ${
+    ROW_H
+  }`
 }
 
 function formatRelDate(iso: string): string {
@@ -32,68 +38,197 @@ function formatRelDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
-function resolveColor(color: string): string {
-  return color
+function formatFullDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-function GraphRow({ layout, selected, onClick }: {
+function normalizeRef(ref: string): string {
+  return ref.replace('HEAD -> ', '').replace('tag: ', '')
+}
+
+function refTone(ref: string): string {
+  if (ref.includes('HEAD') || ref === 'main' || ref === 'master') {
+    return 'border-[#2563eb]/80 bg-[#2563eb]/20 text-[#bfdbfe]'
+  }
+  if (ref.startsWith('origin/')) {
+    return 'border-[#dc2626]/70 bg-[#dc2626]/20 text-[#fecaca]'
+  }
+  if (ref.startsWith('tag: ')) {
+    return 'border-[#facc15]/90 bg-[#facc15]/25 text-[#fef08a]'
+  }
+  return 'border-[#16a34a]/70 bg-[#16a34a]/20 text-[#bbf7d0]'
+}
+
+function graphWidth(laneCount: number): number {
+  return Math.max(MIN_GRAPH_W, Math.max(1, laneCount) * LANE_W + LANE_PAD * 2)
+}
+
+function nodeMeta(
+  commit: CommitLayout['commit'],
+  color: string
+): {
+  fill: string
+  ring: string
+  glyph: string | null
+  text: string
+  glow: number
+} {
+  if (commit.refs.some((ref) => ref.startsWith('tag: '))) {
+    return { fill: '#facc15', ring: '#fde047', glyph: 'T', text: '#1f2937', glow: 0.34 }
+  }
+  if (commit.parents.length > 1) {
+    return { fill: color, ring: '#fb923c', glyph: 'M', text: '#ffffff', glow: 0.28 }
+  }
+  if (commit.refs.some((ref) => ref.includes('HEAD'))) {
+    return { fill: color, ring: '#93c5fd', glyph: 'H', text: '#ffffff', glow: 0.26 }
+  }
+  if (commit.refs.some((ref) => ref.startsWith('origin/'))) {
+    return { fill: color, ring: '#fca5a5', glyph: 'R', text: '#ffffff', glow: 0.22 }
+  }
+  if (commit.refs.length > 0) {
+    return { fill: color, ring: '#86efac', glyph: 'B', text: '#ffffff', glow: 0.22 }
+  }
+  return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
+}
+
+function GraphRow({ layout, selected, graphRailWidth, graphLaneCount, onClick }: {
   layout: CommitLayout
   selected: boolean
+  graphRailWidth: number
+  graphLaneCount: number
   onClick: () => void
 }) {
-  const { commit, lane, color, totalLanes, edges } = layout
-  const svgW = Math.max(totalLanes, lane + 1) * LANE_W + LANE_W
-  const cx = laneX(lane)
-  const shortHash = commit.hash.slice(0, 7)
-  const relDate = formatRelDate(commit.date)
+  const { commit, lane, color, edges } = layout
+  const svgW = graphRailWidth
+  const laneCount = Math.max(graphLaneCount, layout.totalLanes, layout.lane + 1)
+  const cx = laneX(lane, svgW, laneCount)
+  const isMerge = commit.parents.length > 1
+  const meta = nodeMeta(commit, color)
+  const refs = commit.refs.slice(0, 3)
 
   return (
-    <div
+    <button
+      type="button"
+      style={{
+        gridTemplateColumns: `minmax(140px, 1fr) ${svgW}px minmax(180px, 1fr)`,
+        background: selected
+          ? `linear-gradient(90deg, transparent 0%, ${color}22 35%, ${color}1c 65%, transparent 100%)`
+          : undefined,
+      }}
       className={[
-        'flex items-center h-7 cursor-pointer select-none group transition-colors',
-        selected ? 'bg-accent/15' : 'hover:bg-white/5',
+        'w-full grid items-center text-left cursor-pointer select-none group transition-colors border-l-2 focus:outline-none focus-visible:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#2563eb]/70',
+        selected
+          ? 'border-l-[#2563eb]'
+          : 'border-l-transparent hover:bg-white/[0.04]',
       ].join(' ')}
       onClick={onClick}
+      aria-pressed={selected}
     >
-      <div className="shrink-0" style={{ width: svgW }}>
+      <div className="min-w-0 px-4 justify-self-end">
+        {refs.length > 0 ? (
+          <div className="flex justify-end flex-wrap gap-1">
+            {refs.map((ref) => (
+              <span
+                key={ref}
+                className={[
+                  'max-w-36 truncate text-[9px] font-semibold px-1.5 py-0.5 rounded border leading-none',
+                  refTone(ref),
+                ].join(' ')}
+              >
+                {normalizeRef(ref)}
+              </span>
+            ))}
+            {commit.refs.length > refs.length && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
+                +{commit.refs.length - refs.length}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="block text-[10px] text-fg-subtle opacity-0 group-hover:opacity-70">
+            {formatRelDate(commit.date)}
+          </span>
+        )}
+      </div>
+
+      <div className="relative justify-self-center" style={{ width: svgW }}>
         <svg width={svgW} height={ROW_H} className="overflow-visible block">
+          {Array.from({ length: laneCount }).map((_, i) => (
+            <line
+              key={`guide-${i}`}
+              x1={laneX(i, svgW, laneCount)}
+              y1={0}
+              x2={laneX(i, svgW, laneCount)}
+              y2={ROW_H}
+              stroke="var(--color-fg-subtle)"
+              strokeWidth={1}
+              opacity={0.12}
+            />
+          ))}
           {edges.map((edge, i) => (
             <path
               key={i}
-              d={edgePath(edge)}
-              stroke={resolveColor(edge.color)}
-              strokeWidth={1.5}
+              d={edgePath(edge, svgW, laneCount)}
+              stroke={edge.color}
+              strokeWidth={4}
               fill="none"
-              opacity={0.75}
+              opacity={selected ? 1 : 0.86}
+              strokeLinecap="round"
             />
           ))}
           <circle
             cx={cx}
             cy={ROW_H / 2}
-            r={DOT_R}
-            fill={resolveColor(color)}
-            stroke="var(--color-panel)"
-            strokeWidth={1.5}
+            r={DOT_R + 9}
+            fill={meta.fill}
+            opacity={selected ? meta.glow + 0.14 : meta.glow}
           />
+          <circle
+            cx={cx}
+            cy={ROW_H / 2}
+            r={DOT_R + 2}
+            fill="var(--color-panel)"
+            stroke={meta.ring}
+            strokeWidth={selected ? 3.5 : 2.5}
+          />
+          <circle cx={cx} cy={ROW_H / 2} r={DOT_R - 1} fill={meta.fill} />
+          {meta.glyph ? (
+            <text
+              x={cx}
+              y={ROW_H / 2 + 3}
+              textAnchor="middle"
+              className="font-mono font-bold"
+              fontSize={9}
+              fill={meta.text}
+            >
+              {meta.glyph}
+            </text>
+          ) : (
+            <circle cx={cx} cy={ROW_H / 2} r={3} fill="white" opacity={0.9} />
+          )}
         </svg>
       </div>
 
-      <div className="flex-1 flex items-center gap-2 px-2 min-w-0">
-        {commit.refs.map((ref) => (
-          <span
-            key={ref}
-            className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent/20 text-accent leading-none"
-          >
-            {ref.replace('HEAD -> ', '').replace('tag: ', '')}
-          </span>
-        ))}
-        <span className="text-xs text-fg truncate flex-1">{commit.subject}</span>
-        <span className="shrink-0 text-[10px] text-fg-muted font-mono">{shortHash}</span>
-        <span className="shrink-0 text-[10px] text-fg-subtle opacity-0 group-hover:opacity-100 transition-opacity">
-          {relDate}
-        </span>
+      <div className="min-w-0 px-4 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs text-fg truncate flex-1">{commit.subject}</span>
+          {isMerge && (
+            <span className="shrink-0 text-[9px] leading-none px-1.5 py-1 rounded border border-[#fb923c]/70 bg-[#fb923c]/20 text-[#fed7aa]">
+              merge
+            </span>
+          )}
+        </div>
+        <div className="mt-1 text-[10px] text-fg-subtle truncate opacity-70">
+          {commit.hash.slice(0, 7)} · {formatRelDate(commit.date)}
+        </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -116,43 +251,69 @@ function DetailPanel({ cwd, hash, onClose }: {
   if (!commit) return null
 
   return (
-    <div className="w-72 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
+    <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
         <span className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider">
-          Commit
+          Commit Details
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="text-fg-subtle hover:text-fg transition-colors text-xs leading-none w-5 h-5 flex items-center justify-center rounded hover:bg-white/10"
+          className="text-fg-subtle hover:text-fg transition-colors text-xs leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-white/10"
+          aria-label="Close commit details"
         >
           ✕
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        <div>
-          <div className="font-mono text-xs text-accent mb-1 tracking-wide">
-            {commit.hash.slice(0, 12)}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
+        <div className="border border-border bg-panel rounded-md p-3">
+          <div className="text-[10px] text-fg-muted uppercase tracking-wider mb-2">
+            Selected node
           </div>
           <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+            <div className="border border-border rounded px-2 py-1.5">
+              <div className="text-fg-subtle uppercase tracking-wider">Hash</div>
+              <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
+            </div>
+            <div className="border border-border rounded px-2 py-1.5">
+              <div className="text-fg-subtle uppercase tracking-wider">Parents</div>
+              <div className="font-mono text-fg mt-1">{commit.parents.length || 'root'}</div>
+            </div>
+          </div>
         </div>
 
-        <div className="text-xs text-fg-muted flex flex-col gap-1">
-          <div>{commit.author}</div>
-          <div>{new Date(commit.date).toLocaleString()}</div>
+        <div className="text-xs text-fg-muted flex flex-col gap-2">
+          <div className="flex justify-between gap-3">
+            <span className="text-fg-subtle">Author</span>
+            <span className="text-fg truncate text-right">{commit.author}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-fg-subtle">Date</span>
+            <span className="text-fg text-right">{formatFullDate(commit.date)}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-fg-subtle">Relative</span>
+            <span className="text-fg text-right">{formatRelDate(commit.date)}</span>
+          </div>
         </div>
 
         {commit.refs.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {commit.refs.map((ref) => (
-              <span
-                key={ref}
-                className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent/20 text-accent leading-none"
-              >
-                {ref}
-              </span>
-            ))}
+          <div>
+            <div className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider mb-2">
+              References
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {commit.refs.map((ref) => (
+                <span
+                  key={ref}
+                  className={`max-w-full truncate text-[9px] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
+                >
+                  {ref}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
@@ -192,6 +353,11 @@ export function GitGraphPage() {
   }, [projectRoot, load])
 
   const layouts = computeLayout(commits)
+  const graphLaneCount = layouts.reduce(
+    (count, layout) => Math.max(count, layout.totalLanes, layout.lane + 1),
+    1
+  )
+  const graphRailWidth = graphWidth(graphLaneCount)
 
   const handleSelect = useCallback((hash: string) => {
     select(selectedHash === hash ? null : hash)
@@ -231,6 +397,8 @@ export function GitGraphPage() {
               <GraphRow
                 key={layout.commit.hash}
                 layout={layout}
+                graphRailWidth={graphRailWidth}
+                graphLaneCount={graphLaneCount}
                 selected={layout.commit.hash === selectedHash}
                 onClick={() => handleSelect(layout.commit.hash)}
               />
