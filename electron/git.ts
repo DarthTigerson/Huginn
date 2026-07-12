@@ -118,6 +118,10 @@ export async function stageFiles(cwd: string, paths: string[]): Promise<void> {
   await execFileAsync('git', ['add', '--', ...paths], { cwd })
 }
 
+export async function discardFileChanges(cwd: string, path: string): Promise<void> {
+  await execFileAsync('git', ['checkout', '--', path], { cwd })
+}
+
 export async function unstageFiles(cwd: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return
   await execFileAsync('git', ['reset', '--', ...paths], { cwd })

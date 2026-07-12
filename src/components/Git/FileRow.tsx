@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react'
 import type { GitFileEntry } from '@/types/index'
 
 const STATUS_COLOR: Record<GitFileEntry['status'], string> = {
@@ -13,13 +14,17 @@ interface FileRowProps {
   staged: boolean
   onToggle: () => void
   onOpenDiff: () => void
+  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void
 }
 
-export function FileRow({ file, staged, onToggle, onOpenDiff }: FileRowProps) {
+export function FileRow({ file, staged, onToggle, onOpenDiff, onContextMenu }: FileRowProps) {
   const name = file.path.split('/').pop() ?? file.path
 
   return (
-    <div className="group flex items-center gap-1.5 px-3 py-0.5 rounded hover:bg-white/5">
+    <div
+      className="group flex items-center gap-1.5 px-3 py-0.5 rounded hover:bg-white/5"
+      onContextMenu={onContextMenu}
+    >
       <button
         type="button"
         onClick={onOpenDiff}

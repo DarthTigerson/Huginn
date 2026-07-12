@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import type { GitCommandAction } from '../src/types/index'
-import { getGitBranch, getGitBranches, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, getDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat } from './git'
+import { getGitBranch, getGitBranches, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, getDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat } from './git'
 
 const ARGS: Record<GitCommandAction, string[]> = {
   fetch:           ['fetch'],
@@ -50,6 +50,7 @@ export class GitRunner {
     ipcMain.handle('git:unstage', (_e, cwd: string, paths: string[]) => unstageFiles(cwd, paths))
     ipcMain.handle('git:stageAll', (_e, cwd: string) => stageAll(cwd))
     ipcMain.handle('git:unstageAll', (_e, cwd: string) => unstageAll(cwd))
+    ipcMain.handle('git:discard', (_e, cwd: string, path: string) => discardFileChanges(cwd, path))
     ipcMain.handle('git:commit', (_e, cwd: string, message: string) => commit(cwd, message))
     ipcMain.handle('git:diff', (_e, cwd: string, path: string, staged: boolean) => getDiffContent(cwd, path, staged))
     ipcMain.handle('git:graph', (_e, cwd: string) => getGitGraph(cwd))

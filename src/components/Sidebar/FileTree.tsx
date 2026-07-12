@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { FileIcon, FolderIcon } from './FileIcon'
 
 export type TreePromptKind = 'file' | 'directory' | 'rename'
@@ -76,14 +77,27 @@ export function FileTree({
   const { select, expandDir } = useFileStore()
   const { activeTabPath, openTab } = useEditorStore()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const activeFilePath = activeTabPath?.includes('://') ? null : activeTabPath
+  const activeFilePath = !activeTabPath
+    ? null
+    : isGitDiffTab(activeTabPath)
+      ? parseGitDiffPath(activeTabPath).path
+      : activeTabPath.includes('://')
+        ? null
+        : activeTabPath
   const createPromptHere = prompt && !prompt.node && prompt.directory === directoryPath
 
   useEffect(() => {
     if (!autoExpandPath) return
-    if (nodes.some((node) => node.path === autoExpandPath && node.isDirectory)) {
-      setExpanded((prev) => ({ ...prev, [autoExpandPath]: true }))
-    }
+    setExpanded((prev) => {
+      const updates: Record<string, boolean> = {}
+      for (const node of nodes) {
+        if (!node.isDirectory) continue
+        if (node.path === autoExpandPath || autoExpandPath.startsWith(node.path + '/')) {
+          updates[node.path] = true
+        }
+      }
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev
+    })
   }, [autoExpandPath, nodes])
 
   async function handleClick(node: FileNode) {

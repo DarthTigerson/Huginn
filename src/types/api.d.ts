@@ -21,6 +21,7 @@ declare global {
       gitUnstage: (cwd: string, paths: string[]) => Promise<void>
       gitStageAll: (cwd: string) => Promise<void>
       gitUnstageAll: (cwd: string) => Promise<void>
+      gitDiscard: (cwd: string, path: string) => Promise<void>
       gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
       gitRunCommand: (id: string, cwd: string, action: GitCommandAction) => Promise<void>

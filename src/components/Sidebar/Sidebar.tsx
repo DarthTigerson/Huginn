@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { FileTree, type TreePromptState } from './FileTree'
 import { Modal } from '@/components/ui/Modal'
 
@@ -38,11 +39,45 @@ function copyText(text: string): void {
 
 export function Sidebar() {
   const { projectRoot, tree, openFolder, refreshRoot, expandDir } = useFileStore()
-  const { openTab } = useEditorStore()
+  const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const [prompt, setPrompt] = useState<TreePromptState | null>(null)
   const [autoExpandPath, setAutoExpandPath] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null)
+
+  useEffect(() => {
+    if (!projectRoot || !activeTabPath) return
+
+    const realPath = isGitDiffTab(activeTabPath)
+      ? parseGitDiffPath(activeTabPath).path
+      : activeTabPath.includes('://')
+        ? null
+        : activeTabPath
+
+    if (!realPath || !realPath.startsWith(projectRoot + '/')) return
+
+    // Collect ancestor directories from shallowest to deepest
+    const ancestors: string[] = []
+    let dir = realPath
+    while (true) {
+      const lastSlash = dir.lastIndexOf('/')
+      if (lastSlash < 0) break
+      dir = dir.slice(0, lastSlash)
+      if (dir.length <= projectRoot.length) break
+      ancestors.unshift(dir)
+    }
+
+    let cancelled = false
+    ;(async () => {
+      for (const ancestor of ancestors) {
+        if (cancelled) return
+        await expandDir(ancestor)
+      }
+      if (!cancelled) setAutoExpandPath(realPath)
+    })()
+
+    return () => { cancelled = true }
+  }, [activeTabPath, projectRoot])
 
   useEffect(() => {
     if (!menu) return

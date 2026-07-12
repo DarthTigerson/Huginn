@@ -18,6 +18,7 @@ interface GitStore {
   unstage: (cwd: string, path: string) => Promise<void>
   stageAll: (cwd: string) => Promise<void>
   unstageAll: (cwd: string) => Promise<void>
+  discard: (cwd: string, path: string) => Promise<void>
   setCommitMessage: (message: string) => void
   commit: (cwd: string) => Promise<void>
   fetch: (cwd: string) => Promise<void>
@@ -129,6 +130,16 @@ export const useGitStore = create<GitStore>((set, get) => {
       await window.api.gitUnstageAll(cwd)
     } catch (err) {
       console.error('git unstageAll failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
+  },
+
+  discard: async (cwd, path) => {
+    try {
+      await window.api.gitDiscard(cwd, path)
+    } catch (err) {
+      console.error('git discard failed', err)
     } finally {
       await get().refreshStatus(cwd)
     }
