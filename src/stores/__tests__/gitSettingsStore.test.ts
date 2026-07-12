@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// localStorage stub must be created before importing the store
-const store: Record<string, string> = {}
-vi.stubGlobal('localStorage', {
-  getItem: (k: string) => store[k] ?? null,
-  setItem: (k: string, v: string) => { store[k] = v },
+// vi.hoisted runs before any module import (including the store below),
+// which is necessary because gitSettingsStore reads localStorage at init time.
+const { store } = vi.hoisted(() => {
+  const store: Record<string, string> = {}
+  ;(global as any).localStorage = {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => { store[k] = v },
+  }
+  return { store }
 })
 
 import { useGitSettingsStore } from '../gitSettingsStore'
