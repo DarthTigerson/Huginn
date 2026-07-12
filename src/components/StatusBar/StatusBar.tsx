@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
+import { GitIcon } from '@/components/ActivityBar/ActivityBar'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
@@ -28,7 +29,10 @@ export function StatusBar() {
   return (
     <div className="h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       {branch ? (
-        <span className="text-fg-muted text-xs truncate">{branch}</span>
+        <span className="flex items-center gap-1 text-fg-muted text-xs truncate">
+          <GitIcon className="w-3 h-3 shrink-0" />
+          {branch}
+        </span>
       ) : (
         <span />
       )}

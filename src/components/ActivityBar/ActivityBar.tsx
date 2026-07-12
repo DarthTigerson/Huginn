@@ -197,9 +197,9 @@ export function FastIcon() {
   )
 }
 
-export function GitIcon() {
+export function GitIcon({ className }: { className?: string } = {}) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.5"/>
       <circle cx="18" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/>
       <circle cx="12" cy="19" r="2" stroke="currentColor" strokeWidth="1.5"/>
