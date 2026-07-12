@@ -104,3 +104,8 @@ body {
 #root { width: 100vw; height: 100vh; }
 
 .monaco-editor { user-select: text; }
+
+.search-reveal-highlight {
+  background-color: rgba(255, 200, 0, 0.35);
+  border-radius: 2px;
+}

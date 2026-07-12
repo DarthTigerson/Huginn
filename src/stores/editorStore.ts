@@ -64,6 +64,9 @@ interface EditorState {
   markSaved: (path: string, content?: string) => void
   setTabMissing: (path: string, missing: boolean) => void
   markTabsMissingForDeletedPath: (path: string) => void
+  revealRequest: { path: string; line: number; col: number; searchTerm: string } | null
+  setRevealRequest: (req: { path: string; line: number; col: number; searchTerm: string }) => void
+  clearRevealRequest: () => void
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -73,6 +76,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activePaneId: ROOT_PANE_ID,
   paneTabs: { [ROOT_PANE_ID]: null },
   paneTabLists: { [ROOT_PANE_ID]: [] },
+  revealRequest: null,
+  setRevealRequest: (req) => set({ revealRequest: req }),
+  clearRevealRequest: () => set({ revealRequest: null }),
 
   openTab: (tab: Tab) => {
     const { tabs, activePaneId, paneTabLists } = get()

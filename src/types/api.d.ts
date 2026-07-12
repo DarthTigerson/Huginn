@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
 
 export type AssistantKind = 'claude' | 'codex'
 
@@ -12,6 +12,8 @@ declare global {
       mkdir: (path: string) => Promise<void>
       renamePath: (from: string, to: string) => Promise<void>
       trashPath: (path: string) => Promise<void>
+      listAllFiles: (root: string) => Promise<string[]>
+      searchText: (root: string, query: string, caseSensitive: boolean) => Promise<SearchMatch[]>
       openFolder: () => Promise<string | null>
 
       gitBranch: (cwd: string) => Promise<string | null>

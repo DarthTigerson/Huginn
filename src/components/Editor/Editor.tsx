@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MonacoEditor, { DiffEditor } from '@monaco-editor/react'
+import type * as Monaco from 'monaco-editor'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useEditorStore, type EditorLayoutNode } from '@/stores/editorStore'
+import { useSearchStore } from '@/stores/searchStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
@@ -157,11 +159,14 @@ function EditorPane({ paneId }: { paneId: string }) {
   const activePaneId = useEditorStore((s) => s.activePaneId)
   const setActivePane = useEditorStore((s) => s.setActivePane)
   const updateContent = useEditorStore((s) => s.updateContent)
+  const revealRequest = useEditorStore((s) => s.revealRequest)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
+  const decorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -207,6 +212,33 @@ function EditorPane({ paneId }: { paneId: string }) {
       cancelled = true
     }
   }, [activeTab?.path])
+
+  useEffect(() => {
+    if (!revealRequest || revealRequest.path !== tabPath) return
+    const editor = editorRef.current
+    if (!editor) return
+
+    editor.revealLineInCenter(revealRequest.line)
+    editor.setPosition({ lineNumber: revealRequest.line, column: revealRequest.col })
+    editor.focus()
+
+    const model = editor.getModel()
+    if (model) {
+      decorationsRef.current?.clear()
+      decorationsRef.current = editor.createDecorationsCollection([{
+        range: {
+          startLineNumber: revealRequest.line,
+          startColumn: revealRequest.col,
+          endLineNumber: revealRequest.line,
+          endColumn: revealRequest.col + revealRequest.searchTerm.length,
+        },
+        options: { inlineClassName: 'search-reveal-highlight' },
+      }])
+      setTimeout(() => decorationsRef.current?.clear(), 3000)
+    }
+
+    useEditorStore.getState().clearRevealRequest()
+  }, [revealRequest, tabPath])
 
   return (
     <div
@@ -275,6 +307,7 @@ function EditorPane({ paneId }: { paneId: string }) {
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
+                editorRef.current = editor
                 editor.onDidFocusEditorWidget(activatePane)
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                   activatePane()
@@ -291,6 +324,35 @@ function EditorPane({ paneId }: { paneId: string }) {
                     useEditorStore.getState().splitActivePane('vertical')
                   }
                 )
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+                  useSearchStore.getState().openSearch(false)
+                })
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
+                  () => { useSearchStore.getState().openSearch(true) }
+                )
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+                  useSearchStore.getState().openCommandPalette()
+                })
+
+                // handle reveal if request was set before this editor mounted
+                const req = useEditorStore.getState().revealRequest
+                if (req && req.path === activeTab?.path) {
+                  editor.revealLineInCenter(req.line)
+                  editor.setPosition({ lineNumber: req.line, column: req.col })
+                  editor.focus()
+                  decorationsRef.current = editor.createDecorationsCollection([{
+                    range: {
+                      startLineNumber: req.line,
+                      startColumn: req.col,
+                      endLineNumber: req.line,
+                      endColumn: req.col + req.searchTerm.length,
+                    },
+                    options: { inlineClassName: 'search-reveal-highlight' },
+                  }])
+                  setTimeout(() => decorationsRef.current?.clear(), 3000)
+                  useEditorStore.getState().clearRevealRequest()
+                }
               }}
             />
           </div>

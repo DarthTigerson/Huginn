@@ -50,3 +50,10 @@ export interface GitBranchDiff {
   target: string
   commits: GitCommit[]
 }
+
+export interface SearchMatch {
+  path: string
+  line: number
+  col: number
+  text: string
+}

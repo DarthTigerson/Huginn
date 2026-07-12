@@ -44,6 +44,7 @@ export function Sidebar() {
   const [prompt, setPrompt] = useState<TreePromptState | null>(null)
   const [autoExpandPath, setAutoExpandPath] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null)
+  const [collapseAllKey, setCollapseAllKey] = useState(0)
 
   useEffect(() => {
     if (!projectRoot || !activeTabPath) return
@@ -210,6 +211,7 @@ export function Sidebar() {
               onContextMenu={openContextMenu}
               prompt={prompt}
               autoExpandPath={autoExpandPath}
+              collapseAllKey={collapseAllKey}
               setPromptValue={setPromptValue}
               commitPrompt={commitPrompt}
               cancelPrompt={cancelPrompt}
@@ -232,6 +234,13 @@ export function Sidebar() {
               </ContextMenuButton>
               <ContextMenuButton onClick={() => startCreate('directory', menu.node)}>
                 Create Directory
+              </ContextMenuButton>
+              <ContextMenuDivider />
+              <ContextMenuButton onClick={() => {
+                setCollapseAllKey((k) => k + 1)
+                setMenu(null)
+              }}>
+                Collapse All
               </ContextMenuButton>
               {menu.node && (
                 <>

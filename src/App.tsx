@@ -24,11 +24,14 @@ import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { TodoPanel } from './components/Todos/TodoPanel'
 import { GitPanel } from './components/Git/GitPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
+import { CommandPalette } from './components/Search/CommandPalette'
+import { SearchModal } from './components/Search/SearchModal'
 import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
+import { useSearchStore } from './stores/searchStore'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -78,6 +81,9 @@ export default function App() {
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
+  const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
+  const searchOpen = useSearchStore((s) => s.searchOpen)
+  const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : 'Codex'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : 'New Codex Session'
@@ -133,6 +139,16 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault()
         setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p' && !e.shiftKey) {
+        if (!useFileStore.getState().projectRoot) return
+        e.preventDefault()
+        useSearchStore.getState().openCommandPalette()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        if (!useFileStore.getState().projectRoot) return
+        e.preventDefault()
+        useSearchStore.getState().openSearch(e.shiftKey)
       }
     }
     window.addEventListener('keydown', handler)
@@ -384,6 +400,16 @@ export default function App() {
         />
       </div>
       <StatusBar />
+      {commandPaletteOpen && projectRoot && (
+        <CommandPalette projectRoot={projectRoot} onClose={() => useSearchStore.getState().closeCommandPalette()} />
+      )}
+      {searchOpen && projectRoot && (
+        <SearchModal
+          projectRoot={projectRoot}
+          caseSensitive={searchCaseSensitive}
+          onClose={() => useSearchStore.getState().closeSearch()}
+        />
+      )}
     </div>
   )
 }

@@ -12,6 +12,54 @@ interface FileNode {
   isDirectory: boolean
 }
 
+interface SearchMatch {
+  path: string
+  line: number
+  col: number
+  text: string
+}
+
+async function listAllFiles(dirPath: string): Promise<string[]> {
+  const entries = await readdir(dirPath, { withFileTypes: true })
+  const results: string[] = []
+  for (const entry of entries) {
+    const fullPath = join(dirPath, entry.name)
+    if (entry.isDirectory()) {
+      const children = await listAllFiles(fullPath)
+      results.push(...children)
+    } else {
+      results.push(fullPath)
+    }
+  }
+  return results
+}
+
+async function searchText(root: string, query: string, caseSensitive: boolean): Promise<SearchMatch[]> {
+  const allFiles = await listAllFiles(root)
+  const results: SearchMatch[] = []
+  const needle = caseSensitive ? query : query.toLowerCase()
+
+  for (const filePath of allFiles) {
+    if (results.length >= 1000) break
+    try {
+      const content = await readFile(filePath, 'utf-8')
+      const lines = content.split('\n')
+      for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i]
+        const haystack = caseSensitive ? raw : raw.toLowerCase()
+        const col = haystack.indexOf(needle)
+        if (col !== -1) {
+          results.push({ path: filePath, line: i + 1, col: col + 1, text: raw })
+          if (results.length >= 1000) break
+        }
+      }
+    } catch {
+      // skip binary or unreadable files
+    }
+  }
+  return results
+}
+
 async function buildTree(dirPath: string): Promise<FileNode[]> {
   const entries = await readdir(dirPath, { withFileTypes: true })
   return entries
@@ -44,6 +92,10 @@ function registerFsHandlers(): void {
   ipcMain.handle('fs:mkdir', (_e, path: string) => mkdir(path, { recursive: false }))
   ipcMain.handle('fs:rename', (_e, from: string, to: string) => rename(from, to))
   ipcMain.handle('fs:trash', (_e, path: string) => shell.trashItem(path))
+  ipcMain.handle('fs:listAllFiles', (_e, root: string) => listAllFiles(root))
+  ipcMain.handle('fs:searchText', (_e, root: string, query: string, caseSensitive: boolean) =>
+    searchText(root, query, caseSensitive)
+  )
   ipcMain.handle('dialog:openFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled ? null : result.filePaths[0]

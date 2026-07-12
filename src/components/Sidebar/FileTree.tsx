@@ -22,6 +22,7 @@ interface FileTreeProps {
   onContextMenu: (event: MouseEvent, node: FileNode) => void
   prompt: TreePromptState | null
   autoExpandPath: string | null
+  collapseAllKey?: number
   setPromptValue: (value: string) => void
   commitPrompt: () => void
   cancelPrompt: () => void
@@ -70,6 +71,7 @@ export function FileTree({
   onContextMenu,
   prompt,
   autoExpandPath,
+  collapseAllKey,
   setPromptValue,
   commitPrompt,
   cancelPrompt,
@@ -85,6 +87,11 @@ export function FileTree({
         ? null
         : activeTabPath
   const createPromptHere = prompt && !prompt.node && prompt.directory === directoryPath
+
+  useEffect(() => {
+    if (collapseAllKey === undefined) return
+    setExpanded({})
+  }, [collapseAllKey])
 
   useEffect(() => {
     if (!autoExpandPath) return
@@ -171,6 +178,7 @@ export function FileTree({
               onContextMenu={onContextMenu}
               prompt={prompt}
               autoExpandPath={autoExpandPath}
+              collapseAllKey={collapseAllKey}
               setPromptValue={setPromptValue}
               commitPrompt={commitPrompt}
               cancelPrompt={cancelPrompt}
