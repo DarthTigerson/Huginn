@@ -34,3 +34,12 @@ export interface GitAheadBehind {
 }
 
 export type GitCommandAction = 'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease'
+
+export interface GitCommit {
+  hash: string
+  parents: string[]
+  subject: string
+  author: string
+  date: string
+  refs: string[]
+}

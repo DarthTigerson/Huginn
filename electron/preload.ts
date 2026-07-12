@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('git:log:exit', handler)
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
+  gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
+  gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
 
   termSpawn: () => ipcRenderer.invoke('term:spawn'),
   termWrite: (data: string) => ipcRenderer.send('term:write', data),

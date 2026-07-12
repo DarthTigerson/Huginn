@@ -133,6 +133,50 @@ async function showRef(cwd: string, ref: string): Promise<string> {
   }
 }
 
+export async function getGitGraph(cwd: string): Promise<import('../src/types/index').GitCommit[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['log', '--all', '-n', '100', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      { cwd }
+    )
+    return stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const pipeIdx = line.indexOf('|')
+        const hash = line.slice(0, pipeIdx)
+        const rest = line.slice(pipeIdx + 1)
+        const parts = rest.split('|')
+        const parentsRaw = parts[0] ?? ''
+        const subject = parts[1] ?? ''
+        const author = parts[2] ?? ''
+        const date = parts[3] ?? ''
+        const refsRaw = parts[4] ?? ''
+        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
+        const refs = refsRaw.trim()
+          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
+          : []
+        return { hash, parents, subject, author, date, refs }
+      })
+  } catch {
+    return []
+  }
+}
+
+export async function getGitShowStat(cwd: string, hash: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['show', '--name-only', '--format=', hash],
+      { cwd }
+    )
+    return stdout.split('\n').map((l) => l.trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 export async function getDiffContent(
   cwd: string,
   path: string,

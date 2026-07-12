@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit } from './index'
 
 export type AssistantKind = 'claude' | 'codex'
 
@@ -22,6 +22,8 @@ declare global {
       gitRunCommand: (id: string, cwd: string, action: GitCommandAction) => Promise<void>
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
+      gitGraph: (cwd: string) => Promise<GitCommit[]>
+      gitShowStat: (cwd: string, hash: string) => Promise<string[]>
 
       termSpawn: () => Promise<void>
       termWrite: (data: string) => void
