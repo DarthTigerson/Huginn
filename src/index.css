@@ -4,6 +4,10 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --font-mono: SF Mono, Menlo, Monaco, Consolas, monospace;
+}
+
 /* accent is stored as R G B channels so Tailwind opacity modifiers (bg-accent/20) work */
 
 [data-theme="claude-dark"] {
@@ -58,9 +62,43 @@ body {
   overflow: hidden;
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-mono);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+/* Glossy panel opacity — rgba overrides let native vibrancy show through */
+[data-theme="claude-dark"][data-panel-style="glossy"] {
+  --color-bg:      rgba(26,  26,  26,  0.5);
+  --color-panel:   rgba(30,  30,  30,  0.6);
+  --color-sidebar: rgba(37,  37,  38,  0.5);
+  --color-tab-bar: rgba(45,  45,  45,  0.65);
+}
+[data-theme="claude-light"][data-panel-style="glossy"] {
+  --color-bg:      rgba(243, 243, 243, 0.55);
+  --color-panel:   rgba(255, 255, 255, 0.7);
+  --color-sidebar: rgba(236, 236, 236, 0.6);
+  --color-tab-bar: rgba(232, 232, 232, 0.65);
+}
+[data-theme="codex-dark"][data-panel-style="glossy"] {
+  --color-bg:      rgba(26,  26,  26,  0.5);
+  --color-panel:   rgba(32,  32,  32,  0.6);
+  --color-sidebar: rgba(26,  26,  26,  0.5);
+  --color-tab-bar: rgba(32,  32,  32,  0.65);
+}
+[data-theme="codex-light"][data-panel-style="glossy"] {
+  --color-bg:      rgba(250, 250, 250, 0.55);
+  --color-panel:   rgba(255, 255, 255, 0.7);
+  --color-sidebar: rgba(250, 250, 250, 0.6);
+  --color-tab-bar: rgba(246, 246, 246, 0.65);
+}
+
+[data-panel-style="glossy"] .bg-bg,
+[data-panel-style="glossy"] .bg-panel,
+[data-panel-style="glossy"] .bg-sidebar,
+[data-panel-style="glossy"] .bg-tab-bar {
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
 }
 
 #root { width: 100vw; height: 100vh; }

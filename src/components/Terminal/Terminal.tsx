@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css'
 import { useTerminalStore } from '@/stores/terminalStore'
 import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useDisplayStore } from '@/stores/displayStore'
 
 function hasValidSize(cols: number, rows: number): boolean {
   return cols > 0 && rows > 0
@@ -17,13 +18,14 @@ export function Terminal() {
   const hide = useTerminalStore((s) => s.hide)
   const theme = useThemeStore((s) => s.theme)
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const font = useDisplayStore((s) => s.font)
 
   useEffect(() => {
     if (!containerRef.current || xtermRef.current) return
 
     const xterm = new XTerm({
       theme: XTERM_THEMES[useThemeStore.getState().theme],
-      fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
+      fontFamily: useDisplayStore.getState().font,
       fontSize: 13,
       cursorBlink: true,
       convertEol: true,
@@ -67,6 +69,12 @@ export function Terminal() {
     xtermRef.current.options.fontSize = fontSize
     fitRef.current?.fit()
   }, [fontSize])
+
+  useEffect(() => {
+    if (!xtermRef.current) return
+    xtermRef.current.options.fontFamily = font
+    fitRef.current?.fit()
+  }, [font])
 
   return (
     <div className="h-full flex flex-col bg-bg border-t border-border overflow-hidden">

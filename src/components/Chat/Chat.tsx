@@ -6,6 +6,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useDisplayStore } from '@/stores/displayStore'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -25,7 +26,7 @@ const ASSISTANTS: AssistantKind[] = ['claude', 'codex']
 function createXTerm(themeId: ThemeId): XTerm {
   return new XTerm({
     theme: XTERM_THEMES[themeId],
-    fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
+    fontFamily: useDisplayStore.getState().font,
     fontSize: 13,
     cursorBlink: true,
     convertEol: true,
@@ -38,6 +39,7 @@ export function Chat() {
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const font = useDisplayStore((s) => s.font)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
   const activeAssistantRef = useRef<AssistantKind>(assistant)
@@ -105,6 +107,13 @@ export function Chat() {
       terminal.fit.fit()
     })
   }, [fontSize])
+
+  useEffect(() => {
+    Object.values(terminalsRef.current).forEach((terminal) => {
+      terminal.xterm.options.fontFamily = font
+      terminal.fit.fit()
+    })
+  }, [font])
 
   useEffect(() => {
     if (!projectRoot || !containerRef.current) return

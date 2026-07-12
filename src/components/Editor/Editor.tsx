@@ -3,10 +3,12 @@ import MonacoEditor from '@monaco-editor/react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useDisplayStore } from '@/stores/displayStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab } from '@/components/Settings/paths'
+import { isSettingsTab, DISPLAY_TAB_PATH } from '@/components/Settings/paths'
 import { ThemesPage } from '@/components/Settings/ThemesPage'
+import { DisplayPage } from '@/components/Settings/DisplayPage'
 
 export function Editor() {
   const { tabs, activeTabPath, updateContent } = useEditorStore()
@@ -14,6 +16,7 @@ export function Editor() {
   const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const font = useDisplayStore((s) => s.font)
 
   useEffect(() => {
     if (!activeTab || isVirtual) return
@@ -32,7 +35,7 @@ export function Editor() {
       <TabBar />
       {activeTab ? (
         isVirtual ? (
-          <ThemesPage />
+          activeTab.path === DISPLAY_TAB_PATH ? <DisplayPage /> : <ThemesPage />
         ) : (
           <div className="flex-1 overflow-hidden">
             <MonacoEditor
@@ -42,7 +45,7 @@ export function Editor() {
               theme={monacoTheme}
               options={{
                 fontSize,
-                fontFamily: 'SF Mono, Menlo, Monaco, Consolas, monospace',
+                fontFamily: font,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 lineNumbers: 'on',
