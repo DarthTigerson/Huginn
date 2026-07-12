@@ -4,7 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
-import { registerGitHandlers } from './git'
+import { GitRunner } from './gitRunner'
 
 interface FileNode {
   name: string
@@ -69,8 +69,9 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   registerFsHandlers()
-  registerGitHandlers()
   const win = createWindow()
+  const gitRunner = new GitRunner(win)
+  gitRunner.registerHandlers()
   const ptyMgr = new PtyManager(win)
   ptyMgr.registerHandlers()
   const claudeMgr = new ClaudeManager(win)

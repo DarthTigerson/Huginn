@@ -32,3 +32,5 @@ export interface GitAheadBehind {
   ahead: number
   behind: number
 }
+
+export type GitCommandAction = 'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease'

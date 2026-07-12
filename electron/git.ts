@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { readFile } from 'fs/promises'
@@ -155,16 +154,3 @@ export async function getDiffContent(
   return { original, modified }
 }
 
-export function registerGitHandlers(): void {
-  ipcMain.handle('git:branch', (_e, cwd: string) => getGitBranch(cwd))
-  ipcMain.handle('git:aheadBehind', (_e, cwd: string) => getAheadBehind(cwd))
-  ipcMain.handle('git:status', (_e, cwd: string) => getGitStatus(cwd))
-  ipcMain.handle('git:stage', (_e, cwd: string, paths: string[]) => stageFiles(cwd, paths))
-  ipcMain.handle('git:unstage', (_e, cwd: string, paths: string[]) => unstageFiles(cwd, paths))
-  ipcMain.handle('git:stageAll', (_e, cwd: string) => stageAll(cwd))
-  ipcMain.handle('git:unstageAll', (_e, cwd: string) => unstageAll(cwd))
-  ipcMain.handle('git:commit', (_e, cwd: string, message: string) => commit(cwd, message))
-  ipcMain.handle('git:diff', (_e, cwd: string, path: string, staged: boolean) =>
-    getDiffContent(cwd, path, staged)
-  )
-}
