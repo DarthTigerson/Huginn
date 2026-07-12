@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('fs:writeFile', path, content),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
 
+  gitBranch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
+
   termSpawn: () => ipcRenderer.invoke('term:spawn'),
   termWrite: (data: string) => ipcRenderer.send('term:write', data),
   termResize: (cols: number, rows: number) =>

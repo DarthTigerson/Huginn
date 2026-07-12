@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useFileStore } from '@/stores/fileStore'
+import { useGitStore } from '@/stores/gitStore'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const branch = useGitStore((s) => s.branch)
+  const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -13,8 +18,20 @@ export function StatusBar() {
     return () => window.removeEventListener('click', close)
   }, [menuOpen])
 
+  useEffect(() => {
+    refreshBranch(projectRoot)
+    const onFocus = () => refreshBranch(projectRoot)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [projectRoot, refreshBranch])
+
   return (
-    <div className="h-6 shrink-0 flex items-center justify-end px-3 bg-tab-bar border-t border-border select-none">
+    <div className="h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
+      {branch ? (
+        <span className="text-fg-muted text-xs truncate">{branch}</span>
+      ) : (
+        <span />
+      )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
         <button
           type="button"

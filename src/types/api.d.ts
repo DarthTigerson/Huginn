@@ -10,6 +10,8 @@ declare global {
       writeFile: (path: string, content: string) => Promise<void>
       openFolder: () => Promise<string | null>
 
+      gitBranch: (cwd: string) => Promise<string | null>
+
       termSpawn: () => Promise<void>
       termWrite: (data: string) => void
       termResize: (cols: number, rows: number) => void
