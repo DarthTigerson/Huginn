@@ -206,11 +206,11 @@ export function FastIcon() {
 export function GitIcon({ className }: { className?: string } = {}) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.5"/>
-      <circle cx="18" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/>
-      <circle cx="12" cy="19" r="2" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M12 7v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M13.4 6.2C15 8 16.5 9.5 16 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="9" cy="5" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="15" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="9" cy="19" r="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M9 7v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M10.4 6.2C12 8 13.5 9.5 13 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
