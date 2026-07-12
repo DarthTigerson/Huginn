@@ -54,4 +54,12 @@ describe('editorStore', () => {
     useEditorStore.getState().markSaved('/a.ts')
     expect(useEditorStore.getState().tabs[0].dirty).toBe(false)
   })
+
+  it('markSaved keeps dirty when content changed after save started', () => {
+    useEditorStore.getState().openTab({ path: '/a.ts', content: 'original', dirty: false })
+    useEditorStore.getState().updateContent('/a.ts', 'saved snapshot')
+    useEditorStore.getState().updateContent('/a.ts', 'newer edit')
+    useEditorStore.getState().markSaved('/a.ts', 'saved snapshot')
+    expect(useEditorStore.getState().tabs[0].dirty).toBe(true)
+  })
 })

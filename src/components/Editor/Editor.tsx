@@ -6,11 +6,21 @@ import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab, isGitLogTab, isGitGraphTab, isGitBranchDiffTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
+import {
+  isSettingsTab,
+  isGitLogTab,
+  isGitGraphTab,
+  isGitBranchDiffTab,
+  DISPLAY_TAB_PATH,
+  EDITOR_SETTINGS_TAB_PATH,
+  GIT_SETTINGS_TAB_PATH,
+} from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
+import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -28,6 +38,7 @@ export function Editor() {
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
+  const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
 
@@ -43,8 +54,9 @@ export function Editor() {
       isGitBranchDiffTab(tab.path)
     ) return
 
-    window.api.writeFile(tab.path, tab.content).then(() => {
-      markSaved(tab.path)
+    const savedContent = tab.content
+    window.api.writeFile(tab.path, savedContent).then(() => {
+      markSaved(tab.path, savedContent)
       const root = useFileStore.getState().projectRoot
       if (root) useGitStore.getState().refreshStatus(root)
     })
@@ -77,12 +89,41 @@ export function Editor() {
     return () => window.removeEventListener('keydown', handler)
   }, [activeTab, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff, projectRoot])
 
+  useEffect(() => {
+    if (!autoSaveEnabled || !activeTab?.dirty) return
+    if (isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
+
+    const timeout = setTimeout(() => {
+      saveActiveTab()
+    }, 700)
+
+    return () => clearTimeout(timeout)
+  }, [
+    autoSaveEnabled,
+    activeTab?.path,
+    activeTab?.content,
+    activeTab?.dirty,
+    isVirtual,
+    isDiff,
+    isGitLog,
+    isGitGraph,
+    isGitBranchDiff,
+  ])
+
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
       <TabBar />
       {activeTab ? (
         isVirtual ? (
-          activeTab?.path === GIT_SETTINGS_TAB_PATH ? <GitSettingsPage /> : <DisplayPage />
+          activeTab.path === GIT_SETTINGS_TAB_PATH ? (
+            <GitSettingsPage />
+          ) : activeTab.path === EDITOR_SETTINGS_TAB_PATH ? (
+            <EditorSettingsPage />
+          ) : activeTab.path === DISPLAY_TAB_PATH ? (
+            <DisplayPage />
+          ) : (
+            <DisplayPage />
+          )
         ) : isGitLog ? (
           <GitLogView />
         ) : isGitGraph ? (

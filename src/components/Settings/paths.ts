@@ -1,4 +1,5 @@
 export const DISPLAY_TAB_PATH = 'settings://Display'
+export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
