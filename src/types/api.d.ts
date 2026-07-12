@@ -7,6 +7,7 @@ declare global {
     api: {
       readDir: (path: string) => Promise<FileNode[]>
       readFile: (path: string) => Promise<string>
+      pathExists: (path: string) => Promise<boolean>
       writeFile: (path: string, content: string) => Promise<void>
       mkdir: (path: string) => Promise<void>
       renamePath: (from: string, to: string) => Promise<void>
@@ -41,6 +42,7 @@ declare global {
       onAssistantData: (cb: (assistant: AssistantKind, data: string) => void) => () => void
 
       onMenuOpenProject: (cb: () => void) => () => void
+      onMenuCloseActiveTab: (cb: () => void) => () => void
     }
   }
 }

@@ -42,8 +42,8 @@ export function Editor() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
 
-  function saveActiveTab() {
-    const { tabs, activeTabPath, markSaved } = useEditorStore.getState()
+  async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boolean }) {
+    const { tabs, activeTabPath, markSaved, setTabMissing } = useEditorStore.getState()
     const tab = tabs.find((t) => t.path === activeTabPath)
     if (!tab) return
     if (
@@ -54,12 +54,22 @@ export function Editor() {
       isGitBranchDiffTab(tab.path)
     ) return
 
+    if (!allowCreateMissing) {
+      const exists = await window.api.pathExists(tab.path)
+      if (!exists) {
+        setTabMissing(tab.path, true)
+        return
+      }
+    }
+
     const savedContent = tab.content
-    window.api.writeFile(tab.path, savedContent).then(() => {
-      markSaved(tab.path, savedContent)
-      const root = useFileStore.getState().projectRoot
-      if (root) useGitStore.getState().refreshStatus(root)
-    })
+    await window.api.writeFile(tab.path, savedContent)
+    markSaved(tab.path, savedContent)
+    const root = useFileStore.getState().projectRoot
+    if (root) {
+      useFileStore.getState().refreshRoot()
+      useGitStore.getState().refreshStatus(root)
+    }
   }
 
   useEffect(() => {
@@ -82,7 +92,7 @@ export function Editor() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
-        saveActiveTab()
+        saveActiveTab({ allowCreateMissing: true })
       }
     }
     window.addEventListener('keydown', handler)
@@ -90,11 +100,26 @@ export function Editor() {
   }, [activeTab, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff, projectRoot])
 
   useEffect(() => {
+    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
+
+    let cancelled = false
+    window.api.pathExists(activeTab.path).then((exists) => {
+      if (!cancelled) {
+        useEditorStore.getState().setTabMissing(activeTab.path, !exists)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab?.path, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff])
+
+  useEffect(() => {
     if (!autoSaveEnabled || !activeTab?.dirty) return
     if (isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
 
     const timeout = setTimeout(() => {
-      saveActiveTab()
+      saveActiveTab({ allowCreateMissing: false })
     }, 700)
 
     return () => clearTimeout(timeout)
@@ -171,7 +196,7 @@ export function Editor() {
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                  saveActiveTab()
+                  saveActiveTab({ allowCreateMissing: true })
                 })
               }}
             />

@@ -150,6 +150,7 @@ export function Sidebar() {
 
   async function trashNode(node: FileNode) {
     await window.api.trashPath(node.path)
+    useEditorStore.getState().markTabsMissingForDeletedPath(node.path)
     await refreshRoot()
     setDeleteTarget(null)
   }

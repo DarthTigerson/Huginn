@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('api', {
   readDir: (path: string) => ipcRenderer.invoke('fs:readDir', path),
   readFile: (path: string) => ipcRenderer.invoke('fs:readFile', path),
+  pathExists: (path: string) => ipcRenderer.invoke('fs:exists', path),
   writeFile: (path: string, content: string) =>
     ipcRenderer.invoke('fs:writeFile', path, content),
   mkdir: (path: string) => ipcRenderer.invoke('fs:mkdir', path),
@@ -64,5 +65,10 @@ contextBridge.exposeInMainWorld('api', {
     const handler = () => cb()
     ipcRenderer.on('menu:openProject', handler)
     return () => ipcRenderer.removeListener('menu:openProject', handler)
+  },
+  onMenuCloseActiveTab: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:closeActiveTab', handler)
+    return () => ipcRenderer.removeListener('menu:closeActiveTab', handler)
   },
 })

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { mkdir, readdir, readFile, rename, writeFile } from 'fs/promises'
+import { access, mkdir, readdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
@@ -30,6 +30,14 @@ async function buildTree(dirPath: string): Promise<FileNode[]> {
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
   ipcMain.handle('fs:readFile', (_e, path: string) => readFile(path, 'utf-8'))
+  ipcMain.handle('fs:exists', async (_e, path: string) => {
+    try {
+      await access(path)
+      return true
+    } catch {
+      return false
+    }
+  })
   ipcMain.handle('fs:writeFile', (_e, path: string, content: string) =>
     writeFile(path, content, 'utf-8')
   )
@@ -100,7 +108,14 @@ function buildMenu(): void {
           },
         },
         { type: 'separator' },
-        { role: 'close' },
+        {
+          label: 'Close Tab',
+          accelerator: 'CmdOrCtrl+W',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:closeActiveTab')
+          },
+        },
       ],
     },
     {

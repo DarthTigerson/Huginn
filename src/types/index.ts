@@ -9,6 +9,7 @@ export interface Tab {
   path: string
   content: string
   dirty: boolean
+  missing?: boolean
 }
 
 export interface GitFileEntry {

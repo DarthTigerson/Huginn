@@ -28,6 +28,7 @@ import { useTerminalStore } from './stores/terminalStore'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
 import { useGitStore } from './stores/gitStore'
+import { useEditorStore } from './stores/editorStore'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -142,6 +143,12 @@ export default function App() {
   useEffect(() => {
     return window.api.onMenuOpenProject(() => {
       useFileStore.getState().openFolder()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuCloseActiveTab(() => {
+      useEditorStore.getState().closeActiveTab()
     })
   }, [])
 
