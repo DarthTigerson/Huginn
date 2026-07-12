@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind } from './index'
 
 export type AssistantKind = 'claude' | 'codex'
 
@@ -11,6 +11,7 @@ declare global {
       openFolder: () => Promise<string | null>
 
       gitBranch: (cwd: string) => Promise<string | null>
+      gitAheadBehind: (cwd: string) => Promise<GitAheadBehind | null>
       gitStatus: (cwd: string) => Promise<GitStatus>
       gitStage: (cwd: string, paths: string[]) => Promise<void>
       gitUnstage: (cwd: string, paths: string[]) => Promise<void>

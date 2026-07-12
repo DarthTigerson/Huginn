@@ -8,6 +8,7 @@ export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
   const projectRoot = useFileStore((s) => s.projectRoot)
   const branch = useGitStore((s) => s.branch)
+  const aheadBehind = useGitStore((s) => s.aheadBehind)
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -32,6 +33,12 @@ export function StatusBar() {
         <span className="flex items-center gap-1 text-fg-muted text-xs truncate">
           <GitIcon className="w-3 h-3 shrink-0" />
           {branch}
+          {aheadBehind && (aheadBehind.behind > 0 || aheadBehind.ahead > 0) && (
+            <span className="flex items-center gap-0.5 tabular-nums">
+              {aheadBehind.behind > 0 && <span>↓{aheadBehind.behind}</span>}
+              {aheadBehind.ahead > 0 && <span>↑{aheadBehind.ahead}</span>}
+            </span>
+          )}
         </span>
       ) : (
         <span />

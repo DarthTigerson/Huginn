@@ -16,6 +16,11 @@ export interface GitStatus {
   unstaged: GitFileEntry[]
 }
 
+export interface GitAheadBehind {
+  ahead: number
+  behind: number
+}
+
 export async function getGitBranch(cwd: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
@@ -23,6 +28,20 @@ export async function getGitBranch(cwd: string): Promise<string | null> {
     if (branch !== 'HEAD') return branch
     const { stdout: sha } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd })
     return sha.trim()
+  } catch {
+    return null
+  }
+}
+
+export async function getAheadBehind(cwd: string): Promise<GitAheadBehind | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-list', '--left-right', '--count', '@{upstream}...HEAD'],
+      { cwd }
+    )
+    const [behind, ahead] = stdout.trim().split(/\s+/).map(Number)
+    return { ahead, behind }
   } catch {
     return null
   }
@@ -138,6 +157,7 @@ export async function getDiffContent(
 
 export function registerGitHandlers(): void {
   ipcMain.handle('git:branch', (_e, cwd: string) => getGitBranch(cwd))
+  ipcMain.handle('git:aheadBehind', (_e, cwd: string) => getAheadBehind(cwd))
   ipcMain.handle('git:status', (_e, cwd: string) => getGitStatus(cwd))
   ipcMain.handle('git:stage', (_e, cwd: string, paths: string[]) => stageFiles(cwd, paths))
   ipcMain.handle('git:unstage', (_e, cwd: string, paths: string[]) => unstageFiles(cwd, paths))

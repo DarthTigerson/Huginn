@@ -27,3 +27,8 @@ export interface GitDiffContent {
   original: string
   modified: string
 }
+
+export interface GitAheadBehind {
+  ahead: number
+  behind: number
+}

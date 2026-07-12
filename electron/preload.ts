@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
 
   gitBranch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
+  gitAheadBehind: (cwd: string) => ipcRenderer.invoke('git:aheadBehind', cwd),
   gitStatus: (cwd: string) => ipcRenderer.invoke('git:status', cwd),
   gitStage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:stage', cwd, paths),
   gitUnstage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:unstage', cwd, paths),

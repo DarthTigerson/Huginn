@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useGitStore } from '../gitStore'
-import type { GitStatus } from '@/types/index'
+import type { GitStatus, GitAheadBehind } from '@/types/index'
 
 const emptyStatus: GitStatus = { staged: [], unstaged: [] }
 const mockStatus: GitStatus = {
   staged: [{ path: 'a.ts', status: 'M' }],
   unstaged: [{ path: 'b.ts', status: '?' }],
 }
+const mockAheadBehind: GitAheadBehind = { ahead: 2, behind: 1 }
 
 vi.stubGlobal('window', {
   api: {
     gitBranch: vi.fn().mockResolvedValue('main'),
+    gitAheadBehind: vi.fn().mockResolvedValue(mockAheadBehind),
     gitStatus: vi.fn().mockResolvedValue(mockStatus),
     gitStage: vi.fn().mockResolvedValue(undefined),
     gitUnstage: vi.fn().mockResolvedValue(undefined),
@@ -24,6 +26,7 @@ describe('gitStore', () => {
   beforeEach(() =>
     useGitStore.setState({
       branch: null,
+      aheadBehind: null,
       status: emptyStatus,
       commitMessage: '',
       commitError: null,
@@ -31,25 +34,28 @@ describe('gitStore', () => {
   )
 
   it('starts empty', () => {
-    const { branch, status, commitMessage, commitError } = useGitStore.getState()
+    const { branch, aheadBehind, status, commitMessage, commitError } = useGitStore.getState()
     expect(branch).toBeNull()
+    expect(aheadBehind).toBeNull()
     expect(status).toEqual(emptyStatus)
     expect(commitMessage).toBe('')
     expect(commitError).toBeNull()
   })
 
-  it('refresh loads branch and status', async () => {
+  it('refresh loads branch, ahead/behind counts, and status', async () => {
     await useGitStore.getState().refresh('/proj')
-    const { branch, status } = useGitStore.getState()
+    const { branch, aheadBehind, status } = useGitStore.getState()
     expect(branch).toBe('main')
+    expect(aheadBehind).toEqual(mockAheadBehind)
     expect(status).toEqual(mockStatus)
   })
 
-  it('refresh with null cwd clears branch and status', async () => {
-    useGitStore.setState({ branch: 'main', status: mockStatus })
+  it('refresh with null cwd clears branch, ahead/behind, and status', async () => {
+    useGitStore.setState({ branch: 'main', aheadBehind: mockAheadBehind, status: mockStatus })
     await useGitStore.getState().refresh(null)
-    const { branch, status } = useGitStore.getState()
+    const { branch, aheadBehind, status } = useGitStore.getState()
     expect(branch).toBeNull()
+    expect(aheadBehind).toBeNull()
     expect(status).toEqual(emptyStatus)
   })
 

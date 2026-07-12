@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import type { GitStatus } from '@/types/index'
+import type { GitStatus, GitAheadBehind } from '@/types/index'
 
 interface GitStore {
   branch: string | null
+  aheadBehind: GitAheadBehind | null
   status: GitStatus
   commitMessage: string
   commitError: string | null
@@ -18,17 +19,21 @@ interface GitStore {
 
 export const useGitStore = create<GitStore>((set, get) => ({
   branch: null,
+  aheadBehind: null,
   status: { staged: [], unstaged: [] },
   commitMessage: '',
   commitError: null,
 
   refresh: async (cwd) => {
     if (!cwd) {
-      set({ branch: null, status: { staged: [], unstaged: [] } })
+      set({ branch: null, aheadBehind: null, status: { staged: [], unstaged: [] } })
       return
     }
-    const branch = await window.api.gitBranch(cwd)
-    set({ branch })
+    const [branch, aheadBehind] = await Promise.all([
+      window.api.gitBranch(cwd),
+      window.api.gitAheadBehind(cwd),
+    ])
+    set({ branch, aheadBehind })
     await get().refreshStatus(cwd)
   },
 
