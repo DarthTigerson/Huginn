@@ -8,8 +8,9 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab, isGitLogTab } from '@/components/Settings/paths'
+import { isSettingsTab, isGitLogTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
+import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import type { GitDiffContent } from '@/types/index'
@@ -60,7 +61,7 @@ export function Editor() {
       <TabBar />
       {activeTab ? (
         isVirtual ? (
-          <DisplayPage />
+          activeTab?.path === GIT_SETTINGS_TAB_PATH ? <GitSettingsPage /> : <DisplayPage />
         ) : isGitLog ? (
           <GitLogView />
         ) : isDiff ? (
