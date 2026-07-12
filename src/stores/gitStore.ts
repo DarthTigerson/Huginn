@@ -42,23 +42,43 @@ export const useGitStore = create<GitStore>((set, get) => ({
   },
 
   stage: async (cwd, path) => {
-    await window.api.gitStage(cwd, [path])
-    await get().refreshStatus(cwd)
+    try {
+      await window.api.gitStage(cwd, [path])
+    } catch (err) {
+      console.error('git stage failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
   },
 
   unstage: async (cwd, path) => {
-    await window.api.gitUnstage(cwd, [path])
-    await get().refreshStatus(cwd)
+    try {
+      await window.api.gitUnstage(cwd, [path])
+    } catch (err) {
+      console.error('git unstage failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
   },
 
   stageAll: async (cwd) => {
-    await window.api.gitStageAll(cwd)
-    await get().refreshStatus(cwd)
+    try {
+      await window.api.gitStageAll(cwd)
+    } catch (err) {
+      console.error('git stageAll failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
   },
 
   unstageAll: async (cwd) => {
-    await window.api.gitUnstageAll(cwd)
-    await get().refreshStatus(cwd)
+    try {
+      await window.api.gitUnstageAll(cwd)
+    } catch (err) {
+      console.error('git unstageAll failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
   },
 
   setCommitMessage: (message) => set({ commitMessage: message, commitError: null }),

@@ -74,6 +74,34 @@ describe('gitStore', () => {
     expect(window.api.gitUnstageAll).toHaveBeenCalledWith('/proj')
   })
 
+  it('stage does not throw and still refreshes status when gitStage rejects', async () => {
+    vi.mocked(window.api.gitStage).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().stage('/proj', 'a.ts')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
+  it('unstage does not throw and still refreshes status when gitUnstage rejects', async () => {
+    vi.mocked(window.api.gitUnstage).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().unstage('/proj', 'b.ts')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
+  it('stageAll does not throw and still refreshes status when gitStageAll rejects', async () => {
+    vi.mocked(window.api.gitStageAll).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().stageAll('/proj')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
+  it('unstageAll does not throw and still refreshes status when gitUnstageAll rejects', async () => {
+    vi.mocked(window.api.gitUnstageAll).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().unstageAll('/proj')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
   it('setCommitMessage updates the message and clears any error', () => {
     useGitStore.setState({ commitError: 'boom' })
     useGitStore.getState().setCommitMessage('fix bug')
