@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { GitStatus, GitAheadBehind } from '@/types/index'
+import type { GitStatus, GitAheadBehind, GitCommandAction } from '@/types/index'
 
 interface GitStore {
   branch: string | null
@@ -7,6 +7,7 @@ interface GitStore {
   status: GitStatus
   commitMessage: string
   commitError: string | null
+  commandStatus: 'idle' | 'running'
   refresh: (cwd: string | null) => Promise<void>
   refreshStatus: (cwd: string | null) => Promise<void>
   stage: (cwd: string, path: string) => Promise<void>
@@ -15,14 +16,51 @@ interface GitStore {
   unstageAll: (cwd: string) => Promise<void>
   setCommitMessage: (message: string) => void
   commit: (cwd: string) => Promise<void>
+  fetch: (cwd: string) => Promise<void>
+  pull: (cwd: string) => Promise<void>
+  push: (cwd: string) => Promise<void>
+  forcePush: (cwd: string) => Promise<void>
+  forcePushLease: (cwd: string) => Promise<void>
 }
 
-export const useGitStore = create<GitStore>((set, get) => ({
+export const useGitStore = create<GitStore>((set, get) => {
+  const runCommand = async (cwd: string, action: GitCommandAction) => {
+    if (get().commandStatus === 'running') return
+    const id = crypto.randomUUID()
+
+    set({ commandStatus: 'running' })
+
+    const cleanupData = window.api.onGitLogData(async (evtId, data) => {
+      if (evtId !== id) return
+      const { useGitLogStore } = await import('./gitLogStore')
+      useGitLogStore.getState().append(data)
+    })
+    const cleanupExit = window.api.onGitLogExit(async (evtId, code) => {
+      if (evtId !== id) return
+      cleanupData()
+      cleanupExit()
+      set({ commandStatus: 'idle' })
+      if (code === 0) get().refresh(cwd)
+    })
+
+    // Open/focus the git log tab and append a header line (async, non-blocking)
+    import('./editorStore').then(({ useEditorStore }) => {
+      useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
+    })
+    import('./gitLogStore').then(({ useGitLogStore }) => {
+      useGitLogStore.getState().append(`\n> git ${action === 'forcePush' ? 'push --force' : action === 'forcePushLease' ? 'push --force-with-lease' : action}\n`)
+    })
+
+    await window.api.gitRunCommand(id, cwd, action)
+  }
+
+  return {
   branch: null,
   aheadBehind: null,
   status: { staged: [], unstaged: [] },
   commitMessage: '',
   commitError: null,
+  commandStatus: 'idle' as const,
 
   refresh: async (cwd) => {
     if (!cwd) {
@@ -98,4 +136,11 @@ export const useGitStore = create<GitStore>((set, get) => ({
       set({ commitError: result.error })
     }
   },
-}))
+
+  fetch:          (cwd) => runCommand(cwd, 'fetch'),
+  pull:           (cwd) => runCommand(cwd, 'pull'),
+  push:           (cwd) => runCommand(cwd, 'push'),
+  forcePush:      (cwd) => runCommand(cwd, 'forcePush'),
+  forcePushLease: (cwd) => runCommand(cwd, 'forcePushLease'),
+  }
+})

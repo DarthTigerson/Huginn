@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useGitStore } from '../gitStore'
 import type { GitStatus, GitAheadBehind } from '@/types/index'
 
+vi.mock('@/stores/editorStore', () => ({ useEditorStore: { getState: () => ({ openTab: vi.fn() }) } }))
+vi.mock('@/stores/gitLogStore', () => ({ useGitLogStore: { getState: () => ({ append: vi.fn() }) } }))
+
 const emptyStatus: GitStatus = { staged: [], unstaged: [] }
 const mockStatus: GitStatus = {
   staged: [{ path: 'a.ts', status: 'M' }],
@@ -19,6 +22,9 @@ vi.stubGlobal('window', {
     gitStageAll: vi.fn().mockResolvedValue(undefined),
     gitUnstageAll: vi.fn().mockResolvedValue(undefined),
     gitCommit: vi.fn().mockResolvedValue({ ok: true }),
+    gitRunCommand: vi.fn().mockResolvedValue(undefined),
+    onGitLogData: vi.fn().mockReturnValue(() => {}),
+    onGitLogExit: vi.fn().mockReturnValue(() => {}),
   },
 })
 
@@ -30,6 +36,7 @@ describe('gitStore', () => {
       status: emptyStatus,
       commitMessage: '',
       commitError: null,
+      commandStatus: 'idle',
     })
   )
 
@@ -133,5 +140,50 @@ describe('gitStore', () => {
     const { commitMessage, commitError } = useGitStore.getState()
     expect(commitMessage).toBe('fix bug')
     expect(commitError).toBe('nothing staged')
+  })
+})
+
+describe('gitStore — command actions', () => {
+  beforeEach(() => {
+    useGitStore.setState({
+      branch: 'main',
+      aheadBehind: null,
+      status: emptyStatus,
+      commitMessage: '',
+      commitError: null,
+      commandStatus: 'idle',
+    })
+    vi.mocked(window.api.gitRunCommand).mockClear()
+    vi.mocked(window.api.onGitLogData).mockClear()
+    vi.mocked(window.api.onGitLogExit).mockClear()
+  })
+
+  it('sets commandStatus to running and calls gitRunCommand for push', async () => {
+    const pushPromise = useGitStore.getState().push('/proj')
+    expect(useGitStore.getState().commandStatus).toBe('running')
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'push'
+    )
+    await pushPromise
+  })
+
+  it('does nothing if commandStatus is already running', async () => {
+    useGitStore.setState({ commandStatus: 'running' })
+    await useGitStore.getState().push('/proj')
+    expect(window.api.gitRunCommand).not.toHaveBeenCalled()
+  })
+
+  it('calls gitRunCommand with forcePush for forcePush action', async () => {
+    await useGitStore.getState().forcePush('/proj')
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'forcePush'
+    )
+  })
+
+  it('calls gitRunCommand with forcePushLease for forcePushLease action', async () => {
+    await useGitStore.getState().forcePushLease('/proj')
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'forcePushLease'
+    )
   })
 })
