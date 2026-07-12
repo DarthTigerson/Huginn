@@ -17,6 +17,18 @@ contextBridge.exposeInMainWorld('api', {
   gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
+  gitRunCommand: (id: string, cwd: string, action: string) =>
+    ipcRenderer.invoke('git:runCommand', id, cwd, action),
+  onGitLogData: (cb: (id: string, data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, data: string) => cb(id, data)
+    ipcRenderer.on('git:log:data', handler)
+    return () => ipcRenderer.removeListener('git:log:data', handler)
+  },
+  onGitLogExit: (cb: (id: string, code: number) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, code: number) => cb(id, code)
+    ipcRenderer.on('git:log:exit', handler)
+    return () => ipcRenderer.removeListener('git:log:exit', handler)
+  },
 
   termSpawn: () => ipcRenderer.invoke('term:spawn'),
   termWrite: (data: string) => ipcRenderer.send('term:write', data),

@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction } from './index'
 
 export type AssistantKind = 'claude' | 'codex'
 
@@ -19,6 +19,9 @@ declare global {
       gitUnstageAll: (cwd: string) => Promise<void>
       gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
+      gitRunCommand: (id: string, cwd: string, action: GitCommandAction) => Promise<void>
+      onGitLogData: (cb: (id: string, data: string) => void) => () => void
+      onGitLogExit: (cb: (id: string, code: number) => void) => () => void
 
       termSpawn: () => Promise<void>
       termWrite: (data: string) => void
