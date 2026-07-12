@@ -45,6 +45,7 @@ interface EditorState {
   moveTab: (path: string, targetPath: string, placement: 'before' | 'after') => void
   setActive: (path: string) => void
   setActivePane: (paneId: string) => void
+  setPaneActive: (paneId: string, path: string) => void
   splitActivePane: (direction: EditorSplitDirection) => void
   updateContent: (path: string, content: string) => void
   markSaved: (path: string, content?: string) => void
@@ -148,6 +149,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return {
         activePaneId: paneId,
         activeTabPath: paneTabPath ?? state.activeTabPath,
+      }
+    }),
+
+  setPaneActive: (paneId: string, path: string) =>
+    set((state) => {
+      const paneIds = collectPaneIds(state.layout)
+      if (!paneIds.includes(paneId)) return state
+      return {
+        activePaneId: paneId,
+        activeTabPath: path,
+        paneTabs: { ...state.paneTabs, [paneId]: path },
       }
     }),
 

@@ -169,4 +169,43 @@ describe('editorStore', () => {
       false,
     ])
   })
+
+  it('setPaneActive sets activePaneId, activeTabPath, and paneTabs for the named pane', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    // Manually inject a second pane
+    useEditorStore.setState({
+      layout: {
+        type: 'split',
+        direction: 'horizontal',
+        children: [
+          { type: 'pane', id: 'pane-1' },
+          { type: 'pane', id: 'pane-2' },
+        ],
+      },
+      paneTabs: { 'pane-1': '/a.ts', 'pane-2': '/b.ts' },
+      activePaneId: 'pane-1',
+    })
+
+    store.setPaneActive('pane-2', '/a.ts')
+
+    const s = useEditorStore.getState()
+    expect(s.activePaneId).toBe('pane-2')
+    expect(s.activeTabPath).toBe('/a.ts')
+    expect(s.paneTabs['pane-2']).toBe('/a.ts')
+    expect(s.paneTabs['pane-1']).toBe('/a.ts') // untouched
+  })
+
+  it('setPaneActive is a no-op for a pane not in the layout', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    const before = useEditorStore.getState()
+
+    store.setPaneActive('pane-999', '/a.ts')
+
+    const after = useEditorStore.getState()
+    expect(after.activePaneId).toBe(before.activePaneId)
+    expect(after.activeTabPath).toBe(before.activeTabPath)
+  })
 })
