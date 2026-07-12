@@ -26,9 +26,10 @@ export function GitPanel() {
 
   useEffect(() => {
     refreshStatus(projectRoot)
+    const onFocus = () => refreshStatus(projectRoot)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [projectRoot, refreshStatus])
-
-  const hasChanges = status.staged.length > 0 || status.unstaged.length > 0
 
   function openDiff(path: string, staged: boolean) {
     openTab({ path: buildGitDiffPath(path, staged), content: '', dirty: false })
@@ -61,64 +62,54 @@ export function GitPanel() {
         </button>
       </div>
 
-      {hasChanges ? (
-        <div className="flex-1 overflow-y-auto py-1">
-          {status.staged.length > 0 && (
-            <div className="mb-2">
-              <div className="flex items-center justify-between px-3 py-1">
-                <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
-                  Staged Changes ({status.staged.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => projectRoot && unstageAll(projectRoot)}
-                  className="text-[11px] text-fg-muted transition-colors hover:text-fg"
-                >
-                  Unstage All
-                </button>
-              </div>
-              {status.staged.map((file) => (
-                <FileRow
-                  key={file.path}
-                  file={file}
-                  staged
-                  onToggle={() => projectRoot && unstage(projectRoot, file.path)}
-                  onOpenDiff={() => openDiff(file.path, true)}
-                />
-              ))}
-            </div>
-          )}
-          {status.unstaged.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between px-3 py-1">
-                <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
-                  Changes ({status.unstaged.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => projectRoot && stageAll(projectRoot)}
-                  className="text-[11px] text-fg-muted transition-colors hover:text-fg"
-                >
-                  Stage All
-                </button>
-              </div>
-              {status.unstaged.map((file) => (
-                <FileRow
-                  key={file.path}
-                  file={file}
-                  staged={false}
-                  onToggle={() => projectRoot && stage(projectRoot, file.path)}
-                  onOpenDiff={() => openDiff(file.path, false)}
-                />
-              ))}
-            </div>
-          )}
+      <div className="flex-1 overflow-y-auto py-1">
+        <div className="mb-2">
+          <div className="flex items-center justify-between px-3 py-1">
+            <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+              Staged Changes ({status.staged.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => projectRoot && unstageAll(projectRoot)}
+              className="text-[11px] text-fg-muted transition-colors hover:text-fg"
+            >
+              Unstage All
+            </button>
+          </div>
+          {status.staged.map((file) => (
+            <FileRow
+              key={file.path}
+              file={file}
+              staged
+              onToggle={() => projectRoot && unstage(projectRoot, file.path)}
+              onOpenDiff={() => openDiff(file.path, true)}
+            />
+          ))}
         </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-fg-subtle">No changes</p>
+        <div>
+          <div className="flex items-center justify-between px-3 py-1">
+            <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+              Changes ({status.unstaged.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => projectRoot && stageAll(projectRoot)}
+              className="text-[11px] text-fg-muted transition-colors hover:text-fg"
+            >
+              Stage All
+            </button>
+          </div>
+          {status.unstaged.map((file) => (
+            <FileRow
+              key={file.path}
+              file={file}
+              staged={false}
+              onToggle={() => projectRoot && stage(projectRoot, file.path)}
+              onOpenDiff={() => openDiff(file.path, false)}
+            />
+          ))}
         </div>
-      )}
+      </div>
 
       <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
         <button type="button" className={pillButtonClass} aria-label="Graph (not yet implemented)">

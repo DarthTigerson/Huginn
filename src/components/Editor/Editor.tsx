@@ -5,6 +5,7 @@ import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useGitStore } from '@/stores/gitStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import { isSettingsTab } from '@/components/Settings/paths'
@@ -43,12 +44,14 @@ export function Editor() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
-        window.api.writeFile(activeTab.path, activeTab.content)
+        window.api.writeFile(activeTab.path, activeTab.content).then(() => {
+          if (projectRoot) useGitStore.getState().refreshStatus(projectRoot)
+        })
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTab, isVirtual, isDiff])
+  }, [activeTab, isVirtual, isDiff, projectRoot])
 
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
