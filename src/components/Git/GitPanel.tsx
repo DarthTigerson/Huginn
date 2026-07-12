@@ -128,9 +128,6 @@ export function GitPanel() {
         <button type="button" className={pillButtonClass} aria-label="List Diff (not yet implemented)">
           List Diff
         </button>
-        <button type="button" className={pillButtonClass} aria-label="GG (not yet implemented)">
-          GG
-        </button>
       </div>
     </div>
   )

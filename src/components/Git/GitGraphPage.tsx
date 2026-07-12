@@ -5,10 +5,10 @@ import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
 
 const ROW_H = 72
-const LANE_W = 46
-const LANE_PAD = 28
+const LANE_W = 40
+const LANE_PAD = 24
 const DOT_R = 11
-const MIN_GRAPH_W = 420
+const MIN_GRAPH_W = 320
 
 function laneX(lane: number, railWidth: number, laneCount: number): number {
   const visibleLanes = Math.max(1, laneCount)
@@ -16,13 +16,20 @@ function laneX(lane: number, railWidth: number, laneCount: number): number {
   return (railWidth - laneSpan) / 2 + lane * LANE_W
 }
 
-function edgePath(edge: RowEdge, railWidth: number, laneCount: number): string {
+function edgePath(
+  edge: RowEdge,
+  railWidth: number,
+  laneCount: number,
+  currentLane: number,
+  rowIndex: number
+): string {
   const x1 = laneX(edge.fromLane, railWidth, laneCount)
   const x2 = laneX(edge.toLane, railWidth, laneCount)
+  const y1 = rowIndex === 0 && edge.fromLane === currentLane ? ROW_H / 2 : 0
   if (x1 === x2) {
-    return `M ${x1} 0 L ${x2} ${ROW_H}`
+    return `M ${x1} ${y1} L ${x2} ${ROW_H}`
   }
-  return `M ${x1} 0 C ${x1} ${ROW_H * 0.35}, ${x2} ${ROW_H * 0.65}, ${x2} ${
+  return `M ${x1} ${y1} C ${x1} ${ROW_H * 0.35}, ${x2} ${ROW_H * 0.65}, ${x2} ${
     ROW_H
   }`
 }
@@ -38,14 +45,19 @@ function formatRelDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
-function formatFullDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+function padDatePart(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function formatExactDate(iso: string): string {
+  const date = new Date(iso)
+  const yyyy = date.getFullYear()
+  const mm = padDatePart(date.getMonth() + 1)
+  const dd = padDatePart(date.getDate())
+  const hh = padDatePart(date.getHours())
+  const min = padDatePart(date.getMinutes())
+  const ss = padDatePart(date.getSeconds())
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`
 }
 
 function normalizeRef(ref: string): string {
@@ -97,8 +109,9 @@ function nodeMeta(
   return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
 }
 
-function GraphRow({ layout, selected, graphRailWidth, graphLaneCount, onClick }: {
+function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick }: {
   layout: CommitLayout
+  rowIndex: number
   selected: boolean
   graphRailWidth: number
   graphLaneCount: number
@@ -116,7 +129,7 @@ function GraphRow({ layout, selected, graphRailWidth, graphLaneCount, onClick }:
     <button
       type="button"
       style={{
-        gridTemplateColumns: `minmax(140px, 1fr) ${svgW}px minmax(180px, 1fr)`,
+        gridTemplateColumns: `minmax(82px, 0.7fr) ${svgW}px minmax(140px, 1.15fr)`,
         background: selected
           ? `linear-gradient(90deg, transparent 0%, ${color}22 35%, ${color}1c 65%, transparent 100%)`
           : undefined,
@@ -174,7 +187,7 @@ function GraphRow({ layout, selected, graphRailWidth, graphLaneCount, onClick }:
           {edges.map((edge, i) => (
             <path
               key={i}
-              d={edgePath(edge, svgW, laneCount)}
+              d={edgePath(edge, svgW, laneCount, lane, rowIndex)}
               stroke={edge.color}
               strokeWidth={4}
               fill="none"
@@ -225,7 +238,7 @@ function GraphRow({ layout, selected, graphRailWidth, graphLaneCount, onClick }:
           )}
         </div>
         <div className="mt-1 text-[10px] text-fg-subtle truncate opacity-70">
-          {commit.hash.slice(0, 7)} · {formatRelDate(commit.date)}
+          {commit.hash.slice(0, 7)} · {formatExactDate(commit.date)}
         </div>
       </div>
     </button>
@@ -291,7 +304,7 @@ function DetailPanel({ cwd, hash, onClose }: {
           </div>
           <div className="flex justify-between gap-3">
             <span className="text-fg-subtle">Date</span>
-            <span className="text-fg text-right">{formatFullDate(commit.date)}</span>
+            <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
           </div>
           <div className="flex justify-between gap-3">
             <span className="text-fg-subtle">Relative</span>
@@ -393,10 +406,11 @@ export function GitGraphPage() {
               No commits found
             </div>
           ) : (
-            layouts.map((layout) => (
+            layouts.map((layout, index) => (
               <GraphRow
                 key={layout.commit.hash}
                 layout={layout}
+                rowIndex={index}
                 graphRailWidth={graphRailWidth}
                 graphLaneCount={graphLaneCount}
                 selected={layout.commit.hash === selectedHash}
