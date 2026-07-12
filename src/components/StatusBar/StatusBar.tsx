@@ -3,14 +3,17 @@ import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { GitIcon } from '@/components/ActivityBar/ActivityBar'
+import { GitActionsMenu } from '@/components/Git/GitActionsMenu'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
   const projectRoot = useFileStore((s) => s.projectRoot)
   const branch = useGitStore((s) => s.branch)
   const aheadBehind = useGitStore((s) => s.aheadBehind)
+  const commandStatus = useGitStore((s) => s.commandStatus)
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [gitMenuOpen, setGitMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -19,6 +22,13 @@ export function StatusBar() {
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [menuOpen])
+
+  useEffect(() => {
+    if (!gitMenuOpen) return
+    const close = () => setGitMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [gitMenuOpen])
 
   useEffect(() => {
     refreshBranch(projectRoot)
@@ -30,16 +40,28 @@ export function StatusBar() {
   return (
     <div className="h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       {branch ? (
-        <span className="flex items-center gap-1 text-fg-muted text-xs truncate">
-          <GitIcon className="w-3 h-3 shrink-0" />
-          {branch}
-          {aheadBehind && (aheadBehind.behind > 0 || aheadBehind.ahead > 0) && (
-            <span className="flex items-center gap-0.5 tabular-nums ml-1.5">
-              {aheadBehind.behind > 0 && <span>↓{aheadBehind.behind}</span>}
-              {aheadBehind.ahead > 0 && <span>↑{aheadBehind.ahead}</span>}
-            </span>
+        <div className="relative">
+          <span
+            className="flex items-center gap-1 text-fg-muted text-xs truncate cursor-default select-none"
+            onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
+          >
+            <GitIcon className="w-3 h-3 shrink-0" />
+            {branch}
+            {commandStatus === 'running' ? (
+              <span className="ml-1.5 text-fg-subtle animate-pulse">●</span>
+            ) : (
+              aheadBehind && (aheadBehind.behind > 0 || aheadBehind.ahead > 0) && (
+                <span className="flex items-center gap-0.5 tabular-nums ml-1.5">
+                  {aheadBehind.behind > 0 && <span>↓{aheadBehind.behind}</span>}
+                  {aheadBehind.ahead > 0 && <span>↑{aheadBehind.ahead}</span>}
+                </span>
+              )
+            )}
+          </span>
+          {gitMenuOpen && (
+            <GitActionsMenu onClose={() => setGitMenuOpen(false)} />
           )}
-        </span>
+        </div>
       ) : (
         <span />
       )}
