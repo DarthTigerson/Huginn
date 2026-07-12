@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { buildGitDiffPath } from './paths'
+import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { FileRow } from './FileRow'
 
 const pillButtonClass =
@@ -23,6 +25,7 @@ export function GitPanel() {
     commit,
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
+  const loadGraph = useGitGraphStore((s) => s.load)
 
   useEffect(() => {
     refreshStatus(projectRoot)
@@ -112,7 +115,14 @@ export function GitPanel() {
       </div>
 
       <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
-        <button type="button" className={pillButtonClass} aria-label="Graph (not yet implemented)">
+        <button
+          type="button"
+          className={pillButtonClass}
+          onClick={() => {
+            openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
+            if (projectRoot) loadGraph(projectRoot)
+          }}
+        >
           Graph
         </button>
         <button type="button" className={pillButtonClass} aria-label="List Diff (not yet implemented)">

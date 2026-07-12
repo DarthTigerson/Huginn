@@ -8,11 +8,12 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab, isGitLogTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
+import { isSettingsTab, isGitLogTab, isGitGraphTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
+import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import type { GitDiffContent } from '@/types/index'
 
 export function Editor() {
@@ -21,6 +22,7 @@ export function Editor() {
   const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
   const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
+  const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
@@ -43,7 +45,7 @@ export function Editor() {
   }, [activeTab?.path, isDiff, projectRoot])
 
   useEffect(() => {
-    if (!activeTab || isVirtual || isDiff || isGitLog) return
+    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph) return
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
@@ -64,6 +66,8 @@ export function Editor() {
           activeTab?.path === GIT_SETTINGS_TAB_PATH ? <GitSettingsPage /> : <DisplayPage />
         ) : isGitLog ? (
           <GitLogView />
+        ) : isGitGraph ? (
+          <GitGraphPage />
         ) : isDiff ? (
           <div className="flex-1 overflow-hidden">
             {diffContent && (

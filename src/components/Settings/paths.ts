@@ -9,3 +9,9 @@ export function isSettingsTab(path: string): boolean {
 export function isGitLogTab(path: string): boolean {
   return path === GIT_LOG_TAB_PATH
 }
+
+export const GIT_GRAPH_TAB_PATH = 'git-graph://Graph'
+
+export function isGitGraphTab(path: string): boolean {
+  return path === GIT_GRAPH_TAB_PATH
+}
