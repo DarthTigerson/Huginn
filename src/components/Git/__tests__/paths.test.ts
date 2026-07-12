@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { isGitDiffTab, buildGitDiffPath, parseGitDiffPath } from '../paths'
+import { GIT_BRANCH_DIFF_TAB_PATH, isGitBranchDiffTab } from '@/components/Settings/paths'
 
 describe('git diff virtual tab paths', () => {
   it('builds a staged diff path', () => {
@@ -41,5 +42,10 @@ describe('git diff virtual tab paths', () => {
   it('round-trips build -> parse', () => {
     const built = buildGitDiffPath('/proj/src/foo.ts', true)
     expect(parseGitDiffPath(built)).toEqual({ path: '/proj/src/foo.ts', staged: true })
+  })
+
+  it('recognizes the branch diff virtual tab', () => {
+    expect(isGitBranchDiffTab(GIT_BRANCH_DIFF_TAB_PATH)).toBe(true)
+    expect(isGitBranchDiffTab('git-graph://Graph')).toBe(false)
   })
 })

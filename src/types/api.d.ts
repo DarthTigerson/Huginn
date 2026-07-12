@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff } from './index'
 
 export type AssistantKind = 'claude' | 'codex'
 
@@ -23,6 +23,8 @@ declare global {
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
       gitGraph: (cwd: string) => Promise<GitCommit[]>
+      gitBranches: (cwd: string) => Promise<string[]>
+      gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
 
       termSpawn: () => Promise<void>

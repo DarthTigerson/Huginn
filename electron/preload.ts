@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
   gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
+  gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
+  gitBranchDiff: (cwd: string, source: string, target: string) =>
+    ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
 
   termSpawn: () => ipcRenderer.invoke('term:spawn'),

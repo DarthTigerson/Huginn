@@ -32,6 +32,26 @@ export async function getGitBranch(cwd: string): Promise<string | null> {
   }
 }
 
+export async function getGitBranches(cwd: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes'],
+      { cwd }
+    )
+    return Array.from(
+      new Set(
+        stdout
+          .split('\n')
+          .map((branch) => branch.trim())
+          .filter((branch) => branch && !branch.endsWith('/HEAD'))
+      )
+    )
+  } catch {
+    return []
+  }
+}
+
 export async function getAheadBehind(cwd: string): Promise<GitAheadBehind | null> {
   try {
     const { stdout } = await execFileAsync(
@@ -164,6 +184,46 @@ export async function getGitGraph(cwd: string): Promise<import('../src/types/ind
   }
 }
 
+export async function getGitBranchDiff(
+  cwd: string,
+  source: string,
+  target: string
+): Promise<import('../src/types/index').GitBranchDiff> {
+  if (!source || !target || source === target) {
+    return { source, target, commits: [] }
+  }
+
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['log', `${target}..${source}`, '-n', '200', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      { cwd }
+    )
+    const commits = stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const pipeIdx = line.indexOf('|')
+        const hash = line.slice(0, pipeIdx)
+        const rest = line.slice(pipeIdx + 1)
+        const parts = rest.split('|')
+        const parentsRaw = parts[0] ?? ''
+        const subject = parts[1] ?? ''
+        const author = parts[2] ?? ''
+        const date = parts[3] ?? ''
+        const refsRaw = parts[4] ?? ''
+        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
+        const refs = refsRaw.trim()
+          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
+          : []
+        return { hash, parents, subject, author, date, refs }
+      })
+    return { source, target, commits }
+  } catch {
+    return { source, target, commits: [] }
+  }
+}
+
 export async function getGitShowStat(cwd: string, hash: string): Promise<string[]> {
   try {
     const { stdout } = await execFileAsync(
@@ -197,4 +257,3 @@ export async function getDiffContent(
   }
   return { original, modified }
 }
-

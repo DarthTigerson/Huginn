@@ -43,3 +43,9 @@ export interface GitCommit {
   date: string
   refs: string[]
 }
+
+export interface GitBranchDiff {
+  source: string
+  target: string
+  commits: GitCommit[]
+}

@@ -4,7 +4,7 @@ import { useGitStore } from '@/stores/gitStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { buildGitDiffPath } from './paths'
-import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
+import { GIT_BRANCH_DIFF_TAB_PATH, GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { FileRow } from './FileRow'
 
 const pillButtonClass =
@@ -125,7 +125,11 @@ export function GitPanel() {
         >
           Graph
         </button>
-        <button type="button" className={pillButtonClass} aria-label="List Diff (not yet implemented)">
+        <button
+          type="button"
+          className={pillButtonClass}
+          onClick={() => openTab({ path: GIT_BRANCH_DIFF_TAB_PATH, content: '', dirty: false })}
+        >
           List Diff
         </button>
       </div>

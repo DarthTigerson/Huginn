@@ -15,3 +15,9 @@ export const GIT_GRAPH_TAB_PATH = 'git-graph://Graph'
 export function isGitGraphTab(path: string): boolean {
   return path === GIT_GRAPH_TAB_PATH
 }
+
+export const GIT_BRANCH_DIFF_TAB_PATH = 'git-branch-diff://Branch Diff'
+
+export function isGitBranchDiffTab(path: string): boolean {
+  return path === GIT_BRANCH_DIFF_TAB_PATH
+}

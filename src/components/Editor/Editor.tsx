@@ -8,12 +8,13 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
-import { isSettingsTab, isGitLogTab, isGitGraphTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
+import { isSettingsTab, isGitLogTab, isGitGraphTab, isGitBranchDiffTab, GIT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
+import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import type { GitDiffContent } from '@/types/index'
 
 export function Editor() {
@@ -23,6 +24,7 @@ export function Editor() {
   const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
+  const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
@@ -45,7 +47,7 @@ export function Editor() {
   }, [activeTab?.path, isDiff, projectRoot])
 
   useEffect(() => {
-    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph) return
+    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
@@ -56,7 +58,7 @@ export function Editor() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTab, isVirtual, isDiff, isGitLog, projectRoot])
+  }, [activeTab, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff, projectRoot])
 
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
@@ -68,6 +70,8 @@ export function Editor() {
           <GitLogView />
         ) : isGitGraph ? (
           <GitGraphPage />
+        ) : isGitBranchDiff ? (
+          <GitBranchDiffPage />
         ) : isDiff ? (
           <div className="flex-1 overflow-hidden">
             {diffContent && (
