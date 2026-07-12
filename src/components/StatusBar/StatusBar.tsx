@@ -50,10 +50,10 @@ export function StatusBar() {
             {commandStatus === 'running' ? (
               <span className="ml-1.5 text-fg-subtle animate-pulse">●</span>
             ) : (
-              aheadBehind && (aheadBehind.behind > 0 || aheadBehind.ahead > 0) && (
-                <span className="flex items-center gap-0.5 tabular-nums ml-1.5">
-                  {aheadBehind.behind > 0 && <span>↓{aheadBehind.behind}</span>}
-                  {aheadBehind.ahead > 0 && <span>↑{aheadBehind.ahead}</span>}
+              aheadBehind && (
+                <span className="flex items-center gap-1.5 tabular-nums ml-1.5">
+                  <span>↓{aheadBehind.behind}</span>
+                  <span>↑{aheadBehind.ahead}</span>
                 </span>
               )
             )}

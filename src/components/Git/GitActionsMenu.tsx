@@ -14,7 +14,9 @@ type ForceAction = Extract<GitCommandAction, 'forcePush' | 'forcePushLease'>
 export function GitActionsMenu({ onClose }: Props) {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const commandStatus = useGitStore((s) => s.commandStatus)
-  const { fetch, pull, push } = useGitStore((s) => ({ fetch: s.fetch, pull: s.pull, push: s.push }))
+  const fetch = useGitStore((s) => s.fetch)
+  const pull = useGitStore((s) => s.pull)
+  const push = useGitStore((s) => s.push)
   const forceSafetyEnabled = useGitSettingsStore((s) => s.forceSafetyEnabled)
   const [forceAction, setForceAction] = useState<ForceAction | null>(null)
 
@@ -40,7 +42,7 @@ export function GitActionsMenu({ onClose }: Props) {
 
   return (
     <>
-      <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-border bg-sidebar shadow-lg shadow-black/40 py-1 z-50">
+      <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border bg-sidebar shadow-lg shadow-black/40 py-1 z-50">
         <button type="button" className={itemClass} disabled={disabled}
           onClick={() => run(() => fetch(projectRoot!))}>
           Fetch
@@ -49,11 +51,11 @@ export function GitActionsMenu({ onClose }: Props) {
           onClick={() => run(() => pull(projectRoot!))}>
           Pull
         </button>
+        <div className="my-1 border-t border-border" />
         <button type="button" className={itemClass} disabled={disabled}
           onClick={() => run(() => push(projectRoot!))}>
           Push
         </button>
-        <div className="my-1 border-t border-border" />
         <button type="button" className={`${itemClass} text-red-400`} disabled={disabled}
           onClick={() => handleForce('forcePush')}>
           Force Push

@@ -13,12 +13,9 @@ interface Props {
 export function ConfirmForcePushModal({ action, cwd, onClose }: Props) {
   const branch = useGitStore((s) => s.branch)
   const runAction = useGitStore((s) => s[action])
-  const { countdownEnabled, countdownSeconds, autoContinueOnCountdownEnd } =
-    useGitSettingsStore((s) => ({
-      countdownEnabled: s.countdownEnabled,
-      countdownSeconds: s.countdownSeconds,
-      autoContinueOnCountdownEnd: s.autoContinueOnCountdownEnd,
-    }))
+  const countdownEnabled = useGitSettingsStore((s) => s.countdownEnabled)
+  const countdownSeconds = useGitSettingsStore((s) => s.countdownSeconds)
+  const autoContinueOnCountdownEnd = useGitSettingsStore((s) => s.autoContinueOnCountdownEnd)
 
   const [remaining, setRemaining] = useState(countdownEnabled ? countdownSeconds : null)
   const [countdownDone, setCountdownDone] = useState(false)
