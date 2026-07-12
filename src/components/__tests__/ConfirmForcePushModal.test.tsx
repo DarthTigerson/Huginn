@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act, cleanup, configure } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useGitStore } from '@/stores/gitStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
@@ -34,11 +34,23 @@ import { ConfirmForcePushModal } from '@/components/Git/ConfirmForcePushModal'
 describe('ConfirmForcePushModal', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // @testing-library/react's asyncWrapper drains microtasks via setTimeout(fn, 0).
+    // With vitest fake timers active, that setTimeout is fake and never auto-fires.
+    // We configure asyncWrapper to advance vitest's clock by 0ms after each cb so
+    // the drain-microtask setTimeout fires immediately — no global monkey-patching needed.
+    configure({
+      asyncWrapper: async (cb) => {
+        const result = await cb()
+        await vi.advanceTimersByTimeAsync(0)
+        return result
+      },
+    })
     mockGitStore()
     mockSettings()
   })
 
   afterEach(() => {
+    cleanup()
     vi.useRealTimers()
   })
 
@@ -53,7 +65,8 @@ describe('ConfirmForcePushModal', () => {
     mockGitStore({ forcePush })
     const onClose = vi.fn()
     render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
-    await userEvent.click(screen.getByText('Cancel'))
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync.bind(vi) })
+    await user.click(screen.getByText('Cancel'))
     expect(onClose).toHaveBeenCalled()
     expect(forcePush).not.toHaveBeenCalled()
   })
@@ -63,7 +76,8 @@ describe('ConfirmForcePushModal', () => {
     mockGitStore({ forcePush })
     const onClose = vi.fn()
     render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
-    await userEvent.click(screen.getByText('Confirm'))
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync.bind(vi) })
+    await user.click(screen.getByText('Confirm'))
     expect(forcePush).toHaveBeenCalledWith('/proj')
     expect(onClose).toHaveBeenCalled()
   })
@@ -83,7 +97,7 @@ describe('ConfirmForcePushModal', () => {
     render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
     expect(screen.queryByText('Confirm')).toBeNull()
     act(() => { vi.advanceTimersByTime(2000) })
-    expect(await screen.findByText('Confirm')).toBeTruthy()
+    expect(screen.getByText('Confirm')).toBeTruthy()
     expect(forcePush).not.toHaveBeenCalled()
   })
 
