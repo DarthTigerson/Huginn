@@ -35,6 +35,33 @@ const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
   { id: 'codex', label: 'Codex' },
 ]
 
+const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
+const SIDEBAR_DEFAULT_SIZE = 20
+const SIDEBAR_MIN_SIZE = 12
+const SIDEBAR_MAX_SIZE = 40
+const CHAT_SIZE_KEY = 'huginn:layout:chatSize'
+const CHAT_DEFAULT_SIZE = 25
+const CHAT_MIN_SIZE = 15
+const CHAT_MAX_SIZE = 50
+
+function clampSize(size: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, size))
+}
+
+function loadSidebarSize(): number {
+  const stored = Number(localStorage.getItem(SIDEBAR_SIZE_KEY))
+  return Number.isFinite(stored)
+    ? clampSize(stored, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
+    : SIDEBAR_DEFAULT_SIZE
+}
+
+function loadChatSize(): number {
+  const stored = Number(localStorage.getItem(CHAT_SIZE_KEY))
+  return Number.isFinite(stored)
+    ? clampSize(stored, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
+    : CHAT_DEFAULT_SIZE
+}
+
 export default function App() {
   const termVisible = useTerminalStore((s) => s.visible)
   const projectRoot = useFileStore((s) => s.projectRoot)
@@ -44,6 +71,8 @@ export default function App() {
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
   const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'settings' | null>('files')
+  const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
+  const [chatSize, setChatSize] = useState(loadChatSize)
   const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
@@ -55,6 +84,18 @@ export default function App() {
     ...gitStatus.unstaged.map((file) => file.path),
   ]).size
   const gitBadge = uncommittedChangeCount > 99 ? '99+' : uncommittedChangeCount || undefined
+
+  function saveSidebarSize(size: number) {
+    const nextSize = clampSize(size, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
+    setSidebarSize(nextSize)
+    localStorage.setItem(SIDEBAR_SIZE_KEY, String(nextSize))
+  }
+
+  function saveChatSize(size: number) {
+    const nextSize = clampSize(size, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
+    setChatSize(nextSize)
+    localStorage.setItem(CHAT_SIZE_KEY, String(nextSize))
+  }
 
   useEffect(() => {
     if (!assistantMenuOpen) return
@@ -202,7 +243,14 @@ export default function App() {
         <PanelGroup direction="horizontal" className="flex-1">
           {leftPanel && (
             <>
-              <Panel defaultSize={20} minSize={12} maxSize={40} id="sidebar" order={1}>
+              <Panel
+                defaultSize={sidebarSize}
+                minSize={SIDEBAR_MIN_SIZE}
+                maxSize={SIDEBAR_MAX_SIZE}
+                id="sidebar"
+                order={1}
+                onResize={saveSidebarSize}
+              >
                 {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
@@ -229,12 +277,13 @@ export default function App() {
           <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
           <Panel
             ref={chatPanelRef}
-            defaultSize={25}
-            minSize={15}
-            maxSize={50}
+            defaultSize={chatSize}
+            minSize={CHAT_MIN_SIZE}
+            maxSize={CHAT_MAX_SIZE}
             collapsible
             id="chat"
             order={3}
+            onResize={saveChatSize}
           >
             <Chat />
           </Panel>
