@@ -8,6 +8,14 @@ contextBridge.exposeInMainWorld('api', {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
 
   gitBranch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
+  gitStatus: (cwd: string) => ipcRenderer.invoke('git:status', cwd),
+  gitStage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:stage', cwd, paths),
+  gitUnstage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:unstage', cwd, paths),
+  gitStageAll: (cwd: string) => ipcRenderer.invoke('git:stageAll', cwd),
+  gitUnstageAll: (cwd: string) => ipcRenderer.invoke('git:unstageAll', cwd),
+  gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+  gitDiff: (cwd: string, path: string, staged: boolean) =>
+    ipcRenderer.invoke('git:diff', cwd, path, staged),
 
   termSpawn: () => ipcRenderer.invoke('term:spawn'),
   termWrite: (data: string) => ipcRenderer.send('term:write', data),
