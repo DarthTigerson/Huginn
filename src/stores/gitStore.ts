@@ -47,7 +47,14 @@ export const useGitStore = create<GitStore>((set, get) => {
       if (code === 0) get().refresh(cwd)
     })
 
-    await window.api.gitRunCommand(id, cwd, action)
+    try {
+      await window.api.gitRunCommand(id, cwd, action)
+    } catch (err) {
+      cleanupData()
+      cleanupExit()
+      useGitLogStore.getState().append(`\nError: ${err instanceof Error ? err.message : String(err)}\n`)
+      set({ commandStatus: 'idle' })
+    }
   }
 
   return {

@@ -156,6 +156,9 @@ describe('gitStore — command actions', () => {
     vi.mocked(window.api.gitRunCommand).mockClear()
     vi.mocked(window.api.onGitLogData).mockClear()
     vi.mocked(window.api.onGitLogExit).mockClear()
+    vi.mocked(window.api.gitBranch).mockClear()
+    // Stub crypto.randomUUID so we know the id used internally
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('test-uuid' as `${string}-${string}-${string}-${string}-${string}`)
   })
 
   it('sets commandStatus to running and calls gitRunCommand for push', async () => {
@@ -185,5 +188,31 @@ describe('gitStore — command actions', () => {
     expect(window.api.gitRunCommand).toHaveBeenCalledWith(
       expect.any(String), '/proj', 'forcePushLease'
     )
+  })
+
+  it('sets commandStatus back to idle when exit fires with code 0 and calls refresh', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const pushPromise = useGitStore.getState().push('/proj')
+    await pushPromise
+    exitCb!('test-uuid', 0)
+    expect(useGitStore.getState().commandStatus).toBe('idle')
+    expect(window.api.gitBranch).toHaveBeenCalled()
+  })
+
+  it('sets commandStatus back to idle when exit fires with non-zero code and does NOT call refresh', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const pushPromise = useGitStore.getState().push('/proj')
+    await pushPromise
+    exitCb!('test-uuid', 1)
+    expect(useGitStore.getState().commandStatus).toBe('idle')
+    expect(window.api.gitBranch).not.toHaveBeenCalled()
   })
 })
