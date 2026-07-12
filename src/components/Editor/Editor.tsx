@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import MonacoEditor, { DiffEditor } from '@monaco-editor/react'
-import { useEditorStore } from '@/stores/editorStore'
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { useEditorStore, type EditorLayoutNode } from '@/stores/editorStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
@@ -25,98 +26,75 @@ import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
-import type { GitDiffContent } from '@/types/index'
+import type { GitDiffContent, Tab } from '@/types/index'
 
-export function Editor() {
-  const { tabs, activeTabPath, updateContent } = useEditorStore()
-  const activeTab = tabs.find((t) => t.path === activeTabPath)
-  const isVirtual = !!activeTab && isSettingsTab(activeTab.path)
-  const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
-  const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
-  const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
-  const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
-  const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
-  const fontSize = useFontSizeStore((s) => s.fontSize)
-  const font = useDisplayStore((s) => s.font)
-  const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
-  const projectRoot = useFileStore((s) => s.projectRoot)
-  const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
+function isVirtualTab(tab: Tab | null): boolean {
+  return !!tab && isSettingsTab(tab.path)
+}
 
-  async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boolean }) {
-    const { tabs, activeTabPath, markSaved, setTabMissing } = useEditorStore.getState()
-    const tab = tabs.find((t) => t.path === activeTabPath)
-    if (!tab) return
-    if (
-      isSettingsTab(tab.path) ||
-      isGitDiffTab(tab.path) ||
-      isGitLogTab(tab.path) ||
-      isGitGraphTab(tab.path) ||
-      isGitBranchDiffTab(tab.path)
-    ) return
+function isReadOnlyTab(tab: Tab | null): boolean {
+  return !!tab && (
+    isSettingsTab(tab.path) ||
+    isGitDiffTab(tab.path) ||
+    isGitLogTab(tab.path) ||
+    isGitGraphTab(tab.path) ||
+    isGitBranchDiffTab(tab.path)
+  )
+}
 
-    if (!allowCreateMissing) {
-      const exists = await window.api.pathExists(tab.path)
-      if (!exists) {
-        setTabMissing(tab.path, true)
-        return
-      }
-    }
+async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boolean }) {
+  const { tabs, activeTabPath, markSaved, setTabMissing } = useEditorStore.getState()
+  const tab = tabs.find((t) => t.path === activeTabPath)
+  if (!tab || isReadOnlyTab(tab)) return
 
-    const savedContent = tab.content
-    await window.api.writeFile(tab.path, savedContent)
-    markSaved(tab.path, savedContent)
-    const root = useFileStore.getState().projectRoot
-    if (root) {
-      useFileStore.getState().refreshRoot()
-      useGitStore.getState().refreshStatus(root)
+  if (!allowCreateMissing) {
+    const exists = await window.api.pathExists(tab.path)
+    if (!exists) {
+      setTabMissing(tab.path, true)
+      return
     }
   }
 
-  useEffect(() => {
-    if (!activeTab || !isDiff || !projectRoot) {
-      setDiffContent(null)
-      return
-    }
-    const { path, staged } = parseGitDiffPath(activeTab.path)
-    let cancelled = false
-    window.api.gitDiff(projectRoot, path, staged).then((content) => {
-      if (!cancelled) setDiffContent(content)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [activeTab?.path, isDiff, projectRoot])
+  const savedContent = tab.content
+  await window.api.writeFile(tab.path, savedContent)
+  markSaved(tab.path, savedContent)
+  const root = useFileStore.getState().projectRoot
+  if (root) {
+    useFileStore.getState().refreshRoot()
+    useGitStore.getState().refreshStatus(root)
+  }
+}
+
+export function Editor() {
+  const tabs = useEditorStore((s) => s.tabs)
+  const activeTabPath = useEditorStore((s) => s.activeTabPath)
+  const layout = useEditorStore((s) => s.layout)
+  const splitActivePane = useEditorStore((s) => s.splitActivePane)
+  const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
+  const activeTab = tabs.find((t) => t.path === activeTabPath) ?? null
 
   useEffect(() => {
-    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      if (!(e.metaKey || e.ctrlKey)) return
+
+      const key = e.key.toLowerCase()
+      if (key === 's') {
         e.preventDefault()
         saveActiveTab({ allowCreateMissing: true })
       }
+
+      if (key === 'd' && tabs.length > 1) {
+        e.preventDefault()
+        splitActivePane(e.shiftKey ? 'vertical' : 'horizontal')
+      }
     }
+
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTab, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff, projectRoot])
+  }, [tabs.length, splitActivePane])
 
   useEffect(() => {
-    if (!activeTab || isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
-
-    let cancelled = false
-    window.api.pathExists(activeTab.path).then((exists) => {
-      if (!cancelled) {
-        useEditorStore.getState().setTabMissing(activeTab.path, !exists)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeTab?.path, isVirtual, isDiff, isGitLog, isGitGraph, isGitBranchDiff])
-
-  useEffect(() => {
-    if (!autoSaveEnabled || !activeTab?.dirty) return
-    if (isVirtual || isDiff || isGitLog || isGitGraph || isGitBranchDiff) return
+    if (!autoSaveEnabled || !activeTab?.dirty || isReadOnlyTab(activeTab)) return
 
     const timeout = setTimeout(() => {
       saveActiveTab({ allowCreateMissing: false })
@@ -128,16 +106,117 @@ export function Editor() {
     activeTab?.path,
     activeTab?.content,
     activeTab?.dirty,
-    isVirtual,
-    isDiff,
-    isGitLog,
-    isGitGraph,
-    isGitBranchDiff,
   ])
 
   return (
     <div className="h-full flex flex-col bg-panel overflow-hidden">
       <TabBar />
+      {tabs.length > 0 ? (
+        <div className="flex-1 min-h-0">
+          <EditorLayout node={layout} />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-fg-subtle text-sm">Open a file to start editing</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EditorLayout({ node }: { node: EditorLayoutNode }) {
+  if (node.type === 'pane') {
+    return <EditorPane paneId={node.id} />
+  }
+
+  const horizontal = node.direction === 'horizontal'
+
+  return (
+    <PanelGroup
+      direction={horizontal ? 'horizontal' : 'vertical'}
+      className="h-full min-h-0"
+    >
+      <Panel minSize={15}>
+        <EditorLayout node={node.children[0]} />
+      </Panel>
+      <PanelResizeHandle
+        className={[
+          'bg-border hover:bg-accent/60 transition-colors',
+          horizontal ? 'w-px cursor-col-resize' : 'h-px cursor-row-resize',
+        ].join(' ')}
+      />
+      <Panel minSize={15}>
+        <EditorLayout node={node.children[1]} />
+      </Panel>
+    </PanelGroup>
+  )
+}
+
+function EditorPane({ paneId }: { paneId: string }) {
+  const tabs = useEditorStore((s) => s.tabs)
+  const paneTabs = useEditorStore((s) => s.paneTabs)
+  const activePaneId = useEditorStore((s) => s.activePaneId)
+  const setActivePane = useEditorStore((s) => s.setActivePane)
+  const updateContent = useEditorStore((s) => s.updateContent)
+  const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
+  const fontSize = useFontSizeStore((s) => s.fontSize)
+  const font = useDisplayStore((s) => s.font)
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
+
+  const tabPath = paneTabs[paneId]
+  const activeTab = tabs.find((t) => t.path === tabPath) ?? null
+  const isActivePane = activePaneId === paneId
+  const isVirtual = isVirtualTab(activeTab)
+  const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
+  const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
+  const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
+  const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
+
+  function activatePane() {
+    setActivePane(paneId)
+  }
+
+  useEffect(() => {
+    if (!activeTab || !isDiff || !projectRoot) {
+      setDiffContent(null)
+      return
+    }
+
+    const { path, staged } = parseGitDiffPath(activeTab.path)
+    let cancelled = false
+    window.api.gitDiff(projectRoot, path, staged).then((content) => {
+      if (!cancelled) setDiffContent(content)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab?.path, isDiff, projectRoot])
+
+  useEffect(() => {
+    if (!activeTab || isReadOnlyTab(activeTab)) return
+
+    let cancelled = false
+    window.api.pathExists(activeTab.path).then((exists) => {
+      if (!cancelled) {
+        useEditorStore.getState().setTabMissing(activeTab.path, !exists)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab?.path])
+
+  return (
+    <div
+      className={[
+        'h-full min-h-0 bg-panel overflow-hidden outline outline-1 -outline-offset-1',
+        isActivePane ? 'outline-accent/50' : 'outline-transparent',
+      ].join(' ')}
+      onMouseDown={activatePane}
+    >
       {activeTab ? (
         isVirtual ? (
           activeTab.path === GIT_SETTINGS_TAB_PATH ? (
@@ -156,7 +235,7 @@ export function Editor() {
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
         ) : isDiff ? (
-          <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-hidden">
             {diffContent && (
               <DiffEditor
                 key={activeTab.path}
@@ -177,9 +256,9 @@ export function Editor() {
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-hidden">
             <MonacoEditor
-              key={activeTab.path}
+              key={`${paneId}:${activeTab.path}`}
               value={activeTab.content}
               language={detectLang(activeTab.path)}
               theme={monacoTheme}
@@ -195,16 +274,29 @@ export function Editor() {
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
+                editor.onDidFocusEditorWidget(activatePane)
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                  activatePane()
                   saveActiveTab({ allowCreateMissing: true })
                 })
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+                  activatePane()
+                  useEditorStore.getState().splitActivePane('horizontal')
+                })
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD,
+                  () => {
+                    activatePane()
+                    useEditorStore.getState().splitActivePane('vertical')
+                  }
+                )
               }}
             />
           </div>
         )
       ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-fg-subtle text-sm">Open a file to start editing</p>
+        <div className="h-full flex items-center justify-center">
+          <p className="text-fg-subtle text-sm">Select a tab for this pane</p>
         </div>
       )}
     </div>
