@@ -1,0 +1,100 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useGitStore } from '@/stores/gitStore'
+import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+
+vi.mock('@/stores/gitStore', () => ({
+  useGitStore: vi.fn(),
+}))
+vi.mock('@/stores/gitSettingsStore', () => ({
+  useGitSettingsStore: vi.fn(),
+}))
+
+function mockGitStore(overrides = {}) {
+  vi.mocked(useGitStore).mockImplementation((sel: any) =>
+    sel({ branch: 'main', forcePush: vi.fn(), forcePushLease: vi.fn(), ...overrides })
+  )
+}
+
+function mockSettings(overrides = {}) {
+  vi.mocked(useGitSettingsStore).mockImplementation((sel: any) =>
+    sel({
+      forceSafetyEnabled: true,
+      countdownEnabled: false,
+      countdownSeconds: 5,
+      autoContinueOnCountdownEnd: false,
+      ...overrides,
+    })
+  )
+}
+
+import { ConfirmForcePushModal } from '@/components/Git/ConfirmForcePushModal'
+
+describe('ConfirmForcePushModal', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    mockGitStore()
+    mockSettings()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows the branch name', () => {
+    const onClose = vi.fn()
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
+    expect(screen.getByText(/origin\/main/)).toBeTruthy()
+  })
+
+  it('cancel button calls onClose without running command', async () => {
+    const forcePush = vi.fn()
+    mockGitStore({ forcePush })
+    const onClose = vi.fn()
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
+    await userEvent.click(screen.getByText('Cancel'))
+    expect(onClose).toHaveBeenCalled()
+    expect(forcePush).not.toHaveBeenCalled()
+  })
+
+  it('confirm button calls forcePush and then onClose (no countdown)', async () => {
+    const forcePush = vi.fn().mockResolvedValue(undefined)
+    mockGitStore({ forcePush })
+    const onClose = vi.fn()
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
+    await userEvent.click(screen.getByText('Confirm'))
+    expect(forcePush).toHaveBeenCalledWith('/proj')
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows countdown ticking down and no Confirm button initially', () => {
+    mockSettings({ countdownEnabled: true, countdownSeconds: 3, autoContinueOnCountdownEnd: false })
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={vi.fn()} />)
+    expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.queryByText('Confirm')).toBeNull()
+  })
+
+  it('shows Confirm after countdown with autoContinue=false', async () => {
+    mockSettings({ countdownEnabled: true, countdownSeconds: 2, autoContinueOnCountdownEnd: false })
+    const forcePush = vi.fn().mockResolvedValue(undefined)
+    mockGitStore({ forcePush })
+    const onClose = vi.fn()
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
+    expect(screen.queryByText('Confirm')).toBeNull()
+    act(() => { vi.advanceTimersByTime(2000) })
+    expect(await screen.findByText('Confirm')).toBeTruthy()
+    expect(forcePush).not.toHaveBeenCalled()
+  })
+
+  it('auto-fires and closes when autoContinue=true after countdown', async () => {
+    mockSettings({ countdownEnabled: true, countdownSeconds: 2, autoContinueOnCountdownEnd: true })
+    const forcePush = vi.fn().mockResolvedValue(undefined)
+    mockGitStore({ forcePush })
+    const onClose = vi.fn()
+    render(<ConfirmForcePushModal action="forcePush" cwd="/proj" onClose={onClose} />)
+    act(() => { vi.advanceTimersByTime(2000) })
+    expect(forcePush).toHaveBeenCalledWith('/proj')
+    expect(onClose).toHaveBeenCalled()
+  })
+})
