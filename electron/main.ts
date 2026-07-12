@@ -2,12 +2,9 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { readdir, readFile, writeFile } from 'fs/promises'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
-
-const execFileAsync = promisify(execFile)
+import { registerGitHandlers } from './git'
 
 interface FileNode {
   name: string
@@ -28,22 +25,6 @@ async function buildTree(dirPath: string): Promise<FileNode[]> {
       path: join(dirPath, e.name),
       isDirectory: e.isDirectory(),
     }))
-}
-
-async function getGitBranch(cwd: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
-    const branch = stdout.trim()
-    if (branch !== 'HEAD') return branch
-    const { stdout: sha } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd })
-    return sha.trim()
-  } catch {
-    return null
-  }
-}
-
-function registerGitHandlers(): void {
-  ipcMain.handle('git:branch', (_e, cwd: string) => getGitBranch(cwd))
 }
 
 function registerFsHandlers(): void {
