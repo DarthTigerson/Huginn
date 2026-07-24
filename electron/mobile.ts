@@ -15,12 +15,22 @@ export interface MobileState {
 
 function getLocalIp(): string {
   const nets = networkInterfaces()
+  const candidates: string[] = []
   for (const ifaces of Object.values(nets)) {
     for (const iface of ifaces ?? []) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address
+      if (iface.family !== 'IPv4' || iface.internal) continue
+      if (iface.address.startsWith('169.254.')) continue // skip link-local
+      candidates.push(iface.address)
     }
   }
-  return '127.0.0.1'
+  // prefer 192.168.x.x, then 10.x.x.x, then 172.x.x.x, then whatever's left
+  return (
+    candidates.find((a) => a.startsWith('192.168.')) ??
+    candidates.find((a) => a.startsWith('10.')) ??
+    candidates.find((a) => a.startsWith('172.')) ??
+    candidates[0] ??
+    '127.0.0.1'
+  )
 }
 
 export function generatePin(): string {
