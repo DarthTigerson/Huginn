@@ -166,6 +166,10 @@ export default function App() {
         e.preventDefault()
         openNewTerminal()
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !e.shiftKey) {
+        e.preventDefault()
+        setChatVisible((v) => !v)
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)

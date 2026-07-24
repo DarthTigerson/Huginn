@@ -14,12 +14,13 @@ describe('ShortcutsOverlay', () => {
     expect(screen.getByText('Toggle Sidebar')).toBeTruthy()
     expect(screen.getByText('Split Pane Vertical')).toBeTruthy()
     expect(screen.getByText('Open Project')).toBeTruthy()
+    expect(screen.getByText('Toggle Chat Panel')).toBeTruthy()
   })
 
   it('renders one key cap per shortcut key, including shift symbols', () => {
     render(<ShortcutsOverlay />)
 
-    expect(screen.getAllByText('⌘')).toHaveLength(10)
+    expect(screen.getAllByText('⌘')).toHaveLength(11)
     expect(screen.getAllByText('⇧').length).toBeGreaterThan(0)
   })
 })

@@ -17,6 +17,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['⌘', '⇧', 'P'], label: 'Action Palette' },
       { keys: ['⌘', 'F'], label: 'Search' },
       { keys: ['⌘', 'T'], label: 'New Terminal' },
+      { keys: ['⌘', 'L'], label: 'Toggle Chat Panel' },
     ],
   },
   {
