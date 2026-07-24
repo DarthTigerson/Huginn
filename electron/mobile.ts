@@ -47,8 +47,12 @@ function parseCookies(header: string | undefined): Record<string, string> {
 }
 
 function html(title: string, body: string): string {
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0d0d0d;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px}</style></head><body>${body}<script>
-(async()=>{try{let w=await navigator.wakeLock.request('screen');document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible')w=await navigator.wakeLock.request('screen').catch(()=>{})});}catch(e){}})();
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#0d0d0d"><title>${title}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0d0d0d;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom))}</style></head><body>${body}<script>
+(async()=>{
+  try{let w=await navigator.wakeLock.request('screen');document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible')w=await navigator.wakeLock.request('screen').catch(()=>{})});}catch(e){}
+  var fs=document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen;
+  if(fs)document.addEventListener('touchstart',function h(){fs.call(document.documentElement);document.removeEventListener('touchstart',h);},{once:true,passive:true});
+})();
 </script></body></html>`
 }
 
