@@ -71,6 +71,15 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('assistant:data', handler)
   },
 
+  mobileStart: () => ipcRenderer.invoke('mobile:start'),
+  mobileStop: () => ipcRenderer.invoke('mobile:stop'),
+  mobileGetState: () => ipcRenderer.invoke('mobile:getState'),
+  onMobileState: (cb: (state: import('./mobile').MobileState) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, state: import('./mobile').MobileState) => cb(state)
+    ipcRenderer.on('mobile:state', handler)
+    return () => ipcRenderer.removeListener('mobile:state', handler)
+  },
+
   onMenuOpenProject: (cb: () => void) => {
     const handler = () => cb()
     ipcRenderer.on('menu:openProject', handler)

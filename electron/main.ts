@@ -5,6 +5,7 @@ import { access, mkdir, readdir, readFile, rename, writeFile } from 'fs/promises
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
+import { MobileServer } from './mobile'
 
 interface FileNode {
   name: string
@@ -219,6 +220,8 @@ app.whenReady().then(() => {
   ptyMgr.registerHandlers()
   const claudeMgr = new ClaudeManager(win)
   claudeMgr.registerHandlers()
+  const mobileSrv = new MobileServer(win)
+  mobileSrv.registerHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

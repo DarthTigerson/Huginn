@@ -2,6 +2,15 @@ import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehi
 
 export type AssistantKind = 'claude' | 'codex'
 
+export interface MobileState {
+  running: boolean
+  port: number
+  localIp: string
+  pin: string
+  qrSvg: string
+  connectedCount: number
+}
+
 declare global {
   interface Window {
     api: {
@@ -48,6 +57,11 @@ declare global {
 
       onMenuOpenProject: (cb: () => void) => () => void
       onMenuCloseActiveTab: (cb: () => void) => () => void
+
+      mobileStart: () => Promise<void>
+      mobileStop: () => Promise<void>
+      mobileGetState: () => Promise<MobileState>
+      onMobileState: (cb: (state: MobileState) => void) => () => void
     }
   }
 }
