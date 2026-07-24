@@ -143,7 +143,13 @@ export function MobileDisplayPanel() {
           </button>
         </div>
 
-        {state.running ? (
+        {!state.running && (
+          <p className="text-xs text-fg-muted text-center leading-relaxed pt-2">
+            Turn on to start the local server and connect your phone.
+          </p>
+        )}
+
+        {state.running && state.allowingNewDevice && (
           <>
             {/* QR Code */}
             {state.qrSvg && <QRImage svg={state.qrSvg} />}
@@ -168,10 +174,26 @@ export function MobileDisplayPanel() {
               </p>
             </div>
           </>
-        ) : (
-          <p className="text-xs text-fg-muted text-center leading-relaxed pt-2">
-            Turn on to start the local server and connect your phone.
-          </p>
+        )}
+
+        {state.running && !state.allowingNewDevice && (
+          <div className="flex flex-col gap-3 pt-1">
+            {/* Connected indicator */}
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-accent/10 border border-accent/20">
+              <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+              <span className="text-xs font-medium text-fg">
+                {state.connectedCount === 1 ? '1 device connected' : `${state.connectedCount} devices connected`}
+              </span>
+            </div>
+
+            {/* Add another device */}
+            <button
+              onClick={() => window.api.mobileAddDevice()}
+              className="w-full py-2 text-xs font-medium text-fg-muted border border-border rounded-lg hover:text-fg hover:border-fg-muted transition-colors"
+            >
+              Connect another device
+            </button>
+          </div>
         )}
       </div>
     </div>

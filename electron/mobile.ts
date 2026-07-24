@@ -11,6 +11,7 @@ export interface MobileState {
   pin: string
   qrSvg: string
   connectedCount: number
+  allowingNewDevice: boolean
 }
 
 function getLocalIp(): string {
@@ -110,6 +111,7 @@ export class MobileServer {
     pin: '',
     qrSvg: '',
     connectedCount: 0,
+    allowingNewDevice: true,
   }
 
   constructor(win: BrowserWindow) {
@@ -155,8 +157,12 @@ export class MobileServer {
         if (this.isValidPin(candidate)) {
           const token = randomUUID()
           this.sessions.add(token)
+          // stop rotation — pairing is done until user explicitly requests another device
+          if (this.rotateInterval) { clearInterval(this.rotateInterval); this.rotateInterval = null }
           this.state.connectedCount = this.sessions.size
-          this.pushState()
+          this.state.allowingNewDevice = false
+          this.state.pin = ''
+          setImmediate(() => this.pushState())
           res.writeHead(302, {
             'Set-Cookie': `session=${token}; HttpOnly; SameSite=Strict; Path=/`,
             Location: '/app',
@@ -239,7 +245,7 @@ export class MobileServer {
 
     this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
 
-    this.state = { running: true, port: this.port, localIp, pin: this.pin, qrSvg, connectedCount: 0 }
+    this.state = { running: true, port: this.port, localIp, pin: this.pin, qrSvg, connectedCount: 0, allowingNewDevice: true }
     this.pushState()
   }
 
@@ -248,7 +254,18 @@ export class MobileServer {
     this.server?.close()
     this.server = null
     this.sessions.clear()
-    this.state = { running: false, port: this.port, localIp: this.state.localIp, pin: '', qrSvg: '', connectedCount: 0 }
+    this.state = { running: false, port: this.port, localIp: this.state.localIp, pin: '', qrSvg: '', connectedCount: 0, allowingNewDevice: true }
+    this.pushState()
+  }
+
+  async addDevice(): Promise<void> {
+    if (!this.server) return
+    this.prevPin = ''
+    this.pin = generatePin()
+    this.state.pin = this.pin
+    this.state.allowingNewDevice = true
+    if (this.rotateInterval) clearInterval(this.rotateInterval)
+    this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
     this.pushState()
   }
 
@@ -258,6 +275,7 @@ export class MobileServer {
     })
     ipcMain.handle('mobile:stop', () => this.stop())
     ipcMain.handle('mobile:getState', () => this.state)
+    ipcMain.handle('mobile:addDevice', () => this.addDevice())
   }
 
   dispose(): void {

@@ -9,6 +9,7 @@ export interface MobileState {
   pin: string
   qrSvg: string
   connectedCount: number
+  allowingNewDevice: boolean
 }
 
 declare global {
@@ -61,6 +62,7 @@ declare global {
       mobileStart: () => Promise<void>
       mobileStop: () => Promise<void>
       mobileGetState: () => Promise<MobileState>
+      mobileAddDevice: () => Promise<void>
       onMobileState: (cb: (state: MobileState) => void) => () => void
     }
   }
