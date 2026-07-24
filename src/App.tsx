@@ -3,6 +3,8 @@ import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'rea
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
+import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
+import { useHoldToShowShortcuts } from './components/Shortcuts/useHoldToShowShortcuts'
 import { Chat } from './components/Chat/Chat'
 import {
   ActivityBar,
@@ -87,6 +89,7 @@ export default function App() {
   const searchOpen = useSearchStore((s) => s.searchOpen)
   const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
   const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
+  const shortcutsOverlayOpen = useSearchStore((s) => s.shortcutsOverlayOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : 'Codex'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : 'New Codex Session'
@@ -171,6 +174,8 @@ export default function App() {
   useEffect(() => {
     useFileStore.getState().restoreRoot()
   }, [])
+
+  useHoldToShowShortcuts()
 
   useEffect(() => {
     refreshGitStatus(projectRoot)
@@ -430,6 +435,7 @@ export default function App() {
       {actionPaletteOpen && (
         <ActionPalette onClose={() => useSearchStore.getState().closeActionPalette()} />
       )}
+      {shortcutsOverlayOpen && <ShortcutsOverlay />}
     </div>
   )
 }
