@@ -10,6 +10,7 @@ const defaultState: MobileState = {
   pin: '',
   qrSvg: '',
   connectedCount: 0,
+  allowingNewDevice: true,
 }
 
 beforeEach(() => {
@@ -18,6 +19,7 @@ beforeEach(() => {
       mobileGetState: vi.fn().mockResolvedValue(defaultState),
       mobileStart: vi.fn().mockResolvedValue(undefined),
       mobileStop: vi.fn().mockResolvedValue(undefined),
+      mobileAddDevice: vi.fn().mockResolvedValue(undefined),
       onMobileState: vi.fn().mockReturnValue(() => {}),
     },
     writable: true,
