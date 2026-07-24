@@ -10,6 +10,7 @@ import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
+import { useClaudeStore } from '@/stores/claudeStore'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import {
@@ -348,6 +349,9 @@ function EditorPane({ paneId }: { paneId: string }) {
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyT, () => {
                   const id = Date.now().toString(36)
                   useEditorStore.getState().openTab({ path: `terminal://${id}`, content: '', dirty: false })
+                })
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
+                  useClaudeStore.getState().toggleChatVisible()
                 })
 
                 // handle reveal if request was set before this editor mounted

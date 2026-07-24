@@ -78,12 +78,12 @@ export default function App() {
   const assistant = useClaudeStore((s) => s.assistant)
   const usageOpen = useClaudeStore((s) => s.usageOpen)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
+  const chatVisible = useClaudeStore((s) => s.chatVisible)
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
   const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'settings' | null>('files')
   const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
-  const [chatVisible, setChatVisible] = useState(true)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
   const searchOpen = useSearchStore((s) => s.searchOpen)
@@ -168,7 +168,7 @@ export default function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !e.shiftKey) {
         e.preventDefault()
-        setChatVisible((v) => !v)
+        useClaudeStore.getState().toggleChatVisible()
       }
     }
     window.addEventListener('keydown', handler)
@@ -357,7 +357,7 @@ export default function App() {
               icon: assistant === 'claude' ? <ClaudeIcon /> : <CodexIcon />,
               title: assistantLabel,
               active: chatVisible,
-              onClick: () => setChatVisible((v) => !v),
+              onClick: () => useClaudeStore.getState().toggleChatVisible(),
             }],
             [
               {

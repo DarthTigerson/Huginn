@@ -5,6 +5,7 @@ interface ClaudeState {
   assistant: AssistantKind
   restartToken: number
   usageOpen: boolean
+  chatVisible: boolean
   setAssistant: (assistant: AssistantKind) => void
   newSession: (cwd: string) => void
   previousSession: (cwd: string) => void
@@ -13,14 +14,18 @@ interface ClaudeState {
   usage: () => void
   model: () => void
   fast: () => void
+  toggleChatVisible: () => void
 }
 
 export const useClaudeStore = create<ClaudeState>((set, get) => ({
   assistant: 'claude',
   restartToken: 0,
   usageOpen: false,
+  chatVisible: true,
 
   setAssistant: (assistant: AssistantKind) => set({ assistant }),
+
+  toggleChatVisible: () => set((s) => ({ chatVisible: !s.chatVisible })),
 
   newSession: (cwd: string) => {
     set((s) => ({ restartToken: s.restartToken + 1 }))
