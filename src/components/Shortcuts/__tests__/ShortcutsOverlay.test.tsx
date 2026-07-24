@@ -8,12 +8,12 @@ describe('ShortcutsOverlay', () => {
   it('renders every category and shortcut label', () => {
     render(<ShortcutsOverlay />)
 
-    expect(screen.getByText('Navigation')).toBeInTheDocument()
-    expect(screen.getByText('Editor')).toBeInTheDocument()
-    expect(screen.getByText('Project')).toBeInTheDocument()
-    expect(screen.getByText('Toggle Sidebar')).toBeInTheDocument()
-    expect(screen.getByText('Split Pane Vertical')).toBeInTheDocument()
-    expect(screen.getByText('Open Project')).toBeInTheDocument()
+    expect(screen.getByText('Navigation')).toBeTruthy()
+    expect(screen.getByText('Editor')).toBeTruthy()
+    expect(screen.getByText('Project')).toBeTruthy()
+    expect(screen.getByText('Toggle Sidebar')).toBeTruthy()
+    expect(screen.getByText('Split Pane Vertical')).toBeTruthy()
+    expect(screen.getByText('Open Project')).toBeTruthy()
   })
 
   it('renders one key cap per shortcut key, including shift symbols', () => {

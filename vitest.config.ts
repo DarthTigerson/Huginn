@@ -13,7 +13,6 @@ export default defineConfig({
     environmentMatchGlobs: [
       ['src/components/**/__tests__/**/*.test.tsx', 'jsdom'],
     ],
-    setupFiles: ['src/__tests__/setup.ts'],
     include: [
       'src/stores/__tests__/**/*.test.ts',
       'src/components/**/__tests__/**/*.test.ts',
