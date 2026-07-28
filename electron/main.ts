@@ -1,80 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { access, mkdir, readdir, readFile, rename, writeFile } from 'fs/promises'
+import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { MobileServer } from './mobile'
-
-interface FileNode {
-  name: string
-  path: string
-  isDirectory: boolean
-}
-
-interface SearchMatch {
-  path: string
-  line: number
-  col: number
-  text: string
-}
-
-async function listAllFiles(dirPath: string): Promise<string[]> {
-  const entries = await readdir(dirPath, { withFileTypes: true })
-  const results: string[] = []
-  for (const entry of entries) {
-    const fullPath = join(dirPath, entry.name)
-    if (entry.isDirectory()) {
-      const children = await listAllFiles(fullPath)
-      results.push(...children)
-    } else {
-      results.push(fullPath)
-    }
-  }
-  return results
-}
-
-async function searchText(root: string, query: string, caseSensitive: boolean): Promise<SearchMatch[]> {
-  const allFiles = await listAllFiles(root)
-  const results: SearchMatch[] = []
-  const needle = caseSensitive ? query : query.toLowerCase()
-
-  for (const filePath of allFiles) {
-    if (results.length >= 1000) break
-    try {
-      const content = await readFile(filePath, 'utf-8')
-      const lines = content.split('\n')
-      for (let i = 0; i < lines.length; i++) {
-        const raw = lines[i]
-        const haystack = caseSensitive ? raw : raw.toLowerCase()
-        const col = haystack.indexOf(needle)
-        if (col !== -1) {
-          results.push({ path: filePath, line: i + 1, col: col + 1, text: raw })
-          if (results.length >= 1000) break
-        }
-      }
-    } catch {
-      // skip binary or unreadable files
-    }
-  }
-  return results
-}
-
-async function buildTree(dirPath: string): Promise<FileNode[]> {
-  const entries = await readdir(dirPath, { withFileTypes: true })
-  return entries
-    .sort((a, b) => {
-      if (a.isDirectory() !== b.isDirectory())
-        return a.isDirectory() ? -1 : 1
-      return a.name.localeCompare(b.name)
-    })
-    .map((e) => ({
-      name: e.name,
-      path: join(dirPath, e.name),
-      isDirectory: e.isDirectory(),
-    }))
-}
+import { listAllFiles, searchText, buildTree } from './fsOps'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
