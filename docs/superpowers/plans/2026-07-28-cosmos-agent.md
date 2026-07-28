@@ -14,7 +14,7 @@
 - `localStorage`-backed Zustand stores follow the `gitSettingsStore.ts` pattern: a `KEYS` map of `huginn:<domain>:<field>` strings, `getBool`/`getInt`/plain `getItem` readers at init, setters that write through to `localStorage` then `set()`.
 - Electron manager classes follow the `ClaudeManager`/`GitRunner` pattern: constructor takes `BrowserWindow`, exposes `registerHandlers()`, instantiated once in `main.ts`'s `app.whenReady()` block.
 - Settings pages are opened as editor tabs via `settings://<Name>` paths (see `src/components/Settings/paths.ts`, `SettingsPanel.tsx`, `Editor.tsx`), not a left-sidebar panel.
-- No new diff-algorithm dependency — approval previews for `write_file` show before/after content, not a computed line diff.
+- No new diff-algorithm dependency — approval previews for `write_file` show the new content the model wants to write (via the tool call's `args`), not a computed before/after line diff.
 - Tool-call round trips are capped at 25 rounds per user message to prevent runaway loops.
 
 ---
@@ -415,7 +415,10 @@ export class CosmosManager {
 
   registerHandlers(): void {
     ipcMain.on('cosmos:send', (_event, payload: CosmosSendPayload) => {
-      void this.runLoop(payload)
+      // Returning the promise (instead of `void`-discarding it) is what lets
+      // tests capture and await it via the mocked ipcMain.on handler map —
+      // Electron itself ignores the return value either way.
+      return this.runLoop(payload)
     })
 
     ipcMain.on('cosmos:cancel', () => {
@@ -824,7 +827,10 @@ export class CosmosManager {
 
   registerHandlers(): void {
     ipcMain.on('cosmos:send', (_event, payload: CosmosSendPayload) => {
-      void this.runConversation(payload)
+      // Returning the promise (instead of `void`-discarding it) is what lets
+      // tests capture and await it via the mocked ipcMain.on handler map —
+      // Electron itself ignores the return value either way.
+      return this.runConversation(payload)
     })
 
     ipcMain.on('cosmos:cancel', () => {
@@ -2367,7 +2373,7 @@ git commit -m "feat: add Cosmos as a third assistant option in the switcher and 
 - Create: `src/components/Chat/useCosmosAgentModeShortcut.ts`
 - Modify: `src/components/Chat/CosmosChat.tsx` (use the hook)
 - Modify: `src/components/Shortcuts/shortcuts.ts`
-- Test: `src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.ts`
+- Test: `src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.tsx`
 
 **Interfaces:**
 - Consumes: `useCosmosStore.toggleAgentMode` (Task 8).
@@ -2375,7 +2381,7 @@ git commit -m "feat: add Cosmos as a third assistant option in the switcher and 
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.ts`:
+Create `src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.tsx`:
 
 ```typescript
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -2427,7 +2433,7 @@ describe('useCosmosAgentModeShortcut', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.ts`
+Run: `npx vitest run src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.tsx`
 Expected: FAIL — hook does not exist.
 
 - [ ] **Step 3: Implement the hook**
@@ -2452,7 +2458,7 @@ export function useCosmosAgentModeShortcut(): void {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.ts`
+Run: `npx vitest run src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.tsx`
 Expected: PASS
 
 - [ ] **Step 5: Wire the hook into `CosmosChat.tsx`**
@@ -2489,7 +2495,7 @@ Expected: all tests PASS
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/components/Chat/useCosmosAgentModeShortcut.ts src/components/Chat/CosmosChat.tsx src/components/Shortcuts/shortcuts.ts src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.ts
+git add src/components/Chat/useCosmosAgentModeShortcut.ts src/components/Chat/CosmosChat.tsx src/components/Shortcuts/shortcuts.ts src/components/Chat/__tests__/useCosmosAgentModeShortcut.test.tsx
 git commit -m "feat: add Shift+Tab shortcut to toggle Cosmos Agent Mode"
 ```
 
