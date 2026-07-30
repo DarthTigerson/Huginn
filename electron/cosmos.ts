@@ -7,7 +7,7 @@ import { minimatch } from 'minimatch'
 
 const execFileAsync = promisify(execFile)
 
-export type CosmosRole = 'user' | 'assistant' | 'tool'
+export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
 
 export interface CosmosToolCall {
   id: string
@@ -205,6 +205,11 @@ export const COSMOS_TOOLS = [
 
 const MAX_TOOL_ROUNDS = 25
 
+const TOOL_PRIORITY_SYSTEM_PROMPT =
+  'When modifying an existing file, prefer edit_file over write_file. Full-file rewrites waste tokens, fail on large files, and risk changing untouched code. ' +
+  'Use this priority order: (1) edit_file for any change to an existing file, (2) write_file only for complete rewrites explicitly requested by the user, ' +
+  "(3) create_file only for files that don't exist yet."
+
 interface PendingToolCall {
   id: string
   name: string
@@ -255,6 +260,9 @@ export class CosmosManager {
   private async runConversation(payload: CosmosSendPayload): Promise<void> {
     const { cwd, settings, agentMode } = payload
     const messages = [...payload.messages]
+    if (messages[0]?.role !== 'system') {
+      messages.unshift({ role: 'system', content: TOOL_PRIORITY_SYSTEM_PROMPT })
+    }
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const streamResult = await this.streamOneCompletion(messages, settings)

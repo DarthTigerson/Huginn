@@ -410,3 +410,43 @@ describe('CosmosManager tool calls', () => {
     await expect(readFileFs(from, 'utf-8')).rejects.toThrow()
   })
 })
+
+describe('CosmosManager system prompt', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  function setup() {
+    const win = { webContents: { send: vi.fn() } } as any
+    const manager = new CosmosManager(win)
+    manager.registerHandlers()
+    return handlers['cosmos:send']
+  }
+
+  it('prepends the tool-priority system message when none is present', async () => {
+    const sendHandler = setup()
+    const fetchMock = vi.fn().mockResolvedValueOnce(sseStream(['data: [DONE]\n\n']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.messages[0].role).toBe('system')
+    expect(body.messages[0].content).toContain('edit_file')
+    expect(body.messages[1]).toEqual({ role: 'user', content: 'hi' })
+  })
+
+  it('does not duplicate the system message if one is already present', async () => {
+    const sendHandler = setup()
+    const fetchMock = vi.fn().mockResolvedValueOnce(sseStream(['data: [DONE]\n\n']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, {
+      cwd: '/project',
+      messages: [{ role: 'system', content: 'custom' }, { role: 'user', content: 'hi' }],
+      agentMode: false,
+      settings: SETTINGS,
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.messages).toEqual([{ role: 'system', content: 'custom' }, { role: 'user', content: 'hi' }])
+  })
+})
