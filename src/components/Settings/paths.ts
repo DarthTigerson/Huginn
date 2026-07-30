@@ -6,6 +6,7 @@ export function getTerminalId(path: string): string { return path.slice(TERMINAL
 export const DISPLAY_TAB_PATH = 'settings://Display'
 export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'
+export const COSMOS_SETTINGS_TAB_PATH = 'settings://Cosmos'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {

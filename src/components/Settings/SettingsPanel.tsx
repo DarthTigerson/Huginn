@@ -1,11 +1,12 @@
 import { useEditorStore } from '@/stores/editorStore'
-import { DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH } from './paths'
+import { DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, COSMOS_SETTINGS_TAB_PATH } from './paths'
 
 export function SettingsPanel() {
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
   const isActive = activeTabPath === DISPLAY_TAB_PATH
   const isEditorActive = activeTabPath === EDITOR_SETTINGS_TAB_PATH
   const isGitActive = activeTabPath === GIT_SETTINGS_TAB_PATH
+  const isCosmosActive = activeTabPath === COSMOS_SETTINGS_TAB_PATH
 
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
@@ -62,6 +63,22 @@ export function SettingsPanel() {
           ].join(' ')}
         >
           Git
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            useEditorStore.getState().openTab({
+              path: COSMOS_SETTINGS_TAB_PATH,
+              content: '',
+              dirty: false,
+            })
+          }
+          className={[
+            'w-full text-left px-3 py-1.5 text-sm transition-colors',
+            isCosmosActive ? 'bg-accent/10 text-fg' : 'text-fg hover:bg-white/5',
+          ].join(' ')}
+        >
+          Cosmos
         </button>
       </div>
     </div>
