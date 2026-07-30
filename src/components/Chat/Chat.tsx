@@ -117,7 +117,7 @@ export function Chat() {
   }, [font])
 
   useEffect(() => {
-    if (!projectRoot || !containerRef.current || activeAssistantRef.current === 'cosmos') return
+    if (!projectRoot || !containerRef.current) return
 
     const observer = new ResizeObserver(() => {
       const activeAssistant = activeAssistantRef.current

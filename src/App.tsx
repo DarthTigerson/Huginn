@@ -207,6 +207,11 @@ export default function App() {
     })
   }, [])
 
+  useEffect(() => {
+    const unsub = useCosmosStore.getState().initEventListener()
+    return unsub
+  }, [])
+
   return (
     <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col">
       <div
@@ -420,7 +425,8 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => useClaudeStore.getState().usage(),
               }]]
-            : [[
+            : assistant === 'codex'
+            ? [[
               {
                 id: 'model',
                 icon: <ModelIcon />,
@@ -437,7 +443,8 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => useClaudeStore.getState().fast(),
               },
-            ]]}
+            ]]
+            : []}
         />
       </div>
       <StatusBar />

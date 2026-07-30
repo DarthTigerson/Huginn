@@ -4,7 +4,7 @@ import { useCosmosStore, type CosmosToolCallBlock } from '@/stores/cosmosStore'
 import { useCosmosAgentModeShortcut } from './useCosmosAgentModeShortcut'
 
 function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(block.status === 'pending-approval')
   const approveToolCall = useCosmosStore((s) => s.approveToolCall)
   const rejectToolCall = useCosmosStore((s) => s.rejectToolCall)
 
@@ -62,11 +62,9 @@ export function CosmosChat({ cwd }: { cwd: string }) {
   const streaming = useCosmosStore((s) => s.streaming)
   const sendMessage = useCosmosStore((s) => s.sendMessage)
   const toggleAgentMode = useCosmosStore((s) => s.toggleAgentMode)
-  const initEventListener = useCosmosStore((s) => s.initEventListener)
+  const cancel = useCosmosStore((s) => s.cancel)
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => initEventListener(), [initEventListener])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
@@ -81,8 +79,26 @@ export function CosmosChat({ cwd }: { cwd: string }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="h-7 px-2 flex items-center justify-end shrink-0 border-b border-border/60">
-        {agentMode && <span className="text-xs text-accent">Agent Mode</span>}
+      <div className="h-7 px-2 flex items-center justify-between shrink-0 border-b border-border/60">
+        <button
+          type="button"
+          onClick={() => toggleAgentMode()}
+          className={[
+            'rounded px-1.5 py-0.5 text-xs transition-colors',
+            agentMode ? 'text-accent hover:text-accent/80' : 'text-fg-muted hover:text-fg',
+          ].join(' ')}
+        >
+          Agent Mode: {agentMode ? 'On' : 'Off'}
+        </button>
+        {streaming && (
+          <button
+            type="button"
+            onClick={() => cancel()}
+            className="h-5 rounded border border-border px-2 text-xs text-fg-muted hover:border-fg-subtle hover:text-fg"
+          >
+            Stop
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">

@@ -10,6 +10,7 @@ beforeEach(() => {
     cosmosSend: vi.fn(),
     cosmosApprove: vi.fn(),
     cosmosReject: vi.fn(),
+    cosmosCancel: vi.fn(),
   }
   useCosmosStore.setState({ messages: [], previousMessages: [], streaming: false, agentMode: false })
 })
@@ -74,10 +75,73 @@ describe('CosmosChat', () => {
     expect(input.value).toBe('')
   })
 
-  it('shows an Agent Mode indicator reflecting the store', () => {
+  it('shows an Agent Mode: On indicator when agentMode is true', () => {
     useCosmosStore.setState({ agentMode: true })
     render(<CosmosChat cwd="/project" />)
 
-    expect(screen.getByText('Agent Mode')).toBeTruthy()
+    expect(screen.getByText('Agent Mode: On')).toBeTruthy()
+  })
+
+  it('shows an Agent Mode: Off indicator when agentMode is false', () => {
+    useCosmosStore.setState({ agentMode: false })
+    render(<CosmosChat cwd="/project" />)
+
+    expect(screen.getByText('Agent Mode: Off')).toBeTruthy()
+  })
+
+  it('toggles agentMode when the indicator is clicked', () => {
+    useCosmosStore.setState({ agentMode: false })
+    render(<CosmosChat cwd="/project" />)
+
+    fireEvent.click(screen.getByText('Agent Mode: Off'))
+
+    expect(useCosmosStore.getState().agentMode).toBe(true)
+  })
+
+  it('does not show a Stop button when not streaming', () => {
+    useCosmosStore.setState({ streaming: false })
+    render(<CosmosChat cwd="/project" />)
+
+    expect(screen.queryByText('Stop')).toBeNull()
+  })
+
+  it('shows a Stop button while streaming that calls cancel()', () => {
+    useCosmosStore.setState({ streaming: true })
+    render(<CosmosChat cwd="/project" />)
+
+    fireEvent.click(screen.getByText('Stop'))
+
+    expect((global as any).window.api.cosmosCancel).toHaveBeenCalled()
+    expect(useCosmosStore.getState().streaming).toBe(false)
+  })
+
+  it('defaults a pending-approval tool call to expanded, showing its args without an extra click', () => {
+    useCosmosStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [{ id: 'call_1', name: 'write_file', args: { path: '/x', content: 'hello world' }, status: 'pending-approval' }],
+        },
+      ],
+    })
+    render(<CosmosChat cwd="/project" />)
+
+    expect(screen.getByText(/hello world/)).toBeTruthy()
+  })
+
+  it('does not expand a non-pending tool call by default', () => {
+    useCosmosStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [{ id: 'call_1', name: 'write_file', args: { path: '/x', content: 'hello world' }, status: 'done', result: 'ok' }],
+        },
+      ],
+    })
+    render(<CosmosChat cwd="/project" />)
+
+    expect(screen.queryByText(/hello world/)).toBeNull()
   })
 })
