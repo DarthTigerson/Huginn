@@ -375,7 +375,81 @@ describe('CosmosManager tool calls', () => {
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
-    expect(JSON.parse(result.result).sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
+    const parsed = JSON.parse(result.result)
+    expect(parsed.matches.sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
+    expect(parsed.truncated).toBe(false)
+  })
+
+  it('glob_search returns an empty, non-error, non-truncated result when no files match', async () => {
+    const { win, sendHandler } = setup()
+    await writeFileFs(join(root, 'a.txt'), '')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('glob_search', { pattern: '**/*.doesnotexist', root }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find files' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const result = events.find((e: any) => e.type === 'tool-result')
+    expect(result.isError).toBe(false)
+    const parsed = JSON.parse(result.result)
+    expect(parsed.matches).toEqual([])
+    expect(parsed.truncated).toBe(false)
+  })
+
+  it('glob_search finds matches correctly when root has a trailing slash', async () => {
+    const { win, sendHandler } = setup()
+    await mkdir(join(root, 'sub'))
+    await writeFileFs(join(root, 'a.ts'), '')
+    await writeFileFs(join(root, 'sub', 'c.ts'), '')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('glob_search', { pattern: '**/*.ts', root: root + '/' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const result = events.find((e: any) => e.type === 'tool-result')
+    expect(result.isError).toBe(false)
+    const parsed = JSON.parse(result.result)
+    expect(parsed.matches.sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
+  })
+
+  it('edit_file preserves a literal $ in new_string instead of expanding it as a replace pattern', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'out.txt')
+    await writeFileFs(target, 'const a = foo;\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('edit_file', { path: target, old_string: 'foo', new_string: '$&bar' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('const a = $&bar;\n')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
+  })
+
+  it('move_file refuses to clobber an existing destination', async () => {
+    const { win, sendHandler } = setup()
+    const from = join(root, 'old.txt')
+    const to = join(root, 'new.txt')
+    await writeFileFs(from, 'source content')
+    await writeFileFs(to, 'destination content')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('move_file', { from, to }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(from, 'utf-8')).toBe('source content')
+    expect(await readFileFs(to, 'utf-8')).toBe('destination content')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
   })
 
   it('delete_file removes the file', async () => {

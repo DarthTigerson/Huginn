@@ -1,7 +1,8 @@
 import { BrowserWindow, ipcMain } from 'electron'
-import { readFile, writeFile, unlink, rename } from 'fs/promises'
+import { readFile, writeFile, unlink, rename, access } from 'fs/promises'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { relative } from 'path'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 import { minimatch } from 'minimatch'
 
@@ -359,7 +360,8 @@ export class CosmosManager {
               isError: true,
             }
           }
-          const updated = content.replace(oldString, newString)
+          const idx = content.indexOf(oldString)
+          const updated = content.slice(0, idx) + newString + content.slice(idx + oldString.length)
           await writeFile(path, updated, 'utf-8')
           return { result: `Edited ${path}`, isError: false }
         }
@@ -379,9 +381,20 @@ export class CosmosManager {
         case 'glob_search': {
           const root = args.root as string
           const pattern = args.pattern as string
+          const IGNORED_SEGMENTS = new Set(['node_modules', '.git', 'dist', 'out'])
           const allFiles = await listAllFiles(root)
-          const matches = allFiles.filter((f) => minimatch(f.slice(root.length + 1), pattern))
-          return { result: JSON.stringify(matches), isError: false }
+          const candidates = allFiles.filter((f) => {
+            const rel = relative(root, f)
+            return !rel.split(/[\\/]/).some((segment) => IGNORED_SEGMENTS.has(segment))
+          })
+          const allMatches = candidates.filter((f) => minimatch(relative(root, f), pattern))
+          const GLOB_MATCH_CAP = 300
+          const matches = allMatches.slice(0, GLOB_MATCH_CAP)
+          const truncated = allMatches.length > GLOB_MATCH_CAP
+          return {
+            result: JSON.stringify({ matches, truncated, totalMatches: allMatches.length }),
+            isError: false,
+          }
         }
         case 'delete_file': {
           const path = args.path as string
@@ -391,6 +404,10 @@ export class CosmosManager {
         case 'move_file': {
           const from = args.from as string
           const to = args.to as string
+          const destExists = await access(to).then(() => true).catch(() => false)
+          if (destExists) {
+            return { result: `${to} already exists — delete it first or choose another destination`, isError: true }
+          }
           await rename(from, to)
           return { result: `Moved ${from} to ${to}`, isError: false }
         }
