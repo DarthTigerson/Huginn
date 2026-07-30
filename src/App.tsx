@@ -16,6 +16,7 @@ import {
   TerminalIcon,
   ClaudeIcon,
   CodexIcon,
+  CosmosIcon,
   NewSessionIcon,
   PreviousSessionIcon,
   CompactIcon,
@@ -33,6 +34,7 @@ import { CommandPalette } from './components/Search/CommandPalette'
 import { SearchModal } from './components/Search/SearchModal'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
+import { useCosmosStore } from './stores/cosmosStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
@@ -42,7 +44,12 @@ import type { AssistantKind } from './types/api'
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
   { id: 'claude', label: 'Claude Code' },
   { id: 'codex', label: 'Codex' },
+  { id: 'cosmos', label: 'Cosmos' },
 ]
+
+function assistantIcon(kind: AssistantKind) {
+  return kind === 'claude' ? <ClaudeIcon /> : kind === 'codex' ? <CodexIcon /> : <CosmosIcon />
+}
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 20
@@ -91,9 +98,9 @@ export default function App() {
   const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
   const shortcutsOverlayOpen = useSearchStore((s) => s.shortcutsOverlayOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
-  const assistantLabel = assistant === 'claude' ? 'Claude Code' : 'Codex'
-  const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : 'New Codex Session'
-  const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : 'Resume Latest Codex Session'
+  const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
+  const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
+  const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : assistant === 'codex' ? 'Resume Latest Codex Session' : 'Restore Previous Cosmos Session'
   const uncommittedChangeCount = new Set([
     ...gitStatus.staged.map((file) => file.path),
     ...gitStatus.unstaged.map((file) => file.path),
@@ -223,7 +230,7 @@ export default function App() {
           >
             <span className="flex items-center gap-1.5">
               <span className="text-fg-muted">
-                {assistant === 'claude' ? <ClaudeIcon /> : <CodexIcon />}
+                {assistantIcon(assistant)}
               </span>
               {assistantLabel}
             </span>
@@ -249,7 +256,7 @@ export default function App() {
                     ].join(' ')}
                   >
                     <span className={selected ? 'text-fg' : 'text-fg-subtle'}>
-                      {option.id === 'claude' ? <ClaudeIcon /> : <CodexIcon />}
+                      {assistantIcon(option.id)}
                     </span>
                     <span className="flex-1">{option.label}</span>
                     {selected && <CheckIcon />}
@@ -354,7 +361,7 @@ export default function App() {
           groups={[
             [{
               id: assistant,
-              icon: assistant === 'claude' ? <ClaudeIcon /> : <CodexIcon />,
+              icon: assistantIcon(assistant),
               title: assistantLabel,
               active: chatVisible,
               onClick: () => useClaudeStore.getState().toggleChatVisible(),
@@ -366,7 +373,11 @@ export default function App() {
                 title: newSessionTitle,
                 active: false,
                 disabled: !projectRoot,
-                onClick: () => projectRoot && useClaudeStore.getState().newSession(projectRoot),
+                onClick: () => {
+                  if (!projectRoot) return
+                  if (assistant === 'cosmos') useCosmosStore.getState().newSession()
+                  else useClaudeStore.getState().newSession(projectRoot)
+                },
               },
               {
                 id: 'previous-session',
@@ -374,7 +385,11 @@ export default function App() {
                 title: previousSessionTitle,
                 active: false,
                 disabled: !projectRoot,
-                onClick: () => projectRoot && useClaudeStore.getState().previousSession(projectRoot),
+                onClick: () => {
+                  if (!projectRoot) return
+                  if (assistant === 'cosmos') useCosmosStore.getState().previousSession()
+                  else useClaudeStore.getState().previousSession(projectRoot)
+                },
               },
             ],
             ...(assistant === 'claude' ? [[

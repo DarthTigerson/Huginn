@@ -81,7 +81,7 @@ export const COMMANDS: Command[] = [
     label: 'Switch to Codex',
     description: 'Use Codex as the AI assistant',
     keywords: ['assistant', 'model'],
-    condition: () => useClaudeStore.getState().assistant === 'claude',
+    condition: () => useClaudeStore.getState().assistant !== 'codex',
     action: () => useClaudeStore.getState().setAssistant('codex'),
   },
   {
@@ -89,7 +89,15 @@ export const COMMANDS: Command[] = [
     label: 'Switch to Claude',
     description: 'Use Claude Code as the AI assistant',
     keywords: ['assistant', 'model'],
-    condition: () => useClaudeStore.getState().assistant === 'codex',
+    condition: () => useClaudeStore.getState().assistant !== 'claude',
     action: () => useClaudeStore.getState().setAssistant('claude'),
+  },
+  {
+    id: 'switch-to-cosmos',
+    label: 'Switch to Cosmos',
+    description: 'Use Cosmos as the AI assistant',
+    keywords: ['assistant', 'model'],
+    condition: () => useClaudeStore.getState().assistant !== 'cosmos',
+    action: () => useClaudeStore.getState().setAssistant('cosmos'),
   },
 ]
