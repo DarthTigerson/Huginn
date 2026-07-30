@@ -7,6 +7,7 @@ import { useClaudeStore } from '@/stores/claudeStore'
 import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
+import { CosmosChat } from './CosmosChat'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -50,7 +51,7 @@ export function Chat() {
   }, [assistant])
 
   useEffect(() => {
-    if (!projectRoot || !containerRef.current) return
+    if (!projectRoot || !containerRef.current || assistant === 'cosmos') return
 
     const container = containerRef.current
 
@@ -116,10 +117,11 @@ export function Chat() {
   }, [font])
 
   useEffect(() => {
-    if (!projectRoot || !containerRef.current) return
+    if (!projectRoot || !containerRef.current || activeAssistantRef.current === 'cosmos') return
 
     const observer = new ResizeObserver(() => {
       const activeAssistant = activeAssistantRef.current
+      if (activeAssistant === 'cosmos') return
       const activeTerminal = terminalsRef.current[activeAssistant]
       if (!activeTerminal) return
 
@@ -158,11 +160,22 @@ export function Chat() {
   return (
     <div className="h-full flex flex-col bg-bg border-l border-border overflow-hidden">
       {projectRoot ? (
-        <div ref={containerRef} className="flex-1 overflow-hidden p-1" />
+        <>
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-hidden p-1"
+            style={{ display: assistant === 'cosmos' ? 'none' : 'block' }}
+          />
+          {assistant === 'cosmos' && (
+            <div className="flex-1 overflow-hidden">
+              <CosmosChat cwd={projectRoot} />
+            </div>
+          )}
+        </>
       ) : (
         <div className="flex-1 flex items-center justify-center px-6">
           <p className="text-xs text-fg-muted text-center leading-relaxed">
-            Open a folder to start {assistant === 'claude' ? 'Claude Code' : 'Codex'}
+            Open a folder to start {assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'}
           </p>
         </div>
       )}
