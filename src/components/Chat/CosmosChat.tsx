@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCosmosStore, type CosmosToolCallBlock } from '@/stores/cosmosStore'
+import { useCosmosAgentModeShortcut } from './useCosmosAgentModeShortcut'
 
 function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
   const [expanded, setExpanded] = useState(false)
@@ -55,6 +56,7 @@ function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
 }
 
 export function CosmosChat({ cwd }: { cwd: string }) {
+  useCosmosAgentModeShortcut()
   const messages = useCosmosStore((s) => s.messages)
   const agentMode = useCosmosStore((s) => s.agentMode)
   const streaming = useCosmosStore((s) => s.streaming)

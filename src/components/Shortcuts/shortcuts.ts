@@ -18,6 +18,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['⌘', 'F'], label: 'Search' },
       { keys: ['⌘', 'T'], label: 'New Terminal' },
       { keys: ['⌘', 'L'], label: 'Toggle Chat Panel' },
+      { keys: ['⇧', '⇥'], label: 'Toggle Cosmos Agent Mode' },
     ],
   },
   {
