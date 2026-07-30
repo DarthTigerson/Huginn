@@ -72,10 +72,14 @@ export const COSMOS_TOOLS = [
     type: 'function',
     function: {
       name: 'read_file',
-      description: 'Read the contents of a file at an absolute path.',
+      description: 'Read the contents of a file at an absolute path. Optionally pass startLine/endLine (1-indexed, inclusive) to read only part of a large file.',
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          startLine: { type: 'number' },
+          endLine: { type: 'number' },
+        },
         required: ['path'],
       },
     },
@@ -261,7 +265,14 @@ export class CosmosManager {
       switch (name) {
         case 'read_file': {
           const content = await readFile(args.path as string, 'utf-8')
-          return { result: content, isError: false }
+          const { startLine, endLine } = args as { startLine?: number; endLine?: number }
+          if (startLine === undefined && endLine === undefined) {
+            return { result: content, isError: false }
+          }
+          const lines = content.split('\n')
+          const start = Math.max(1, startLine ?? 1)
+          const end = Math.min(lines.length, endLine ?? lines.length)
+          return { result: lines.slice(start - 1, end).join('\n'), isError: false }
         }
         case 'write_file': {
           await writeFile(args.path as string, args.content as string, 'utf-8')

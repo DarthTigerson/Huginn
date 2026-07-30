@@ -314,4 +314,34 @@ describe('CosmosManager tool calls', () => {
       isError: true,
     })
   })
+
+  it('read_file returns the full file when no range is given', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'multi.txt')
+    await writeFileFs(target, 'line1\nline2\nline3\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('read_file', { path: target }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line1\nline2\nline3\n', isError: false })
+  })
+
+  it('read_file returns only the requested inclusive line range', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'multi.txt')
+    await writeFileFs(target, 'line1\nline2\nline3\nline4\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('read_file', { path: target, startLine: 2, endLine: 3 }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line2\nline3', isError: false })
+  })
 })
