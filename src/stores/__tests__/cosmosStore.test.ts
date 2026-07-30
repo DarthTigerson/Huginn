@@ -11,7 +11,7 @@ const { store, apiMock } = vi.hoisted(() => {
     cosmosApprove: vi.fn(),
     cosmosReject: vi.fn(),
     cosmosCancel: vi.fn(),
-    onCosmosEvent: vi.fn(() => () => {}),
+    onCosmosEvent: vi.fn((_cb: (event: any) => void) => () => {}),
   }
   ;(global as any).window = { api: apiMock }
   return { store, apiMock }
