@@ -95,6 +95,22 @@ export const COSMOS_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'edit_file',
+      description: 'Replace an exact, unique occurrence of old_string with new_string in the file at path. Prefer this over write_file for any change to an existing file.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string' },
+          old_string: { type: 'string' },
+          new_string: { type: 'string' },
+        },
+        required: ['path', 'old_string', 'new_string'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_dir',
       description: 'List the entries (files and directories) of a directory at an absolute path.',
       parameters: {
@@ -259,6 +275,25 @@ export class CosmosManager {
             const e = err as { stdout?: string; stderr?: string; message: string }
             return { result: `${e.stdout ?? ''}${e.stderr ?? ''}\n${e.message}`.trim(), isError: true }
           }
+        }
+        case 'edit_file': {
+          const path = args.path as string
+          const oldString = args.old_string as string
+          const newString = args.new_string as string
+          const content = await readFile(path, 'utf-8')
+          const occurrences = content.split(oldString).length - 1
+          if (occurrences === 0) {
+            return { result: `old_string not found in ${path}`, isError: true }
+          }
+          if (occurrences > 1) {
+            return {
+              result: `old_string appears ${occurrences} times in ${path} — include more surrounding context to make it unique`,
+              isError: true,
+            }
+          }
+          const updated = content.replace(oldString, newString)
+          await writeFile(path, updated, 'utf-8')
+          return { result: `Edited ${path}`, isError: false }
         }
         default:
           return { result: `Unknown tool: ${name}`, isError: true }

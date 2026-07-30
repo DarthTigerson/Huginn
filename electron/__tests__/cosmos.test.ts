@@ -225,4 +225,57 @@ describe('CosmosManager tool calls', () => {
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events[events.length - 1]).toEqual({ type: 'error', message: 'Cosmos hit the 25 tool-call round limit for this turn' })
   })
+
+  it('edit_file replaces a unique old_string with new_string', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'out.txt')
+    await writeFileFs(target, 'hello world\nfoo bar\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('edit_file', { path: target, old_string: 'hello world', new_string: 'hello there' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('hello there\nfoo bar\n')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
+  })
+
+  it('edit_file errors when old_string is not found', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'out.txt')
+    await writeFileFs(target, 'hello world\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('edit_file', { path: target, old_string: 'nope', new_string: 'x' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('hello world\n')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: `old_string not found in ${target}`, isError: true })
+  })
+
+  it('edit_file errors when old_string is not unique', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'out.txt')
+    await writeFileFs(target, 'dup\ndup\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('edit_file', { path: target, old_string: 'dup', new_string: 'x' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('dup\ndup\n')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual({
+      type: 'tool-result',
+      id: 'call_1',
+      result: `old_string appears 2 times in ${target} — include more surrounding context to make it unique`,
+      isError: true,
+    })
+  })
 })
