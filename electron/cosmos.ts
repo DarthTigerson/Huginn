@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'fs/promises'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { listAllFiles, searchText, buildTree } from './fsOps'
+import { minimatch } from 'minimatch'
 
 const execFileAsync = promisify(execFile)
 
@@ -149,6 +150,18 @@ export const COSMOS_TOOLS = [
           caseSensitive: { type: 'boolean' },
         },
         required: ['root', 'query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'glob_search',
+      description: 'Find files whose path matches a glob pattern (e.g. "**/*.ts") under an absolute root path.',
+      parameters: {
+        type: 'object',
+        properties: { pattern: { type: 'string' }, root: { type: 'string' } },
+        required: ['pattern', 'root'],
       },
     },
   },
@@ -330,6 +343,13 @@ export class CosmosManager {
             throw err
           }
           return { result: `Created ${path}`, isError: false }
+        }
+        case 'glob_search': {
+          const root = args.root as string
+          const pattern = args.pattern as string
+          const allFiles = await listAllFiles(root)
+          const matches = allFiles.filter((f) => minimatch(f.slice(root.length + 1), pattern))
+          return { result: JSON.stringify(matches), isError: false }
         }
         default:
           return { result: `Unknown tool: ${name}`, isError: true }

@@ -96,7 +96,7 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
   })
 })
 
-import { mkdtemp, writeFile as writeFileFs, readFile as readFileFs, rm } from 'fs/promises'
+import { mkdtemp, mkdir, writeFile as writeFileFs, readFile as readFileFs, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -358,5 +358,23 @@ describe('CosmosManager tool calls', () => {
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
     expect(JSON.parse(result.result)).toEqual([{ path: join(root, 'a.txt'), line: 1, col: 1, text: 'needle here' }])
+  })
+
+  it('glob_search matches files by pattern under root', async () => {
+    const { win, sendHandler } = setup()
+    await mkdir(join(root, 'sub'))
+    await writeFileFs(join(root, 'a.ts'), '')
+    await writeFileFs(join(root, 'b.txt'), '')
+    await writeFileFs(join(root, 'sub', 'c.ts'), '')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('glob_search', { pattern: '**/*.ts', root }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const result = events.find((e: any) => e.type === 'tool-result')
+    expect(JSON.parse(result.result).sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
   })
 })
