@@ -81,6 +81,18 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('mobile:state', handler)
   },
 
+  cosmosSend: (cwd: string, messages: unknown[], agentMode: boolean, settings: unknown) =>
+    ipcRenderer.send('cosmos:send', { cwd, messages, agentMode, settings }),
+  cosmosApprove: (toolCallId: string) => ipcRenderer.send('cosmos:approve', toolCallId),
+  cosmosReject: (toolCallId: string) => ipcRenderer.send('cosmos:reject', toolCallId),
+  cosmosCancel: () => ipcRenderer.send('cosmos:cancel'),
+  cosmosTestConnection: (settings: unknown) => ipcRenderer.invoke('cosmos:testConnection', settings),
+  onCosmosEvent: (cb: (event: import('./cosmos').CosmosEvent) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, event: import('./cosmos').CosmosEvent) => cb(event)
+    ipcRenderer.on('cosmos:event', handler)
+    return () => ipcRenderer.removeListener('cosmos:event', handler)
+  },
+
   onMenuOpenProject: (cb: () => void) => {
     const handler = () => cb()
     ipcRenderer.on('menu:openProject', handler)

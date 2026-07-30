@@ -1,6 +1,6 @@
 import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
 
-export type AssistantKind = 'claude' | 'codex'
+export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
 export interface MobileState {
   running: boolean
@@ -11,6 +11,35 @@ export interface MobileState {
   connectedCount: number
   allowingNewDevice: boolean
 }
+
+export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
+
+export interface CosmosToolCall {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
+}
+
+export interface CosmosMessage {
+  role: CosmosRole
+  content: string | null
+  tool_calls?: CosmosToolCall[]
+  tool_call_id?: string
+}
+
+export interface CosmosSettings {
+  endpoint: string
+  apiKey: string
+  modelId: string
+}
+
+export type CosmosEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
+  | { type: 'need-approval'; id: string; name: string; args: Record<string, unknown> }
+  | { type: 'tool-result'; id: string; result: string; isError: boolean }
+  | { type: 'done' }
+  | { type: 'error'; message: string }
 
 declare global {
   interface Window {
@@ -64,6 +93,13 @@ declare global {
       mobileGetState: () => Promise<MobileState>
       mobileAddDevice: () => Promise<void>
       onMobileState: (cb: (state: MobileState) => void) => () => void
+
+      cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void
+      cosmosApprove: (toolCallId: string) => void
+      cosmosReject: (toolCallId: string) => void
+      cosmosCancel: () => void
+      cosmosTestConnection: (settings: CosmosSettings) => Promise<{ ok: boolean; error?: string }>
+      onCosmosEvent: (cb: (event: CosmosEvent) => void) => () => void
     }
   }
 }

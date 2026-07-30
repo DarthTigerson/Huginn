@@ -6,6 +6,7 @@ import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { MobileServer } from './mobile'
+import { CosmosManager } from './cosmos'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 
 function registerFsHandlers(): void {
@@ -154,6 +155,8 @@ app.whenReady().then(() => {
   claudeMgr.registerHandlers()
   const mobileSrv = new MobileServer(win)
   mobileSrv.registerHandlers()
+  const cosmosMgr = new CosmosManager(win)
+  cosmosMgr.registerHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
