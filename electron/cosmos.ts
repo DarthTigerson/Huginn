@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, unlink, rename } from 'fs/promises'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { listAllFiles, searchText, buildTree } from './fsOps'
@@ -177,6 +177,30 @@ export const COSMOS_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_file',
+      description: 'Delete the file at an absolute path.',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string' } },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'move_file',
+      description: 'Rename or move a file from one absolute path to another.',
+      parameters: {
+        type: 'object',
+        properties: { from: { type: 'string' }, to: { type: 'string' } },
+        required: ['from', 'to'],
+      },
+    },
+  },
 ] as const
 
 const MAX_TOOL_ROUNDS = 25
@@ -350,6 +374,17 @@ export class CosmosManager {
           const allFiles = await listAllFiles(root)
           const matches = allFiles.filter((f) => minimatch(f.slice(root.length + 1), pattern))
           return { result: JSON.stringify(matches), isError: false }
+        }
+        case 'delete_file': {
+          const path = args.path as string
+          await unlink(path)
+          return { result: `Deleted ${path}`, isError: false }
+        }
+        case 'move_file': {
+          const from = args.from as string
+          const to = args.to as string
+          await rename(from, to)
+          return { result: `Moved ${from} to ${to}`, isError: false }
         }
         default:
           return { result: `Unknown tool: ${name}`, isError: true }

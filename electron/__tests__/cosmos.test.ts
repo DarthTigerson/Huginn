@@ -377,4 +377,36 @@ describe('CosmosManager tool calls', () => {
     const result = events.find((e: any) => e.type === 'tool-result')
     expect(JSON.parse(result.result).sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
   })
+
+  it('delete_file removes the file', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'gone.txt')
+    await writeFileFs(target, 'bye')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('delete_file', { path: target }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'delete it' }], agentMode: true, settings: SETTINGS })
+
+    await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
+  })
+
+  it('move_file renames the file', async () => {
+    const { win, sendHandler } = setup()
+    const from = join(root, 'old.txt')
+    const to = join(root, 'new.txt')
+    await writeFileFs(from, 'content')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('move_file', { from, to }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(to, 'utf-8')).toBe('content')
+    await expect(readFileFs(from, 'utf-8')).rejects.toThrow()
+  })
 })
