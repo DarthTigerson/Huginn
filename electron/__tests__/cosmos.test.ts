@@ -200,6 +200,30 @@ describe('CosmosManager tool calls', () => {
     expect(await readFileFs(target, 'utf-8')).toBe('hi')
   })
 
+  it('cosmos:cancel while a tool call is awaiting approval rejects it and stops the loop', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'out.txt')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('write_file', { path: target, content: 'hi' }))
+      .mockResolvedValueOnce(finalTextStream('ok'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const runPromise = sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
+
+    await vi.waitFor(() => {
+      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
+    })
+
+    handlers['cosmos:cancel']({})
+    await runPromise
+
+    await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('run_command executes and captures stdout', async () => {
     const { win, sendHandler } = setup()
     const fetchMock = vi.fn()

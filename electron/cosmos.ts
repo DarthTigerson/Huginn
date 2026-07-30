@@ -226,6 +226,7 @@ export class CosmosManager {
   private win: BrowserWindow
   private controller: AbortController | null = null
   private pendingApprovals = new Map<string, (approved: boolean) => void>()
+  private cancelled = false
 
   constructor(win: BrowserWindow) {
     this.win = win
@@ -241,6 +242,11 @@ export class CosmosManager {
 
     ipcMain.on('cosmos:cancel', () => {
       this.controller?.abort()
+      this.cancelled = true
+      for (const resolve of this.pendingApprovals.values()) {
+        resolve(false)
+      }
+      this.pendingApprovals.clear()
     })
 
     ipcMain.on('cosmos:approve', (_event, toolCallId: string) => {
@@ -259,6 +265,7 @@ export class CosmosManager {
   }
 
   private async runConversation(payload: CosmosSendPayload): Promise<void> {
+    this.cancelled = false
     const { cwd, settings, agentMode } = payload
     const messages = [...payload.messages]
     if (messages[0]?.role !== 'system') {
@@ -293,7 +300,11 @@ export class CosmosManager {
 
         this.emit({ type: 'tool-result', id: call.id, result: execResult.result, isError: execResult.isError })
         messages.push({ role: 'tool', tool_call_id: call.id, content: execResult.result })
+
+        if (this.cancelled) return
       }
+
+      if (this.cancelled) return
     }
 
     this.emit({ type: 'error', message: `Cosmos hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
