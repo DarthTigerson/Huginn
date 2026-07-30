@@ -111,6 +111,18 @@ export const COSMOS_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'create_file',
+      description: "Create a new file at an absolute path with the given content. Fails if the file already exists — use edit_file or write_file for existing files.",
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string' }, content: { type: 'string' } },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_dir',
       description: 'List the entries (files and directories) of a directory at an absolute path.',
       parameters: {
@@ -294,6 +306,19 @@ export class CosmosManager {
           const updated = content.replace(oldString, newString)
           await writeFile(path, updated, 'utf-8')
           return { result: `Edited ${path}`, isError: false }
+        }
+        case 'create_file': {
+          const path = args.path as string
+          const content = args.content as string
+          try {
+            await writeFile(path, content, { encoding: 'utf-8', flag: 'wx' })
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+              return { result: `${path} already exists — use edit_file or write_file`, isError: true }
+            }
+            throw err
+          }
+          return { result: `Created ${path}`, isError: false }
         }
         default:
           return { result: `Unknown tool: ${name}`, isError: true }

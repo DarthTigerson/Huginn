@@ -278,4 +278,40 @@ describe('CosmosManager tool calls', () => {
       isError: true,
     })
   })
+
+  it('create_file creates a new file', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'new.txt')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('create_file', { path: target, content: 'fresh' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('fresh')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
+  })
+
+  it('create_file errors when the file already exists', async () => {
+    const { win, sendHandler } = setup()
+    const target = join(root, 'existing.txt')
+    await writeFileFs(target, 'already here')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('create_file', { path: target, content: 'overwrite attempt' }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
+
+    expect(await readFileFs(target, 'utf-8')).toBe('already here')
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(events).toContainEqual({
+      type: 'tool-result',
+      id: 'call_1',
+      result: `${target} already exists — use edit_file or write_file`,
+      isError: true,
+    })
+  })
 })
