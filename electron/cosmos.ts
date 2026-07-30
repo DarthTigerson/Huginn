@@ -139,7 +139,7 @@ export const COSMOS_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'search',
+      name: 'grep_search',
       description: 'Search for a text query across all files under an absolute root path.',
       parameters: {
         type: 'object',
@@ -282,7 +282,7 @@ export class CosmosManager {
           const entries = await buildTree(args.path as string)
           return { result: JSON.stringify(entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory }))), isError: false }
         }
-        case 'search': {
+        case 'grep_search': {
           const matches = await searchText(args.root as string, args.query as string, Boolean(args.caseSensitive))
           return { result: JSON.stringify(matches), isError: false }
         }

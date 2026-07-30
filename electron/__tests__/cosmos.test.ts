@@ -344,4 +344,19 @@ describe('CosmosManager tool calls', () => {
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line2\nline3', isError: false })
   })
+
+  it('grep_search finds text matches under a root path', async () => {
+    const { win, sendHandler } = setup()
+    await writeFileFs(join(root, 'a.txt'), 'needle here\nother line\n')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(toolCallStream('grep_search', { root, query: 'needle', caseSensitive: true }))
+      .mockResolvedValueOnce(finalTextStream('done'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'search it' }], agentMode: true, settings: SETTINGS })
+
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const result = events.find((e: any) => e.type === 'tool-result')
+    expect(JSON.parse(result.result)).toEqual([{ path: join(root, 'a.txt'), line: 1, col: 1, text: 'needle here' }])
+  })
 })
