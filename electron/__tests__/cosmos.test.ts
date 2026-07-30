@@ -548,3 +548,38 @@ describe('CosmosManager system prompt', () => {
     expect(body.messages).toEqual([{ role: 'system', content: 'custom' }, { role: 'user', content: 'hi' }])
   })
 })
+
+describe('CosmosManager cosmos:testConnection', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  function setup() {
+    const win = { webContents: { send: vi.fn() } } as any
+    const manager = new CosmosManager(win)
+    manager.registerHandlers()
+    return handlers['cosmos:testConnection']
+  }
+
+  it('returns ok:true when the endpoint responds with 200', async () => {
+    const testHandler = setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })))
+
+    const result = await testHandler({}, SETTINGS)
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('returns ok:false with an error message on failure', async () => {
+    const testHandler = setup()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED')))
+
+    const result = await testHandler({}, SETTINGS)
+    expect(result).toEqual({ ok: false, error: 'connect ECONNREFUSED' })
+  })
+
+  it('returns ok:false with the status code on a non-2xx response', async () => {
+    const testHandler = setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 401 })))
+
+    const result = await testHandler({}, SETTINGS)
+    expect(result).toEqual({ ok: false, error: 'HTTP 401' })
+  })
+})

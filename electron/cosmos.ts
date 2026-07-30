@@ -258,6 +258,18 @@ export class CosmosManager {
       this.pendingApprovals.get(toolCallId)?.(false)
       this.pendingApprovals.delete(toolCallId)
     })
+
+    ipcMain.handle('cosmos:testConnection', async (_event, settings: CosmosSettings) => {
+      try {
+        const response = await fetch(`${settings.endpoint}/models`, {
+          headers: { Authorization: `Bearer ${settings.apiKey}` },
+        })
+        if (!response.ok) return { ok: false, error: `HTTP ${response.status}` }
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      }
+    })
   }
 
   private emit(event: CosmosEvent): void {
