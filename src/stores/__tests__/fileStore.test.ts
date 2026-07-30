@@ -7,6 +7,16 @@ const mockTree: FileNode[] = [
   { name: 'package.json', path: '/proj/package.json', isDirectory: false },
 ]
 
+const { localStorageStore } = vi.hoisted(() => {
+  const localStorageStore: Record<string, string> = {}
+  ;(global as any).localStorage = {
+    getItem: (k: string) => localStorageStore[k] ?? null,
+    setItem: (k: string, v: string) => { localStorageStore[k] = v },
+    removeItem: (k: string) => { delete localStorageStore[k] },
+  }
+  return { localStorageStore }
+})
+
 vi.stubGlobal('window', {
   api: {
     openFolder: vi.fn().mockResolvedValue('/proj'),
@@ -15,9 +25,10 @@ vi.stubGlobal('window', {
 })
 
 describe('fileStore', () => {
-  beforeEach(() =>
+  beforeEach(() => {
+    Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
     useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null })
-  )
+  })
 
   it('starts empty', () => {
     const { projectRoot, tree, selectedPath } = useFileStore.getState()
