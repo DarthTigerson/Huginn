@@ -46,9 +46,9 @@ function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
       )}
 
       {expanded && (
-        <pre className="mt-2 whitespace-pre-wrap text-fg-muted">
+        <pre className="mt-2 overflow-x-auto whitespace-pre text-fg-muted">
           {JSON.stringify(block.args, null, 2)}
-          {block.result ? `\n\n${block.result}` : ''}
+          {block.result != null ? `\n\n${block.result.length > 3000 ? block.result.slice(0, 3000) + '\n… [truncated]' : block.result}` : ''}
         </pre>
       )}
     </div>

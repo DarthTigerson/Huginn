@@ -35,6 +35,7 @@ import { SearchModal } from './components/Search/SearchModal'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
 import { useCosmosStore } from './stores/cosmosStore'
+import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
@@ -123,6 +124,10 @@ export default function App() {
     setChatSize(nextSize)
     localStorage.setItem(CHAT_SIZE_KEY, String(nextSize))
   }
+
+  useEffect(() => {
+    useCosmosSettingsStore.getState().init()
+  }, [])
 
   useEffect(() => {
     if (!assistantMenuOpen) return

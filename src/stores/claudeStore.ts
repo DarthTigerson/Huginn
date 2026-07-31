@@ -5,8 +5,12 @@ const ASSISTANT_KEY = 'huginn-last-assistant'
 const VALID: AssistantKind[] = ['claude', 'codex', 'cosmos']
 
 function readStoredAssistant(): AssistantKind {
-  const v = localStorage.getItem(ASSISTANT_KEY)
-  return VALID.includes(v as AssistantKind) ? (v as AssistantKind) : 'claude'
+  try {
+    const v = localStorage.getItem(ASSISTANT_KEY)
+    return VALID.includes(v as AssistantKind) ? (v as AssistantKind) : 'claude'
+  } catch {
+    return 'claude'
+  }
 }
 
 interface ClaudeState {
@@ -32,7 +36,7 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   chatVisible: true,
 
   setAssistant: (assistant: AssistantKind) => {
-    localStorage.setItem(ASSISTANT_KEY, assistant)
+    try { localStorage.setItem(ASSISTANT_KEY, assistant) } catch {}
     set({ assistant })
   },
 

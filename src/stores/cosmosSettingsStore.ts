@@ -7,8 +7,19 @@ const KEYS = {
 }
 
 function getString(key: string, def: string): string {
-  const v = localStorage.getItem(key)
-  return v === null ? def : v
+  try {
+    return localStorage.getItem(key) ?? def
+  } catch {
+    return def
+  }
+}
+
+type StoredSettings = { endpoint: string; apiKey: string; modelId: string }
+
+function saveToFile(settings: StoredSettings): void {
+  try {
+    window.api.cosmosSetSettings(settings).catch(() => {})
+  } catch {}
 }
 
 interface CosmosSettingsStore {
@@ -18,23 +29,48 @@ interface CosmosSettingsStore {
   setEndpoint: (v: string) => void
   setApiKey: (v: string) => void
   setModelId: (v: string) => void
+  init: () => Promise<void>
 }
 
-export const useCosmosSettingsStore = create<CosmosSettingsStore>((set) => ({
+export const useCosmosSettingsStore = create<CosmosSettingsStore>((set, get) => ({
   endpoint: getString(KEYS.endpoint, ''),
   apiKey:   getString(KEYS.apiKey, ''),
   modelId:  getString(KEYS.modelId, ''),
 
+  init: async () => {
+    try {
+      const fromFile = await window.api.cosmosGetSettings()
+      if (fromFile && (fromFile.endpoint || fromFile.apiKey || fromFile.modelId)) {
+        set({ endpoint: fromFile.endpoint, apiKey: fromFile.apiKey, modelId: fromFile.modelId })
+        localStorage.setItem(KEYS.endpoint, fromFile.endpoint)
+        localStorage.setItem(KEYS.apiKey, fromFile.apiKey)
+        localStorage.setItem(KEYS.modelId, fromFile.modelId)
+      } else {
+        // Migrate localStorage values to file if no file exists yet
+        const { endpoint, apiKey, modelId } = get()
+        if (endpoint || apiKey || modelId) {
+          saveToFile({ endpoint, apiKey, modelId })
+        }
+      }
+    } catch {}
+  },
+
   setEndpoint: (v) => {
-    localStorage.setItem(KEYS.endpoint, v)
+    try { localStorage.setItem(KEYS.endpoint, v) } catch {}
+    const { apiKey, modelId } = get()
+    saveToFile({ endpoint: v, apiKey, modelId })
     set({ endpoint: v })
   },
   setApiKey: (v) => {
-    localStorage.setItem(KEYS.apiKey, v)
+    try { localStorage.setItem(KEYS.apiKey, v) } catch {}
+    const { endpoint, modelId } = get()
+    saveToFile({ endpoint, apiKey: v, modelId })
     set({ apiKey: v })
   },
   setModelId: (v) => {
-    localStorage.setItem(KEYS.modelId, v)
+    try { localStorage.setItem(KEYS.modelId, v) } catch {}
+    const { endpoint, apiKey } = get()
+    saveToFile({ endpoint, apiKey, modelId: v })
     set({ modelId: v })
   },
 }))

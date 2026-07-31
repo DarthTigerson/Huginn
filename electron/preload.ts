@@ -87,6 +87,8 @@ contextBridge.exposeInMainWorld('api', {
   cosmosReject: (toolCallId: string) => ipcRenderer.send('cosmos:reject', toolCallId),
   cosmosCancel: () => ipcRenderer.send('cosmos:cancel'),
   cosmosTestConnection: (settings: unknown) => ipcRenderer.invoke('cosmos:testConnection', settings),
+  cosmosGetSettings: () => ipcRenderer.invoke('cosmos:getSettings'),
+  cosmosSetSettings: (settings: unknown) => ipcRenderer.invoke('cosmos:setSettings', settings),
   onCosmosEvent: (cb: (event: import('./cosmos').CosmosEvent) => void) => {
     const handler = (_: Electron.IpcRendererEvent, event: import('./cosmos').CosmosEvent) => cb(event)
     ipcRenderer.on('cosmos:event', handler)

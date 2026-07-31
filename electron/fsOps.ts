@@ -1,5 +1,5 @@
-import { readdir, readFile } from 'fs/promises'
-import { join } from 'path'
+import { readdir, readFile, stat } from 'fs/promises'
+import { join, extname } from 'path'
 
 export interface FileNode {
   name: string
@@ -14,10 +14,31 @@ export interface SearchMatch {
   text: string
 }
 
+const IGNORED_SEGMENTS = new Set([
+  'node_modules', '.git', 'dist', 'out', '.next', 'build',
+  'coverage', '.cache', '__pycache__', '.turbo', '.vite',
+])
+
+const BINARY_EXTENSIONS = new Set([
+  '.zip', '.tar', '.gz', '.tgz', '.bz2', '.7z', '.rar', '.xz',
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.webp', '.avif',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.mp3', '.mp4', '.avi', '.mov', '.wmv', '.flac', '.ogg', '.wav',
+  '.exe', '.dll', '.so', '.dylib', '.a', '.o', '.wasm',
+  '.ttf', '.woff', '.woff2', '.eot',
+  '.pyc', '.pyo', '.class',
+  '.bin', '.dat', '.db', '.sqlite', '.sqlite3',
+])
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
+const MAX_LINE_LENGTH = 300
+const MAX_MATCHES = 150
+
 export async function listAllFiles(dirPath: string): Promise<string[]> {
   const entries = await readdir(dirPath, { withFileTypes: true })
   const results: string[] = []
   for (const entry of entries) {
+    if (IGNORED_SEGMENTS.has(entry.name)) continue
     const fullPath = join(dirPath, entry.name)
     if (entry.isDirectory()) {
       const children = await listAllFiles(fullPath)
@@ -35,21 +56,30 @@ export async function searchText(root: string, query: string, caseSensitive: boo
   const needle = caseSensitive ? query : query.toLowerCase()
 
   for (const filePath of allFiles) {
-    if (results.length >= 1000) break
+    if (results.length >= MAX_MATCHES) break
+
+    if (BINARY_EXTENSIONS.has(extname(filePath).toLowerCase())) continue
+
     try {
+      const info = await stat(filePath)
+      if (info.size > MAX_FILE_SIZE) continue
+
       const content = await readFile(filePath, 'utf-8')
+      if (content.includes('\0')) continue // binary file detected by null bytes
+
       const lines = content.split('\n')
       for (let i = 0; i < lines.length; i++) {
         const raw = lines[i]
         const haystack = caseSensitive ? raw : raw.toLowerCase()
         const col = haystack.indexOf(needle)
         if (col !== -1) {
-          results.push({ path: filePath, line: i + 1, col: col + 1, text: raw })
-          if (results.length >= 1000) break
+          const text = raw.length > MAX_LINE_LENGTH ? raw.slice(0, MAX_LINE_LENGTH) + '…' : raw
+          results.push({ path: filePath, line: i + 1, col: col + 1, text })
+          if (results.length >= MAX_MATCHES) break
         }
       }
     } catch {
-      // skip binary or unreadable files
+      // skip unreadable files
     }
   }
   return results

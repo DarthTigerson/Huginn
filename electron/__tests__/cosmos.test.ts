@@ -238,16 +238,16 @@ describe('CosmosManager tool calls', () => {
     expect(result.result).toContain('hello-cosmos')
   })
 
-  it('stops and emits an error after 25 tool-call rounds', async () => {
+  it('stops and emits an error after 40 tool-call rounds', async () => {
     const { win, sendHandler } = setup()
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(toolCallStream('run_command', { command: 'echo loop' })))
     vi.stubGlobal('fetch', fetchMock)
 
     await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'loop forever' }], agentMode: true, settings: SETTINGS })
 
-    expect(fetchMock).toHaveBeenCalledTimes(25)
+    expect(fetchMock).toHaveBeenCalledTimes(40)
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
-    expect(events[events.length - 1]).toEqual({ type: 'error', message: 'Cosmos hit the 25 tool-call round limit for this turn' })
+    expect(events[events.length - 1]).toEqual({ type: 'error', message: 'Cosmos hit the 40 tool-call round limit for this turn' })
   })
 
   it('edit_file replaces a unique old_string with new_string', async () => {

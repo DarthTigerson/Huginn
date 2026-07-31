@@ -27,6 +27,7 @@ export interface CosmosSettings {
   endpoint: string
   apiKey: string
   modelId: string
+  sessionId?: string
 }
 
 export interface CosmosSendPayload {
@@ -205,7 +206,7 @@ export const COSMOS_TOOLS = [
   },
 ] as const
 
-const MAX_TOOL_ROUNDS = 25
+const MAX_TOOL_ROUNDS = 40
 
 // Fallback: some models emit tool calls as plain text JSON rather than via the
 // OpenAI tool_calls streaming field. This extracts them and strips them from
@@ -276,7 +277,7 @@ Project directory: ${cwd}${branch ? `\nCurrent branch: ${branch}` : ''}${lastCom
 == TOOLS ==
 You have the following tools. Use them — do not explain how the user could run commands themselves.
 
-- read_file(path, startLine?, endLine?) — read a file. path must be the FULL absolute path returned by a previous search.
+- read_file(path, startLine?, endLine?) — read a file. path must be the FULL absolute path returned by a previous search. For files under ~400 lines, read the whole file first (no startLine/endLine) to understand the full structure before editing. Only use startLine/endLine on large files you've already read once, and always read at least 80 lines of context — narrow ranges miss the surrounding structure needed for correct edits.
 - write_file(path, content) — overwrite a file
 - edit_file(path, old_string, new_string) — patch a file. path must be the FULL absolute path.
 - create_file(path, content) — create a new file
@@ -301,6 +302,19 @@ Before editing or reading any file, you MUST know its full absolute path. Follow
 4. Use edit_file with that EXACT full path.
 
 If the user mentions a file by name (e.g. "GitPanel.tsx"), immediately glob_search for it to get the full path — never guess the path.
+
+== HOW TO APPROACH CODING TASKS ==
+Follow this chain every time — do not skip steps:
+
+1. FIND the file: glob_search by filename pattern (e.g. "**/*Sidebar*", "**/*Chat*")
+2. LOCATE the code: grep_search for the specific symbol, component name, or text you need
+3. READ before touching: read_file the full file (no startLine/endLine for files under ~400 lines) to understand context, component structure, and where things live
+4. PLAN the edit mentally: identify exactly what to remove, what to add, and where — before calling any edit tool
+5. EDIT minimally: use edit_file with the smallest old_string/new_string that uniquely identifies the change — never rewrite whole files or large blocks
+
+If you don't understand the full structure after one read, read adjacent files (e.g. the sidebar component, the parent layout) before editing.
+Never guess a file path — always get it from a search result first.
+Never make an edit you haven't read the surrounding code for.
 
 == GIT ==
 You have full git access via run_command. When the user asks about git, ALWAYS call run_command with the appropriate git command. Examples:
@@ -556,12 +570,14 @@ export class CosmosManager {
 
     let response: Response
     try {
+      const reqHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      }
+      if (settings.sessionId) reqHeaders['X-Cosmos-Session-ID'] = settings.sessionId
       response = await fetch(`${settings.endpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${settings.apiKey}`,
-        },
+        headers: reqHeaders,
         body: JSON.stringify({ model: settings.modelId, messages, tools: COSMOS_TOOLS, stream: true }),
         signal: this.controller.signal,
       })
@@ -630,6 +646,13 @@ export class CosmosManager {
       }
       return { id: acc.id, name: acc.name, args }
     })
+
+    // Strip [Calling ... tokens the model emits as plain text before making real tool calls
+    const stripped = content.split('\n').filter(l => !l.trimStart().startsWith('[Calling')).join('\n').trim()
+    if (stripped !== content) {
+      content = stripped
+      this.emit({ type: 'content-replace', content })
+    }
 
     // Fallback: model emitted tool call as plain-text JSON instead of via tool_calls delta
     if (toolCalls.length === 0 && content) {

@@ -66,6 +66,25 @@ function createWindow(): BrowserWindow {
 
 app.name = 'Huginn'
 
+function registerCosmosSettingsHandlers(): void {
+  const settingsPath = join(app.getPath('userData'), 'cosmos-settings.json')
+
+  ipcMain.handle('cosmos:getSettings', async () => {
+    try {
+      const data = await readFile(settingsPath, 'utf-8')
+      return JSON.parse(data)
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('cosmos:setSettings', async (_e, settings: { endpoint: string; apiKey: string; modelId: string }) => {
+    try {
+      await writeFile(settingsPath, JSON.stringify(settings), 'utf-8')
+    } catch {}
+  })
+}
+
 function buildMenu(): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
@@ -146,6 +165,7 @@ function buildMenu(): void {
 app.whenReady().then(() => {
   buildMenu()
   registerFsHandlers()
+  registerCosmosSettingsHandlers()
   const win = createWindow()
   const gitRunner = new GitRunner(win)
   gitRunner.registerHandlers()

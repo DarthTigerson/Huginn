@@ -4,6 +4,10 @@ import type { CosmosEvent, CosmosMessage } from '@/types/api'
 
 const AGENT_MODE_KEY = 'huginn:cosmos:agentMode'
 
+function newSessionId(): string {
+  return `huginn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 export interface CosmosToolCallBlock {
   id: string
   name: string
@@ -19,7 +23,11 @@ export interface CosmosChatMessage {
 }
 
 function getAgentMode(): boolean {
-  return localStorage.getItem(AGENT_MODE_KEY) === 'true'
+  try {
+    return localStorage.getItem(AGENT_MODE_KEY) === 'true'
+  } catch {
+    return false
+  }
 }
 
 function toWireMessages(messages: CosmosChatMessage[]): CosmosMessage[] {
@@ -29,6 +37,7 @@ function toWireMessages(messages: CosmosChatMessage[]): CosmosMessage[] {
 interface CosmosStore {
   messages: CosmosChatMessage[]
   previousMessages: CosmosChatMessage[]
+  sessionId: string
   agentMode: boolean
   streaming: boolean
   sendMessage: (cwd: string, text: string) => void
@@ -45,6 +54,7 @@ interface CosmosStore {
 export const useCosmosStore = create<CosmosStore>((set, get) => ({
   messages: [],
   previousMessages: [],
+  sessionId: newSessionId(),
   agentMode: getAgentMode(),
   streaming: false,
 
@@ -58,6 +68,7 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
       endpoint: settings.endpoint,
       apiKey: settings.apiKey,
       modelId: settings.modelId,
+      sessionId: get().sessionId,
     })
   },
 
@@ -74,11 +85,12 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
       endpoint: settings.endpoint,
       apiKey: settings.apiKey,
       modelId: settings.modelId,
+      sessionId: get().sessionId,
     })
   },
 
   newSession: () => {
-    set((s) => ({ previousMessages: s.messages, messages: [] }))
+    set((s) => ({ previousMessages: s.messages, messages: [], sessionId: newSessionId() }))
   },
 
   previousSession: () => {
@@ -87,7 +99,7 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
 
   toggleAgentMode: () => {
     const next = !get().agentMode
-    localStorage.setItem(AGENT_MODE_KEY, String(next))
+    try { localStorage.setItem(AGENT_MODE_KEY, String(next)) } catch {}
     set({ agentMode: next })
   },
 

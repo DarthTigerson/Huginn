@@ -101,6 +101,8 @@ declare global {
       cosmosReject: (toolCallId: string) => void
       cosmosCancel: () => void
       cosmosTestConnection: (settings: CosmosSettings) => Promise<{ ok: boolean; error?: string }>
+      cosmosGetSettings: () => Promise<CosmosSettings | null>
+      cosmosSetSettings: (settings: CosmosSettings) => Promise<void>
       onCosmosEvent: (cb: (event: CosmosEvent) => void) => () => void
     }
   }
