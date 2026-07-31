@@ -125,14 +125,23 @@ export function CosmosChat({ cwd }: { cwd: string }) {
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
         {messages.map((m, i) => (
           <div key={i} className={m.role === 'user' ? 'self-end max-w-[85%]' : 'self-start max-w-[90%]'}>
-            <div
-              className={[
-                'rounded-lg px-3 py-2 text-sm',
-                m.role === 'user' ? 'bg-accent/15 text-fg' : 'bg-white/5 text-fg',
-              ].join(' ')}
-            >
-              <ReactMarkdown>{m.content}</ReactMarkdown>
-            </div>
+            {m.toolCalls && m.toolCalls.length > 0 && (
+              <div className="mb-1.5 flex flex-col gap-1.5">
+                {m.toolCalls.map((tc) => (
+                  <ToolCallBlock key={tc.id} block={tc} />
+                ))}
+              </div>
+            )}
+            {(m.role === 'user' || m.content) && (
+              <div
+                className={[
+                  'rounded-lg px-3 py-2 text-sm',
+                  m.role === 'user' ? 'bg-accent/15 text-fg' : 'bg-white/5 text-fg',
+                ].join(' ')}
+              >
+                <ReactMarkdown>{m.content}</ReactMarkdown>
+              </div>
+            )}
             {m.role === 'user' ? (
               <div className="mt-1 flex justify-end gap-0.5">
                 <CopyButton text={m.content} />
@@ -146,18 +155,11 @@ export function CosmosChat({ cwd }: { cwd: string }) {
                   <RegenerateIcon />
                 </button>
               </div>
-            ) : (
+            ) : m.content ? (
               <div className="mt-1 flex justify-start">
                 <CopyButton text={m.content} />
               </div>
-            )}
-            {m.toolCalls && m.toolCalls.length > 0 && (
-              <div className="mt-1.5 flex flex-col gap-1.5">
-                {m.toolCalls.map((tc) => (
-                  <ToolCallBlock key={tc.id} block={tc} />
-                ))}
-              </div>
-            )}
+            ) : null}
           </div>
         ))}
         <div ref={bottomRef} />

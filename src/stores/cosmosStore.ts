@@ -120,6 +120,14 @@ function handleEvent(
   const last = { ...messages[messages.length - 1] }
 
   switch (event.type) {
+    case 'new-turn': {
+      const current = get().messages
+      const tail = current[current.length - 1]
+      // Don't push if there's already an empty assistant placeholder
+      if (tail?.role === 'assistant' && !tail.content && !tail.toolCalls?.length) return
+      set({ messages: [...current, { role: 'assistant', content: '' }] })
+      return
+    }
     case 'text-delta': {
       last.content += event.delta
       set({ messages: [...messages.slice(0, -1), last] })

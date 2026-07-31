@@ -39,6 +39,7 @@ export type CosmosEvent =
   | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'need-approval'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool-result'; id: string; result: string; isError: boolean }
+  | { type: 'new-turn' }
   | { type: 'done' }
   | { type: 'error'; message: string }
 
