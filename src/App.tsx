@@ -397,7 +397,7 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => {
                   if (!projectRoot) return
-                  if (assistant === 'cosmos') useCosmosStore.getState().previousSession()
+                  if (assistant === 'cosmos') useCosmosStore.getState().openSessionPicker()
                   else useClaudeStore.getState().previousSession(projectRoot)
                 },
               },

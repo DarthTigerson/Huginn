@@ -3,9 +3,46 @@ import { useCosmosSettingsStore } from './cosmosSettingsStore'
 import type { CosmosEvent, CosmosMessage } from '@/types/api'
 
 const AGENT_MODE_KEY = 'huginn:cosmos:agentMode'
+const CURRENT_SESSION_KEY = 'huginn:cosmos:current'
+const SESSIONS_KEY = 'huginn:cosmos:sessions'
 
 function newSessionId(): string {
   return `huginn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+export interface StoredSession {
+  id: string
+  messages: CosmosChatMessage[]
+  timestamp: number
+  title: string
+}
+
+function loadCurrentSession(): { id: string; messages: CosmosChatMessage[] } | null {
+  try {
+    const raw = localStorage.getItem(CURRENT_SESSION_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function loadStoredSessions(): StoredSession[] {
+  try {
+    const raw = localStorage.getItem(SESSIONS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function persistCurrentSession(id: string, messages: CosmosChatMessage[]) {
+  try { localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify({ id, messages })) } catch {}
+}
+
+function saveSessionToHistory(session: StoredSession) {
+  try {
+    const sessions = loadStoredSessions()
+    const idx = sessions.findIndex(s => s.id === session.id)
+    if (idx !== -1) sessions[idx] = session
+    else sessions.unshift(session)
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(0, 20)))
+  } catch {}
 }
 
 export interface CosmosToolCallBlock {
@@ -38,12 +75,16 @@ interface CosmosStore {
   messages: CosmosChatMessage[]
   previousMessages: CosmosChatMessage[]
   sessionId: string
+  sessions: StoredSession[]
+  showSessionPicker: boolean
   agentMode: boolean
   streaming: boolean
   sendMessage: (cwd: string, text: string) => void
   regenerate: (cwd: string, messageIndex: number) => void
   newSession: () => void
   previousSession: () => void
+  openSessionPicker: () => void
+  restoreSession: (id: string) => void
   toggleAgentMode: () => void
   approveToolCall: (id: string) => void
   rejectToolCall: (id: string) => void
@@ -51,10 +92,14 @@ interface CosmosStore {
   initEventListener: () => () => void
 }
 
+const _saved = loadCurrentSession()
+
 export const useCosmosStore = create<CosmosStore>((set, get) => ({
-  messages: [],
+  messages: _saved?.messages ?? [],
   previousMessages: [],
-  sessionId: newSessionId(),
+  sessionId: _saved?.id ?? newSessionId(),
+  sessions: loadStoredSessions(),
+  showSessionPicker: false,
   agentMode: getAgentMode(),
   streaming: false,
 
@@ -90,11 +135,27 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
   },
 
   newSession: () => {
-    set((s) => ({ previousMessages: s.messages, messages: [], sessionId: newSessionId() }))
+    const { sessionId, messages } = get()
+    if (messages.length > 0) {
+      const title = messages.find(m => m.role === 'user')?.content?.slice(0, 80) ?? 'Untitled'
+      saveSessionToHistory({ id: sessionId, messages, timestamp: Date.now(), title })
+    }
+    const newId = newSessionId()
+    persistCurrentSession(newId, [])
+    set((s) => ({ previousMessages: s.messages, messages: [], sessionId: newId, sessions: loadStoredSessions(), showSessionPicker: false }))
   },
 
   previousSession: () => {
-    set((s) => ({ messages: s.previousMessages }))
+    set((s) => ({ messages: s.previousMessages, showSessionPicker: false }))
+  },
+
+  openSessionPicker: () => set((s) => ({ showSessionPicker: !s.showSessionPicker })),
+
+  restoreSession: (id: string) => {
+    const session = get().sessions.find(s => s.id === id)
+    if (!session) return
+    persistCurrentSession(session.id, session.messages)
+    set({ messages: session.messages, sessionId: session.id, showSessionPicker: false })
   },
 
   toggleAgentMode: () => {
@@ -171,6 +232,8 @@ function handleEvent(
     }
     case 'done': {
       set({ streaming: false })
+      const { sessionId, messages: finalMessages } = get()
+      persistCurrentSession(sessionId, finalMessages)
       return
     }
     case 'error': {
