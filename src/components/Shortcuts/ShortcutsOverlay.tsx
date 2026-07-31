@@ -1,9 +1,18 @@
+import { useSearchStore } from '@/stores/searchStore'
 import { SHORTCUT_GROUPS } from './shortcuts'
 
 export function ShortcutsOverlay() {
+  const closeShortcutsOverlay = useSearchStore((s) => s.closeShortcutsOverlay)
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
-      <div className="w-[420px] max-h-[70vh] overflow-y-auto flex flex-col gap-5 bg-sidebar border border-border rounded-xl shadow-2xl shadow-black/60 p-5">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60"
+      onClick={closeShortcutsOverlay}
+    >
+      <div
+        className="w-[420px] max-h-[70vh] overflow-y-auto flex flex-col gap-5 bg-sidebar border border-border rounded-xl shadow-2xl shadow-black/60 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         {SHORTCUT_GROUPS.map((group) => (
           <div key={group.category}>
             <div className="text-xs font-semibold uppercase tracking-wide text-fg-subtle mb-2">
