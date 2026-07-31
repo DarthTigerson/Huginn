@@ -35,6 +35,7 @@ export interface CosmosSettings {
 
 export type CosmosEvent =
   | { type: 'text-delta'; delta: string }
+  | { type: 'content-replace'; content: string }
   | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'need-approval'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool-result'; id: string; result: string; isError: boolean }

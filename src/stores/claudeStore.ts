@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import type { AssistantKind } from '@/types/api'
 
+const ASSISTANT_KEY = 'huginn-last-assistant'
+const VALID: AssistantKind[] = ['claude', 'codex', 'cosmos']
+
+function readStoredAssistant(): AssistantKind {
+  const v = localStorage.getItem(ASSISTANT_KEY)
+  return VALID.includes(v as AssistantKind) ? (v as AssistantKind) : 'claude'
+}
+
 interface ClaudeState {
   assistant: AssistantKind
   restartToken: number
@@ -18,12 +26,15 @@ interface ClaudeState {
 }
 
 export const useClaudeStore = create<ClaudeState>((set, get) => ({
-  assistant: 'claude',
+  assistant: readStoredAssistant(),
   restartToken: 0,
   usageOpen: false,
   chatVisible: true,
 
-  setAssistant: (assistant: AssistantKind) => set({ assistant }),
+  setAssistant: (assistant: AssistantKind) => {
+    localStorage.setItem(ASSISTANT_KEY, assistant)
+    set({ assistant })
+  },
 
   toggleChatVisible: () => set((s) => ({ chatVisible: !s.chatVisible })),
 

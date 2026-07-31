@@ -32,6 +32,7 @@ interface CosmosStore {
   agentMode: boolean
   streaming: boolean
   sendMessage: (cwd: string, text: string) => void
+  regenerate: (cwd: string, messageIndex: number) => void
   newSession: () => void
   previousSession: () => void
   toggleAgentMode: () => void
@@ -50,6 +51,22 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
   sendMessage: (cwd, text) => {
     const userMessage: CosmosChatMessage = { role: 'user', content: text }
     const messages = [...get().messages, userMessage]
+    set({ messages, streaming: true })
+
+    const settings = useCosmosSettingsStore.getState()
+    window.api.cosmosSend(cwd, toWireMessages(messages), get().agentMode, {
+      endpoint: settings.endpoint,
+      apiKey: settings.apiKey,
+      modelId: settings.modelId,
+    })
+  },
+
+  regenerate: (cwd, messageIndex) => {
+    const all = get().messages
+    const target = all[messageIndex]
+    if (!target || target.role !== 'user') return
+    const history = all.slice(0, messageIndex)
+    const messages = [...history, { role: 'user' as const, content: target.content }]
     set({ messages, streaming: true })
 
     const settings = useCosmosSettingsStore.getState()
@@ -105,6 +122,11 @@ function handleEvent(
   switch (event.type) {
     case 'text-delta': {
       last.content += event.delta
+      set({ messages: [...messages.slice(0, -1), last] })
+      return
+    }
+    case 'content-replace': {
+      last.content = event.content
       set({ messages: [...messages.slice(0, -1), last] })
       return
     }

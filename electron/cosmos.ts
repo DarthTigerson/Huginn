@@ -206,10 +206,99 @@ export const COSMOS_TOOLS = [
 
 const MAX_TOOL_ROUNDS = 25
 
-const TOOL_PRIORITY_SYSTEM_PROMPT =
+// Fallback: some models emit tool calls as plain text JSON rather than via the
+// OpenAI tool_calls streaming field. This extracts them and strips them from
+// the displayed content so they don't show as raw JSON to the user.
+// Regex that matches the opening of a potential tool-call JSON object,
+// with optional whitespace after the brace (models vary: `{"name"` vs `{ "name"`).
+const TEXT_TOOL_START_RE = /\{\s*"name"\s*:/g
+
+function extractTextToolCalls(content: string): { toolCalls: PendingToolCall[]; cleanedContent: string } {
+  const found: Array<{ start: number; end: number; parsed: Record<string, unknown> }> = []
+
+  TEXT_TOOL_START_RE.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = TEXT_TOOL_START_RE.exec(content)) !== null) {
+    const start = match.index
+    // Walk forward counting braces to find the matching closing brace
+    let depth = 0, end = -1
+    for (let j = start; j < content.length; j++) {
+      if (content[j] === '{') depth++
+      else if (content[j] === '}') { depth--; if (depth === 0) { end = j + 1; break } }
+    }
+    if (end === -1) continue
+    try {
+      const parsed = JSON.parse(content.slice(start, end)) as Record<string, unknown>
+      if (typeof parsed.name === 'string' && (parsed.arguments || parsed.args)) {
+        found.push({ start, end, parsed })
+        TEXT_TOOL_START_RE.lastIndex = end
+      }
+    } catch {}
+  }
+
+  if (found.length === 0) return { toolCalls: [], cleanedContent: content }
+
+  const toolCalls: PendingToolCall[] = found.map((f) => ({
+    id: `text-${Math.random().toString(36).slice(2, 9)}`,
+    name: f.parsed.name as string,
+    args: (f.parsed.arguments ?? f.parsed.args ?? {}) as Record<string, unknown>,
+  }))
+
+  // Strip tool call JSON blocks (reverse order to keep indices valid)
+  let cleaned = content
+  for (const f of [...found].reverse()) {
+    cleaned = cleaned.slice(0, f.start) + cleaned.slice(f.end)
+  }
+
+  return { toolCalls, cleanedContent: cleaned.trim() }
+}
+
+const FILE_TOOL_GUIDANCE =
   'When modifying an existing file, prefer edit_file over write_file. Full-file rewrites waste tokens, fail on large files, and risk changing untouched code. ' +
   'Use this priority order: (1) edit_file for any change to an existing file, (2) write_file only for complete rewrites explicitly requested by the user, ' +
   "(3) create_file only for files that don't exist yet."
+
+async function buildSystemPrompt(cwd: string): Promise<string> {
+  let branch = ''
+  let lastCommit = ''
+  try {
+    const branchResult = await execFileAsync('git', ['branch', '--show-current'], { cwd, timeout: 5000 })
+    branch = branchResult.stdout.trim()
+    const logResult = await execFileAsync('git', ['log', '-1', '--pretty=format:%h %s (%ar)'], { cwd, timeout: 5000 })
+    lastCommit = logResult.stdout.trim()
+  } catch {}
+
+  return `You are Cosmos, an AI coding assistant running inside a local IDE. You have DIRECT access to the user's machine through function/tool calls.
+
+Project directory: ${cwd}${branch ? `\nCurrent branch: ${branch}` : ''}${lastCommit ? `\nLast commit: ${lastCommit}` : ''}
+
+== TOOLS ==
+You have the following tools. Use them — do not explain how the user could run commands themselves.
+
+- read_file(path, startLine?, endLine?) — read a file
+- write_file(path, content) — overwrite a file
+- edit_file(path, old_string, new_string) — patch a file
+- create_file(path, content) — create a new file
+- delete_file(path) — delete a file
+- move_file(from, to) — rename/move a file
+- list_dir(path) — list directory contents
+- grep_search(root, query, caseSensitive?) — search for text in files
+- glob_search(pattern, root) — find files by pattern
+- run_command(command) — execute any shell command in the project directory
+
+== GIT ==
+You have full git access via run_command. When the user asks about git, ALWAYS call run_command with the appropriate git command. Examples:
+- "show last commit" → run_command("git log -1")
+- "show commit history" → run_command("git log --oneline -20")
+- "what changed" → run_command("git diff HEAD")
+- "show a commit" → run_command("git show <hash>")
+- "what branch" → run_command("git branch --show-current")
+- "git status" → run_command("git status")
+NEVER say you cannot access git or version control. Always use run_command.
+
+== FILE EDITING ==
+${FILE_TOOL_GUIDANCE}`
+}
 
 interface PendingToolCall {
   id: string
@@ -281,7 +370,7 @@ export class CosmosManager {
     const { cwd, settings, agentMode } = payload
     const messages = [...payload.messages]
     if (messages[0]?.role !== 'system') {
-      messages.unshift({ role: 'system', content: TOOL_PRIORITY_SYSTEM_PROMPT })
+      messages.unshift({ role: 'system', content: await buildSystemPrompt(cwd) })
     }
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -524,6 +613,15 @@ export class CosmosManager {
       }
       return { id: acc.id, name: acc.name, args }
     })
+
+    // Fallback: model emitted tool call as plain-text JSON instead of via tool_calls delta
+    if (toolCalls.length === 0 && content) {
+      const { toolCalls: textCalls, cleanedContent } = extractTextToolCalls(content)
+      if (textCalls.length > 0) {
+        this.emit({ type: 'content-replace', content: cleanedContent })
+        return { content: cleanedContent, toolCalls: textCalls }
+      }
+    }
 
     return { content, toolCalls }
   }
