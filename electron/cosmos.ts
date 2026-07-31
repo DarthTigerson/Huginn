@@ -493,7 +493,16 @@ export class CosmosManager {
           const content = await readFile(path, 'utf-8')
           const occurrences = content.split(oldString).length - 1
           if (occurrences === 0) {
-            return { result: `old_string not found in ${path}`, isError: true }
+            // Help the model self-correct by showing actual lines near a keyword from old_string
+            const firstLine = oldString.trim().split('\n')[0].trim().slice(0, 60)
+            const lines = content.split('\n')
+            const nearIdx = lines.findIndex(l => l.includes(firstLine.slice(0, 30)))
+            const hint = nearIdx !== -1
+              ? `\n\nActual file content around that area (lines ${Math.max(1, nearIdx - 1)}–${Math.min(lines.length, nearIdx + 6)}):\n` +
+                lines.slice(Math.max(0, nearIdx - 1), nearIdx + 6).map((l, i) => `${Math.max(1, nearIdx - 1) + i + 1}: ${JSON.stringify(l)}`).join('\n') +
+                '\n\nNote: use JSON.stringify-style content above (with exact spaces) to build your old_string.'
+              : '\n\nTip: re-read the file and copy the exact lines including all leading whitespace.'
+            return { result: `old_string not found in ${path}.${hint}`, isError: true }
           }
           if (occurrences > 1) {
             return {
