@@ -275,16 +275,31 @@ Project directory: ${cwd}${branch ? `\nCurrent branch: ${branch}` : ''}${lastCom
 == TOOLS ==
 You have the following tools. Use them — do not explain how the user could run commands themselves.
 
-- read_file(path, startLine?, endLine?) — read a file
+- read_file(path, startLine?, endLine?) — read a file. path must be the FULL absolute path returned by a previous search.
 - write_file(path, content) — overwrite a file
-- edit_file(path, old_string, new_string) — patch a file
+- edit_file(path, old_string, new_string) — patch a file. path must be the FULL absolute path.
 - create_file(path, content) — create a new file
 - delete_file(path) — delete a file
 - move_file(from, to) — rename/move a file
 - list_dir(path) — list directory contents
-- grep_search(root, query, caseSensitive?) — search for text in files
-- glob_search(pattern, root) — find files by pattern
+- grep_search(root, query, caseSensitive?) — search for text in files. caseSensitive defaults to false.
+- glob_search(pattern, root) — find files by glob pattern (e.g. "**/*.tsx", "**/*Git*")
 - run_command(command) — execute any shell command in the project directory
+
+== FINDING FILES ==
+Before editing or reading any file, you MUST know its full absolute path. Follow this workflow:
+1. If you know a filename or keyword from the conversation, use glob_search FIRST:
+   - glob_search("**/*git*", "${cwd}") to find files with "git" in their name
+   - glob_search("**/*.tsx", "${cwd}") to find all React components
+   - glob_search("**/*panel*", "${cwd}") for files named like panels
+2. Once you have the full path from glob_search results, use grep_search to find the exact text:
+   - grep_search with a SHORT LOWERCASE single word — e.g. "unstage", "commit", "branch"
+   - NEVER grep for a long phrase like "Unstage All" — it will fail. Use one keyword.
+   - grep is case-insensitive by default, so "unstage" matches "Unstage", "UNSTAGE", etc.
+3. Read the file at the EXACT full path returned by the search before editing it.
+4. Use edit_file with that EXACT full path.
+
+If the user mentions a file by name (e.g. "GitPanel.tsx"), immediately glob_search for it to get the full path — never guess the path.
 
 == GIT ==
 You have full git access via run_command. When the user asks about git, ALWAYS call run_command with the appropriate git command. Examples:

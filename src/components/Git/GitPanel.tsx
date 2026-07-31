@@ -134,7 +134,7 @@ export function GitPanel() {
               onClick={() => projectRoot && unstageAll(projectRoot)}
               className="text-[11px] text-fg-muted transition-colors hover:text-fg"
             >
-              Unstage All
+              -
             </button>
           </div>
           {status.staged.map((file) => (
@@ -158,7 +158,7 @@ export function GitPanel() {
               onClick={() => projectRoot && stageAll(projectRoot)}
               className="text-[11px] text-fg-muted transition-colors hover:text-fg"
             >
-              Stage All
+              +
             </button>
           </div>
           {status.unstaged.map((file) => (
