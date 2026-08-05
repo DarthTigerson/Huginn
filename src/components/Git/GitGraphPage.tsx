@@ -150,7 +150,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
               <span
                 key={ref}
                 className={[
-                  'max-w-36 truncate text-[9px] font-semibold px-1.5 py-0.5 rounded border leading-none',
+                  'max-w-36 truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none',
                   refTone(ref),
                 ].join(' ')}
               >
@@ -158,13 +158,13 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
               </span>
             ))}
             {commit.refs.length > refs.length && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
+              <span className="text-[0.5625rem] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
                 +{commit.refs.length - refs.length}
               </span>
             )}
           </div>
         ) : (
-          <span className="block text-[10px] text-fg-subtle opacity-0 group-hover:opacity-70">
+          <span className="block text-[0.625rem] text-fg-subtle opacity-0 group-hover:opacity-70">
             {formatRelDate(commit.date)}
           </span>
         )}
@@ -232,12 +232,12 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs text-fg truncate flex-1">{commit.subject}</span>
           {isMerge && (
-            <span className="shrink-0 text-[9px] leading-none px-1.5 py-1 rounded border border-[#fb923c]/70 bg-[#fb923c]/20 text-[#fed7aa]">
+            <span className="shrink-0 text-[0.5625rem] leading-none px-1.5 py-1 rounded border border-[#fb923c]/70 bg-[#fb923c]/20 text-[#fed7aa]">
               merge
             </span>
           )}
         </div>
-        <div className="mt-1 text-[10px] text-fg-subtle truncate opacity-70">
+        <div className="mt-1 text-[0.625rem] text-fg-subtle truncate opacity-70">
           {commit.hash.slice(0, 7)} · {formatExactDate(commit.date)}
         </div>
       </div>
@@ -266,7 +266,7 @@ function DetailPanel({ cwd, hash, onClose }: {
   return (
     <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
       <div className="h-11 flex items-center justify-between px-4 border-b border-border shrink-0">
-        <span className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider">
+        <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
           Commit Details
         </span>
         <button
@@ -281,11 +281,11 @@ function DetailPanel({ cwd, hash, onClose }: {
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
         <div className="border border-border bg-panel rounded-md p-3">
-          <div className="text-[10px] text-fg-muted uppercase tracking-wider mb-2">
+          <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider mb-2">
             Selected node
           </div>
           <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[0.625rem]">
             <div className="border border-border rounded px-2 py-1.5">
               <div className="text-fg-subtle uppercase tracking-wider">Hash</div>
               <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
@@ -314,14 +314,14 @@ function DetailPanel({ cwd, hash, onClose }: {
 
         {commit.refs.length > 0 && (
           <div>
-            <div className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider mb-2">
+            <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
               References
             </div>
             <div className="flex flex-wrap gap-1">
               {commit.refs.map((ref) => (
                 <span
                   key={ref}
-                  className={`max-w-full truncate text-[9px] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
+                  className={`max-w-full truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
                 >
                   {ref}
                 </span>
@@ -331,7 +331,7 @@ function DetailPanel({ cwd, hash, onClose }: {
         )}
 
         <div>
-          <div className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider mb-2">
+          <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
             Changed Files
           </div>
           {filesLoading ? (
@@ -341,7 +341,7 @@ function DetailPanel({ cwd, hash, onClose }: {
           ) : (
             <div className="flex flex-col gap-0.5">
               {selectedFiles.map((f) => (
-                <div key={f} className="text-[11px] font-mono text-fg truncate py-0.5 opacity-80">
+                <div key={f} className="text-[0.6875rem] font-mono text-fg truncate py-0.5 opacity-80">
                   {f}
                 </div>
               ))}
@@ -380,16 +380,16 @@ export function GitGraphPage() {
     <div className="h-full flex overflow-hidden bg-panel">
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="h-11 px-4 border-b border-border shrink-0 flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider">
+          <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
             Git Graph
           </span>
           {loading ? (
-            <span className="text-[10px] text-fg-subtle">Loading…</span>
+            <span className="text-[0.625rem] text-fg-subtle">Loading…</span>
           ) : (
             <button
               type="button"
               onClick={() => projectRoot && load(projectRoot)}
-              className="text-[10px] text-fg-muted hover:text-fg transition-colors"
+              className="text-[0.625rem] text-fg-muted hover:text-fg transition-colors"
             >
               Refresh
             </button>

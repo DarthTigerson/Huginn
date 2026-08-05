@@ -114,7 +114,7 @@ export function MobileDisplayPanel() {
           Mobile Display
         </span>
         {state.connectedCount > 0 && (
-          <span className="text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[0.625rem] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
             {state.connectedCount} connected
           </span>
         )}
@@ -155,7 +155,7 @@ export function MobileDisplayPanel() {
             {state.qrSvg && <QRImage svg={state.qrSvg} />}
 
             {/* URL */}
-            <p className="text-[11px] text-fg-muted text-center font-mono">
+            <p className="text-[0.6875rem] text-fg-muted text-center font-mono">
               http://{state.localIp}:{state.port}
             </p>
 
@@ -169,7 +169,7 @@ export function MobileDisplayPanel() {
                 <CountdownRing key={state.pin} onExpire={stableOnExpire.current} />
               </div>
               {state.pin && <PinDisplay pin={state.pin} />}
-              <p className="text-[11px] text-fg-muted text-center leading-relaxed">
+              <p className="text-[0.6875rem] text-fg-muted text-center leading-relaxed">
                 Scan the QR code on your phone,<br />then enter this PIN to connect.
               </p>
             </div>

@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/Modal'
 import { FileRow } from './FileRow'
 
 const pillButtonClass =
-  'group w-full h-7 rounded-full flex items-center justify-center text-[10px] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 hover:scale-105 active:scale-95'
+  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 hover:scale-105 active:scale-95'
 
 interface ContextMenuState {
   x: number
@@ -126,13 +126,13 @@ export function GitPanel() {
       <div className="flex-1 overflow-y-auto py-1">
         <div className="mb-2">
           <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+            <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
               Staged Changes ({status.staged.length})
             </span>
             <button
               type="button"
               onClick={() => projectRoot && unstageAll(projectRoot)}
-              className="text-[11px] text-fg-muted transition-colors hover:text-fg"
+              className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
             >
               -
             </button>
@@ -150,13 +150,13 @@ export function GitPanel() {
         </div>
         <div>
           <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">
+            <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
               Changes ({status.unstaged.length})
             </span>
             <button
               type="button"
               onClick={() => projectRoot && stageAll(projectRoot)}
-              className="text-[11px] text-fg-muted transition-colors hover:text-fg"
+              className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
             >
               +
             </button>

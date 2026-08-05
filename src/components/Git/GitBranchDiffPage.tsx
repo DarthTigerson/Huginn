@@ -81,7 +81,7 @@ function BranchCombobox({ label, value, options, onChange }: {
 
   return (
     <div ref={rootRef} className="relative min-w-0">
-      <span className="block text-[10px] font-semibold uppercase tracking-wider text-fg-muted mb-1.5">
+      <span className="block text-[0.625rem] font-semibold uppercase tracking-wider text-fg-muted mb-1.5">
         {label}
       </span>
       <button
@@ -100,7 +100,7 @@ function BranchCombobox({ label, value, options, onChange }: {
           <span className={['shrink-0 h-2 w-2 rounded-full border', branchTone(value)].join(' ')} />
           <span className="truncate text-xs text-fg">{value || 'Select branch'}</span>
         </span>
-        <span className="shrink-0 text-[10px] text-fg-subtle">{open ? '^' : 'v'}</span>
+        <span className="shrink-0 text-[0.625rem] text-fg-subtle">{open ? '^' : 'v'}</span>
       </button>
 
       {open && (
@@ -139,7 +139,7 @@ function BranchCombobox({ label, value, options, onChange }: {
                   <span className={['shrink-0 h-2 w-2 rounded-full border', branchTone(branch)].join(' ')} />
                   <span className="min-w-0 flex-1 truncate text-xs">{branch}</span>
                   {branch === value && (
-                    <span className="shrink-0 text-[10px] text-[#93c5fd]">selected</span>
+                    <span className="shrink-0 text-[0.625rem] text-[#93c5fd]">selected</span>
                   )}
                 </button>
               ))
@@ -172,13 +172,13 @@ function CommitRow({ commit, index, total }: {
             {refs.map((ref) => (
               <span
                 key={ref}
-                className="max-w-36 truncate text-[9px] font-semibold px-1.5 py-0.5 rounded border border-[#facc15]/80 bg-[#facc15]/20 text-[#fef08a] leading-none"
+                className="max-w-36 truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border border-[#facc15]/80 bg-[#facc15]/20 text-[#fef08a] leading-none"
               >
                 {normalizeRef(ref)}
               </span>
             ))}
             {commit.refs.length > refs.length && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
+              <span className="text-[0.5625rem] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
                 +{commit.refs.length - refs.length}
               </span>
             )}
@@ -200,7 +200,7 @@ function CommitRow({ commit, index, total }: {
 
       <div className="min-w-0 px-4 py-2">
         <div className="text-xs text-fg truncate">{commit.subject}</div>
-        <div className="mt-1 text-[10px] text-fg-subtle truncate">
+        <div className="mt-1 text-[0.625rem] text-fg-subtle truncate">
           {commit.hash.slice(0, 7)} | {commit.author} | {formatExactDate(commit.date)}
         </div>
       </div>
@@ -278,10 +278,10 @@ export function GitBranchDiffPage() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-panel">
       <div className="h-11 px-4 border-b border-border shrink-0 flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider">
+        <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
           Branch Diff
         </span>
-        <span className="text-[10px] text-fg-subtle">
+        <span className="text-[0.625rem] text-fg-subtle">
           {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
         </span>
       </div>
