@@ -56,9 +56,13 @@ export function DisplayPage() {
       <h1 className="text-base font-semibold text-fg mb-1">Display</h1>
       <p className="text-sm text-fg-muted mb-8">Colour theme, fonts, and panel appearance.</p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* flex-wrap (not a grid + lg: breakpoint) so cards reflow based on this
+          pane's actual rendered width, not the viewport — this page can end up
+          narrow inside a split editor pane even when the window itself is wide.
+          items-start stops a short card from being stretched to match a tall one. */}
+      <div className="flex flex-wrap items-start gap-6">
         {/* Theme */}
-        <section className="rounded-xl border border-border/60 p-4">
+        <section className="flex-1 min-w-[320px] rounded-xl border border-border/60 p-4">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Theme</h2>
 
           <div className="mb-4 pb-4 border-b border-border/40">
@@ -70,7 +74,7 @@ export function DisplayPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
             {THEME_OPTIONS.map((t) => {
               const isActive = t.id === theme
               return (
@@ -103,9 +107,9 @@ export function DisplayPage() {
         </section>
 
         {/* Panel Style */}
-        <section className="rounded-xl border border-border/60 p-4">
+        <section className="flex-1 min-w-[240px] rounded-xl border border-border/60 p-4">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Panel Style</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
             {PANEL_STYLE_OPTIONS.map((opt) => {
               const isActive = panelStyle === opt.value
               return (
@@ -150,7 +154,7 @@ export function DisplayPage() {
         </section>
 
         {/* Typography */}
-        <section className="rounded-xl border border-border/60 p-4 lg:col-span-2">
+        <section className="w-full rounded-xl border border-border/60 p-4">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Typography</h2>
           <div className="flex flex-wrap items-start gap-6">
             <div className="flex-1 min-w-[220px]">

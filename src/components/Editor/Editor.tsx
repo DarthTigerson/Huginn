@@ -5,6 +5,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useEditorStore, type EditorLayoutNode } from '@/stores/editorStore'
 import { useSearchStore } from '@/stores/searchStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
+import { defineMonacoThemes } from '@/monacoThemes'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
@@ -291,6 +292,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                 modified={diffContent.modified}
                 language={detectLang(activeTab.path)}
                 theme={monacoTheme}
+                beforeMount={defineMonacoThemes}
                 options={{
                   readOnly: true,
                   renderSideBySide: true,
@@ -322,6 +324,7 @@ function EditorPane({ paneId }: { paneId: string }) {
               value={activeTab.content}
               language={detectLang(activeTab.path)}
               theme={monacoTheme}
+              beforeMount={defineMonacoThemes}
               options={{
                 fontSize: editorFontSize,
                 fontFamily: font,
