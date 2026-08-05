@@ -357,6 +357,9 @@ export default function App() {
                 defaultSize={sidebarSize}
                 minSize={SIDEBAR_MIN_SIZE}
                 maxSize={SIDEBAR_MAX_SIZE}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setLeftPanel(null)}
                 id="sidebar"
                 order={1}
                 onResize={saveSidebarSize}
