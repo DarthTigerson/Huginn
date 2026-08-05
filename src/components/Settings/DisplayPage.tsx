@@ -20,6 +20,7 @@ const THEME_OPTIONS: ThemeOption[] = [
   { id: 'claude-light', name: 'Claude Light', swatches: ['#f3f3f3', '#ececec', '#ffffff', '#c4613d', '#e0e0e0'] },
   { id: 'codex-dark',   name: 'Codex Dark',   swatches: ['#1a1a1a', '#1a1a1a', '#202020', '#ffffff', '#333333'] },
   { id: 'codex-light',  name: 'Codex Light',  swatches: ['#fafafa', '#fafafa', '#ffffff', '#0969da', '#d0d7de'] },
+  { id: 'thomas',       name: 'Thomas Theme', swatches: ['#1a1a1a', '#262626', '#202020', '#f5c242', '#404040'] },
 ]
 
 export function DisplayPage() {

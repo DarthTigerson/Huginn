@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { ITheme } from '@xterm/xterm'
 
-export type ThemeId = 'claude-dark' | 'claude-light' | 'codex-dark' | 'codex-light'
+export type ThemeId = 'claude-dark' | 'claude-light' | 'codex-dark' | 'codex-light' | 'thomas'
 
 interface ThemeStore {
   theme: ThemeId
@@ -31,6 +31,7 @@ export const MONACO_THEMES: Record<ThemeId, string> = {
   'claude-light': 'vs',
   'codex-dark':   'vs-dark',
   'codex-light':  'vs',
+  'thomas':       'vs-dark',
 }
 
 export const XTERM_THEMES: Record<ThemeId, ITheme> = {
@@ -57,5 +58,11 @@ export const XTERM_THEMES: Record<ThemeId, ITheme> = {
     foreground:          '#24292f',
     cursor:              '#0969da',
     selectionBackground: '#0969da40',
+  },
+  'thomas': {
+    background:          '#1a1a1a',
+    foreground:          '#e0e0e0',
+    cursor:              '#f5c242',
+    selectionBackground: '#f5c24240',
   },
 }
