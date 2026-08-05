@@ -125,6 +125,23 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('devtools:attach', targetId, hostId),
   devtoolsDetach: (targetId: number) => ipcRenderer.invoke('devtools:detach', targetId),
 
+  browserViewCreate: (id: string, url: string) => ipcRenderer.invoke('browserView:create', id, url),
+  browserViewSetBounds: (id: string, bounds: { x: number; y: number; width: number; height: number }) =>
+    ipcRenderer.invoke('browserView:setBounds', id, bounds),
+  browserViewSetVisible: (id: string, visible: boolean) =>
+    ipcRenderer.invoke('browserView:setVisible', id, visible),
+  browserViewNavigate: (id: string, url: string) => ipcRenderer.invoke('browserView:navigate', id, url),
+  browserViewGoBack: (id: string) => ipcRenderer.invoke('browserView:goBack', id),
+  browserViewGoForward: (id: string) => ipcRenderer.invoke('browserView:goForward', id),
+  browserViewReload: (id: string) => ipcRenderer.invoke('browserView:reload', id),
+  browserViewDestroy: (id: string) => ipcRenderer.invoke('browserView:destroy', id),
+  onBrowserViewEvent: (cb: (id: string, event: import('./browserViews').BrowserViewEvent) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, event: import('./browserViews').BrowserViewEvent) =>
+      cb(id, event)
+    ipcRenderer.on('browserView:event', handler)
+    return () => ipcRenderer.removeListener('browserView:event', handler)
+  },
+
   sessionLoad: (projectRoot: string) => ipcRenderer.invoke('session:load', projectRoot),
   sessionSave: (projectRoot: string, data: unknown) =>
     ipcRenderer.invoke('session:save', projectRoot, data),

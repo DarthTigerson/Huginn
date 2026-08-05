@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import type { WebviewTag } from 'electron'
 import { useBrowserStore } from '@/stores/browserStore'
 import { useBrowserSettingsStore } from '@/stores/browserSettingsStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -10,13 +9,19 @@ interface Props {
   browserId: string
 }
 
-// Module-level map keeps <webview> elements (and their loaded page/session)
-// alive across React remounts, same pattern TerminalTab.tsx uses for PTYs.
-const liveBrowserTabs = new Map<string, WebviewTag>()
+// Module-level set tracks which browser ids already have a live WebContentsView
+// in the main process, so remounts (pane moves, tab switches) reattach/show
+// instead of recreating and losing navigation/session state — same pattern
+// TerminalTab.tsx uses for PTYs, adapted for a main-process-owned view instead
+// of a DOM node.
+const liveBrowserViews = new Set<string>()
+
+function boundsEqual(a: DOMRect, b: DOMRect | null): boolean {
+  return !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+}
 
 export function BrowserTab({ browserId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const webviewRef = useRef<WebviewTag | null>(null)
   const editingRef = useRef(false)
   const tabState = useBrowserStore((s) => s.tabs[browserId])
   const [urlDraft, setUrlDraft] = useState(tabState?.url || useBrowserSettingsStore.getState().defaultUrl)
@@ -27,110 +32,116 @@ export function BrowserTab({ browserId }: Props) {
 
     useBrowserStore.getState().ensureTab(browserId, useBrowserSettingsStore.getState().defaultUrl)
 
-    let webview = liveBrowserTabs.get(browserId)
+    let cancelled = false
+    const isNew = !liveBrowserViews.has(browserId)
+    liveBrowserViews.add(browserId)
 
-    if (webview) {
-      // Reattach existing webview to the new container — preserves navigation/session
-      container.innerHTML = ''
-      container.appendChild(webview)
+    if (isNew) {
+      const initialUrl =
+        useBrowserStore.getState().tabs[browserId]?.url || useBrowserSettingsStore.getState().defaultUrl
+      window.api.browserViewCreate(browserId, initialUrl).then((webContentsId) => {
+        if (cancelled || webContentsId == null) return
+        useBrowserStore.getState().updateTab(browserId, { webContentsId })
+      })
     } else {
-      webview = document.createElement('webview') as unknown as WebviewTag
-      // <webview> defaults to display:inline like any unstyled custom element —
-      // width/height:100% are no-ops without this, so the guest view never gets a box.
-      webview.style.display = 'block'
-      webview.style.width = '100%'
-      webview.style.height = '100%'
-      webview.src = useBrowserStore.getState().tabs[browserId]?.url || useBrowserSettingsStore.getState().defaultUrl
-      container.innerHTML = ''
-      container.appendChild(webview)
-      liveBrowserTabs.set(browserId, webview)
-
-      const live = webview
-
-      live.addEventListener('did-start-loading', () => {
-        useBrowserStore.getState().updateTab(browserId, { isLoading: true, loadError: null })
-      })
-      live.addEventListener('did-stop-loading', () => {
-        useBrowserStore.getState().updateTab(browserId, {
-          isLoading: false,
-          canGoBack: live.canGoBack(),
-          canGoForward: live.canGoForward(),
-        })
-      })
-      live.addEventListener('did-navigate', (e) => {
-        useBrowserStore.getState().updateTab(browserId, {
-          url: e.url,
-          canGoBack: live.canGoBack(),
-          canGoForward: live.canGoForward(),
-        })
-        if (!editingRef.current) setUrlDraft(e.url)
-      })
-      live.addEventListener('did-navigate-in-page', (e) => {
-        useBrowserStore.getState().updateTab(browserId, {
-          url: e.url,
-          canGoBack: live.canGoBack(),
-          canGoForward: live.canGoForward(),
-        })
-        if (!editingRef.current) setUrlDraft(e.url)
-      })
-      live.addEventListener('page-title-updated', (e) => {
-        useBrowserStore.getState().updateTab(browserId, { title: e.title })
-      })
-      live.addEventListener('did-fail-load', (e) => {
-        // -3 is ERR_ABORTED, fired on normal navigation interruption (e.g. redirects) — not a real failure
-        if (!e.isMainFrame || e.errorCode === -3) return
-        useBrowserStore.getState().updateTab(browserId, {
-          isLoading: false,
-          loadError: e.errorDescription || 'This page could not be loaded.',
-        })
-      })
-      live.addEventListener('dom-ready', () => {
-        useBrowserStore.getState().updateTab(browserId, { webContentsId: live.getWebContentsId() })
-      })
+      window.api.browserViewSetVisible(browserId, true)
     }
 
-    webviewRef.current = webview
-
-    // <webview>'s internal compositor surface doesn't reliably track a
-    // percentage-based CSS box across flex layout passes (it can get stuck at
-    // whatever size it saw on attach, leaving the bottom of the page unpainted).
-    // Measuring the container and pushing explicit pixel dimensions, the same
-    // way TerminalTab.tsx does for cols/rows, forces it to stay in sync.
-    const currentWebview = webview
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      const { width, height } = entry.contentRect
-      if (width <= 0 || height <= 0) return
-      currentWebview.style.width = `${width}px`
-      currentWebview.style.height = `${height}px`
+    const cleanupEvent = window.api.onBrowserViewEvent((id, event) => {
+      if (id !== browserId) return
+      switch (event.type) {
+        case 'did-start-loading':
+          useBrowserStore.getState().updateTab(browserId, { isLoading: true, loadError: null })
+          break
+        case 'did-stop-loading':
+          useBrowserStore.getState().updateTab(browserId, {
+            isLoading: false,
+            canGoBack: event.canGoBack,
+            canGoForward: event.canGoForward,
+          })
+          break
+        case 'did-navigate':
+        case 'did-navigate-in-page':
+          useBrowserStore.getState().updateTab(browserId, {
+            url: event.url,
+            canGoBack: event.canGoBack,
+            canGoForward: event.canGoForward,
+          })
+          if (!editingRef.current) setUrlDraft(event.url)
+          break
+        case 'page-title-updated':
+          useBrowserStore.getState().updateTab(browserId, { title: event.title })
+          break
+        case 'did-fail-load':
+          useBrowserStore.getState().updateTab(browserId, {
+            isLoading: false,
+            loadError: event.errorDescription || 'This page could not be loaded.',
+          })
+          break
+        case 'dom-ready':
+          useBrowserStore.getState().updateTab(browserId, { webContentsId: event.webContentsId })
+          break
+      }
     })
-    observer.observe(container)
+
+    // WebContentsView is a native layer composited above the window's DOM
+    // content, not a DOM node itself — its bounds have to be measured and
+    // pushed over IPC instead of just living in the flex layout. Polling via
+    // rAF (rather than a ResizeObserver on this element) catches reflows that
+    // only move the pane — sidebar toggle, split-divider drag — without
+    // changing this element's own size, which a ResizeObserver would miss.
+    let lastRect: DOMRect | null = null
+    let rafId: number
+    const syncBounds = () => {
+      const rect = container.getBoundingClientRect()
+      if (!boundsEqual(rect, lastRect)) {
+        lastRect = rect
+        if (rect.width > 0 && rect.height > 0) {
+          window.api.browserViewSetBounds(browserId, {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          })
+        }
+      }
+      rafId = requestAnimationFrame(syncBounds)
+    }
+    rafId = requestAnimationFrame(syncBounds)
 
     return () => {
-      observer.disconnect()
+      cancelled = true
+      cleanupEvent()
+      cancelAnimationFrame(rafId)
 
       const tabPath = buildBrowserPath(browserId)
       const stillOpen = useEditorStore.getState().tabs.some((t) => t.path === tabPath)
       if (!stillOpen) {
-        liveBrowserTabs.delete(browserId)
+        liveBrowserViews.delete(browserId)
         useBrowserStore.getState().removeTab(browserId)
-        webview?.remove()
+        window.api.browserViewDestroy(browserId)
+      } else {
+        // Leave the guest alive in the main process, just detached from view,
+        // so the next mount (e.g. pane move) can show it with session intact.
+        window.api.browserViewSetVisible(browserId, false)
       }
-      // Otherwise: leave the webview detached but alive in liveBrowserTabs so
-      // the next mount (e.g. pane move) can reattach it with page/session intact
     }
   }, [browserId])
 
-  function navigate(url: string) {
-    webviewRef.current?.loadURL(url)
-  }
+  const loadError = tabState?.loadError ?? null
+
+  // The native view always draws on top of this component's own DOM (including
+  // the inline "page couldn't load" state below), so it has to be explicitly
+  // hidden while that error overlay is what should be visible.
+  useEffect(() => {
+    window.api.browserViewSetVisible(browserId, !loadError)
+  }, [browserId, loadError])
 
   function handleUrlSubmit(e: React.FormEvent) {
     e.preventDefault()
     const url = normalizeUrlInput(urlDraft)
     if (!url) return
-    navigate(url)
+    window.api.browserViewNavigate(browserId, url)
     ;(document.activeElement as HTMLElement | null)?.blur()
   }
 
@@ -139,7 +150,6 @@ export function BrowserTab({ browserId }: Props) {
   const isLoading = tabState?.isLoading ?? false
   const canGoBack = tabState?.canGoBack ?? false
   const canGoForward = tabState?.canGoForward ?? false
-  const loadError = tabState?.loadError ?? null
 
   useEffect(() => {
     if (!editingRef.current) setUrlDraft(url)
@@ -152,7 +162,7 @@ export function BrowserTab({ browserId }: Props) {
           type="button"
           aria-label="Back"
           disabled={!canGoBack}
-          onClick={() => webviewRef.current?.goBack()}
+          onClick={() => window.api.browserViewGoBack(browserId)}
           className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-fg-muted"
         >
           <NavArrowIcon direction="back" />
@@ -161,7 +171,7 @@ export function BrowserTab({ browserId }: Props) {
           type="button"
           aria-label="Forward"
           disabled={!canGoForward}
-          onClick={() => webviewRef.current?.goForward()}
+          onClick={() => window.api.browserViewGoForward(browserId)}
           className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-fg-muted"
         >
           <NavArrowIcon direction="forward" />
@@ -169,7 +179,7 @@ export function BrowserTab({ browserId }: Props) {
         <button
           type="button"
           aria-label="Reload"
-          onClick={() => webviewRef.current?.reload()}
+          onClick={() => window.api.browserViewReload(browserId)}
           className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5"
         >
           <ReloadIcon spinning={isLoading} />
@@ -194,7 +204,7 @@ export function BrowserTab({ browserId }: Props) {
             <p className="max-w-sm text-xs text-fg-subtle">{loadError}</p>
             <button
               type="button"
-              onClick={() => webviewRef.current?.reload()}
+              onClick={() => window.api.browserViewReload(browserId)}
               className="mt-1 rounded border border-border px-2 py-1 text-xs text-fg-muted hover:text-fg hover:bg-white/5"
             >
               Retry

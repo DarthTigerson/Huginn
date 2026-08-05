@@ -17,6 +17,21 @@ app relaunches into the same project.
 
 ## Browser tab (`src/components/Browser/BrowserTab.tsx`)
 
+> **2026-08-06 update:** originally built on Electron's `<webview>` tag for
+> the reasons below. Confirmed via isolated repro (bare Electron app, no
+> Huginn code) that `<webview>` never syncs its guest's `window.innerHeight`/
+> `vh`-based layout past the intrinsic 300x150 default — outer box resizes
+> correctly, but any page content sized via viewport units renders short,
+> which is not fixable from the host side. Migrated to `WebContentsView`
+> (`electron/browserViews.ts`), which reports real bounds to the guest
+> correctly. The tradeoff called out below (pixel bounds recalculated and
+> pushed over IPC on every resize) is now paid for real — `BrowserTab.tsx`
+> polls `getBoundingClientRect()` via `requestAnimationFrame` and calls
+> `browserView:setBounds`. New known caveat: `WebContentsView` composites
+> above all DOM content, so any floating UI (context menus, dialogs) that
+> should appear over a browser tab will currently render behind it — only
+> handled so far for the tab's own inline load-error state.
+
 - Uses Electron's `<webview>` tag (`webviewTag: true` added to the
   `BrowserWindow`'s `webPreferences`) rather than `WebContentsView`. A
   `<webview>` is a real DOM element that participates in the existing

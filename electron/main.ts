@@ -7,6 +7,7 @@ import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { MobileServer } from './mobile'
 import { CosmosManager } from './cosmos'
+import { BrowserViewManager } from './browserViews'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 import { registerSessionHandlers } from './session'
 
@@ -65,7 +66,6 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       sandbox: false,
-      webviewTag: true,
     },
   })
 
@@ -77,39 +77,6 @@ function createWindow(): BrowserWindow {
   // 100% on every load so the window can never get stuck zoomed.
   win.webContents.on('dom-ready', () => {
     win.webContents.setZoomFactor(1)
-  })
-
-  // The embedded browser tabs load arbitrary, untrusted sites via <webview>.
-  // Strip anything a malicious guest page could use to smuggle in node
-  // integration or a preload script through webview attributes.
-  win.webContents.on('will-attach-webview', (_event, webPreferences) => {
-    delete webPreferences.preload
-    delete (webPreferences as { preloadURL?: string }).preloadURL
-    webPreferences.nodeIntegration = false
-    webPreferences.contextIsolation = true
-  })
-
-  // Unshifted CmdOrCtrl+=/-/0 zoom whichever browser tab's <webview> currently
-  // has input focus — same "unshifted = scoped to the focused thing" split the
-  // editor/terminal already use, extended to embedded pages. Guest keydown
-  // events never reach the host renderer, so this has to be intercepted here
-  // in the main process against the guest's own webContents.
-  win.webContents.on('did-attach-webview', (_event, guestContents) => {
-    guestContents.on('before-input-event', (event, input) => {
-      if (input.type !== 'keyDown' || input.shift || input.alt) return
-      if (!input.meta && !input.control) return
-
-      if (input.key === '=' || input.key === '+') {
-        event.preventDefault()
-        guestContents.setZoomLevel(Math.min(guestContents.getZoomLevel() + 1, 9))
-      } else if (input.key === '-' || input.key === '_') {
-        event.preventDefault()
-        guestContents.setZoomLevel(Math.max(guestContents.getZoomLevel() - 1, -8))
-      } else if (input.key === '0') {
-        event.preventDefault()
-        guestContents.setZoomLevel(0)
-      }
-    })
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -260,6 +227,8 @@ app.whenReady().then(() => {
   mobileSrv.registerHandlers()
   const cosmosMgr = new CosmosManager(win)
   cosmosMgr.registerHandlers()
+  const browserViewMgr = new BrowserViewManager(win)
+  browserViewMgr.registerHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

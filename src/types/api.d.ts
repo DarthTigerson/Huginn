@@ -1,4 +1,5 @@
 import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
+import type { BrowserViewEvent } from '../../electron/browserViews'
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -120,6 +121,16 @@ declare global {
 
       devtoolsAttach: (targetId: number, hostId: number) => Promise<void>
       devtoolsDetach: (targetId: number) => Promise<void>
+
+      browserViewCreate: (id: string, url: string) => Promise<number | null>
+      browserViewSetBounds: (id: string, bounds: { x: number; y: number; width: number; height: number }) => Promise<void>
+      browserViewSetVisible: (id: string, visible: boolean) => Promise<void>
+      browserViewNavigate: (id: string, url: string) => Promise<void>
+      browserViewGoBack: (id: string) => Promise<void>
+      browserViewGoForward: (id: string) => Promise<void>
+      browserViewReload: (id: string) => Promise<void>
+      browserViewDestroy: (id: string) => Promise<void>
+      onBrowserViewEvent: (cb: (id: string, event: BrowserViewEvent) => void) => () => void
 
       sessionLoad: (projectRoot: string) => Promise<SessionData | null>
       sessionSave: (projectRoot: string, data: SessionData) => Promise<void>
