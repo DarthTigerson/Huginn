@@ -56,7 +56,7 @@ function assistantIcon(kind: AssistantKind) {
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 20
-const SIDEBAR_MIN_SIZE = 12
+const SIDEBAR_MIN_SIZE = 4
 const SIDEBAR_MAX_SIZE = 40
 const CHAT_SIZE_KEY = 'huginn:layout:chatSize'
 const CHAT_DEFAULT_SIZE = 25

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useDisplayStore, FONT_PRESETS, type PanelStyle } from '@/stores/displayStore'
-import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 
 const CUSTOM_VALUE = '__custom__'
@@ -25,7 +24,6 @@ const THEME_OPTIONS: ThemeOption[] = [
 
 export function DisplayPage() {
   const { font, panelStyle, setFont, setPanelStyle } = useDisplayStore()
-  const { fontSize, increase, decrease, reset } = useFontSizeStore()
   const { theme, setTheme } = useThemeStore()
 
   const activePreset = FONT_PRESETS.find((p) => p.value === font) ?? null
@@ -53,7 +51,7 @@ export function DisplayPage() {
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
       <h1 className="text-base font-semibold text-fg mb-1">Display</h1>
-      <p className="text-sm text-fg-muted mb-8">Colour theme, fonts, text size, and panel appearance.</p>
+      <p className="text-sm text-fg-muted mb-8">Colour theme, fonts, and panel appearance.</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Theme */}
@@ -138,9 +136,7 @@ export function DisplayPage() {
           </div>
         </section>
 
-        {/* Typography: font + text size share one full-width row (both
-            settings placed after Theme/Panel Style fill row 1) so neither
-            sits in a half-empty card the way they did as separate sections */}
+        {/* Typography */}
         <section className="rounded-xl border border-border/60 p-4 lg:col-span-2">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Typography</h2>
           <div className="flex flex-wrap items-start gap-6">
@@ -174,36 +170,6 @@ export function DisplayPage() {
                   className="mt-2 w-full px-3 py-2 text-sm bg-bg border border-border rounded-lg text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent/60 transition-colors"
                 />
               )}
-            </div>
-
-            <div className="shrink-0">
-              <label className="text-xs text-fg-muted mb-1.5 block">Text Size</label>
-              <div className="flex items-center gap-3 h-[42px]">
-                <button
-                  type="button"
-                  onClick={decrease}
-                  aria-label="Decrease font size"
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:border-fg-muted text-fg-muted hover:text-fg transition-colors text-base leading-none"
-                >
-                  −
-                </button>
-                <span className="tabular-nums text-sm text-fg w-6 text-center select-none">{fontSize}</span>
-                <button
-                  type="button"
-                  onClick={increase}
-                  aria-label="Increase font size"
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-border hover:border-fg-muted text-fg-muted hover:text-fg transition-colors text-base leading-none"
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="ml-1 text-xs text-fg-muted hover:text-fg transition-colors"
-                >
-                  Reset
-                </button>
-              </div>
             </div>
           </div>
         </section>
