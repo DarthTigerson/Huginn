@@ -39,6 +39,8 @@ import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
+import { useFontSizeStore } from './stores/fontSizeStore'
+import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
 import { buildTerminalPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
@@ -209,6 +211,25 @@ export default function App() {
   useEffect(() => {
     return window.api.onMenuCloseActiveTab(() => {
       useEditorStore.getState().closeActiveTab()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuZoomIn(() => {
+      useFontSizeStore.getState().increase()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuZoomOut(() => {
+      useFontSizeStore.getState().decrease()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuResetZoom(() => {
+      useFontSizeStore.getState().reset()
+      useInstanceFontSizeStore.getState().resetAll()
     })
   }, [])
 

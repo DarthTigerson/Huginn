@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-const MIN = 10
+const MIN = 5
 const MAX = 24
 const DEFAULT = 13
 const STORAGE_KEY = 'huginn:fontSize'

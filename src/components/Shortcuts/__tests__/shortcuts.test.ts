@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { SHORTCUT_GROUPS } from '../shortcuts'
 
 describe('SHORTCUT_GROUPS', () => {
-  it('has the three expected categories in order', () => {
-    expect(SHORTCUT_GROUPS.map((g) => g.category)).toEqual(['Navigation', 'Editor', 'Project'])
+  it('has the four expected categories in order', () => {
+    expect(SHORTCUT_GROUPS.map((g) => g.category)).toEqual(['Navigation', 'Editor', 'Project', 'Display'])
   })
 
-  it('lists 12 shortcuts total, each with a label and at least one key', () => {
+  it('lists 18 shortcuts total, each with a label and at least one key', () => {
     const items = SHORTCUT_GROUPS.flatMap((g) => g.items)
-    expect(items).toHaveLength(12)
+    expect(items).toHaveLength(18)
     for (const item of items) {
       expect(item.label.length).toBeGreaterThan(0)
       expect(item.keys.length).toBeGreaterThan(0)

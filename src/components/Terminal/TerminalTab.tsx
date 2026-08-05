@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -31,6 +32,8 @@ export function TerminalTab({ terminalId }: Props) {
   const instanceRef = useRef<TerminalInstance | null>(null)
   const theme = useThemeStore((s) => s.theme)
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const fontSizeOverride = useInstanceFontSizeStore((s) => s.overrides[terminalId])
+  const effectiveFontSize = fontSizeOverride ?? fontSize
   const font = useDisplayStore((s) => s.font)
 
   useEffect(() => {
@@ -50,7 +53,7 @@ export function TerminalTab({ terminalId }: Props) {
       const xterm = new XTerm({
         theme: XTERM_THEMES[useThemeStore.getState().theme],
         fontFamily: useDisplayStore.getState().font,
-        fontSize: useFontSizeStore.getState().fontSize,
+        fontSize: useInstanceFontSizeStore.getState().overrides[terminalId] ?? useFontSizeStore.getState().fontSize,
         cursorBlink: true,
         convertEol: true,
       })
@@ -67,6 +70,27 @@ export function TerminalTab({ terminalId }: Props) {
       window.api.termSpawn(terminalId, cwd)
       // Register once — survives remounts because the instance stays in liveTerminals
       xterm.onData((data) => window.api.termWrite(terminalId, data))
+      // CmdOrCtrl+=/-/0 (unshifted) resize just this terminal; shifted variants are
+      // left unhandled so they pass through to the app-level global zoom shortcut.
+      xterm.attachCustomKeyEventHandler((event) => {
+        if (event.type !== 'keydown') return true
+        const isMod = event.metaKey || event.ctrlKey
+        if (!isMod || event.shiftKey || event.altKey) return true
+
+        if (event.key === '=' || event.key === '+') {
+          useInstanceFontSizeStore.getState().increase(terminalId)
+          return false
+        }
+        if (event.key === '-' || event.key === '_') {
+          useInstanceFontSizeStore.getState().decrease(terminalId)
+          return false
+        }
+        if (event.key === '0') {
+          useInstanceFontSizeStore.getState().reset(terminalId)
+          return false
+        }
+        return true
+      })
     }
 
     instanceRef.current = instance
@@ -112,9 +136,9 @@ export function TerminalTab({ terminalId }: Props) {
 
   useEffect(() => {
     if (!instanceRef.current) return
-    instanceRef.current.xterm.options.fontSize = fontSize
+    instanceRef.current.xterm.options.fontSize = effectiveFontSize
     instanceRef.current.fit.fit()
-  }, [fontSize])
+  }, [effectiveFontSize])
 
   useEffect(() => {
     if (!instanceRef.current) return

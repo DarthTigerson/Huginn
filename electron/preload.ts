@@ -105,4 +105,19 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('menu:closeActiveTab', handler)
     return () => ipcRenderer.removeListener('menu:closeActiveTab', handler)
   },
+  onMenuZoomIn: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:zoomIn', handler)
+    return () => ipcRenderer.removeListener('menu:zoomIn', handler)
+  },
+  onMenuZoomOut: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:zoomOut', handler)
+    return () => ipcRenderer.removeListener('menu:zoomOut', handler)
+  },
+  onMenuResetZoom: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:resetZoom', handler)
+    return () => ipcRenderer.removeListener('menu:resetZoom', handler)
+  },
 })

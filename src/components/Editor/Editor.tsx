@@ -6,6 +6,7 @@ import { useEditorStore, type EditorLayoutNode } from '@/stores/editorStore'
 import { useSearchStore } from '@/stores/searchStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
@@ -177,6 +178,8 @@ function EditorPane({ paneId }: { paneId: string }) {
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
+  const fontSizeOverride = useInstanceFontSizeStore((s) => (tabPath ? s.overrides[tabPath] : undefined))
+  const editorFontSize = fontSizeOverride ?? fontSize
   const isActivePane = activePaneId === paneId
   const isVirtual = isVirtualTab(activeTab)
   const isTerminal = !!activeTab && isTerminalTab(activeTab.path)
@@ -291,11 +294,23 @@ function EditorPane({ paneId }: { paneId: string }) {
                 options={{
                   readOnly: true,
                   renderSideBySide: true,
-                  fontSize,
+                  fontSize: editorFontSize,
                   fontFamily: font,
                   minimap: { enabled: false },
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
+                }}
+                onMount={(editor, monaco) => {
+                  const modified = editor.getModifiedEditor()
+                  modified.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Equal, () => {
+                    useInstanceFontSizeStore.getState().increase(activeTab.path)
+                  })
+                  modified.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus, () => {
+                    useInstanceFontSizeStore.getState().decrease(activeTab.path)
+                  })
+                  modified.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit0, () => {
+                    useInstanceFontSizeStore.getState().reset(activeTab.path)
+                  })
                 }}
               />
             )}
@@ -308,7 +323,7 @@ function EditorPane({ paneId }: { paneId: string }) {
               language={detectLang(activeTab.path)}
               theme={monacoTheme}
               options={{
-                fontSize,
+                fontSize: editorFontSize,
                 fontFamily: font,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
@@ -356,6 +371,15 @@ function EditorPane({ paneId }: { paneId: string }) {
                 })
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
                   useClaudeStore.getState().toggleChatVisible()
+                })
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Equal, () => {
+                  useInstanceFontSizeStore.getState().increase(activeTab.path)
+                })
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus, () => {
+                  useInstanceFontSizeStore.getState().decrease(activeTab.path)
+                })
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit0, () => {
+                  useInstanceFontSizeStore.getState().reset(activeTab.path)
                 })
 
                 // handle reveal if request was set before this editor mounted

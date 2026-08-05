@@ -53,8 +53,8 @@ export function FileIcon({ name }: { name: string }) {
   const { label, bg, color } = iconSpecFor(name)
   return (
     <span
-      className="shrink-0 flex items-center justify-center rounded-[3px] text-[8px] font-bold leading-none tracking-tighter"
-      style={{ width: 18, height: 15, background: bg, color: color ?? '#fff' }}
+      className="shrink-0 flex items-center justify-center rounded-[3px] text-[0.5rem] font-bold leading-none tracking-tighter"
+      style={{ width: '1.125rem', height: '0.9375rem', background: bg, color: color ?? '#fff' }}
     >
       {label}
     </span>
@@ -65,8 +65,8 @@ export function FolderIcon({ open }: { open: boolean }) {
   return (
     <svg
       className="shrink-0"
-      width="15"
-      height="15"
+      width="0.9375rem"
+      height="0.9375rem"
       viewBox="0 0 24 24"
       fill={open ? '#e8c94c' : '#c9a227'}
     >

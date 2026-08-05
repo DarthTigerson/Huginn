@@ -142,9 +142,33 @@ function buildMenu(): void {
         { role: 'forceReload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        {
+          // Unshifted CmdOrCtrl+Plus/Minus/0 are intentionally NOT registered here —
+          // they're left free so the renderer can handle them per-focused-editor/terminal.
+          // Shifted variants control the global app font size instead.
+          label: 'Reset Zoom (Global)',
+          accelerator: 'CmdOrCtrl+Shift+0',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:resetZoom')
+          },
+        },
+        {
+          label: 'Zoom In (Global)',
+          accelerator: 'CmdOrCtrl+Shift+Plus',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:zoomIn')
+          },
+        },
+        {
+          label: 'Zoom Out (Global)',
+          accelerator: 'CmdOrCtrl+Shift+-',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:zoomOut')
+          },
+        },
         { type: 'separator' },
         { role: 'togglefullscreen' },
       ],

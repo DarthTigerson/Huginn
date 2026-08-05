@@ -36,4 +36,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['⌘', '⇧', 'O'], label: 'Open Project' },
     ],
   },
+  {
+    category: 'Display',
+    items: [
+      { keys: ['⌘', '+'], label: 'Zoom In (Focused Editor/Terminal)' },
+      { keys: ['⌘', '-'], label: 'Zoom Out (Focused Editor/Terminal)' },
+      { keys: ['⌘', '0'], label: 'Reset Zoom (Focused Editor/Terminal)' },
+      { keys: ['⌘', '⇧', '+'], label: 'Zoom In (Global)' },
+      { keys: ['⌘', '⇧', '-'], label: 'Zoom Out (Global)' },
+      { keys: ['⌘', '⇧', '0'], label: 'Reset Zoom (Global)' },
+    ],
+  },
 ]

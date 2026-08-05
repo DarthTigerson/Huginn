@@ -89,6 +89,9 @@ declare global {
 
       onMenuOpenProject: (cb: () => void) => () => void
       onMenuCloseActiveTab: (cb: () => void) => () => void
+      onMenuZoomIn: (cb: () => void) => () => void
+      onMenuZoomOut: (cb: () => void) => () => void
+      onMenuResetZoom: (cb: () => void) => () => void
 
       mobileStart: () => Promise<void>
       mobileStop: () => Promise<void>
