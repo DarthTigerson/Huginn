@@ -58,7 +58,7 @@
   --color-fg-subtle: #aaaaaa;
 }
 
-[data-theme="thomas"] {
+[data-theme="thomas-dark"] {
   --color-bg:        #1a1a1a;
   --color-panel:     #202020;
   --color-sidebar:   #262626;
@@ -68,6 +68,18 @@
   --color-fg:        #e0e0e0;
   --color-fg-muted:  #8f8f8f;
   --color-fg-subtle: #5c5c5c;
+}
+
+[data-theme="thomas-light"] {
+  --color-bg:        #f5f5f3;
+  --color-panel:     #ffffff;
+  --color-sidebar:   #ececea;
+  --color-tab-bar:   #e6e6e3;
+  --color-border:    #dcdcd8;
+  --color-accent:    173 139 0;    /* #ad8b00 */
+  --color-fg:        #1e1e1e;
+  --color-fg-muted:  #6e6e6e;
+  --color-fg-subtle: #999999;
 }
 
 body {
@@ -104,11 +116,17 @@ body {
   --color-sidebar: rgba(250, 250, 250, 0.6);
   --color-tab-bar: rgba(246, 246, 246, 0.65);
 }
-[data-theme="thomas"][data-panel-style="glossy"] {
+[data-theme="thomas-dark"][data-panel-style="glossy"] {
   --color-bg:      rgba(26,  26,  26,  0.5);
   --color-panel:   rgba(32,  32,  32,  0.6);
   --color-sidebar: rgba(38,  38,  38,  0.5);
   --color-tab-bar: rgba(46,  46,  46,  0.65);
+}
+[data-theme="thomas-light"][data-panel-style="glossy"] {
+  --color-bg:      rgba(245, 245, 243, 0.55);
+  --color-panel:   rgba(255, 255, 255, 0.7);
+  --color-sidebar: rgba(236, 236, 234, 0.6);
+  --color-tab-bar: rgba(230, 230, 227, 0.65);
 }
 
 [data-panel-style="glossy"] .bg-bg,

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDisplayStore, FONT_PRESETS, type PanelStyle } from '@/stores/displayStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
+import { Toggle } from '@/components/ui/Toggle'
 
 const CUSTOM_VALUE = '__custom__'
 
@@ -20,12 +21,13 @@ const THEME_OPTIONS: ThemeOption[] = [
   { id: 'claude-light', name: 'Claude Light', swatches: ['#f3f3f3', '#ececec', '#ffffff', '#c4613d', '#e0e0e0'] },
   { id: 'codex-dark',   name: 'Codex Dark',   swatches: ['#1a1a1a', '#1a1a1a', '#202020', '#ffffff', '#333333'] },
   { id: 'codex-light',  name: 'Codex Light',  swatches: ['#fafafa', '#fafafa', '#ffffff', '#0969da', '#d0d7de'] },
-  { id: 'thomas',       name: 'Thomas Theme', swatches: ['#1a1a1a', '#262626', '#202020', '#f5c242', '#404040'] },
+  { id: 'thomas-dark',  name: 'Thomas Dark',  swatches: ['#1a1a1a', '#262626', '#202020', '#f5c242', '#404040'] },
+  { id: 'thomas-light', name: 'Thomas Light', swatches: ['#f5f5f3', '#ececea', '#ffffff', '#ad8b00', '#dcdcd8'] },
 ]
 
 export function DisplayPage() {
   const { font, panelStyle, setFont, setPanelStyle } = useDisplayStore()
-  const { theme, setTheme } = useThemeStore()
+  const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
 
   const activePreset = FONT_PRESETS.find((p) => p.value === font) ?? null
   const [customMode, setCustomMode] = useState(!activePreset)
@@ -58,6 +60,16 @@ export function DisplayPage() {
         {/* Theme */}
         <section className="rounded-xl border border-border/60 p-4">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Theme</h2>
+
+          <div className="mb-4 pb-4 border-b border-border/40">
+            <Toggle
+              label="Match system appearance"
+              description="Automatically switch this theme between its light and dark variant when macOS does."
+              checked={matchSystem}
+              onChange={setMatchSystem}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             {THEME_OPTIONS.map((t) => {
               const isActive = t.id === theme
