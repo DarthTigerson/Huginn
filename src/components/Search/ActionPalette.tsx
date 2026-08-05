@@ -66,7 +66,7 @@ export function ActionPalette({ onClose }: Props) {
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-[560px] max-h-[60vh] flex flex-col bg-sidebar border border-border rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+      <div className="w-[560px] max-h-[60vh] flex flex-col bg-popover border border-border rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
 
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
           <CmdIcon />

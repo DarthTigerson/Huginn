@@ -104,7 +104,7 @@ function BranchCombobox({ label, value, options, onChange }: {
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-md border border-border bg-sidebar shadow-2xl shadow-black/40">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-md border border-border bg-popover shadow-2xl shadow-black/40">
           <div className="border-b border-border p-2">
             <input
               value={query}

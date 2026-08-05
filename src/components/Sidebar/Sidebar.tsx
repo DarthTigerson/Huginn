@@ -220,7 +220,7 @@ export function Sidebar() {
 
           {menu && (
             <div
-              className="fixed z-[200] w-44 rounded border border-border bg-sidebar p-1 shadow-2xl shadow-black/50"
+              className="fixed z-[200] w-44 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
               style={{ left: menu.x, top: menu.y }}
               onClick={(event) => event.stopPropagation()}
             >

@@ -10,7 +10,7 @@ export function ShortcutsOverlay() {
       onClick={closeShortcutsOverlay}
     >
       <div
-        className="w-[420px] max-h-[70vh] overflow-y-auto flex flex-col gap-5 bg-sidebar border border-border rounded-xl shadow-2xl shadow-black/60 p-5"
+        className="w-[420px] max-h-[70vh] overflow-y-auto flex flex-col gap-5 bg-popover border border-border rounded-xl shadow-2xl shadow-black/60 p-5"
         onClick={(e) => e.stopPropagation()}
       >
         {SHORTCUT_GROUPS.map((group) => (

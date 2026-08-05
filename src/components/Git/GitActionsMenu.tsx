@@ -42,7 +42,7 @@ export function GitActionsMenu({ onClose }: Props) {
 
   return (
     <>
-      <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border bg-sidebar shadow-lg shadow-black/40 py-1 z-50">
+      <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
         <button type="button" className={itemClass} disabled={disabled}
           onClick={() => run(() => fetch(projectRoot!))}>
           Fetch

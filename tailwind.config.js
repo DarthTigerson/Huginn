@@ -11,6 +11,7 @@ module.exports = {
         bg:          'var(--color-bg)',
         panel:       'var(--color-panel)',
         sidebar:     'var(--color-sidebar)',
+        popover:     'var(--color-popover)',
         'tab-bar':   'var(--color-tab-bar)',
         border:      'var(--color-border)',
         accent:      'rgb(var(--color-accent) / <alpha-value>)',

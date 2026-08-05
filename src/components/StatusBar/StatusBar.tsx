@@ -82,7 +82,7 @@ export function StatusBar() {
             {fontSize}
           </span>
           {menuOpen && (
-            <div className="absolute bottom-full right-0 mb-1 w-36 rounded border border-border bg-sidebar shadow-lg shadow-black/40 py-1 z-50">
+            <div className="absolute bottom-full right-0 mb-1 w-36 rounded border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
               <button
                 type="button"
                 onClick={() => { reset(); setMenuOpen(false) }}
