@@ -59,27 +59,27 @@
 }
 
 [data-theme="thomas-dark"] {
-  --color-bg:        #1a1a1a;
-  --color-panel:     #202020;
-  --color-sidebar:   #262626;
-  --color-tab-bar:   #2e2e2e;
-  --color-border:    #404040;
+  --color-bg:        #1c1712;
+  --color-panel:     #221c15;
+  --color-sidebar:   #2b2319;
+  --color-tab-bar:   #332a1e;
+  --color-border:    #4a3d29;
   --color-accent:    245 194 66;   /* #f5c242 */
-  --color-fg:        #e0e0e0;
-  --color-fg-muted:  #8f8f8f;
-  --color-fg-subtle: #5c5c5c;
+  --color-fg:        #e8e0d0;
+  --color-fg-muted:  #9c9080;
+  --color-fg-subtle: #665c4a;
 }
 
 [data-theme="thomas-light"] {
-  --color-bg:        #f5f5f3;
-  --color-panel:     #ffffff;
-  --color-sidebar:   #ececea;
-  --color-tab-bar:   #e6e6e3;
-  --color-border:    #dcdcd8;
-  --color-accent:    173 139 0;    /* #ad8b00 */
-  --color-fg:        #1e1e1e;
-  --color-fg-muted:  #6e6e6e;
-  --color-fg-subtle: #999999;
+  --color-bg:        #f7f1e0;
+  --color-panel:     #fffcf2;
+  --color-sidebar:   #efe6cd;
+  --color-tab-bar:   #e9dfc0;
+  --color-border:    #d8c89a;
+  --color-accent:    173 123 0;    /* #ad7b00 */
+  --color-fg:        #2a2013;
+  --color-fg-muted:  #74684f;
+  --color-fg-subtle: #a89876;
 }
 
 body {
@@ -117,16 +117,16 @@ body {
   --color-tab-bar: rgba(246, 246, 246, 0.65);
 }
 [data-theme="thomas-dark"][data-panel-style="glossy"] {
-  --color-bg:      rgba(26,  26,  26,  0.5);
-  --color-panel:   rgba(32,  32,  32,  0.6);
-  --color-sidebar: rgba(38,  38,  38,  0.5);
-  --color-tab-bar: rgba(46,  46,  46,  0.65);
+  --color-bg:      rgba(28,  23,  18,  0.5);
+  --color-panel:   rgba(34,  28,  21,  0.6);
+  --color-sidebar: rgba(43,  35,  25,  0.5);
+  --color-tab-bar: rgba(51,  42,  30,  0.65);
 }
 [data-theme="thomas-light"][data-panel-style="glossy"] {
-  --color-bg:      rgba(245, 245, 243, 0.55);
-  --color-panel:   rgba(255, 255, 255, 0.7);
-  --color-sidebar: rgba(236, 236, 234, 0.6);
-  --color-tab-bar: rgba(230, 230, 227, 0.65);
+  --color-bg:      rgba(247, 241, 224, 0.55);
+  --color-panel:   rgba(255, 252, 242, 0.7);
+  --color-sidebar: rgba(239, 230, 205, 0.6);
+  --color-tab-bar: rgba(233, 223, 192, 0.65);
 }
 
 [data-panel-style="glossy"] .bg-bg,

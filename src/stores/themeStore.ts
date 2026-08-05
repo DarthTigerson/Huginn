@@ -101,15 +101,15 @@ export const XTERM_THEMES: Record<ThemeId, ITheme> = {
     selectionBackground: '#0969da40',
   },
   'thomas-dark': {
-    background:          '#1a1a1a',
-    foreground:          '#e0e0e0',
+    background:          '#1c1712',
+    foreground:          '#e8e0d0',
     cursor:              '#f5c242',
     selectionBackground: '#f5c24240',
   },
   'thomas-light': {
-    background:          '#f5f5f3',
-    foreground:          '#1e1e1e',
-    cursor:              '#ad8b00',
-    selectionBackground: '#ad8b0040',
+    background:          '#f7f1e0',
+    foreground:          '#2a2013',
+    cursor:              '#ad7b00',
+    selectionBackground: '#ad7b0040',
   },
 }
