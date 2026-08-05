@@ -120,4 +120,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('menu:resetZoom', handler)
     return () => ipcRenderer.removeListener('menu:resetZoom', handler)
   },
+
+  devtoolsAttach: (targetId: number, hostId: number) =>
+    ipcRenderer.invoke('devtools:attach', targetId, hostId),
+  devtoolsDetach: (targetId: number) => ipcRenderer.invoke('devtools:detach', targetId),
+
+  sessionLoad: (projectRoot: string) => ipcRenderer.invoke('session:load', projectRoot),
+  sessionSave: (projectRoot: string, data: unknown) =>
+    ipcRenderer.invoke('session:save', projectRoot, data),
 })

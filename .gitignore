@@ -4,8 +4,10 @@ out/
 .DS_Store
 
 # TypeScript composite build artifacts (electron-vite handles the real build)
-electron/*.js
-electron/*.d.ts
+electron/**/*.js
+electron/**/*.d.ts
 src/**/*.js
 src/**/*.d.ts
+electron.vite.config.js
+electron.vite.config.d.ts
 *.tsbuildinfo

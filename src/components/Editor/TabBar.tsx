@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useEditorStore } from '@/stores/editorStore'
+import { useBrowserStore } from '@/stores/browserStore'
 import { FileIcon } from '@/components/Sidebar/FileIcon'
-import { isTerminalTab } from '@/components/Settings/paths'
+import { isTerminalTab, isBrowserTab, getBrowserId } from '@/components/Settings/paths'
 
 export function TabBar({ paneId }: { paneId: string }) {
   const tabs = useEditorStore((s) => s.tabs)
+  const browserTabs = useBrowserStore((s) => s.tabs)
   const paneTabs = useEditorStore((s) => s.paneTabs)
   const paneTabLists = useEditorStore((s) => s.paneTabLists)
   const closeTabInPane = useEditorStore((s) => s.closeTabInPane)
@@ -39,7 +41,11 @@ export function TabBar({ paneId }: { paneId: string }) {
   return (
     <div className="flex bg-tab-bar border-b border-border overflow-x-auto shrink-0 select-none">
       {paneTabs_.map((tab) => {
-        const name = isTerminalTab(tab.path) ? 'Terminal' : (tab.path.split('/').pop() ?? tab.path)
+        const name = isTerminalTab(tab.path)
+          ? 'Terminal'
+          : isBrowserTab(tab.path)
+            ? (browserTabs[getBrowserId(tab.path)]?.title || 'New Tab')
+            : (tab.path.split('/').pop() ?? tab.path)
         const isActive = activePath === tab.path
         const isDragging = draggedPath === tab.path
         const isDropTarget = dropTarget?.path === tab.path && draggedPath !== tab.path

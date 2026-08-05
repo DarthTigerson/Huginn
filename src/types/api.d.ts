@@ -2,6 +2,16 @@ import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehi
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
+export interface SessionData {
+  layout: unknown
+  paneTabs: Record<string, string | null>
+  paneTabLists: Record<string, string[]>
+  activeTabPath: string | null
+  activePaneId: string
+  tabs: { path: string }[]
+  browserUrls: Record<string, string>
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -107,6 +117,12 @@ declare global {
       cosmosGetSettings: () => Promise<CosmosSettings | null>
       cosmosSetSettings: (settings: CosmosSettings) => Promise<void>
       onCosmosEvent: (cb: (event: CosmosEvent) => void) => () => void
+
+      devtoolsAttach: (targetId: number, hostId: number) => Promise<void>
+      devtoolsDetach: (targetId: number) => Promise<void>
+
+      sessionLoad: (projectRoot: string) => Promise<SessionData | null>
+      sessionSave: (projectRoot: string, data: SessionData) => Promise<void>
     }
   }
 }

@@ -3,10 +3,16 @@ export function isTerminalTab(path: string): boolean { return path.startsWith(TE
 export function buildTerminalPath(id: string): string { return TERMINAL_PREFIX + id }
 export function getTerminalId(path: string): string { return path.slice(TERMINAL_PREFIX.length) }
 
+const BROWSER_PREFIX = 'browser://'
+export function isBrowserTab(path: string): boolean { return path.startsWith(BROWSER_PREFIX) }
+export function buildBrowserPath(id: string): string { return BROWSER_PREFIX + id }
+export function getBrowserId(path: string): string { return path.slice(BROWSER_PREFIX.length) }
+
 export const DISPLAY_TAB_PATH = 'settings://Display'
 export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'
 export const COSMOS_SETTINGS_TAB_PATH = 'settings://Cosmos'
+export const BROWSER_SETTINGS_TAB_PATH = 'settings://Browser'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {

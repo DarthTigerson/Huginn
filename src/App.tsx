@@ -14,6 +14,7 @@ import {
   PhoneIcon,
   SettingsIcon,
   TerminalIcon,
+  BrowserIcon,
   ClaudeIcon,
   CodexIcon,
   CosmosIcon,
@@ -41,7 +42,7 @@ import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
 import { useFontSizeStore } from './stores/fontSizeStore'
 import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
-import { buildTerminalPath } from './components/Settings/paths'
+import { buildTerminalPath, buildBrowserPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -113,6 +114,11 @@ export default function App() {
   function openNewTerminal() {
     const id = Date.now().toString(36)
     useEditorStore.getState().openTab({ path: buildTerminalPath(id), content: '', dirty: false })
+  }
+
+  function openNewBrowser() {
+    const id = Date.now().toString(36)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(id), content: '', dirty: false })
   }
 
   function saveSidebarSize(size: number) {
@@ -334,6 +340,14 @@ export default function App() {
             },
           ]]}
           bottomGroups={[[
+            {
+              id: 'browser',
+              icon: <BrowserIcon />,
+              title: 'New Browser Tab',
+              active: false,
+              disabled: !projectRoot,
+              onClick: openNewBrowser,
+            },
             {
               id: 'terminal',
               icon: <TerminalIcon />,

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
@@ -8,6 +8,7 @@ import { GitRunner } from './gitRunner'
 import { MobileServer } from './mobile'
 import { CosmosManager } from './cosmos'
 import { listAllFiles, searchText, buildTree } from './fsOps'
+import { registerSessionHandlers } from './session'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -36,6 +37,20 @@ function registerFsHandlers(): void {
   })
 }
 
+function registerDevtoolsHandlers(): void {
+  ipcMain.handle('devtools:attach', (_e, targetId: number, hostId: number) => {
+    const target = webContents.fromId(targetId)
+    const host = webContents.fromId(hostId)
+    if (!target || !host) return
+    target.setDevToolsWebContents(host)
+    target.openDevTools()
+  })
+
+  ipcMain.handle('devtools:detach', (_e, targetId: number) => {
+    webContents.fromId(targetId)?.closeDevTools()
+  })
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
@@ -50,10 +65,52 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       sandbox: false,
+      webviewTag: true,
     },
   })
 
   win.once('ready-to-show', () => win.show())
+
+  // Chromium persists page zoom per-origin across restarts. If it ever gets
+  // stuck at some large factor (e.g. a stray native zoom accelerator firing
+  // repeatedly), that would otherwise survive indefinitely — force it back to
+  // 100% on every load so the window can never get stuck zoomed.
+  win.webContents.on('dom-ready', () => {
+    win.webContents.setZoomFactor(1)
+  })
+
+  // The embedded browser tabs load arbitrary, untrusted sites via <webview>.
+  // Strip anything a malicious guest page could use to smuggle in node
+  // integration or a preload script through webview attributes.
+  win.webContents.on('will-attach-webview', (_event, webPreferences) => {
+    delete webPreferences.preload
+    delete (webPreferences as { preloadURL?: string }).preloadURL
+    webPreferences.nodeIntegration = false
+    webPreferences.contextIsolation = true
+  })
+
+  // Unshifted CmdOrCtrl+=/-/0 zoom whichever browser tab's <webview> currently
+  // has input focus — same "unshifted = scoped to the focused thing" split the
+  // editor/terminal already use, extended to embedded pages. Guest keydown
+  // events never reach the host renderer, so this has to be intercepted here
+  // in the main process against the guest's own webContents.
+  win.webContents.on('did-attach-webview', (_event, guestContents) => {
+    guestContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown' || input.shift || input.alt) return
+      if (!input.meta && !input.control) return
+
+      if (input.key === '=' || input.key === '+') {
+        event.preventDefault()
+        guestContents.setZoomLevel(Math.min(guestContents.getZoomLevel() + 1, 9))
+      } else if (input.key === '-' || input.key === '_') {
+        event.preventDefault()
+        guestContents.setZoomLevel(Math.max(guestContents.getZoomLevel() - 1, -8))
+      } else if (input.key === '0') {
+        event.preventDefault()
+        guestContents.setZoomLevel(0)
+      }
+    })
+  })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -155,7 +212,7 @@ function buildMenu(): void {
         },
         {
           label: 'Zoom In (Global)',
-          accelerator: 'CmdOrCtrl+Shift+Plus',
+          accelerator: 'CmdOrCtrl+Shift+=',
           click: () => {
             const win = BrowserWindow.getFocusedWindow()
             if (win) win.webContents.send('menu:zoomIn')
@@ -190,6 +247,8 @@ app.whenReady().then(() => {
   buildMenu()
   registerFsHandlers()
   registerCosmosSettingsHandlers()
+  registerDevtoolsHandlers()
+  registerSessionHandlers()
   const win = createWindow()
   const gitRunner = new GitRunner(win)
   gitRunner.registerHandlers()

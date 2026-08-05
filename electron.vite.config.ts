@@ -20,6 +20,10 @@ export default defineConfig({
     resolve: {
       alias: { '@': resolve(__dirname, 'src') }
     },
+    server: {
+      port: 55055,
+      strictPort: true
+    },
     plugins: [react()],
     build: {
       rollupOptions: {
