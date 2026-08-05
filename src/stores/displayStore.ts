@@ -18,7 +18,7 @@ export const FONT_PRESETS = [
 
 export type PanelStyle = 'matt' | 'glossy'
 
-const DEFAULT_FONT = 'SF Mono, Menlo, Monaco, Consolas, monospace'
+const DEFAULT_FONT = 'Menlo, monospace'
 
 interface DisplayStore {
   font: string
@@ -37,7 +37,8 @@ function applyPanelStyle(style: PanelStyle) {
   localStorage.setItem(PANEL_STYLE_KEY, style)
 }
 
-const initialFont = localStorage.getItem(FONT_KEY) || DEFAULT_FONT
+const storedFont = localStorage.getItem(FONT_KEY)
+const initialFont = storedFont && FONT_PRESETS.some((p) => p.value === storedFont) ? storedFont : DEFAULT_FONT
 const initialPanelStyle = (localStorage.getItem(PANEL_STYLE_KEY) as PanelStyle | null) || 'matt'
 applyFont(initialFont)
 applyPanelStyle(initialPanelStyle)

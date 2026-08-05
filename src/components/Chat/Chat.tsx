@@ -28,7 +28,7 @@ function createXTerm(themeId: ThemeId): XTerm {
   return new XTerm({
     theme: XTERM_THEMES[themeId],
     fontFamily: useDisplayStore.getState().font,
-    fontSize: 13,
+    fontSize: useFontSizeStore.getState().fontSize,
     cursorBlink: true,
     convertEol: true,
   })

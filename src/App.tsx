@@ -320,8 +320,9 @@ export default function App() {
             {
               id: 'todos',
               icon: <TodoIcon />,
-              title: 'To Do',
+              title: 'To Do (Coming Soon)',
               active: leftPanel === 'todos',
+              badge: 'Soon',
               onClick: () => setLeftPanel((p) => (p === 'todos' ? null : 'todos')),
             },
             {

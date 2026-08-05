@@ -1,9 +1,6 @@
-import { useState } from 'react'
 import { useDisplayStore, FONT_PRESETS, type PanelStyle } from '@/stores/displayStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 import { Toggle } from '@/components/ui/Toggle'
-
-const CUSTOM_VALUE = '__custom__'
 
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
   { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
@@ -29,26 +26,8 @@ export function DisplayPage() {
   const { font, panelStyle, setFont, setPanelStyle } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
 
-  const activePreset = FONT_PRESETS.find((p) => p.value === font) ?? null
-  const [customMode, setCustomMode] = useState(!activePreset)
-  const [customInput, setCustomInput] = useState(() => (activePreset ? '' : font))
-
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value
-    if (val === CUSTOM_VALUE) {
-      setCustomMode(true)
-      setCustomInput((prev) => prev || font.replace(/,\s*monospace$/, ''))
-    } else {
-      setCustomMode(false)
-      setCustomInput('')
-      setFont(val)
-    }
-  }
-
-  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    setCustomInput(val)
-    if (val.trim()) setFont(val.trim() + ', monospace')
+    setFont(e.target.value)
   }
 
   return (
@@ -161,7 +140,7 @@ export function DisplayPage() {
               <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
               <div className="relative">
                 <select
-                  value={customMode ? CUSTOM_VALUE : (activePreset?.value ?? CUSTOM_VALUE)}
+                  value={font}
                   onChange={handleSelectChange}
                   className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
                 >
@@ -170,23 +149,11 @@ export function DisplayPage() {
                       {preset.label}
                     </option>
                   ))}
-                  <option value={CUSTOM_VALUE}>Custom…</option>
                 </select>
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
                   ▾
                 </span>
               </div>
-
-              {customMode && (
-                <input
-                  type="text"
-                  autoFocus
-                  value={customInput}
-                  onChange={handleCustomChange}
-                  placeholder="e.g. Operator Mono"
-                  className="mt-2 w-full px-3 py-2 text-sm bg-bg border border-border rounded-lg text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent/60 transition-colors"
-                />
-              )}
             </div>
           </div>
         </section>

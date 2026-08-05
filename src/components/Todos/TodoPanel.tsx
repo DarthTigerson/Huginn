@@ -6,8 +6,9 @@ export function TodoPanel() {
           To Do
         </span>
       </div>
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-fg-subtle">No tasks yet</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-1 px-6 text-center">
+        <p className="text-sm font-medium text-fg-muted">Coming Soon</p>
+        <p className="text-xs text-fg-subtle">Task tracking isn't wired up yet.</p>
       </div>
     </div>
   )
