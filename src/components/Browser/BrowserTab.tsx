@@ -29,6 +29,7 @@ export function BrowserTab({ browserId }: Props) {
   const [urlDraft, setUrlDraft] = useState(tabState?.url || useBrowserSettingsStore.getState().defaultUrl)
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const toggleButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -146,7 +147,14 @@ export function BrowserTab({ browserId }: Props) {
 
   useEffect(() => {
     if (!menuAnchor) return
-    const close = () => setMenuAnchor(null)
+    const close = (e: Event) => {
+      // Ignore clicks on the toggle button itself — it has its own onClick
+      // handler to open/close the menu. Without this guard, the same click
+      // that opens the menu can trigger this listener before the click event
+      // finishes bubbling, causing the menu to immediately self-close.
+      if (toggleButtonRef.current?.contains(e.target as Node)) return
+      setMenuAnchor(null)
+    }
     const closeOnEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuAnchor(null) }
     window.addEventListener('click', close)
     window.addEventListener('keydown', closeOnEscape)
@@ -236,6 +244,7 @@ export function BrowserTab({ browserId }: Props) {
           />
         </form>
         <button
+          ref={toggleButtonRef}
           type="button"
           aria-label="More options"
           aria-expanded={!!menuAnchor}
