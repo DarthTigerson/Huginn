@@ -20,8 +20,10 @@ export class GitRunner {
       if (!win) return
 
       if (this.runningByWindow.get(win.id)) {
-        win.webContents.send('git:log:data', id, 'A git command is already running.\n')
-        win.webContents.send('git:log:exit', id, 1)
+        if (!win.isDestroyed()) {
+          win.webContents.send('git:log:data', id, 'A git command is already running.\n')
+          win.webContents.send('git:log:exit', id, 1)
+        }
         return
       }
 
