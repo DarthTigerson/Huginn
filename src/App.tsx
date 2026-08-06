@@ -46,6 +46,7 @@ import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
 import { useFontSizeStore } from './stores/fontSizeStore'
 import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
+import { useSidebarUiStore } from './stores/sidebarUiStore'
 import { buildTerminalPath, buildBrowserPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
@@ -183,44 +184,6 @@ export default function App() {
   }, [enabledModels, assistant, setAssistant])
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-        e.preventDefault()
-        setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'p' && !e.shiftKey) {
-        if (!useFileStore.getState().projectRoot) return
-        e.preventDefault()
-        useSearchStore.getState().openCommandPalette()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        if (!useFileStore.getState().projectRoot) return
-        e.preventDefault()
-        useSearchStore.getState().openSearch(e.shiftKey)
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'p') {
-        e.preventDefault()
-        useSearchStore.getState().openActionPalette()
-      }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 't') {
-        if (!useFileStore.getState().projectRoot) return
-        e.preventDefault()
-        openNewTerminal()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 't') {
-        e.preventDefault()
-        useEditorStore.getState().reopenLastClosed()
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !e.shiftKey) {
-        e.preventDefault()
-        useClaudeStore.getState().toggleChatVisible()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
-
-  useEffect(() => {
     useFileStore.getState().restoreRoot()
   }, [])
 
@@ -272,6 +235,75 @@ export default function App() {
     return window.api.onMenuResetZoom(() => {
       useFontSizeStore.getState().reset()
       useInstanceFontSizeStore.getState().resetAll()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuOpenSettings(() => {
+      setLeftPanel('settings')
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuNewFile(() => {
+      useSidebarUiStore.getState().requestCreate('file')
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuNewFolder(() => {
+      useSidebarUiStore.getState().requestCreate('directory')
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuNewTerminal(() => {
+      openNewTerminal()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuReopenClosedTab(() => {
+      useEditorStore.getState().reopenLastClosed()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuFind(() => {
+      if (!useFileStore.getState().projectRoot) return
+      useSearchStore.getState().openSearch(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuFindInFiles(() => {
+      if (!useFileStore.getState().projectRoot) return
+      useSearchStore.getState().openSearch(true)
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuToggleSidebar(() => {
+      setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuCommandPalette(() => {
+      if (!useFileStore.getState().projectRoot) return
+      useSearchStore.getState().openCommandPalette()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuActionPalette(() => {
+      useSearchStore.getState().openActionPalette()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuToggleClaudeChat(() => {
+      useClaudeStore.getState().toggleChatVisible()
     })
   }, [])
 
