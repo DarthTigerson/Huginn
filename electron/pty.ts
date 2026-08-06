@@ -11,18 +11,21 @@ function hasValidSize(cols: number, rows: number): boolean {
   return Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0
 }
 
-export class PtyManager {
-  private procs = new Map<string, pty.IPty>()
-  private killedIds = new Set<string>() // tracks intentional kills
-  private win: BrowserWindow
+interface WindowState {
+  procs: Map<string, pty.IPty>
+  killedIds: Set<string> // tracks intentional kills
+}
 
-  constructor(win: BrowserWindow) {
-    this.win = win
-  }
+export class PtyManager {
+  private byWindow = new Map<number, WindowState>()
 
   registerHandlers(): void {
-    ipcMain.handle('term:spawn', (_event, id: string, cwd?: string) => {
-      if (this.procs.has(id)) return
+    ipcMain.handle('term:spawn', (event, id: string, cwd?: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const state = this.stateFor(win.id)
+      if (state.procs.has(id)) return
+
       // Electron's own process env sometimes carries an EDITOR/VISUAL set by
       // whatever dev tooling launched it (e.g. "vi"), not by the user's shell
       // profile. zsh auto-switches its line editor into vi mode whenever
@@ -41,41 +44,57 @@ export class PtyManager {
         cwd: cwd ?? process.env.HOME,
         env,
       })
-      this.procs.set(id, proc)
+      state.procs.set(id, proc)
       proc.onData((data) => {
-        this.win.webContents.send('term:data', id, data)
+        if (!win.isDestroyed()) win.webContents.send('term:data', id, data)
       })
       proc.onExit(() => {
-        if (this.killedIds.has(id)) {
-          this.killedIds.delete(id) // intentional kill — no notification
+        if (state.killedIds.has(id)) {
+          state.killedIds.delete(id) // intentional kill — no notification
           return
         }
-        this.procs.delete(id)
-        this.win.webContents.send('term:exit', id)
+        state.procs.delete(id)
+        if (!win.isDestroyed()) win.webContents.send('term:exit', id)
       })
     })
 
-    ipcMain.handle('term:kill', (_event, id: string) => {
-      const proc = this.procs.get(id)
+    ipcMain.handle('term:kill', (event, id: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const state = this.stateFor(win.id)
+      const proc = state.procs.get(id)
       if (!proc) return
-      this.killedIds.add(id) // mark as intentional before kill fires onExit
-      this.procs.delete(id)
+      state.killedIds.add(id) // mark as intentional before kill fires onExit
+      state.procs.delete(id)
       proc.kill()
     })
 
-    ipcMain.on('term:write', (_event, id: string, data: string) => {
-      this.procs.get(id)?.write(data)
+    ipcMain.on('term:write', (event, id: string, data: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      this.stateFor(win.id).procs.get(id)?.write(data)
     })
 
-    ipcMain.on('term:resize', (_event, id: string, cols: number, rows: number) => {
-      if (!hasValidSize(cols, rows)) return
-      this.procs.get(id)?.resize(Math.floor(cols), Math.floor(rows))
+    ipcMain.on('term:resize', (event, id: string, cols: number, rows: number) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win || !hasValidSize(cols, rows)) return
+      this.stateFor(win.id).procs.get(id)?.resize(Math.floor(cols), Math.floor(rows))
     })
   }
 
-  dispose(): void {
-    for (const proc of this.procs.values()) proc.kill()
-    this.procs.clear()
-    this.killedIds.clear()
+  private stateFor(winId: number): WindowState {
+    let state = this.byWindow.get(winId)
+    if (!state) {
+      state = { procs: new Map(), killedIds: new Set() }
+      this.byWindow.set(winId, state)
+    }
+    return state
+  }
+
+  disposeWindow(winId: number): void {
+    const state = this.byWindow.get(winId)
+    if (!state) return
+    for (const proc of state.procs.values()) proc.kill()
+    this.byWindow.delete(winId)
   }
 }
