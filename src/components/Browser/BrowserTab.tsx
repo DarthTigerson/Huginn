@@ -88,6 +88,14 @@ export function BrowserTab({ browserId }: Props) {
         case 'zoom-changed':
           useBrowserStore.getState().updateTab(browserId, { zoomLevel: event.level })
           break
+        case 'open-in-new-tab': {
+          const newId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+          useBrowserStore.getState().ensureTab(newId, event.url)
+          useEditorStore
+            .getState()
+            .openTabAfter({ path: buildBrowserPath(newId), content: '', dirty: false }, buildBrowserPath(browserId))
+          break
+        }
       }
     })
 

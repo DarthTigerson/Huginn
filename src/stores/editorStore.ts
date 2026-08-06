@@ -50,6 +50,7 @@ interface EditorState {
   paneTabs: Record<string, string | null>
   paneTabLists: Record<string, string[]>
   openTab: (tab: Tab) => void
+  openTabAfter: (tab: Tab, afterPath: string) => void
   closeTabInPane: (paneId: string, path: string) => void
   closeTab: (path: string) => void
   closeActiveTab: () => void
@@ -108,6 +109,36 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         paneTabLists: { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
       }))
     }
+  },
+
+  // Like openTab, but inserts right after a given path within whichever pane
+  // that path lives in — rather than at the end of the active pane's list —
+  // and switches focus to it. Used for links that open into a new tab, so the
+  // new tab lands next to the page that spawned it instead of at the far end
+  // of the strip (or in an unrelated pane if the source pane isn't active).
+  openTabAfter: (tab: Tab, afterPath: string) => {
+    const state = get()
+    const paneIds = collectPaneIds(state.layout)
+    const paneId =
+      paneIds.find((pid) => (state.paneTabLists[pid] ?? []).includes(afterPath)) ?? state.activePaneId
+    const currentList = state.paneTabLists[paneId] ?? []
+    const alreadyInPane = currentList.includes(tab.path)
+    const alreadyOpen = state.tabs.some((t) => t.path === tab.path)
+
+    let newList = currentList
+    if (!alreadyInPane) {
+      const afterIndex = currentList.indexOf(afterPath)
+      const insertIndex = afterIndex === -1 ? currentList.length : afterIndex + 1
+      newList = [...currentList.slice(0, insertIndex), tab.path, ...currentList.slice(insertIndex)]
+    }
+
+    set({
+      tabs: alreadyOpen ? state.tabs : [...state.tabs, tab],
+      activePaneId: paneId,
+      activeTabPath: tab.path,
+      paneTabs: { ...state.paneTabs, [paneId]: tab.path },
+      paneTabLists: { ...state.paneTabLists, [paneId]: newList },
+    })
   },
 
   closeTabInPane: (paneId: string, path: string) => {

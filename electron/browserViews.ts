@@ -28,6 +28,7 @@ export type BrowserViewEvent =
   | { type: 'did-fail-load'; errorDescription: string }
   | { type: 'dom-ready'; webContentsId: number }
   | { type: 'zoom-changed'; level: number }
+  | { type: 'open-in-new-tab'; url: string }
 
 interface Entry {
   view: WebContentsView
@@ -94,6 +95,15 @@ export class BrowserViewManager {
 
   private wireEvents(id: string, view: WebContentsView): void {
     const wc = view.webContents
+
+    // Links/scripts that would normally pop a real OS window (target="_blank",
+    // window.open, ctrl/cmd-click) get deny'd here — WebContentsView has no
+    // window of its own to pop one into anyway — and handed to the renderer
+    // instead, which opens it as a new browser tab in the app's own tab strip.
+    wc.setWindowOpenHandler((details) => {
+      this.sendEvent(id, { type: 'open-in-new-tab', url: details.url })
+      return { action: 'deny' }
+    })
 
     wc.on('did-start-loading', () => this.sendEvent(id, { type: 'did-start-loading' }))
     wc.on('did-stop-loading', () =>

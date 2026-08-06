@@ -118,6 +118,33 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().paneTabLists['pane-1']).toEqual(['/a.ts', '/b.ts', '/c.ts'])
   })
 
+  it('openTabAfter inserts the new tab right after the given path, not at the end', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.openTab({ path: '/c.ts', content: '', dirty: false })
+    store.openTabAfter({ path: '/new.ts', content: '', dirty: false }, '/a.ts')
+    expect(useEditorStore.getState().paneTabLists['pane-1']).toEqual(['/a.ts', '/new.ts', '/b.ts', '/c.ts'])
+    expect(useEditorStore.getState().activeTabPath).toBe('/new.ts')
+  })
+
+  it('openTabAfter targets the pane containing afterPath, even if it is not the active pane', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.splitActivePane('vertical')
+    // splitActivePane moved the active tab ('/b.ts') into a new pane, which is now active.
+    const newPaneId = useEditorStore.getState().activePaneId
+    expect(newPaneId).not.toBe('pane-1')
+
+    store.openTabAfter({ path: '/new.ts', content: '', dirty: false }, '/a.ts')
+    const state = useEditorStore.getState()
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts', '/new.ts'])
+    expect(state.paneTabLists[newPaneId]).toEqual(['/b.ts'])
+    expect(state.activePaneId).toBe('pane-1')
+    expect(state.activeTabPath).toBe('/new.ts')
+  })
+
   it('setActive updates the active pane tab', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
