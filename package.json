@@ -9,7 +9,9 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "rebuild": "electron-rebuild -f -w node-pty",
-    "postinstall": "node scripts/rebrand-electron.mjs"
+    "postinstall": "node scripts/rebrand-electron.mjs",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
@@ -37,6 +39,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "electron": "^32.3.3",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
     "jsdom": "^29.1.1",
     "postcss": "^8.4.47",
@@ -47,5 +50,25 @@
   },
   "allowScripts": {
     "electron@32.3.3": true
+  },
+  "build": {
+    "appId": "com.thomasbonnici.huginn",
+    "productName": "Huginn",
+    "icon": "icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "electron/mobileWeb/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": "deb",
+      "category": "Development"
+    }
   }
 }
