@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { FileTree, type TreePromptState } from './FileTree'
 import { Modal } from '@/components/ui/Modal'
@@ -87,6 +88,14 @@ export function Sidebar() {
 
     return () => { cancelled = true }
   }, [activeTabPath, projectRoot])
+
+  const pendingCreate = useSidebarUiStore((s) => s.pendingCreate)
+
+  useEffect(() => {
+    if (!pendingCreate || !projectRoot) return
+    useSidebarUiStore.getState().clearPendingCreate()
+    startCreate(pendingCreate, null)
+  }, [pendingCreate, projectRoot])
 
   useEffect(() => {
     if (!menu) return
