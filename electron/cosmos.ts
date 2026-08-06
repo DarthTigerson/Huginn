@@ -340,40 +340,46 @@ interface ToolExecutionResult {
 }
 
 export class CosmosManager {
-  private win: BrowserWindow
-  private controller: AbortController | null = null
-  private pendingApprovals = new Map<string, (approved: boolean) => void>()
-  private cancelled = false
-
-  constructor(win: BrowserWindow) {
-    this.win = win
-  }
+  private controllerByWindow = new Map<number, AbortController>()
+  private pendingApprovalsByWindow = new Map<number, Map<string, (approved: boolean) => void>>()
+  private cancelledByWindow = new Map<number, boolean>()
 
   registerHandlers(): void {
-    ipcMain.on('cosmos:send', (_event, payload: CosmosSendPayload) => {
+    ipcMain.on('cosmos:send', (event, payload: CosmosSendPayload) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
       // Returning the promise (instead of `void`-discarding it) is what lets
       // tests capture and await it via the mocked ipcMain.on handler map —
       // Electron itself ignores the return value either way.
-      return this.runConversation(payload)
+      return this.runConversation(win, payload)
     })
 
-    ipcMain.on('cosmos:cancel', () => {
-      this.controller?.abort()
-      this.cancelled = true
-      for (const resolve of this.pendingApprovals.values()) {
+    ipcMain.on('cosmos:cancel', (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      this.controllerByWindow.get(win.id)?.abort()
+      this.cancelledByWindow.set(win.id, true)
+      const approvals = this.approvalsFor(win.id)
+      for (const resolve of approvals.values()) {
         resolve(false)
       }
-      this.pendingApprovals.clear()
+      approvals.clear()
     })
 
-    ipcMain.on('cosmos:approve', (_event, toolCallId: string) => {
-      this.pendingApprovals.get(toolCallId)?.(true)
-      this.pendingApprovals.delete(toolCallId)
+    ipcMain.on('cosmos:approve', (event, toolCallId: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const approvals = this.approvalsFor(win.id)
+      approvals.get(toolCallId)?.(true)
+      approvals.delete(toolCallId)
     })
 
-    ipcMain.on('cosmos:reject', (_event, toolCallId: string) => {
-      this.pendingApprovals.get(toolCallId)?.(false)
-      this.pendingApprovals.delete(toolCallId)
+    ipcMain.on('cosmos:reject', (event, toolCallId: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const approvals = this.approvalsFor(win.id)
+      approvals.get(toolCallId)?.(false)
+      approvals.delete(toolCallId)
     })
 
     ipcMain.handle('cosmos:testConnection', async (_event, settings: CosmosSettings) => {
@@ -389,12 +395,21 @@ export class CosmosManager {
     })
   }
 
-  private emit(event: CosmosEvent): void {
-    this.win.webContents.send('cosmos:event', event)
+  private approvalsFor(winId: number): Map<string, (approved: boolean) => void> {
+    let approvals = this.pendingApprovalsByWindow.get(winId)
+    if (!approvals) {
+      approvals = new Map()
+      this.pendingApprovalsByWindow.set(winId, approvals)
+    }
+    return approvals
   }
 
-  private async runConversation(payload: CosmosSendPayload): Promise<void> {
-    this.cancelled = false
+  private emit(win: BrowserWindow, event: CosmosEvent): void {
+    if (!win.isDestroyed()) win.webContents.send('cosmos:event', event)
+  }
+
+  private async runConversation(win: BrowserWindow, payload: CosmosSendPayload): Promise<void> {
+    this.cancelledByWindow.set(win.id, false)
     const { cwd, settings, agentMode } = payload
     const messages = [...payload.messages]
     if (messages[0]?.role !== 'system') {
@@ -402,12 +417,12 @@ export class CosmosManager {
     }
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      if (round > 0) this.emit({ type: 'new-turn' })
-      const streamResult = await this.streamOneCompletion(messages, settings)
+      if (round > 0) this.emit(win, { type: 'new-turn' })
+      const streamResult = await this.streamOneCompletion(win, messages, settings)
       if (streamResult === null) return // error or abort already emitted
 
       if (streamResult.toolCalls.length === 0) {
-        this.emit({ type: 'done' })
+        this.emit(win, { type: 'done' })
         return
       }
 
@@ -422,28 +437,28 @@ export class CosmosManager {
       })
 
       for (const call of streamResult.toolCalls) {
-        this.emit({ type: 'tool-call', id: call.id, name: call.name, args: call.args })
-        const approved = agentMode ? true : await this.awaitApproval(call)
+        this.emit(win, { type: 'tool-call', id: call.id, name: call.name, args: call.args })
+        const approved = agentMode ? true : await this.awaitApproval(win, call)
         const execResult = approved
           ? await this.executeTool(call.name, call.args, cwd)
           : { result: 'Rejected by user.', isError: true }
 
-        this.emit({ type: 'tool-result', id: call.id, result: execResult.result, isError: execResult.isError })
+        this.emit(win, { type: 'tool-result', id: call.id, result: execResult.result, isError: execResult.isError })
         messages.push({ role: 'tool', tool_call_id: call.id, content: execResult.result })
 
-        if (this.cancelled) return
+        if (this.cancelledByWindow.get(win.id)) return
       }
 
-      if (this.cancelled) return
+      if (this.cancelledByWindow.get(win.id)) return
     }
 
-    this.emit({ type: 'error', message: `Cosmos hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
+    this.emit(win, { type: 'error', message: `Cosmos hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
   }
 
-  private awaitApproval(call: PendingToolCall): Promise<boolean> {
-    this.emit({ type: 'need-approval', id: call.id, name: call.name, args: call.args })
+  private awaitApproval(win: BrowserWindow, call: PendingToolCall): Promise<boolean> {
+    this.emit(win, { type: 'need-approval', id: call.id, name: call.name, args: call.args })
     return new Promise((resolve) => {
-      this.pendingApprovals.set(call.id, resolve)
+      this.approvalsFor(win.id).set(call.id, resolve)
     })
   }
 
@@ -575,10 +590,12 @@ export class CosmosManager {
   }
 
   private async streamOneCompletion(
+    win: BrowserWindow,
     messages: CosmosMessage[],
     settings: CosmosSettings
   ): Promise<{ content: string; toolCalls: PendingToolCall[] } | null> {
-    this.controller = new AbortController()
+    const controller = new AbortController()
+    this.controllerByWindow.set(win.id, controller)
 
     let response: Response
     try {
@@ -591,20 +608,20 @@ export class CosmosManager {
         method: 'POST',
         headers: reqHeaders,
         body: JSON.stringify({ model: settings.modelId, messages, tools: COSMOS_TOOLS, stream: true }),
-        signal: this.controller.signal,
+        signal: controller.signal,
       })
     } catch (err) {
-      this.emit({ type: 'error', message: `Cosmos request failed: ${(err as Error).message}` })
+      this.emit(win, { type: 'error', message: `Cosmos request failed: ${(err as Error).message}` })
       return null
     }
 
     if (!response.ok) {
-      this.emit({ type: 'error', message: `Cosmos request failed: ${response.status}` })
+      this.emit(win, { type: 'error', message: `Cosmos request failed: ${response.status}` })
       return null
     }
 
     if (!response.body) {
-      this.emit({ type: 'error', message: 'Cosmos response had no body' })
+      this.emit(win, { type: 'error', message: 'Cosmos response had no body' })
       return null
     }
 
@@ -629,7 +646,7 @@ export class CosmosManager {
           const delta = chunk.choices[0]?.delta
           if (delta?.content) {
             content += delta.content
-            this.emit({ type: 'text-delta', delta: delta.content })
+            this.emit(win, { type: 'text-delta', delta: delta.content })
           }
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
@@ -644,7 +661,7 @@ export class CosmosManager {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        this.emit({ type: 'error', message: `Cosmos stream error: ${(err as Error).message}` })
+        this.emit(win, { type: 'error', message: `Cosmos stream error: ${(err as Error).message}` })
       }
       return null
     }
@@ -663,18 +680,25 @@ export class CosmosManager {
     const stripped = content.split('\n').filter(l => !l.trimStart().startsWith('[Calling')).join('\n').trim()
     if (stripped !== content) {
       content = stripped
-      this.emit({ type: 'content-replace', content })
+      this.emit(win, { type: 'content-replace', content })
     }
 
     // Fallback: model emitted tool call as plain-text JSON instead of via tool_calls delta
     if (toolCalls.length === 0 && content) {
       const { toolCalls: textCalls, cleanedContent } = extractTextToolCalls(content)
       if (textCalls.length > 0) {
-        this.emit({ type: 'content-replace', content: cleanedContent })
+        this.emit(win, { type: 'content-replace', content: cleanedContent })
         return { content: cleanedContent, toolCalls: textCalls }
       }
     }
 
     return { content, toolCalls }
+  }
+
+  disposeWindow(winId: number): void {
+    this.controllerByWindow.get(winId)?.abort()
+    this.controllerByWindow.delete(winId)
+    this.pendingApprovalsByWindow.delete(winId)
+    this.cancelledByWindow.delete(winId)
   }
 }

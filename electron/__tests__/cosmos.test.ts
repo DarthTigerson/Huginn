@@ -13,6 +13,9 @@ vi.mock('electron', () => ({
       handlers[channel] = fn
     },
   },
+  BrowserWindow: {
+    fromWebContents: (sender: any) => sender,
+  },
 }))
 
 import { CosmosManager } from '../cosmos'
@@ -41,8 +44,8 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
   })
 
   function setup() {
-    const win = { webContents: { send: vi.fn() } } as any
-    const manager = new CosmosManager(win)
+    const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const manager = new CosmosManager()
     manager.registerHandlers()
     return { win, sendHandler: handlers['cosmos:send'] }
   }
@@ -56,7 +59,7 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
       'data: [DONE]\n\n',
     ])))
 
-    await sendHandler({}, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events).toEqual([
@@ -70,18 +73,18 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
     const { win, sendHandler } = setup()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 500 })))
 
-    await sendHandler({}, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events).toEqual([{ type: 'error', message: 'Cosmos request failed: 500' }])
   })
 
   it('posts to {endpoint}/chat/completions with the configured model and Authorization header', async () => {
-    const { sendHandler } = setup()
+    const { win, sendHandler } = setup()
     const fetchMock = vi.fn().mockResolvedValue(sseStream(['data: [DONE]\n\n']))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://169.254.238.138:8002/v1/chat/completions',
@@ -113,8 +116,8 @@ describe('CosmosManager tool calls', () => {
   })
 
   function setup() {
-    const win = { webContents: { send: vi.fn() } } as any
-    const manager = new CosmosManager(win)
+    const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const manager = new CosmosManager()
     manager.registerHandlers()
     return { win, sendHandler: handlers['cosmos:send'], approveHandler: handlers['cosmos:approve'], rejectHandler: handlers['cosmos:reject'] }
   }
@@ -145,7 +148,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hi')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -164,14 +167,14 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('ok'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const runPromise = sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
+    const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
       const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
-    rejectHandler({}, 'call_1')
+    rejectHandler({ sender: win }, 'call_1')
     await runPromise
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
@@ -187,14 +190,14 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('ok'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const runPromise = sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
+    const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
       const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
-    approveHandler({}, 'call_1')
+    approveHandler({ sender: win }, 'call_1')
     await runPromise
 
     expect(await readFileFs(target, 'utf-8')).toBe('hi')
@@ -208,14 +211,14 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('ok'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const runPromise = sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
+    const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
       const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
-    handlers['cosmos:cancel']({})
+    handlers['cosmos:cancel']({ sender: win })
     await runPromise
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
@@ -231,7 +234,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('ran it'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'run it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'run it' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
@@ -243,7 +246,7 @@ describe('CosmosManager tool calls', () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(toolCallStream('run_command', { command: 'echo loop' })))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'loop forever' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'loop forever' }], agentMode: true, settings: SETTINGS })
 
     expect(fetchMock).toHaveBeenCalledTimes(40)
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -259,7 +262,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hello there\nfoo bar\n')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -275,7 +278,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hello world\n')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -291,7 +294,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('dup\ndup\n')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -311,7 +314,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('fresh')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -327,7 +330,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('already here')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -348,7 +351,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line1\nline2\nline3\n', isError: false })
@@ -363,7 +366,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line2\nline3', isError: false })
@@ -377,7 +380,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'search it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'search it' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
@@ -395,7 +398,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
@@ -412,7 +415,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find files' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find files' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
@@ -432,7 +435,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
 
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
@@ -450,7 +453,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('const a = $&bar;\n')
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -468,7 +471,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(from, 'utf-8')).toBe('source content')
     expect(await readFileFs(to, 'utf-8')).toBe('destination content')
@@ -485,7 +488,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'delete it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'delete it' }], agentMode: true, settings: SETTINGS })
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
     const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
@@ -502,7 +505,7 @@ describe('CosmosManager tool calls', () => {
       .mockResolvedValueOnce(finalTextStream('done'))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'move it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(to, 'utf-8')).toBe('content')
     await expect(readFileFs(from, 'utf-8')).rejects.toThrow()
@@ -513,18 +516,18 @@ describe('CosmosManager system prompt', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   function setup() {
-    const win = { webContents: { send: vi.fn() } } as any
-    const manager = new CosmosManager(win)
+    const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const manager = new CosmosManager()
     manager.registerHandlers()
-    return handlers['cosmos:send']
+    return { win, sendHandler: handlers['cosmos:send'] }
   }
 
   it('prepends the tool-priority system message when none is present', async () => {
-    const sendHandler = setup()
+    const { win, sendHandler } = setup()
     const fetchMock = vi.fn().mockResolvedValueOnce(sseStream(['data: [DONE]\n\n']))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
+    await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[0].role).toBe('system')
@@ -533,11 +536,11 @@ describe('CosmosManager system prompt', () => {
   })
 
   it('does not duplicate the system message if one is already present', async () => {
-    const sendHandler = setup()
+    const { win, sendHandler } = setup()
     const fetchMock = vi.fn().mockResolvedValueOnce(sseStream(['data: [DONE]\n\n']))
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendHandler({}, {
+    await sendHandler({ sender: win }, {
       cwd: '/project',
       messages: [{ role: 'system', content: 'custom' }, { role: 'user', content: 'hi' }],
       agentMode: false,
@@ -553,8 +556,7 @@ describe('CosmosManager cosmos:testConnection', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   function setup() {
-    const win = { webContents: { send: vi.fn() } } as any
-    const manager = new CosmosManager(win)
+    const manager = new CosmosManager()
     manager.registerHandlers()
     return handlers['cosmos:testConnection']
   }
