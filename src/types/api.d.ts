@@ -129,6 +129,9 @@ declare global {
       browserViewGoBack: (id: string) => Promise<void>
       browserViewGoForward: (id: string) => Promise<void>
       browserViewReload: (id: string) => Promise<void>
+      browserViewZoomIn: (id: string) => Promise<void>
+      browserViewZoomOut: (id: string) => Promise<void>
+      browserViewZoomReset: (id: string) => Promise<void>
       browserViewDestroy: (id: string) => Promise<void>
       onBrowserViewEvent: (cb: (id: string, event: BrowserViewEvent) => void) => () => void
 

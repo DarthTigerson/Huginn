@@ -134,6 +134,9 @@ contextBridge.exposeInMainWorld('api', {
   browserViewGoBack: (id: string) => ipcRenderer.invoke('browserView:goBack', id),
   browserViewGoForward: (id: string) => ipcRenderer.invoke('browserView:goForward', id),
   browserViewReload: (id: string) => ipcRenderer.invoke('browserView:reload', id),
+  browserViewZoomIn: (id: string) => ipcRenderer.invoke('browserView:zoomIn', id),
+  browserViewZoomOut: (id: string) => ipcRenderer.invoke('browserView:zoomOut', id),
+  browserViewZoomReset: (id: string) => ipcRenderer.invoke('browserView:zoomReset', id),
   browserViewDestroy: (id: string) => ipcRenderer.invoke('browserView:destroy', id),
   onBrowserViewEvent: (cb: (id: string, event: import('./browserViews').BrowserViewEvent) => void) => {
     const handler = (_: Electron.IpcRendererEvent, id: string, event: import('./browserViews').BrowserViewEvent) =>
