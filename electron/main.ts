@@ -212,6 +212,9 @@ function buildMenu(): void {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    app.dock?.setIcon(join(__dirname, '../../icon.png'))
+  }
   buildMenu()
   registerFsHandlers()
   registerCosmosSettingsHandlers()
