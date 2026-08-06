@@ -258,6 +258,7 @@ export default function App() {
 
   useEffect(() => {
     return window.api.onMenuNewTerminal(() => {
+      if (!useFileStore.getState().projectRoot) return
       openNewTerminal()
     })
   }, [])
