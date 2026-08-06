@@ -50,6 +50,10 @@ describe('GitWatcher multi-window isolation', () => {
     handlers['git:watchRoot']({ sender: winB }, '/project/b')
 
     expect(watchMock).toHaveBeenCalledTimes(2)
+    // Neither watcher was torn down by the other window's call — proves the
+    // two are independent state, not one shared watcher recreated per call.
+    expect(watcherInstances[0].close).not.toHaveBeenCalled()
+    expect(watcherInstances[1].close).not.toHaveBeenCalled()
   })
 
   it('disposeWindow closes only that window\'s watcher', () => {
