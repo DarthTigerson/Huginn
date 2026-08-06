@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useGitLogStore } from '@/stores/gitLogStore'
-import { useThemeStore } from '@/stores/themeStore'
+import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 
@@ -15,14 +15,18 @@ export function GitLogView() {
     bottomRef.current?.scrollIntoView()
   }, [text])
 
-  const isDark = theme === 'claude-dark' || theme === 'codex-dark'
+  // Reuse the same per-theme palette the real terminal (TerminalTab.tsx) is
+  // themed with — a hardcoded claude/codex-only dark check here used to leave
+  // this looking unthemed (wrong-colored background) for every other theme,
+  // including both thomas variants.
+  const xtermTheme = XTERM_THEMES[theme]
 
   return (
     <div
       className="h-full overflow-auto p-4"
       style={{
-        background: isDark ? '#1a1a1a' : '#ffffff',
-        color: isDark ? '#d4d4d4' : '#1f1f1f',
+        background: xtermTheme.background,
+        color: xtermTheme.foreground,
         fontFamily: font,
         fontSize,
       }}

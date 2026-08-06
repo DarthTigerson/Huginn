@@ -33,6 +33,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     category: 'Project',
     items: [
       { keys: ['⌘', 'W'], label: 'Close Tab' },
+      { keys: ['⌘', '⇧', 'T'], label: 'Reopen Closed Tab' },
       { keys: ['⌘', '⇧', 'O'], label: 'Open Project' },
     ],
   },

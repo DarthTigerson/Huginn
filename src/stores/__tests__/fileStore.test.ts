@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useFileStore } from '../fileStore'
+import { useEditorStore } from '../editorStore'
 import type { FileNode } from '@/types/index'
 
 const mockTree: FileNode[] = [
@@ -28,6 +29,7 @@ describe('fileStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
     useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null })
+    useEditorStore.getState().resetForNewProject()
   })
 
   it('starts empty', () => {
@@ -48,6 +50,19 @@ describe('fileStore', () => {
     vi.mocked(window.api.openFolder).mockResolvedValueOnce(null)
     await useFileStore.getState().openFolder()
     expect(useFileStore.getState().projectRoot).toBeNull()
+  })
+
+  it('openFolder closes tabs left over from the previous project', async () => {
+    await useFileStore.getState().openFolder()
+    useEditorStore.getState().openTab({ path: '/proj/a.ts', content: '', dirty: false })
+    expect(useEditorStore.getState().tabs).toHaveLength(1)
+
+    vi.mocked(window.api.openFolder).mockResolvedValueOnce('/other-proj')
+    vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    await useFileStore.getState().openFolder()
+
+    expect(useFileStore.getState().projectRoot).toBe('/other-proj')
+    expect(useEditorStore.getState().tabs).toHaveLength(0)
   })
 
   it('expandDir updates the matching node children in the tree', async () => {

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useSearchStore } from '@/stores/searchStore'
 
-const DOUBLE_TAP_MS = 300
+const TAP_GAP_MS = 300
+const TAPS_REQUIRED = 3
 
 export function useHoldToShowShortcuts() {
   const lastReleaseRef = useRef<number>(0)
+  const tapCountRef = useRef<number>(0)
 
   useEffect(() => {
     function closeIfOpen() {
@@ -18,8 +20,12 @@ export function useHoldToShowShortcuts() {
 
       if (isModifier) {
         const now = Date.now()
-        if (lastReleaseRef.current > 0 && now - lastReleaseRef.current <= DOUBLE_TAP_MS) {
-          lastReleaseRef.current = 0
+        tapCountRef.current =
+          lastReleaseRef.current > 0 && now - lastReleaseRef.current <= TAP_GAP_MS ? tapCountRef.current + 1 : 1
+        lastReleaseRef.current = 0
+
+        if (tapCountRef.current >= TAPS_REQUIRED) {
+          tapCountRef.current = 0
           const { commandPaletteOpen, searchOpen, actionPaletteOpen, shortcutsOverlayOpen, openShortcutsOverlay, closeShortcutsOverlay } =
             useSearchStore.getState()
           if (shortcutsOverlayOpen) {
@@ -32,6 +38,7 @@ export function useHoldToShowShortcuts() {
       }
 
       // Any non-modifier key cancels the tap sequence and closes the overlay
+      tapCountRef.current = 0
       lastReleaseRef.current = 0
       closeIfOpen()
     }
@@ -43,6 +50,7 @@ export function useHoldToShowShortcuts() {
     }
 
     function onBlur() {
+      tapCountRef.current = 0
       lastReleaseRef.current = 0
       closeIfOpen()
     }

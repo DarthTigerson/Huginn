@@ -9,6 +9,7 @@ describe('editorStore', () => {
     activePaneId: 'pane-1',
     paneTabs: { 'pane-1': null },
     paneTabLists: { 'pane-1': [] },
+    closedTabs: [],
   }))
 
   it('starts empty', () => {
@@ -49,6 +50,61 @@ describe('editorStore', () => {
     store.closeActiveTab()
     expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts'])
     expect(useEditorStore.getState().activeTabPath).toBe('/a.ts')
+  })
+
+  it('reopenLastClosed restores the most recently closed tab, including unsaved content', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: 'unsaved edit', dirty: true })
+    store.closeTab('/b.ts')
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts'])
+
+    store.reopenLastClosed()
+    const { tabs, activeTabPath } = useEditorStore.getState()
+    expect(tabs.map((t) => t.path)).toEqual(['/a.ts', '/b.ts'])
+    expect(activeTabPath).toBe('/b.ts')
+    expect(tabs.find((t) => t.path === '/b.ts')).toMatchObject({ content: 'unsaved edit', dirty: true })
+  })
+
+  it('reopenLastClosed does nothing when there is no closed-tab history', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.reopenLastClosed()
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts'])
+  })
+
+  it('reopenLastClosed pops closed tabs in LIFO order', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.closeTab('/a.ts')
+    store.closeTab('/b.ts')
+
+    store.reopenLastClosed()
+    expect(useEditorStore.getState().activeTabPath).toBe('/b.ts')
+    store.reopenLastClosed()
+    expect(useEditorStore.getState().activeTabPath).toBe('/a.ts')
+  })
+
+  it('does not record a tab as closed when it stays open in another pane', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/b.ts', content: '', dirty: false })
+    store.setActive('/a.ts')
+    store.splitActivePane('vertical')
+    const newPaneId = useEditorStore.getState().activePaneId
+
+    // Re-open /a.ts in pane-1 too, so it's now showing in both panes.
+    store.setActivePane('pane-1')
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+
+    // Closing it in one pane shouldn't push it onto the closed-tabs stack
+    // since it's still open in the other.
+    store.closeTabInPane('pane-1', '/a.ts')
+    expect(useEditorStore.getState().closedTabs).toHaveLength(0)
+
+    store.closeTabInPane(newPaneId, '/a.ts')
+    expect(useEditorStore.getState().closedTabs).toHaveLength(1)
   })
 
   it('moveTab reorders tabs in the active pane', () => {

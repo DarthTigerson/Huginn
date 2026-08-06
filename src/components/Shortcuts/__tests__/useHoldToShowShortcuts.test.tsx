@@ -11,12 +11,15 @@ function keyup(key: string) {
   window.dispatchEvent(new KeyboardEvent('keyup', { key, metaKey: false, bubbles: true }))
 }
 
-function doubleTap(msBetween = 100) {
+function tripleTap(msBetween = 100) {
   const now = Date.now()
   vi.setSystemTime(now)
   keydown('Meta')
   keyup('Meta')
   vi.setSystemTime(now + msBetween)
+  keydown('Meta')
+  keyup('Meta')
+  vi.setSystemTime(now + msBetween * 2)
   keydown('Meta')
 }
 
@@ -37,10 +40,10 @@ describe('useHoldToShowShortcuts', () => {
     vi.useRealTimers()
   })
 
-  it('opens the overlay on double-tap of Meta within 300ms', () => {
+  it('opens the overlay on triple-tap of Meta within 300ms per gap', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
 
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
   })
@@ -53,24 +56,49 @@ describe('useHoldToShowShortcuts', () => {
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)
   })
 
-  it('does not open when the gap between taps exceeds 300ms', () => {
+  it('does not open on a double-tap alone', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(301) })
+    const now = Date.now()
+    vi.setSystemTime(now)
+    act(() => {
+      keydown('Meta')
+      keyup('Meta')
+      vi.setSystemTime(now + 100)
+      keydown('Meta')
+    })
 
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)
   })
 
-  it('toggles the overlay closed on a second double-tap', () => {
+  it('does not open when a gap between taps exceeds 300ms', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    const now = Date.now()
+    vi.setSystemTime(now)
+    act(() => {
+      keydown('Meta')
+      keyup('Meta')
+      vi.setSystemTime(now + 301)
+      keydown('Meta')
+      keyup('Meta')
+      vi.setSystemTime(now + 401)
+      keydown('Meta')
+    })
+
+    expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)
+  })
+
+  it('toggles the overlay closed on a second triple-tap', () => {
+    renderHook(() => useHoldToShowShortcuts())
+
+    act(() => { tripleTap(100) })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
 
-    // Advance past the double-tap window so the second sequence starts fresh
+    // Advance past the tap window so the second sequence starts fresh
     act(() => {
       vi.setSystemTime(Date.now() + 400)
-      doubleTap(100)
+      tripleTap(100)
     })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)
   })
@@ -78,7 +106,7 @@ describe('useHoldToShowShortcuts', () => {
   it('closes the overlay when a non-modifier key is pressed', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
 
     act(() => { keydown('t') })
@@ -88,7 +116,7 @@ describe('useHoldToShowShortcuts', () => {
   it('closes the overlay when Escape is pressed', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
 
     act(() => { keydown('Escape') })
@@ -98,7 +126,7 @@ describe('useHoldToShowShortcuts', () => {
   it('closes the overlay on window blur', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
 
     act(() => { window.dispatchEvent(new Event('blur')) })
@@ -109,7 +137,7 @@ describe('useHoldToShowShortcuts', () => {
     useSearchStore.setState({ commandPaletteOpen: true })
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
 
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)
   })
@@ -117,7 +145,7 @@ describe('useHoldToShowShortcuts', () => {
   it('overlay stays open after releasing Meta', () => {
     renderHook(() => useHoldToShowShortcuts())
 
-    act(() => { doubleTap(100) })
+    act(() => { tripleTap(100) })
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(true)
 
     act(() => { keyup('Meta') })
@@ -132,6 +160,8 @@ describe('useHoldToShowShortcuts', () => {
       keyup('Meta')
       keydown('t')   // interrupts the sequence
       keydown('Meta') // second tap, but sequence was cancelled
+      keyup('Meta')
+      keydown('Meta') // would-be third tap of the original sequence
     })
 
     expect(useSearchStore.getState().shortcutsOverlayOpen).toBe(false)

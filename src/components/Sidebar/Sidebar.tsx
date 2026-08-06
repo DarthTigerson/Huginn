@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
@@ -6,6 +6,9 @@ import { useEditorStore } from '@/stores/editorStore'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { FileTree, type TreePromptState } from './FileTree'
 import { Modal } from '@/components/ui/Modal'
+import { clampToViewport } from '@/components/ui/clampToViewport'
+import { buildTerminalPath } from '@/components/Settings/paths'
+import { pendingTerminalCommands } from '@/components/Terminal/TerminalTab'
 
 type CreateKind = 'file' | 'directory'
 
@@ -22,6 +25,10 @@ function dirname(path: string): string {
 
 function joinPath(dir: string, name: string): string {
   return `${dir.replace(/\/$/, '')}/${name}`
+}
+
+function shellQuote(path: string): string {
+  return `'${path.replace(/'/g, `'\\''`)}'`
 }
 
 function copyText(text: string): void {
@@ -41,6 +48,7 @@ export function Sidebar() {
   const { projectRoot, tree, openFolder, refreshRoot, expandDir } = useFileStore()
   const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [prompt, setPrompt] = useState<TreePromptState | null>(null)
   const [autoExpandPath, setAutoExpandPath] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null)
@@ -94,6 +102,18 @@ export function Sidebar() {
     }
   }, [menu])
 
+  // The menu's real height depends on which items it shows (file vs
+  // directory, has-parent vs root), so a hardcoded size estimate at the
+  // click site can under-guess it and let the menu overhang the window.
+  // Measure the actual rendered element and clamp for real, before paint.
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const clamped = clampToViewport(menu.x, menu.y, rect.width, rect.height)
+    menuRef.current.style.left = `${clamped.x}px`
+    menuRef.current.style.top = `${clamped.y}px`
+  }, [menu])
+
   function targetDirectory(node: FileNode | null): string | null {
     if (!projectRoot) return null
     if (!node) return projectRoot
@@ -103,11 +123,7 @@ export function Sidebar() {
   function openContextMenu(event: MouseEvent, node: FileNode | null) {
     event.preventDefault()
     event.stopPropagation()
-    setMenu({
-      x: Math.min(event.clientX, window.innerWidth - 184),
-      y: Math.min(event.clientY, window.innerHeight - 260),
-      node,
-    })
+    setMenu({ x: event.clientX, y: event.clientY, node })
   }
 
   async function startCreate(kind: CreateKind, node: FileNode | null) {
@@ -184,6 +200,13 @@ export function Sidebar() {
     setDeleteTarget(node)
   }
 
+  function runScript(node: FileNode) {
+    setMenu(null)
+    const id = Date.now().toString(36)
+    pendingTerminalCommands.set(id, `bash ${shellQuote(node.path)}\n`)
+    openTab({ path: buildTerminalPath(id), content: '', dirty: false })
+  }
+
   async function trashNode(node: FileNode) {
     await window.api.trashPath(node.path)
     useEditorStore.getState().markTabsMissingForDeletedPath(node.path)
@@ -220,6 +243,7 @@ export function Sidebar() {
 
           {menu && (
             <div
+              ref={menuRef}
               className="fixed z-[200] w-44 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
               style={{ left: menu.x, top: menu.y }}
               onClick={(event) => event.stopPropagation()}
@@ -227,6 +251,11 @@ export function Sidebar() {
               {menu.node && !menu.node.isDirectory && (
                 <ContextMenuButton onClick={() => openFile(menu.node!)}>
                   Open / Edit
+                </ContextMenuButton>
+              )}
+              {menu.node && !menu.node.isDirectory && menu.node.name.endsWith('.sh') && (
+                <ContextMenuButton onClick={() => runScript(menu.node!)}>
+                  Run
                 </ContextMenuButton>
               )}
               <ContextMenuButton onClick={() => startCreate('file', menu.node)}>

@@ -37,6 +37,7 @@ import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
 import { useCosmosStore } from './stores/cosmosStore'
 import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
+import { useModelSettingsStore } from './stores/modelSettingsStore'
 import { useGitStore } from './stores/gitStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
@@ -90,6 +91,8 @@ export default function App() {
   const usageOpen = useClaudeStore((s) => s.usageOpen)
   const setAssistant = useClaudeStore((s) => s.setAssistant)
   const chatVisible = useClaudeStore((s) => s.chatVisible)
+  const enabledModels = useModelSettingsStore((s) => s.enabled)
+  const visibleAssistantOptions = ASSISTANT_OPTIONS.filter((option) => enabledModels[option.id])
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
   const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'settings' | null>('files')
   const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'settings'>('files')
@@ -162,6 +165,12 @@ export default function App() {
   }, [leftPanel])
 
   useEffect(() => {
+    if (enabledModels[assistant]) return
+    const fallback = ASSISTANT_OPTIONS.find((option) => enabledModels[option.id])
+    if (fallback) setAssistant(fallback.id)
+  }, [enabledModels, assistant, setAssistant])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault()
@@ -181,10 +190,14 @@ export default function App() {
         e.preventDefault()
         useSearchStore.getState().openActionPalette()
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 't' && !e.shiftKey) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 't') {
         if (!useFileStore.getState().projectRoot) return
         e.preventDefault()
         openNewTerminal()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        useEditorStore.getState().reopenLastClosed()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'l' && !e.shiftKey) {
         e.preventDefault()
@@ -275,7 +288,7 @@ export default function App() {
           </button>
           {assistantMenuOpen && (
             <div className="fixed right-3 top-9 z-[100] w-40 rounded border border-border bg-sidebar p-1 shadow-2xl shadow-black/50">
-              {ASSISTANT_OPTIONS.map((option) => {
+              {visibleAssistantOptions.map((option) => {
                 const selected = option.id === assistant
                 return (
                   <button

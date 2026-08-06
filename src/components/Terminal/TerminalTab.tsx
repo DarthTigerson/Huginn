@@ -23,6 +23,13 @@ interface TerminalInstance {
 // (split pane reflows, StrictMode double-invoke, tab switching)
 const liveTerminals = new Map<string, TerminalInstance>()
 
+// A command queued to run as soon as a fresh terminal with this id finishes
+// spawning — e.g. the file tree's "Run" action on a .sh file, which opens a
+// brand-new terminal and needs the script to execute in it. Set this before
+// opening the tab; TerminalTab writes and clears it once its own spawn
+// promise resolves, so the write can never race ahead of the PTY existing.
+export const pendingTerminalCommands = new Map<string, string>()
+
 function hasValidSize(cols: number, rows: number): boolean {
   return cols > 0 && rows > 0
 }
@@ -67,9 +74,15 @@ export function TerminalTab({ terminalId }: Props) {
       liveTerminals.set(terminalId, instance)
 
       const cwd = useFileStore.getState().projectRoot ?? undefined
-      window.api.termSpawn(terminalId, cwd)
+      const spawnPromise = window.api.termSpawn(terminalId, cwd)
       // Register once — survives remounts because the instance stays in liveTerminals
       xterm.onData((data) => window.api.termWrite(terminalId, data))
+
+      const pendingCommand = pendingTerminalCommands.get(terminalId)
+      if (pendingCommand) {
+        pendingTerminalCommands.delete(terminalId)
+        spawnPromise.then(() => window.api.termWrite(terminalId, pendingCommand))
+      }
       // CmdOrCtrl+=/-/0 (unshifted) resize just this terminal; shifted variants are
       // left unhandled so they pass through to the app-level global zoom shortcut.
       xterm.attachCustomKeyEventHandler((event) => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { FileNode } from '@/types/index'
+import { useEditorStore } from './editorStore'
 
 function setNodeChildren(
   nodes: FileNode[],
@@ -55,8 +56,14 @@ export const useFileStore = create<FileState>((set, get) => ({
     const root = await window.api.openFolder()
     if (!root) return
     const tree = await window.api.readDir(root)
+    const previousRoot = get().projectRoot
     localStorage.setItem(LAST_ROOT_KEY, root)
     set({ projectRoot: root, tree })
+    // Every open tab (file/terminal/browser) points at the old repo — start
+    // the new one clean rather than leaving them dangling around.
+    if (previousRoot !== null && previousRoot !== root) {
+      useEditorStore.getState().resetForNewProject()
+    }
   },
 
   expandDir: async (dirPath: string) => {

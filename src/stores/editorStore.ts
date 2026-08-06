@@ -53,6 +53,9 @@ interface EditorState {
   closeTabInPane: (paneId: string, path: string) => void
   closeTab: (path: string) => void
   closeActiveTab: () => void
+  closedTabs: { tab: Tab; paneId: string }[]
+  reopenLastClosed: () => void
+  resetForNewProject: () => void
   moveTabWithinPane: (paneId: string, path: string, targetPath: string, placement: 'before' | 'after') => void
   moveTab: (path: string, targetPath: string, placement: 'before' | 'after') => void
   moveTabBetweenPanes: (sourcePaneId: string, targetPaneId: string, path: string) => void
@@ -76,6 +79,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activePaneId: ROOT_PANE_ID,
   paneTabs: { [ROOT_PANE_ID]: null },
   paneTabLists: { [ROOT_PANE_ID]: [] },
+  closedTabs: [],
   revealRequest: null,
   setRevealRequest: (req) => set({ revealRequest: req }),
   clearRevealRequest: () => set({ revealRequest: null }),
@@ -123,6 +127,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     )
     const newTabs = stillInAnotherPane ? state.tabs : state.tabs.filter((t) => t.path !== path)
 
+    // Only record it as "closed" (for Cmd+Shift+T) once it's no longer open
+    // anywhere — removing it from just one pane while it stays open in
+    // another isn't really closing it.
+    const closedTab = state.tabs.find((t) => t.path === path)
+    const closedTabs =
+      !stillInAnotherPane && closedTab
+        ? [...state.closedTabs, { tab: closedTab, paneId }].slice(-20)
+        : state.closedTabs
+
     const otherPaneIds = allPaneIds.filter((pid) => pid !== paneId)
     const shouldCollapse = newPaneList.length === 0 && otherPaneIds.length > 0
 
@@ -147,6 +160,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         activeTabPath: newActiveTabPath,
         paneTabs: newPaneTabs,
         paneTabLists: newPaneTabLists,
+        closedTabs,
       })
     } else {
       set({
@@ -154,6 +168,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         activeTabPath: state.activePaneId === paneId ? newPaneActive : state.activeTabPath,
         paneTabs: { ...state.paneTabs, [paneId]: newPaneActive },
         paneTabLists: { ...state.paneTabLists, [paneId]: newPaneList },
+        closedTabs,
       })
     }
   },
@@ -168,6 +183,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const path = paneTabs[activePaneId]
     if (path) closeTabInPane(activePaneId, path)
   },
+
+  reopenLastClosed: () =>
+    set((state) => {
+      if (state.closedTabs.length === 0) return state
+      const closedTabs = state.closedTabs.slice(0, -1)
+      const { tab, paneId } = state.closedTabs[state.closedTabs.length - 1]
+
+      const paneIds = collectPaneIds(state.layout)
+      const targetPaneId = paneIds.includes(paneId) ? paneId : state.activePaneId
+
+      const alreadyOpen = state.tabs.some((t) => t.path === tab.path)
+      const currentList = state.paneTabLists[targetPaneId] ?? []
+      const alreadyInPane = currentList.includes(tab.path)
+
+      return {
+        closedTabs,
+        tabs: alreadyOpen ? state.tabs : [...state.tabs, tab],
+        activePaneId: targetPaneId,
+        activeTabPath: tab.path,
+        paneTabs: { ...state.paneTabs, [targetPaneId]: tab.path },
+        paneTabLists: alreadyInPane
+          ? state.paneTabLists
+          : { ...state.paneTabLists, [targetPaneId]: [...currentList, tab.path] },
+      }
+    }),
+
+  // Switching to a different project root leaves every open tab (file,
+  // terminal, browser) pointing at the old repo — close everything so the
+  // window starts clean for the new one, the same way opening a fresh
+  // window would. Unmounting TerminalTab/BrowserTab instances (which
+  // happens once they're no longer in `tabs`) is what tears down their
+  // underlying PTY/WebContentsView.
+  resetForNewProject: () =>
+    set({
+      tabs: [],
+      activeTabPath: null,
+      layout: createDefaultLayout(),
+      activePaneId: ROOT_PANE_ID,
+      paneTabs: { [ROOT_PANE_ID]: null },
+      paneTabLists: { [ROOT_PANE_ID]: [] },
+      closedTabs: [],
+      revealRequest: null,
+    }),
 
   moveTabWithinPane: (paneId: string, path: string, targetPath: string, placement: 'before' | 'after') =>
     set((state) => {

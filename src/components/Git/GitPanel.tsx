@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
@@ -8,6 +8,7 @@ import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { buildGitDiffPath } from './paths'
 import { GIT_BRANCH_DIFF_TAB_PATH, GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { Modal } from '@/components/ui/Modal'
+import { clampToViewport } from '@/components/ui/clampToViewport'
 import { FileRow } from './FileRow'
 
 const pillButtonClass =
@@ -26,6 +27,7 @@ export function GitPanel() {
     status,
     commitMessage,
     commitError,
+    commandStatus,
     refreshStatus,
     stage,
     unstage,
@@ -34,11 +36,15 @@ export function GitPanel() {
     discard,
     setCommitMessage,
     commit,
+    fetch: gitFetch,
+    pull,
+    push,
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
 
   useEffect(() => {
@@ -60,15 +66,21 @@ export function GitPanel() {
     }
   }, [menu])
 
+  // Measure the actual rendered menu and clamp for real, before paint —
+  // a hardcoded size estimate at the click site can under-guess it and let
+  // the menu overhang the window.
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const clamped = clampToViewport(menu.x, menu.y, rect.width, rect.height)
+    menuRef.current.style.left = `${clamped.x}px`
+    menuRef.current.style.top = `${clamped.y}px`
+  }, [menu])
+
   function openContextMenu(event: MouseEvent, file: GitFileEntry, staged: boolean) {
     event.preventDefault()
     event.stopPropagation()
-    setMenu({
-      x: Math.min(event.clientX, window.innerWidth - 176),
-      y: Math.min(event.clientY, window.innerHeight - 200),
-      file,
-      staged,
-    })
+    setMenu({ x: event.clientX, y: event.clientY, file, staged })
   }
 
   function openDiff(path: string, staged: boolean) {
@@ -95,6 +107,7 @@ export function GitPanel() {
 
   const isUntracked = menu?.file.status === '?'
   const isTrackedChange = menu && !menu.staged && menu.file.status !== '?'
+  const remoteActionDisabled = commandStatus === 'running' || !projectRoot
 
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
@@ -178,6 +191,30 @@ export function GitPanel() {
         <button
           type="button"
           className={pillButtonClass}
+          disabled={remoteActionDisabled}
+          onClick={() => projectRoot && gitFetch(projectRoot)}
+        >
+          Fetch
+        </button>
+        <button
+          type="button"
+          className={pillButtonClass}
+          disabled={remoteActionDisabled}
+          onClick={() => projectRoot && pull(projectRoot)}
+        >
+          Pull
+        </button>
+        <button
+          type="button"
+          className={pillButtonClass}
+          disabled={remoteActionDisabled}
+          onClick={() => projectRoot && push(projectRoot)}
+        >
+          Push
+        </button>
+        <button
+          type="button"
+          className={pillButtonClass}
           onClick={() => {
             openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
             if (projectRoot) loadGraph(projectRoot)
@@ -196,6 +233,7 @@ export function GitPanel() {
 
       {menu && (
         <div
+          ref={menuRef}
           className="fixed z-[200] w-44 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
           style={{ left: menu.x, top: menu.y }}
           onClick={(e) => e.stopPropagation()}
