@@ -23,12 +23,23 @@ export class PtyManager {
   registerHandlers(): void {
     ipcMain.handle('term:spawn', (_event, id: string, cwd?: string) => {
       if (this.procs.has(id)) return
+      // Electron's own process env sometimes carries an EDITOR/VISUAL set by
+      // whatever dev tooling launched it (e.g. "vi"), not by the user's shell
+      // profile. zsh auto-switches its line editor into vi mode whenever
+      // $VISUAL/$EDITOR ends in "vi", which silently drops the emacs-style
+      // bindings readline users expect (Ctrl+R history search, Ctrl+A/E
+      // line navigation — Ctrl+C still works since SIGINT is a TTY signal,
+      // not a keymap binding). Stripping these lets the shell fall back to
+      // its normal interactive default instead of inheriting Electron's.
+      const env = { ...(process.env as Record<string, string>) }
+      delete env.EDITOR
+      delete env.VISUAL
       const proc = pty.spawn(shell, [], {
         name: 'xterm-color',
         cols: 80,
         rows: 24,
         cwd: cwd ?? process.env.HOME,
-        env: process.env as Record<string, string>,
+        env,
       })
       this.procs.set(id, proc)
       proc.onData((data) => {
