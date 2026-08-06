@@ -39,6 +39,7 @@ import { useCosmosStore } from './stores/cosmosStore'
 import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useModelSettingsStore } from './stores/modelSettingsStore'
 import { useGitStore } from './stores/gitStore'
+import { useMobileStore } from './stores/mobileStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
 import { useFontSizeStore } from './stores/fontSizeStore'
@@ -113,6 +114,8 @@ export default function App() {
     ...gitStatus.unstaged.map((file) => file.path),
   ]).size
   const gitBadge = uncommittedChangeCount > 99 ? '99+' : uncommittedChangeCount || undefined
+  const mobileState = useMobileStore((s) => s.state)
+  const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -138,6 +141,7 @@ export default function App() {
 
   useEffect(() => {
     useCosmosSettingsStore.getState().init()
+    useMobileStore.getState().init()
   }, [])
 
   useEffect(() => {
@@ -359,6 +363,7 @@ export default function App() {
               icon: <PhoneIcon />,
               title: 'Mobile Display',
               active: leftPanel === 'mobile',
+              badge: mobileBadge,
               onClick: () => setLeftPanel((p) => (p === 'mobile' ? null : 'mobile')),
             },
           ]]}

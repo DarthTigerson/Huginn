@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MobileState } from '@/types/api'
+import { useMobileStore } from '@/stores/mobileStore'
 
 function PinDisplay({ pin }: { pin: string }) {
   return (
@@ -74,26 +74,17 @@ function QRImage({ svg }: { svg: string }) {
 }
 
 export function MobileDisplayPanel() {
-  const [state, setState] = useState<MobileState>({
-    running: false,
-    port: 7842,
-    localIp: '127.0.0.1',
-    pin: '',
-    qrSvg: '',
-    connectedCount: 0,
-  })
+  const state = useMobileStore((s) => s.state)
   const [toggling, setToggling] = useState(false)
   const pinRotatedRef = useRef<() => void>(() => {})
   const stableOnExpire = useRef(() => pinRotatedRef.current())
 
   useEffect(() => {
-    window.api.mobileGetState().then(setState)
-    const off = window.api.onMobileState(setState)
-    return off
+    useMobileStore.getState().init()
   }, [])
 
   useEffect(() => {
-    pinRotatedRef.current = () => window.api.mobileGetState().then(setState)
+    pinRotatedRef.current = () => window.api.mobileGetState().then((s) => useMobileStore.setState({ state: s }))
   }, [state.pin])
 
   async function toggle() {
