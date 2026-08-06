@@ -3,6 +3,12 @@ import { watch, type FSWatcher } from 'chokidar'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
+interface WindowState {
+  watcher: FSWatcher | null
+  debounceTimer: ReturnType<typeof setTimeout> | null
+  cwd: string | null
+}
+
 // Renderer only learns about git state changes it caused itself (staging,
 // committing, etc. through the UI) or on window focus. Commands run directly
 // in the integrated terminal (checkout, commit, pull, merge...) never trigger
@@ -10,31 +16,28 @@ import { join } from 'path'
 // git itself mutates on any state change lets us push a refresh regardless of
 // where the command came from.
 export class GitWatcher {
-  private watcher: FSWatcher | null = null
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null
-  private cwd: string | null = null
-  private win: BrowserWindow
-
-  constructor(win: BrowserWindow) {
-    this.win = win
-  }
+  private byWindow = new Map<number, WindowState>()
 
   registerHandlers(): void {
-    ipcMain.on('git:watchRoot', (_event, cwd: string | null) => {
-      if (cwd) this.watchRoot(cwd)
-      else this.stop()
+    ipcMain.on('git:watchRoot', (event, cwd: string | null) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      if (cwd) this.watchRoot(win, cwd)
+      else this.stop(win.id)
     })
   }
 
-  private watchRoot(cwd: string): void {
-    if (this.cwd === cwd && this.watcher) return
-    this.stop()
+  private watchRoot(win: BrowserWindow, cwd: string): void {
+    const state = this.stateFor(win.id)
+    if (state.cwd === cwd && state.watcher) return
+    this.stop(win.id)
 
     const gitDir = join(cwd, '.git')
     if (!existsSync(gitDir)) return
 
-    this.cwd = cwd
-    this.watcher = watch(
+    const freshState = this.stateFor(win.id)
+    freshState.cwd = cwd
+    freshState.watcher = watch(
       [
         join(gitDir, 'HEAD'),
         join(gitDir, 'MERGE_HEAD'),
@@ -44,28 +47,41 @@ export class GitWatcher {
       ],
       { ignoreInitial: true, depth: 5 }
     )
-    this.watcher.on('all', () => this.notifyChanged(cwd))
-    this.watcher.on('error', (err) => console.error('GitWatcher error:', err))
+    freshState.watcher.on('all', () => this.notifyChanged(win, cwd))
+    freshState.watcher.on('error', (err) => console.error('GitWatcher error:', err))
   }
 
-  private notifyChanged(cwd: string): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
-    this.debounceTimer = setTimeout(() => {
-      this.win.webContents.send('git:changed', cwd)
+  private notifyChanged(win: BrowserWindow, cwd: string): void {
+    const state = this.stateFor(win.id)
+    if (state.debounceTimer) clearTimeout(state.debounceTimer)
+    state.debounceTimer = setTimeout(() => {
+      if (!win.isDestroyed()) win.webContents.send('git:changed', cwd)
     }, 300)
   }
 
-  private stop(): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
+  private stateFor(winId: number): WindowState {
+    let state = this.byWindow.get(winId)
+    if (!state) {
+      state = { watcher: null, debounceTimer: null, cwd: null }
+      this.byWindow.set(winId, state)
     }
-    this.watcher?.close()
-    this.watcher = null
-    this.cwd = null
+    return state
   }
 
-  dispose(): void {
-    this.stop()
+  private stop(winId: number): void {
+    const state = this.byWindow.get(winId)
+    if (!state) return
+    if (state.debounceTimer) {
+      clearTimeout(state.debounceTimer)
+      state.debounceTimer = null
+    }
+    state.watcher?.close()
+    state.watcher = null
+    state.cwd = null
+  }
+
+  disposeWindow(winId: number): void {
+    this.stop(winId)
+    this.byWindow.delete(winId)
   }
 }
