@@ -18,6 +18,17 @@ never affect the host app's own UI scale. This is already true of the
 existing Cmd+/- keyboard shortcut; the new menu just needs to keep using the
 same mechanism rather than introduce a second one.
 
+**Keyboard muscle memory is unchanged.** Unshifted Cmd+Equal/Minus/Digit0
+already zooms *only whichever browser tab currently has focus* — the same
+"unshifted = scoped to the focused thing" convention already used by
+`Editor.tsx` (Monaco's `CtrlCmd+Equal/Minus/Digit0` commands →
+`useInstanceFontSizeStore`) and `TerminalTab.tsx` (xterm's custom key
+handler → the same store), with Cmd+Shift+Equal/Minus/0 reserved for the
+global app font size. This plan does not touch the key combo, the shift
+check, or what it's scoped to — `setZoom` only changes *how* the existing
+keyboard branches and the new menu buttons share one clamping/event-emission
+code path, not what triggers either of them.
+
 ## Why this needs more than a UI component
 
 Zoom is currently entirely inside the main process. `browserViews.ts`'s
