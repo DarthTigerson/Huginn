@@ -8,7 +8,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest run",
-    "rebuild": "electron-rebuild -f -w node-pty"
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "node scripts/rebrand-electron.mjs"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^3.0.0",
