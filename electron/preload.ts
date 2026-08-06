@@ -127,6 +127,66 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('menu:resetZoom', handler)
     return () => ipcRenderer.removeListener('menu:resetZoom', handler)
   },
+  onMenuOpenSettings: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:openSettings', handler)
+    return () => ipcRenderer.removeListener('menu:openSettings', handler)
+  },
+  onMenuNewFile: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:newFile', handler)
+    return () => ipcRenderer.removeListener('menu:newFile', handler)
+  },
+  onMenuNewFolder: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:newFolder', handler)
+    return () => ipcRenderer.removeListener('menu:newFolder', handler)
+  },
+  onMenuNewTerminal: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:newTerminal', handler)
+    return () => ipcRenderer.removeListener('menu:newTerminal', handler)
+  },
+  onMenuReopenClosedTab: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:reopenClosedTab', handler)
+    return () => ipcRenderer.removeListener('menu:reopenClosedTab', handler)
+  },
+  onMenuSave: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:save', handler)
+    return () => ipcRenderer.removeListener('menu:save', handler)
+  },
+  onMenuFind: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:find', handler)
+    return () => ipcRenderer.removeListener('menu:find', handler)
+  },
+  onMenuFindInFiles: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:findInFiles', handler)
+    return () => ipcRenderer.removeListener('menu:findInFiles', handler)
+  },
+  onMenuToggleSidebar: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:toggleSidebar', handler)
+    return () => ipcRenderer.removeListener('menu:toggleSidebar', handler)
+  },
+  onMenuCommandPalette: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:commandPalette', handler)
+    return () => ipcRenderer.removeListener('menu:commandPalette', handler)
+  },
+  onMenuActionPalette: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:actionPalette', handler)
+    return () => ipcRenderer.removeListener('menu:actionPalette', handler)
+  },
+  onMenuToggleClaudeChat: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:toggleClaudeChat', handler)
+    return () => ipcRenderer.removeListener('menu:toggleClaudeChat', handler)
+  },
 
   devtoolsAttach: (targetId: number, hostId: number) =>
     ipcRenderer.invoke('devtools:attach', targetId, hostId),

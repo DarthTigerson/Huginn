@@ -105,6 +105,18 @@ declare global {
       onMenuZoomIn: (cb: () => void) => () => void
       onMenuZoomOut: (cb: () => void) => () => void
       onMenuResetZoom: (cb: () => void) => () => void
+      onMenuOpenSettings: (cb: () => void) => () => void
+      onMenuNewFile: (cb: () => void) => () => void
+      onMenuNewFolder: (cb: () => void) => () => void
+      onMenuNewTerminal: (cb: () => void) => () => void
+      onMenuReopenClosedTab: (cb: () => void) => () => void
+      onMenuSave: (cb: () => void) => () => void
+      onMenuFind: (cb: () => void) => () => void
+      onMenuFindInFiles: (cb: () => void) => () => void
+      onMenuToggleSidebar: (cb: () => void) => () => void
+      onMenuCommandPalette: (cb: () => void) => () => void
+      onMenuActionPalette: (cb: () => void) => () => void
+      onMenuToggleClaudeChat: (cb: () => void) => () => void
 
       mobileStart: () => Promise<void>
       mobileStop: () => Promise<void>
