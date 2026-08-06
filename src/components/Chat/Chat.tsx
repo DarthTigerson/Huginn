@@ -154,7 +154,19 @@ export function Chat() {
       isFirstRestart.current = false
       return
     }
-    terminalsRef.current[activeAssistantRef.current]?.xterm.clear()
+    const terminal = terminalsRef.current[activeAssistantRef.current]
+    if (!terminal) return
+    terminal.xterm.clear()
+    // A restart ("New Session" / "Continue Session") spawns a brand-new PTY on
+    // the main-process side, which node-pty always creates at its 80x24
+    // default — nothing there knows this pane's actual size. The xterm
+    // instance itself is untouched by a restart though, so it already holds
+    // the correct, previously-fitted cols/rows; just relay those to the new
+    // PTY instead of leaving it stuck at 80x24 until the panel is manually
+    // resized.
+    if (hasValidSize(terminal.xterm.cols, terminal.xterm.rows)) {
+      window.api.assistantResize(activeAssistantRef.current, terminal.xterm.cols, terminal.xterm.rows)
+    }
   }, [restartToken])
 
   return (
