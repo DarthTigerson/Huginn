@@ -95,10 +95,6 @@ export function Editor() {
       if (!(e.metaKey || e.ctrlKey)) return
 
       const key = e.key.toLowerCase()
-      if (key === 's') {
-        e.preventDefault()
-        saveActiveTab({ allowCreateMissing: true })
-      }
 
       if (key === 'd') {
         e.preventDefault()
@@ -109,6 +105,12 @@ export function Editor() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [splitActivePane])
+
+  useEffect(() => {
+    return window.api.onMenuSave(() => {
+      saveActiveTab({ allowCreateMissing: true })
+    })
+  }, [])
 
   useEffect(() => {
     if (!autoSaveEnabled || !activeTab?.dirty || isReadOnlyTab(activeTab)) return
