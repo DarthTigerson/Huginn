@@ -8,6 +8,7 @@ export interface BrowserTabState {
   canGoForward: boolean
   webContentsId: number | null
   loadError: string | null
+  zoomLevel: number
 }
 
 interface BrowserStore {
@@ -25,6 +26,7 @@ const DEFAULT_STATE: BrowserTabState = {
   canGoForward: false,
   webContentsId: null,
   loadError: null,
+  zoomLevel: 0,
 }
 
 export const useBrowserStore = create<BrowserStore>((set, get) => ({
