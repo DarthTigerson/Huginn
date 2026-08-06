@@ -7,6 +7,9 @@ out/
 # TypeScript composite build artifacts (electron-vite handles the real build)
 electron/**/*.js
 electron/**/*.d.ts
+# ...except electron/mobileWeb, which is hand-written JS served straight to
+# mobile clients (no .ts source, not a compiled artifact) — re-include it.
+!electron/mobileWeb/*.js
 src/**/*.js
 src/**/*.d.ts
 electron.vite.config.js
