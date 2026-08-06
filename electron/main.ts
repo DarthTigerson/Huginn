@@ -116,6 +116,14 @@ function buildMenu(): void {
       label: 'Huginn',
       submenu: [
         { role: 'about' },
+        {
+          label: 'Preferences…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:openSettings')
+          },
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -130,11 +138,52 @@ function buildMenu(): void {
       label: 'File',
       submenu: [
         {
-          label: 'Open New Project…',
-          accelerator: 'CmdOrCtrl+Shift+O',
+          label: 'New File',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newFile')
+          },
+        },
+        {
+          label: 'New Folder',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newFolder')
+          },
+        },
+        {
+          label: 'New Terminal',
+          accelerator: 'CmdOrCtrl+T',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newTerminal')
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Open Project…',
+          accelerator: 'CmdOrCtrl+O',
           click: () => {
             const win = BrowserWindow.getFocusedWindow()
             if (win) win.webContents.send('menu:openProject')
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Reopen Closed Tab',
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:reopenClosedTab')
+          },
+        },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:save')
           },
         },
         { type: 'separator' },
@@ -146,6 +195,7 @@ function buildMenu(): void {
             if (win) win.webContents.send('menu:closeActiveTab')
           },
         },
+        { role: 'close', label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W' },
       ],
     },
     {
@@ -158,6 +208,23 @@ function buildMenu(): void {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Find',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:find')
+          },
+        },
+        {
+          label: 'Find in Files',
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:findInFiles')
+          },
+        },
       ],
     },
     {
@@ -166,6 +233,39 @@ function buildMenu(): void {
         { role: 'reload' },
         { role: 'forceReload' },
         { role: 'toggleDevTools' },
+        { type: 'separator' },
+        {
+          label: 'Toggle Sidebar',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:toggleSidebar')
+          },
+        },
+        {
+          label: 'Command Palette…',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:commandPalette')
+          },
+        },
+        {
+          label: 'Action Palette…',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:actionPalette')
+          },
+        },
+        {
+          label: 'Toggle Claude Chat',
+          accelerator: 'CmdOrCtrl+L',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:toggleClaudeChat')
+          },
+        },
         { type: 'separator' },
         {
           // Unshifted CmdOrCtrl+Plus/Minus/0 are intentionally NOT registered here —
