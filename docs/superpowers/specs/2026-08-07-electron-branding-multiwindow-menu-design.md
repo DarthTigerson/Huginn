@@ -34,17 +34,24 @@ No signing identity configured — builds will be unsigned. Not building `.dmg`/
 
 ### Dev-mode rebrand
 
-`npm run dev` launches the stock `node_modules/electron` binary, whose `Electron.app` bundle (macOS) has "Electron" baked into its `Info.plist` and default icon — this is independent of anything the app's JS does, so `app.name` alone can't fix it.
+`npm run dev` launches the stock `node_modules/electron` binary, whose `Electron.app` bundle (macOS) has "Electron" baked into its `Info.plist` and default icon — this is independent of anything the app's JS does, so `app.name` alone can't fix it (confirmed empirically: `app.name = 'Huginn'` and the app-menu's first-submenu `label: 'Huginn'` are already both set in current code, and the menu bar still shows "Electron").
 
-Add `scripts/rebrand-electron.mjs`, run as a `postinstall` script:
+Two separate mechanisms, because only one of these has a supported runtime API:
 
-1. Locate `node_modules/electron/dist/Electron.app`.
-2. Skip (no-op) if `Contents/Info.plist`'s `CFBundleName` is already `Huginn` (idempotent — safe to re-run).
-3. Edit `Info.plist`: `CFBundleName` → `Huginn`, `CFBundleDisplayName` → `Huginn`.
-4. Generate `Huginn.icns` from `icon.png` (via `iconutil`, building the `.iconset` from `sips`-resized PNGs at the standard sizes) and overwrite `Contents/Resources/electron.icns`.
-5. Only touches the bundle's plist/icon, not `CFBundleExecutable` or the binary itself — renaming the executable is unnecessary (the Dock/menu-bar identity comes from the plist + icon, not the binary filename) and would risk breaking `electron-vite`'s launch path.
+**Dock icon** — Electron exposes `app.dock.setIcon(path)` (macOS only) specifically for this. In `electron/main.ts`'s `whenReady()`, before `createWindow()`:
+```ts
+if (process.platform === 'darwin') app.dock?.setIcon(join(__dirname, '../../icon.png'))
+```
+Robust, officially supported, always in sync with `icon.png`, no bundle patching, no build step. This alone fixes the Dock icon in both dev and (redundantly, harmlessly) in packaged builds.
 
-Runs on every `npm install` (postinstall re-triggers whenever `node_modules/electron` is reinstalled/updated). Failure mode is purely cosmetic: if the script errors, log a warning and continue — dev mode just falls back to showing "Electron", nothing else breaks. This step is genuinely a bit fragile (patching Electron's internals isn't an officially supported flow) and will need to keep working for any future outside contributor's `npm install` too — flagged as the one part of this design most likely to need iteration.
+**Menu-bar app name** — no equivalent runtime API exists; the text next to the apple logo comes from the OS-level running application's bundle identity (`CFBundleName`), which Electron doesn't expose a setter for. This is the one piece that genuinely needs bundle patching. Add `scripts/rebrand-electron.mjs`, run as a `postinstall` script:
+
+1. Locate `node_modules/electron/dist/Electron.app/Contents/Info.plist`.
+2. Skip (no-op) if `CFBundleName` is already `Huginn` (idempotent — safe to re-run).
+3. Edit it: `CFBundleName` → `Huginn`, `CFBundleDisplayName` → `Huginn`.
+4. Does **not** touch `CFBundleExecutable`, the binary, or the icon — just the two name fields. Smaller surface area than originally scoped (icon is handled entirely by `app.dock.setIcon` above), so there's no `.icns`/`iconutil` generation step in dev mode at all — that only happens in packaged builds, where `electron-builder` does it automatically from `icon.png`.
+
+Runs on every `npm install` (postinstall re-triggers whenever `node_modules/electron` is reinstalled/updated). Failure mode is purely cosmetic: if the script errors, log a warning and continue — dev mode just falls back to showing "Electron" in the menu bar (Dock icon still correct either way, since that's independent), nothing else breaks.
 
 ## Part 2 — Multi-window
 
@@ -139,8 +146,9 @@ For every shortcut that moves from "raw keydown listener only" to "menu item + a
 
 ## Rollout
 
-Three independent phases, each shippable/testable on its own, in this order (least risky/most self-contained first):
+Four phases, each shippable/testable on its own. One dependency to call out: the `New Window` and `Recent Projects` menu items (Part 3) only make sense once `createWindow()` can be called more than once with per-window isolation (Part 2) — so those two specific items move after the multi-window work, while every other menu item is independent and comes earlier:
 
 1. **Branding** — icon/name in dev + packaging config. No architecture changes, low risk.
-2. **Menu overhaul** — new items, rebinding, IPC wiring, small sidebar store addition. Touches `main.ts`, `preload.ts`, several renderer stores/components, but no concurrency/isolation concerns.
-3. **Multi-window** — the real architectural change (six manager rewrites + window lifecycle + recents). Built last since it depends on nothing from phase 2 and is the highest-risk piece; keeping it isolated makes it easiest to review/revert independently.
+2. **Menu overhaul, part A** — every new/changed item *except* New Window / Recent Projects / the dynamic Window menu: Preferences, New File/Folder, New Terminal, Open Project rebind, Reopen Closed Tab, Save, Close Window, Find/Find in Files, Toggle Sidebar, Command Palette, Action Palette, Toggle Claude Chat. Touches `main.ts`, `preload.ts`, several renderer stores/components, no concurrency concerns.
+3. **Multi-window** — the real architectural change (six manager rewrites + window lifecycle + recents persistence + project-path bootstrap). Highest-risk piece; kept isolated so it's easiest to review/revert independently.
+4. **Menu overhaul, part B** — New Window, Recent Projects submenu, dynamic Window menu — now that phase 3 gives them something to call.
