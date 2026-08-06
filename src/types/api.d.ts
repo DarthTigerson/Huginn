@@ -110,6 +110,7 @@ declare global {
       mobileStop: () => Promise<void>
       mobileGetState: () => Promise<MobileState>
       mobileAddDevice: () => Promise<void>
+      mobileSetDisplay: (theme: string, font: string) => void
       onMobileState: (cb: (state: MobileState) => void) => () => void
 
       cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void

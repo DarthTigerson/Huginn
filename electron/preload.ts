@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('api', {
   mobileStop: () => ipcRenderer.invoke('mobile:stop'),
   mobileGetState: () => ipcRenderer.invoke('mobile:getState'),
   mobileAddDevice: () => ipcRenderer.invoke('mobile:addDevice'),
+  mobileSetDisplay: (theme: string, font: string) => ipcRenderer.send('mobile:setDisplay', theme, font),
   onMobileState: (cb: (state: import('./mobile').MobileState) => void) => {
     const handler = (_: Electron.IpcRendererEvent, state: import('./mobile').MobileState) => cb(state)
     ipcRenderer.on('mobile:state', handler)

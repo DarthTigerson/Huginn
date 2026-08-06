@@ -1,0 +1,169 @@
+import { describe, it, expect, afterEach } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import {
+  parseUsageText,
+  parseResetAt,
+  downsample,
+  computeBurnRate,
+  UsagePoller,
+  ALLOWED_INTERVALS_MS,
+  type UsageSnapshot,
+} from '../usagePoller'
+
+const SAMPLE_RESULT = `You are currently using your subscription to power your Claude Code usage
+
+Current session: 0% used · resets Aug 7 at 4:20am (Europe/Malta)
+Current week (all models): 9% used · resets Aug 13 at 10am (Europe/Malta)
+
+What's contributing to your limits usage?
+Approximate, based on local sessions on this machine.
+
+Last 24h · 1379 requests · 7 sessions
+  Top skills: /superpowers:writing-plans 2%, /run 2%
+
+Last 7d · 1845 requests · 8 sessions
+  Top skills: /superpowers:brainstorming 3%, /run 2%`
+
+describe('parseResetAt', () => {
+  it('parses a reset line into a local-time epoch', () => {
+    const now = new Date(2026, 7, 6, 12, 0) // Aug 6, 2026, noon
+    const ts = parseResetAt('Current session: 0% used · resets Aug 7 at 4:20am (Europe/Malta)', now)
+    expect(ts).toBe(new Date(2026, 7, 7, 4, 20).getTime())
+  })
+
+  it('rolls to next year across a year boundary', () => {
+    const now = new Date(2026, 11, 30, 12, 0) // Dec 30, 2026
+    const ts = parseResetAt('resets Jan 2 at 9:00am (Europe/Malta)', now)
+    expect(ts).toBe(new Date(2027, 0, 2, 9, 0).getTime())
+  })
+
+  it('returns null when there is no reset line', () => {
+    expect(parseResetAt(undefined)).toBeNull()
+    expect(parseResetAt('Current session: 0% used')).toBeNull()
+  })
+})
+
+describe('parseUsageText', () => {
+  it('extracts percentages, requests, skills, and reset timestamps', () => {
+    const now = new Date(2026, 7, 6, 12, 0)
+    const parsed = parseUsageText(SAMPLE_RESULT, now)
+    expect(parsed).toMatchObject({
+      sessionPct: 0,
+      weeklyPct: 9,
+      requests24h: 1379,
+      requests7d: 1845,
+      topSkills: [
+        { name: 'superpowers:writing-plans', pct: 2 },
+        { name: 'run', pct: 2 },
+      ],
+    })
+    expect(parsed?.sessionResetAt).toBe(new Date(2026, 7, 7, 4, 20).getTime())
+    expect(parsed?.weeklyResetAt).toBe(new Date(2026, 7, 13, 10, 0).getTime())
+  })
+
+  it('returns null when there is no session line at all', () => {
+    expect(parseUsageText('nothing useful here')).toBeNull()
+  })
+})
+
+describe('computeBurnRate', () => {
+  it('computes pct-per-hour from elapsed time in the window', () => {
+    const resetAt = Date.now() + 3 * 3_600_000 // 3h remaining of a 5h window -> 2h elapsed
+    expect(computeBurnRate(10, resetAt, 5)).toBeCloseTo(5, 5)
+  })
+
+  it('returns null with no reset time', () => {
+    expect(computeBurnRate(10, null, 5)).toBeNull()
+  })
+
+  it('guards against a spike in the first few minutes of a window', () => {
+    const resetAt = Date.now() + (5 * 3_600_000 - 60_000) // only 1 minute elapsed
+    expect(computeBurnRate(10, resetAt, 5)).toBeNull()
+  })
+})
+
+describe('downsample', () => {
+  function snap(i: number): UsageSnapshot {
+    return { ts: i, sessionPct: i, weeklyPct: i, requests24h: i, requests7d: i, topSkills: [], sessionResetAt: null, weeklyResetAt: null }
+  }
+
+  it('leaves a series at or under maxPoints unchanged', () => {
+    const snaps = [snap(1), snap(2), snap(3)]
+    expect(downsample(snaps, 5)).toEqual(snaps)
+  })
+
+  it('buckets a longer series down to maxPoints', () => {
+    const snaps = Array.from({ length: 10 }, (_, i) => snap(i))
+    const result = downsample(snaps, 5)
+    expect(result).toHaveLength(5)
+  })
+})
+
+describe('UsagePoller', () => {
+  let dir: string
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true })
+  })
+
+  function newPoller() {
+    dir = mkdtempSync(join(tmpdir(), 'huginn-usage-test-'))
+    return new UsagePoller(join(dir, 'history.jsonl'), join(dir, 'settings.json'))
+  }
+
+  it('defaults to a 60s interval with no settings file', () => {
+    const poller = newPoller()
+    expect(poller.getIntervalMs()).toBe(60_000)
+  })
+
+  it('rejects an interval outside the allowed presets', () => {
+    const poller = newPoller()
+    expect(poller.setIntervalMs(12_345)).toBe(false)
+    expect(poller.getIntervalMs()).toBe(60_000)
+  })
+
+  it('persists the interval across instances', () => {
+    const poller = newPoller()
+    expect(ALLOWED_INTERVALS_MS).toContain(300_000)
+    expect(poller.setIntervalMs(300_000)).toBe(true)
+    expect(poller.getIntervalMs()).toBe(300_000)
+
+    const reloaded = new UsagePoller(join(dir, 'history.jsonl'), join(dir, 'settings.json'))
+    expect(reloaded.getIntervalMs()).toBe(300_000)
+  })
+
+  it('getRange filters by timestamp and downsamples', () => {
+    const poller = newPoller()
+    const historyFile = join(dir, 'history.jsonl')
+    const lines = Array.from({ length: 20 }, (_, i): UsageSnapshot => ({
+      ts: i * 1000,
+      sessionPct: i,
+      weeklyPct: i,
+      requests24h: 0,
+      requests7d: 0,
+      topSkills: [],
+      sessionResetAt: null,
+      weeklyResetAt: null,
+    }))
+    writeFileSync(historyFile, lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
+
+    const inRange = poller.getRange(5000, 14000, 100)
+    expect(inRange.every((s) => s.ts >= 5000 && s.ts <= 14000)).toBe(true)
+    expect(inRange).toHaveLength(10)
+
+    const downsampled = poller.getRange(0, 19000, 4)
+    expect(downsampled).toHaveLength(4)
+  })
+
+  it('getRange returns an empty array when there is no history yet', () => {
+    const poller = newPoller()
+    expect(poller.getRange(0, Date.now())).toEqual([])
+  })
+
+  it('getLatest returns null before any poll', () => {
+    const poller = newPoller()
+    expect(poller.getLatest()).toBeNull()
+  })
+})

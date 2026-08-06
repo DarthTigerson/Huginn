@@ -1,0 +1,344 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font-mono: Menlo, monospace;
+}
+
+/* Same theme ids/values as src/index.css's [data-theme] blocks — kept as a
+   second copy since this CSS ships to a different runtime (the phone's
+   browser, not the Electron renderer), not worth a shared build step for
+   six small blocks. */
+[data-theme="claude-dark"] {
+  --bg: #1a1a1a; --card: #1e1e1e; --card-alt: #252526; --border: #3c3c3c;
+  --accent: #d97757; --accent-rgb: 217 119 87;
+  --fg: #cccccc; --fg-muted: #858585; --fg-subtle: #555555;
+}
+[data-theme="claude-light"] {
+  --bg: #f3f3f3; --card: #ffffff; --card-alt: #ececec; --border: #e0e0e0;
+  --accent: #c4613d; --accent-rgb: 196 97 61;
+  --fg: #1e1e1e; --fg-muted: #717171; --fg-subtle: #999999;
+}
+[data-theme="codex-dark"] {
+  --bg: #1a1a1a; --card: #202020; --card-alt: #1a1a1a; --border: #333333;
+  --accent: #ffffff; --accent-rgb: 255 255 255;
+  --fg: #cccccc; --fg-muted: #8a8a8a; --fg-subtle: #555555;
+}
+[data-theme="codex-light"] {
+  --bg: #fafafa; --card: #ffffff; --card-alt: #fafafa; --border: #d0d7de;
+  --accent: #0969da; --accent-rgb: 9 105 218;
+  --fg: #24292f; --fg-muted: #6e7781; --fg-subtle: #aaaaaa;
+}
+[data-theme="thomas-dark"] {
+  --bg: #1c1712; --card: #221c15; --card-alt: #2b2319; --border: #4a3d29;
+  --accent: #f5c242; --accent-rgb: 245 194 66;
+  --fg: #e8e0d0; --fg-muted: #9c9080; --fg-subtle: #665c4a;
+}
+[data-theme="thomas-light"] {
+  --bg: #f7f1e0; --card: #fffcf2; --card-alt: #efe6cd; --border: #d8c89a;
+  --accent: #ad7b00; --accent-rgb: 173 123 0;
+  --fg: #2a2013; --fg-muted: #74684f; --fg-subtle: #a89876;
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono), -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+           max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  width: 100%;
+  max-width: 400px;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 4vw, 24px);
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: clamp(14px, 4vw, 20px);
+}
+
+.muted { color: var(--fg-muted); }
+.subtle { color: var(--fg-subtle); }
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pin-input {
+  width: 100%;
+  padding: 14px;
+  font-size: clamp(22px, 7vw, 28px);
+  letter-spacing: clamp(6px, 3vw, 12px);
+  text-align: center;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--fg);
+  outline: none;
+  font-family: inherit;
+}
+
+a { color: inherit; }
+
+.app-tile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--fg);
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.app-tile:active {
+  transform: scale(0.98);
+  border-color: var(--accent);
+  background: var(--card-alt);
+}
+.app-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f0eee6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+.app-tile-title { font-size: 16px; font-weight: 600; }
+.app-tile-subtitle { font-size: 12.5px; color: var(--fg-muted); margin-top: 2px; }
+.app-tile-chevron {
+  margin-left: auto;
+  font-size: 20px;
+  color: var(--fg-subtle);
+  flex-shrink: 0;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px 12px;
+  text-align: center;
+  overflow: hidden;
+}
+.stat-value {
+  font-size: clamp(18px, 5.5vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+.stat-label { font-size: 10px; color: var(--fg-muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.gauges {
+  display: flex;
+  justify-content: center;
+  gap: clamp(12px, 5vw, 20px);
+}
+
+.skill-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--card-alt);
+}
+.skill-row:last-child { border-bottom: none; }
+
+/* Dashboard grid — cards reflow by available width instead of a fixed
+   breakpoint list, so the same markup works from a phone in portrait up
+   through a wide laptop browser window without wasting space either way. */
+.dashboard {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(12px, 2vw, 20px);
+  align-content: start;
+}
+.dashboard .full { grid-column: 1 / -1; }
+
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill-group .pill {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--card-alt);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.pill-group .pill.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.reset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--card-alt);
+}
+.reset-row:last-child { border-bottom: none; }
+.reset-label { font-size: 11px; color: var(--fg-muted); }
+.reset-time { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.reset-countdown { font-size: 12px; color: var(--accent); margin-top: 2px; }
+.reset-rate { font-size: 13px; font-weight: 700; color: var(--fg-muted); white-space: nowrap; }
+.reset-rate-label { font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+/* Custom dropdown — a native <select>'s open menu is OS chrome that CSS
+   can't touch (especially iOS's picker wheel), so this is a plain
+   button + floating list styled to match the rest of the app instead. */
+.dropdown { position: relative; }
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--card-alt);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dropdown-trigger:active { border-color: var(--accent); }
+.dropdown-caret { font-size: 8px; color: var(--fg-subtle); }
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 92px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  z-index: 20;
+}
+.dropdown-menu[hidden] { display: none; }
+.dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  background: none;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dropdown-item.active { background: var(--card-alt); color: var(--accent); font-weight: 700; }
+
+/* Chart: axis labels are plain HTML (fixed font size) laid out around an
+   SVG that's stretched to fill a fixed-height box (preserveAspectRatio
+   none) — keeps the chart a sane, constant height regardless of how wide
+   the card gets, and keeps text from scaling with it. */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: clamp(160px, 30vw, 220px) 18px;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+.chart-y-axis { grid-column: 1; grid-row: 1; position: relative; }
+.chart-y-axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.chart-plot {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  touch-action: none; /* the chart itself captures drag/tap for the crosshair, not page scroll */
+}
+.chart-plot svg { display: block; width: 100%; height: 100%; }
+.chart-x-axis { grid-column: 2; grid-row: 2; position: relative; }
+.chart-x-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.chart-x-axis span:first-child { transform: translateX(0); }
+.chart-x-axis span:last-child { transform: translateX(-100%); }
+
+#crosshair { display: none; }
+#crosshair.visible { display: inline; }
+
+.chart-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 11;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 6px;
+  padding: 6px 9px;
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  z-index: 10;
+}
+.chart-tooltip-time { font-size: 10px; color: var(--fg-muted); }
+.chart-tooltip-pct { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 2px; }

@@ -40,6 +40,8 @@ import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useModelSettingsStore } from './stores/modelSettingsStore'
 import { useGitStore } from './stores/gitStore'
 import { useMobileStore } from './stores/mobileStore'
+import { useThemeStore } from './stores/themeStore'
+import { useDisplayStore } from './stores/displayStore'
 import { useEditorStore } from './stores/editorStore'
 import { useSearchStore } from './stores/searchStore'
 import { useFontSizeStore } from './stores/fontSizeStore'
@@ -116,6 +118,8 @@ export default function App() {
   const gitBadge = uncommittedChangeCount > 99 ? '99+' : uncommittedChangeCount || undefined
   const mobileState = useMobileStore((s) => s.state)
   const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
+  const theme = useThemeStore((s) => s.theme)
+  const font = useDisplayStore((s) => s.font)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -143,6 +147,10 @@ export default function App() {
     useCosmosSettingsStore.getState().init()
     useMobileStore.getState().init()
   }, [])
+
+  useEffect(() => {
+    window.api.mobileSetDisplay(theme, font)
+  }, [theme, font])
 
   useEffect(() => {
     if (!assistantMenuOpen) return

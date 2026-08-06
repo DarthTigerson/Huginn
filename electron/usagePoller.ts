@@ -1,5 +1,6 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'fs'
 
 const execFileAsync = promisify(execFile)
 
@@ -10,13 +11,51 @@ export interface UsageSnapshot {
   requests24h: number
   requests7d: number
   topSkills: { name: string; pct: number }[]
+  sessionResetAt: number | null
+  weeklyResetAt: number | null
 }
 
-export function parseUsageText(text: string): Omit<UsageSnapshot, 'ts'> | null {
+export interface LatestUsage extends UsageSnapshot {
+  sessionAvgRatePerHour: number | null
+  weeklyAvgRatePerHour: number | null
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+// The CLI always reports resets in the machine's own local zone (verified:
+// Intl.DateTimeFormat().resolvedOptions().timeZone matches the "(Zone/City)"
+// it prints), so this can be parsed as a plain local date-time — no
+// timezone-conversion library needed.
+export function parseResetAt(line: string | undefined, now = new Date()): number | null {
+  if (!line) return null
+  // Minutes are omitted on the hour ("resets Aug 13 at 10am"), present otherwise ("4:20am").
+  const m = line.match(/resets (\w+) (\d+) at (\d+)(?::(\d+))?(am|pm)/i)
+  if (!m) return null
+  const monthIndex = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase())
+  if (monthIndex === -1) return null
+  const day = parseInt(m[2], 10)
+  let hour = parseInt(m[3], 10) % 12
+  if (m[5].toLowerCase() === 'pm') hour += 12
+  const minute = m[4] ? parseInt(m[4], 10) : 0
+
+  const year = now.getFullYear()
+  let date = new Date(year, monthIndex, day, hour, minute, 0, 0)
+  // Reset times are always upcoming. If constructing with the current year
+  // lands more than a day in the past, we're straddling a year boundary.
+  if (date.getTime() < now.getTime() - 24 * 60 * 60 * 1000) {
+    date = new Date(year + 1, monthIndex, day, hour, minute, 0, 0)
+  }
+  return date.getTime()
+}
+
+export function parseUsageText(text: string, now = new Date()): Omit<UsageSnapshot, 'ts'> | null {
   const sessionMatch = text.match(/Current session: (\d+)%/)
   if (!sessionMatch) return null
 
-  const weeklyMatch = text.match(/Current week[^:]*: (\d+)%/)
+  const sessionLine = text.match(/Current session:[^\n]*/)?.[0]
+  const weeklyLine = text.match(/Current week[^\n]*/)?.[0]
+
+  const weeklyMatch = weeklyLine?.match(/: (\d+)%/)
   const req24hMatch = text.match(/Last 24h · (\d+) requests/)
   const req7dMatch = text.match(/Last 7d · (\d+) requests/)
 
@@ -35,13 +74,94 @@ export function parseUsageText(text: string): Omit<UsageSnapshot, 'ts'> | null {
     requests24h: req24hMatch ? parseInt(req24hMatch[1]) : 0,
     requests7d: req7dMatch ? parseInt(req7dMatch[1]) : 0,
     topSkills,
+    sessionResetAt: parseResetAt(sessionLine, now),
+    weeklyResetAt: parseResetAt(weeklyLine, now),
   }
 }
 
+const SESSION_WINDOW_HOURS = 5
+const WEEKLY_WINDOW_HOURS = 7 * 24
+const MIN_ELAPSED_HOURS = 5 / 60 // guard against a wild spike in the first few minutes of a window
+
+export function computeBurnRate(pct: number, resetAt: number | null, windowHours: number): number | null {
+  if (resetAt == null) return null
+  const hoursRemaining = (resetAt - Date.now()) / 3_600_000
+  const elapsed = windowHours - hoursRemaining
+  if (elapsed < MIN_ELAPSED_HOURS) return null
+  return pct / elapsed
+}
+
+function averageBucket(bucket: UsageSnapshot[]): UsageSnapshot {
+  const last = bucket[bucket.length - 1]
+  const avg = (key: 'sessionPct' | 'weeklyPct' | 'requests24h' | 'requests7d') =>
+    Math.round(bucket.reduce((s, b) => s + b[key], 0) / bucket.length)
+  return {
+    ts: last.ts,
+    sessionPct: avg('sessionPct'),
+    weeklyPct: avg('weeklyPct'),
+    requests24h: avg('requests24h'),
+    requests7d: avg('requests7d'),
+    topSkills: last.topSkills,
+    sessionResetAt: last.sessionResetAt,
+    weeklyResetAt: last.weeklyResetAt,
+  }
+}
+
+// Grafana-style trade-off: raw history is kept forever on disk, but a query
+// only ever gets back a series sized to what a chart can show — keeps
+// responses fast and small no matter how much history has piled up.
+export function downsample(snapshots: UsageSnapshot[], maxPoints: number): UsageSnapshot[] {
+  if (snapshots.length <= maxPoints) return snapshots
+  const bucketSize = snapshots.length / maxPoints
+  const result: UsageSnapshot[] = []
+  for (let i = 0; i < maxPoints; i++) {
+    const start = Math.floor(i * bucketSize)
+    const end = Math.max(Math.floor((i + 1) * bucketSize), start + 1)
+    result.push(averageBucket(snapshots.slice(start, end)))
+  }
+  return result
+}
+
+export const ALLOWED_INTERVALS_MS = [15_000, 30_000, 60_000, 300_000, 900_000]
+const DEFAULT_INTERVAL_MS = 60_000
+
 export class UsagePoller {
-  private snapshots: UsageSnapshot[] = []
+  private latest: UsageSnapshot | null = null
   private interval: ReturnType<typeof setInterval> | null = null
+  private intervalMs = DEFAULT_INTERVAL_MS
   private readonly shell = process.env.SHELL ?? '/bin/zsh'
+
+  constructor(private readonly historyFile: string, private readonly settingsFile: string) {
+    this.loadSettings()
+  }
+
+  private loadSettings(): void {
+    try {
+      const raw = JSON.parse(readFileSync(this.settingsFile, 'utf-8'))
+      if (ALLOWED_INTERVALS_MS.includes(raw.intervalMs)) this.intervalMs = raw.intervalMs
+    } catch { /* no settings file yet, or unreadable — keep default */ }
+  }
+
+  private saveSettings(): void {
+    try { writeFileSync(this.settingsFile, JSON.stringify({ intervalMs: this.intervalMs })) } catch (e) {
+      console.error('UsagePoller settings write failed:', e)
+    }
+  }
+
+  setIntervalMs(ms: number): boolean {
+    if (!ALLOWED_INTERVALS_MS.includes(ms)) return false
+    this.intervalMs = ms
+    this.saveSettings()
+    if (this.interval) {
+      clearInterval(this.interval)
+      this.interval = setInterval(() => void this.poll(), this.intervalMs)
+    }
+    return true
+  }
+
+  getIntervalMs(): number {
+    return this.intervalMs
+  }
 
   async poll(): Promise<void> {
     try {
@@ -55,8 +175,13 @@ export class UsagePoller {
       const json = JSON.parse(jsonLine)
       const parsed = parseUsageText(json.result ?? '')
       if (!parsed) return
-      this.snapshots.push({ ts: Date.now(), ...parsed })
-      if (this.snapshots.length > 60) this.snapshots.shift()
+      const snapshot: UsageSnapshot = { ts: Date.now(), ...parsed }
+      this.latest = snapshot
+      try {
+        appendFileSync(this.historyFile, JSON.stringify(snapshot) + '\n')
+      } catch (e) {
+        console.error('UsagePoller history write failed:', e)
+      }
     } catch (e) {
       console.error('UsagePoller poll failed:', e)
     }
@@ -65,13 +190,32 @@ export class UsagePoller {
   start(): void {
     if (this.interval) return
     void this.poll()
-    this.interval = setInterval(() => void this.poll(), 60_000)
+    this.interval = setInterval(() => void this.poll(), this.intervalMs)
   }
 
   stop(): void {
     if (this.interval) { clearInterval(this.interval); this.interval = null }
   }
 
-  getSnapshots(): UsageSnapshot[] { return this.snapshots }
-  getLatest(): UsageSnapshot | null { return this.snapshots.at(-1) ?? null }
+  getLatest(): LatestUsage | null {
+    if (!this.latest) return null
+    return {
+      ...this.latest,
+      sessionAvgRatePerHour: computeBurnRate(this.latest.sessionPct, this.latest.sessionResetAt, SESSION_WINDOW_HOURS),
+      weeklyAvgRatePerHour: computeBurnRate(this.latest.weeklyPct, this.latest.weeklyResetAt, WEEKLY_WINDOW_HOURS),
+    }
+  }
+
+  getRange(fromTs: number, toTs: number, maxPoints = 120): UsageSnapshot[] {
+    if (!existsSync(this.historyFile)) return []
+    const snapshots: UsageSnapshot[] = []
+    for (const line of readFileSync(this.historyFile, 'utf-8').split('\n')) {
+      if (!line) continue
+      try {
+        const snap = JSON.parse(line) as UsageSnapshot
+        if (snap.ts >= fromTs && snap.ts <= toTs) snapshots.push(snap)
+      } catch { /* skip a corrupt line rather than fail the whole read */ }
+    }
+    return downsample(snapshots, maxPoints)
+  }
 }

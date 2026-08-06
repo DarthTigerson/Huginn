@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="%%THEME%%">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0d0d">
+<title>Claude Usage</title>
+<link rel="stylesheet" href="/mobile-assets/style.css">
+</head>
+<body>
+<div class="dashboard" style="max-width:1100px;margin:0 auto">
+  <div class="full" style="display:flex;align-items:center;justify-content:space-between">
+    <a href="/app" class="muted" style="text-decoration:none;font-size:14px">← Back</a>
+    <h1 style="font-size:17px;font-weight:700">Claude Usage</h1>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="dropdown" id="interval-dropdown">
+        <button type="button" class="dropdown-trigger" id="interval-trigger" title="Refresh rate">
+          <span id="interval-trigger-label">—</span>
+          <span class="dropdown-caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="interval-menu" hidden></div>
+      </div>
+      <span id="upd" class="subtle" style="font-size:11px">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="gauges">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg viewBox="0 0 100 100" width="120" height="120">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="var(--card-alt)" stroke-width="10"/>
+          <circle id="session-arc" cx="50" cy="50" r="38" fill="none" stroke="var(--accent)" stroke-width="10"
+            stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" transform="rotate(-90 50 50)"
+            style="transition:stroke-dashoffset 0.6s ease"/>
+          <text id="session-pct" x="50" y="47" text-anchor="middle" fill="var(--fg)" font-size="21" font-weight="700">—</text>
+          <text x="50" y="62" text-anchor="middle" fill="var(--fg-muted)" font-size="9" letter-spacing="0.5">SESSION</text>
+        </svg>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg viewBox="0 0 100 100" width="120" height="120">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="var(--card-alt)" stroke-width="10"/>
+          <circle id="weekly-arc" cx="50" cy="50" r="38" fill="none" stroke="var(--accent)" stroke-width="10"
+            stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" transform="rotate(-90 50 50)"
+            style="transition:stroke-dashoffset 0.6s ease"/>
+          <text id="weekly-pct" x="50" y="47" text-anchor="middle" fill="var(--fg)" font-size="21" font-weight="700">—</text>
+          <text x="50" y="62" text-anchor="middle" fill="var(--fg-muted)" font-size="9" letter-spacing="0.5">THIS WEEK</text>
+        </svg>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:16px">
+      <div class="stat">
+        <div id="r24" class="stat-value">—</div>
+        <div class="stat-label">Requests today</div>
+      </div>
+      <div class="stat">
+        <div id="r7d" class="stat-value">—</div>
+        <div class="stat-label">Requests this week</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="subtle" style="font-size:10px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.8px">Resets &amp; burn rate</p>
+    <div class="reset-row">
+      <div>
+        <div class="reset-label">Session resets</div>
+        <div id="session-reset-time" class="reset-time">—</div>
+        <div id="session-reset-countdown" class="reset-countdown">—</div>
+      </div>
+      <div style="text-align:right">
+        <div id="session-rate" class="reset-rate">—</div>
+        <div class="reset-rate-label">burn rate</div>
+      </div>
+    </div>
+    <div class="reset-row">
+      <div>
+        <div class="reset-label">Week resets</div>
+        <div id="weekly-reset-time" class="reset-time">—</div>
+        <div id="weekly-reset-countdown" class="reset-countdown">—</div>
+      </div>
+      <div style="text-align:right">
+        <div id="weekly-rate" class="reset-rate">—</div>
+        <div class="reset-rate-label">burn rate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card full">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <p class="subtle" style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px">Session usage over time</p>
+      <div class="pill-group" id="range-buttons"></div>
+    </div>
+
+    <!-- Axis labels are plain HTML, not SVG text — SVG text scales with the
+         viewBox stretch (that's what made the % labels balloon to a huge
+         size on a wide card), HTML text just stays whatever size we set. -->
+    <div class="chart-grid">
+      <div class="chart-y-axis">
+        <span style="top:0%">100%</span>
+        <span style="top:25%">75%</span>
+        <span style="top:50%">50%</span>
+        <span style="top:75%">25%</span>
+        <span style="top:100%">0%</span>
+      </div>
+      <div class="chart-plot" id="chart-plot">
+        <svg id="chart-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- Fixed 0-100% grid so the line's position actually means something,
+               instead of auto-scaling to whatever the data's own range happens to be. -->
+          <g stroke="var(--border)" stroke-width="0.5" vector-effect="non-scaling-stroke">
+            <line x1="0" y1="0" x2="100" y2="0" stroke-dasharray="1.5 2"/>
+            <line x1="0" y1="25" x2="100" y2="25" stroke-dasharray="1.5 2"/>
+            <line x1="0" y1="50" x2="100" y2="50" stroke-dasharray="1.5 2"/>
+            <line x1="0" y1="75" x2="100" y2="75" stroke-dasharray="1.5 2"/>
+            <line x1="0" y1="100" x2="100" y2="100"/>
+          </g>
+          <polygon id="ufill" points="0,100 0,100" fill="url(#grad)"/>
+          <polyline id="uline" points="0,100" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+          <!-- Visibility is a CSS class (see #crosshair in style.css), not the
+               `hidden` attribute — SVG elements don't reliably pick up the
+               HTML `hidden` -> display:none UA rule in every browser, which
+               left this permanently visible at x=0. -->
+          <line id="crosshair" x1="0" y1="0" x2="0" y2="100" stroke="var(--fg-muted)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <!-- HTML, not SVG — an SVG <circle> would render as an ellipse under
+             the non-uniform preserveAspectRatio="none" stretch above. -->
+        <div class="chart-dot" id="chart-dot" hidden></div>
+        <div class="chart-tooltip" id="chart-tooltip" hidden>
+          <div id="tooltip-time" class="chart-tooltip-time"></div>
+          <div id="tooltip-pct" class="chart-tooltip-pct"></div>
+        </div>
+      </div>
+      <div class="chart-x-axis" id="chart-x-axis"></div>
+    </div>
+  </div>
+
+  <div class="card full">
+    <p class="subtle" style="font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px">Top skills · 24h</p>
+    <div id="skills"><p class="subtle" style="font-size:12px">Loading…</p></div>
+  </div>
+</div>
+<script type="module" src="/mobile-assets/app.js"></script>
+<script type="module" src="/mobile-assets/usage.js"></script>
+</body>
+</html>
