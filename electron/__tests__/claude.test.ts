@@ -14,6 +14,9 @@ vi.mock('electron', () => ({
       handlers[channel] = fn
     },
   },
+  BrowserWindow: {
+    fromWebContents: (sender: any) => sender,
+  },
 }))
 
 vi.mock('node-pty', () => ({
@@ -21,6 +24,10 @@ vi.mock('node-pty', () => ({
 }))
 
 import { ClaudeManager } from '../claude'
+
+function fakeWin(id: number) {
+  return { id, webContents: { send: vi.fn() } }
+}
 
 function fakePty() {
   return {
@@ -38,35 +45,52 @@ describe('ClaudeManager assistant:spawn (attach mode)', () => {
   })
 
   function setup() {
-    const win = { webContents: { send: vi.fn() } } as any
-    const manager = new ClaudeManager(win)
+    const manager = new ClaudeManager()
     manager.registerHandlers()
-    return handlers['assistant:spawn']
+    return { manager, spawnHandler: handlers['assistant:spawn'] }
   }
 
   it('reuses the existing process when re-attaching with the same cwd', () => {
-    const spawnHandler = setup()
+    const { spawnHandler } = setup()
+    const win = fakeWin(1)
     const proc = fakePty()
     spawnMock.mockReturnValueOnce(proc)
 
-    spawnHandler({}, '/project/a', 'claude', undefined)
-    spawnHandler({}, '/project/a', 'claude', undefined)
+    spawnHandler({ sender: win }, '/project/a', 'claude', undefined)
+    spawnHandler({ sender: win }, '/project/a', 'claude', undefined)
 
     expect(spawnMock).toHaveBeenCalledTimes(1)
     expect(proc.kill).not.toHaveBeenCalled()
   })
 
   it('spawns a fresh process rooted in the new cwd when the project folder changes', () => {
-    const spawnHandler = setup()
+    const { spawnHandler } = setup()
+    const win = fakeWin(1)
     const procA = fakePty()
     const procB = fakePty()
     spawnMock.mockReturnValueOnce(procA).mockReturnValueOnce(procB)
 
-    spawnHandler({}, '/project/a', 'claude', undefined)
-    spawnHandler({}, '/project/b', 'claude', undefined)
+    spawnHandler({ sender: win }, '/project/a', 'claude', undefined)
+    spawnHandler({ sender: win }, '/project/b', 'claude', undefined)
 
     expect(spawnMock).toHaveBeenCalledTimes(2)
     expect(spawnMock.mock.calls[1][2]).toMatchObject({ cwd: '/project/b' })
     expect(procA.kill).toHaveBeenCalled()
+  })
+
+  it('keeps window A\'s assistant process running independent of window B', () => {
+    const { spawnHandler } = setup()
+    const winA = fakeWin(1)
+    const winB = fakeWin(2)
+    const procA = fakePty()
+    const procB = fakePty()
+    spawnMock.mockReturnValueOnce(procA).mockReturnValueOnce(procB)
+
+    spawnHandler({ sender: winA }, '/project/a', 'claude', undefined)
+    spawnHandler({ sender: winB }, '/project/b', 'claude', undefined)
+
+    expect(procA.kill).not.toHaveBeenCalled()
+    expect(procB.kill).not.toHaveBeenCalled()
+    expect(spawnMock).toHaveBeenCalledTimes(2)
   })
 })

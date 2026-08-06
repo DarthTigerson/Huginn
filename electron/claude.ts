@@ -24,28 +24,30 @@ function hasValidSize(cols: number, rows: number): boolean {
   return Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0
 }
 
-export class ClaudeManager {
-  private procs: Partial<Record<AssistantKind, pty.IPty>> = {}
-  private procCwd: Partial<Record<AssistantKind, string>> = {}
-  private activeAssistant: AssistantKind = 'claude'
-  private win: BrowserWindow
+interface WindowState {
+  procs: Partial<Record<AssistantKind, pty.IPty>>
+  procCwd: Partial<Record<AssistantKind, string>>
+  activeAssistant: AssistantKind
+}
 
-  constructor(win: BrowserWindow) {
-    this.win = win
-  }
+export class ClaudeManager {
+  private byWindow = new Map<number, WindowState>()
 
   registerHandlers(): void {
-    ipcMain.handle('assistant:spawn', (_event, cwd: string, assistant: AssistantKind = 'claude', mode: SessionMode = 'attach') => {
+    ipcMain.handle('assistant:spawn', (event, cwd: string, assistant: AssistantKind = 'claude', mode: SessionMode = 'attach') => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const state = this.stateFor(win.id)
       const selectedAssistant = assistant === 'codex' ? 'codex' : 'claude'
       const selectedMode = mode === 'continue' || mode === 'new' ? mode : 'attach'
-      this.activeAssistant = selectedAssistant
+      state.activeAssistant = selectedAssistant
 
-      const attachingToSameCwd = this.procs[selectedAssistant] && this.procCwd[selectedAssistant] === cwd
+      const attachingToSameCwd = state.procs[selectedAssistant] && state.procCwd[selectedAssistant] === cwd
       if (selectedMode === 'attach' && attachingToSameCwd) return
 
-      this.procs[selectedAssistant]?.kill()
-      delete this.procs[selectedAssistant]
-      delete this.procCwd[selectedAssistant]
+      state.procs[selectedAssistant]?.kill()
+      delete state.procs[selectedAssistant]
+      delete state.procCwd[selectedAssistant]
 
       try {
         const shell = process.env.SHELL ?? '/bin/zsh'
@@ -57,41 +59,58 @@ export class ClaudeManager {
           cwd,
           env: process.env as Record<string, string>,
         })
-        this.procs[selectedAssistant] = proc
-        this.procCwd[selectedAssistant] = cwd
+        state.procs[selectedAssistant] = proc
+        state.procCwd[selectedAssistant] = cwd
         proc.onData((data) => {
-          this.win.webContents.send('assistant:data', selectedAssistant, data)
+          if (!win.isDestroyed()) win.webContents.send('assistant:data', selectedAssistant, data)
         })
         proc.onExit(() => {
-          if (this.procs[selectedAssistant] === proc) {
-            delete this.procs[selectedAssistant]
-            delete this.procCwd[selectedAssistant]
+          if (state.procs[selectedAssistant] === proc) {
+            delete state.procs[selectedAssistant]
+            delete state.procCwd[selectedAssistant]
           }
         })
       } catch {
-        this.win.webContents.send(
-          'assistant:data',
-          selectedAssistant,
-          `\r\nError: '${selectedAssistant}' not found in PATH.\r\n${INSTALL_MESSAGES[selectedAssistant]}\r\n`
-        )
+        if (!win.isDestroyed()) {
+          win.webContents.send(
+            'assistant:data',
+            selectedAssistant,
+            `\r\nError: '${selectedAssistant}' not found in PATH.\r\n${INSTALL_MESSAGES[selectedAssistant]}\r\n`
+          )
+        }
       }
     })
 
-    ipcMain.on('assistant:write', (_event, assistant: AssistantKind = this.activeAssistant, data: string) => {
-      const selectedAssistant = assistant === 'codex' ? 'codex' : 'claude'
-      this.procs[selectedAssistant]?.write(data)
+    ipcMain.on('assistant:write', (event, assistant: AssistantKind | undefined, data: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      const state = this.stateFor(win.id)
+      const selectedAssistant = (assistant === 'codex' ? 'codex' : assistant === 'claude' ? 'claude' : state.activeAssistant)
+      state.procs[selectedAssistant]?.write(data)
     })
 
-    ipcMain.on('assistant:resize', (_event, assistant: AssistantKind = this.activeAssistant, cols: number, rows: number) => {
-      if (!hasValidSize(cols, rows)) return
-
-      const selectedAssistant = assistant === 'codex' ? 'codex' : 'claude'
-      this.procs[selectedAssistant]?.resize(Math.floor(cols), Math.floor(rows))
+    ipcMain.on('assistant:resize', (event, assistant: AssistantKind | undefined, cols: number, rows: number) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win || !hasValidSize(cols, rows)) return
+      const state = this.stateFor(win.id)
+      const selectedAssistant = (assistant === 'codex' ? 'codex' : assistant === 'claude' ? 'claude' : state.activeAssistant)
+      state.procs[selectedAssistant]?.resize(Math.floor(cols), Math.floor(rows))
     })
   }
 
-  dispose(): void {
-    Object.values(this.procs).forEach((proc) => proc?.kill())
-    this.procs = {}
+  private stateFor(winId: number): WindowState {
+    let state = this.byWindow.get(winId)
+    if (!state) {
+      state = { procs: {}, procCwd: {}, activeAssistant: 'claude' }
+      this.byWindow.set(winId, state)
+    }
+    return state
+  }
+
+  disposeWindow(winId: number): void {
+    const state = this.byWindow.get(winId)
+    if (!state) return
+    Object.values(state.procs).forEach((proc) => proc?.kill())
+    this.byWindow.delete(winId)
   }
 }
