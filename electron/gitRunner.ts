@@ -12,33 +12,31 @@ const ARGS: Record<GitCommandAction, string[]> = {
 }
 
 export class GitRunner {
-  private win: BrowserWindow
-  private running: boolean = false
-
-  constructor(win: BrowserWindow) {
-    this.win = win
-  }
+  private runningByWindow = new Map<number, boolean>()
 
   registerHandlers(): void {
-    ipcMain.handle('git:runCommand', (_e, id: string, cwd: string, action: GitCommandAction) => {
-      if (this.running) {
-        this.win.webContents.send('git:log:data', id, 'A git command is already running.\n')
-        this.win.webContents.send('git:log:exit', id, 1)
+    ipcMain.handle('git:runCommand', (event, id: string, cwd: string, action: GitCommandAction) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+
+      if (this.runningByWindow.get(win.id)) {
+        win.webContents.send('git:log:data', id, 'A git command is already running.\n')
+        win.webContents.send('git:log:exit', id, 1)
         return
       }
 
-      this.running = true
+      this.runningByWindow.set(win.id, true)
       const proc = spawn('git', ARGS[action], { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
 
       proc.stdout.on('data', (chunk: Buffer) => {
-        this.win.webContents.send('git:log:data', id, chunk.toString())
+        if (!win.isDestroyed()) win.webContents.send('git:log:data', id, chunk.toString())
       })
       proc.stderr.on('data', (chunk: Buffer) => {
-        this.win.webContents.send('git:log:data', id, chunk.toString())
+        if (!win.isDestroyed()) win.webContents.send('git:log:data', id, chunk.toString())
       })
       proc.on('close', (code: number | null) => {
-        this.running = false
-        this.win.webContents.send('git:log:exit', id, code ?? 1)
+        this.runningByWindow.set(win.id, false)
+        if (!win.isDestroyed()) win.webContents.send('git:log:exit', id, code ?? 1)
       })
     })
 

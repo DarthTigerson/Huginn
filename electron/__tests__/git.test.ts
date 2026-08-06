@@ -12,6 +12,9 @@ vi.mock('electron', () => ({
       ipcHandlers[channel] = fn
     },
   },
+  BrowserWindow: {
+    fromWebContents: (sender: any) => sender,
+  },
 }))
 
 vi.mock('child_process', async (importOriginal) => {
@@ -113,7 +116,7 @@ function fakeProc() {
 
 describe('GitRunner', () => {
   let sends: { channel: string; args: unknown[] }[]
-  let win: { webContents: { send: (...a: unknown[]) => void } }
+  let win: { id: number; isDestroyed: () => boolean; webContents: { send: (...a: unknown[]) => void } }
 
   beforeEach(async () => {
     // Reset the shared handlers map for each test
@@ -122,37 +125,37 @@ describe('GitRunner', () => {
     }
     sends = []
     spawnMock.mockReset()
-    win = { webContents: { send: (...a) => sends.push({ channel: a[0] as string, args: a.slice(1) }) } }
+    win = { id: 1, isDestroyed: () => false, webContents: { send: (...a) => sends.push({ channel: a[0] as string, args: a.slice(1) }) } }
     vi.resetModules()
     const { GitRunner } = await import('../gitRunner')
-    new GitRunner(win as any).registerHandlers()
+    new GitRunner().registerHandlers()
   })
 
   it('spawns git with correct args for push', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'run-1', '/proj', 'push' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'run-1', '/proj', 'push' as GitCommandAction)
     expect(spawnMock).toHaveBeenCalledWith('git', ['push'], expect.objectContaining({ cwd: '/proj' }))
   })
 
   it('spawns git with --force for forcePush', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'run-2', '/proj', 'forcePush' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'run-2', '/proj', 'forcePush' as GitCommandAction)
     expect(spawnMock).toHaveBeenCalledWith('git', ['push', '--force'], expect.objectContaining({ cwd: '/proj' }))
   })
 
   it('spawns git with --force-with-lease for forcePushLease', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'run-3', '/proj', 'forcePushLease' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'run-3', '/proj', 'forcePushLease' as GitCommandAction)
     expect(spawnMock).toHaveBeenCalledWith('git', ['push', '--force-with-lease'], expect.anything())
   })
 
   it('streams stdout as git:log:data events with the correct id', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'my-id', '/proj', 'fetch' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'fetch' as GitCommandAction)
     proc.emitStdout('Fetching origin\n')
     expect(sends).toContainEqual({ channel: 'git:log:data', args: ['my-id', 'Fetching origin\n'] })
   })
@@ -160,7 +163,7 @@ describe('GitRunner', () => {
   it('streams stderr as git:log:data events', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'my-id', '/proj', 'pull' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'pull' as GitCommandAction)
     proc.emitStderr('remote: Counting objects\n')
     expect(sends).toContainEqual({ channel: 'git:log:data', args: ['my-id', 'remote: Counting objects\n'] })
   })
@@ -168,7 +171,7 @@ describe('GitRunner', () => {
   it('sends git:log:exit with the exit code on close', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'my-id', '/proj', 'push' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'push' as GitCommandAction)
     proc.emitClose(0)
     expect(sends).toContainEqual({ channel: 'git:log:exit', args: ['my-id', 0] })
   })
@@ -176,8 +179,8 @@ describe('GitRunner', () => {
   it('sends a synthetic failing exit if a command is already running', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({}, 'first', '/proj', 'push' as GitCommandAction)
-    await ipcHandlers['git:runCommand']({}, 'second', '/proj', 'pull' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'first', '/proj', 'push' as GitCommandAction)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'second', '/proj', 'pull' as GitCommandAction)
     const exitEvents = sends.filter(s => s.channel === 'git:log:exit')
     expect(exitEvents).toContainEqual({ channel: 'git:log:exit', args: ['second', 1] })
     expect(spawnMock).toHaveBeenCalledTimes(1)
