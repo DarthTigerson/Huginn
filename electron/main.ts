@@ -5,6 +5,7 @@ import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
+import { GitWatcher } from './gitWatcher'
 import { MobileServer } from './mobile'
 import { CosmosManager } from './cosmos'
 import { BrowserViewManager } from './browserViews'
@@ -219,6 +220,8 @@ app.whenReady().then(() => {
   const win = createWindow()
   const gitRunner = new GitRunner(win)
   gitRunner.registerHandlers()
+  const gitWatcher = new GitWatcher(win)
+  gitWatcher.registerHandlers()
   const ptyMgr = new PtyManager(win)
   ptyMgr.registerHandlers()
   const claudeMgr = new ClaudeManager(win)

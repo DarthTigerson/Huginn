@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld('api', {
   gitBranchDiff: (cwd: string, source: string, target: string) =>
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
+  gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
+  onGitChanged: (cb: (cwd: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)
+    ipcRenderer.on('git:changed', handler)
+    return () => ipcRenderer.removeListener('git:changed', handler)
+  },
 
   termSpawn: (id: string, cwd?: string) => ipcRenderer.invoke('term:spawn', id, cwd),
   termKill: (id: string) => ipcRenderer.invoke('term:kill', id),

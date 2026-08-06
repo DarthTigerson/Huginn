@@ -85,6 +85,8 @@ declare global {
       gitBranches: (cwd: string) => Promise<string[]>
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
+      gitWatchRoot: (cwd: string | null) => void
+      onGitChanged: (cb: (cwd: string) => void) => () => void
 
       termSpawn: (id: string, cwd?: string) => Promise<void>
       termKill: (id: string) => Promise<void>

@@ -222,6 +222,17 @@ export default function App() {
   }, [projectRoot, refreshGitStatus])
 
   useEffect(() => {
+    // Catches git state changes made outside the app's own UI — most
+    // commonly commands run in the integrated terminal (checkout, commit,
+    // pull...) — which the focus/action-based refreshes above never see.
+    return window.api.onGitChanged((cwd) => {
+      if (cwd === useFileStore.getState().projectRoot) {
+        useGitStore.getState().refresh(cwd)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
     return window.api.onMenuOpenProject(() => {
       useFileStore.getState().openFolder()
     })

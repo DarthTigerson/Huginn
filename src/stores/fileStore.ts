@@ -40,6 +40,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     try {
       const tree = await window.api.readDir(lastRoot)
       set({ projectRoot: lastRoot, tree })
+      window.api.gitWatchRoot(lastRoot)
     } catch {
       localStorage.removeItem(LAST_ROOT_KEY)
     }
@@ -59,6 +60,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     const previousRoot = get().projectRoot
     localStorage.setItem(LAST_ROOT_KEY, root)
     set({ projectRoot: root, tree })
+    window.api.gitWatchRoot(root)
     // Every open tab (file/terminal/browser) points at the old repo — start
     // the new one clean rather than leaving them dangling around.
     if (previousRoot !== null && previousRoot !== root) {
