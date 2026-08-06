@@ -1,10 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBrowserStore } from '@/stores/browserStore'
 import { useBrowserSettingsStore } from '@/stores/browserSettingsStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { buildBrowserPath } from '@/components/Settings/paths'
 import { normalizeUrlInput } from './urlBar'
-import { clampToViewport } from '@/components/ui/clampToViewport'
 import { zoomLevelToPercent } from './zoomLevel'
 
 interface Props {
@@ -27,7 +26,7 @@ export function BrowserTab({ browserId }: Props) {
   const editingRef = useRef(false)
   const tabState = useBrowserStore((s) => s.tabs[browserId])
   const [urlDraft, setUrlDraft] = useState(tabState?.url || useBrowserSettingsStore.getState().defaultUrl)
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const toggleButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -138,51 +137,36 @@ export function BrowserTab({ browserId }: Props) {
 
   const loadError = tabState?.loadError ?? null
 
-  // The native view always draws on top of this component's own DOM (including
-  // the inline "page couldn't load" state below, and the "..." menu), so it
-  // has to be explicitly hidden whenever either of those should be visible
-  // instead — otherwise they render, but invisibly, behind the guest.
+  // The native view always draws on top of this component's own DOM, so the
+  // inline "page couldn't load" state has to explicitly hide it instead —
+  // otherwise it renders, but invisibly, behind the guest. The zoom panel
+  // below doesn't need this: it's laid out in normal flow, so it pushes the
+  // native view's bounds down via the rAF sync above rather than overlapping it.
   useEffect(() => {
-    window.api.browserViewSetVisible(browserId, !loadError && !menuAnchor)
-  }, [browserId, loadError, menuAnchor])
+    window.api.browserViewSetVisible(browserId, !loadError)
+  }, [browserId, loadError])
 
   useEffect(() => {
-    if (!menuAnchor) return
+    if (!menuOpen) return
     const close = (e: Event) => {
       // Ignore clicks on the toggle button itself — it has its own onClick
       // handler to open/close the menu. Without this guard, the same click
       // that opens the menu can trigger this listener before the click event
       // finishes bubbling, causing the menu to immediately self-close.
       if (toggleButtonRef.current?.contains(e.target as Node)) return
-      setMenuAnchor(null)
+      setMenuOpen(false)
     }
-    const closeOnEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuAnchor(null) }
+    const closeOnEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
     window.addEventListener('click', close)
     window.addEventListener('keydown', closeOnEscape)
     return () => {
       window.removeEventListener('click', close)
       window.removeEventListener('keydown', closeOnEscape)
     }
-  }, [menuAnchor])
+  }, [menuOpen])
 
-  // Measure the actual rendered menu and clamp it to the real viewport —
-  // same approach used for the file-tree and Git-panel context menus — rather
-  // than guessing its size from the anchor point alone.
-  useLayoutEffect(() => {
-    if (!menuAnchor || !menuRef.current) return
-    const rect = menuRef.current.getBoundingClientRect()
-    const clamped = clampToViewport(menuAnchor.x, menuAnchor.y, rect.width, rect.height)
-    menuRef.current.style.left = `${clamped.x}px`
-    menuRef.current.style.top = `${clamped.y}px`
-  }, [menuAnchor])
-
-  function toggleMenu(e: React.MouseEvent<HTMLButtonElement>) {
-    if (menuAnchor) {
-      setMenuAnchor(null)
-      return
-    }
-    const rect = e.currentTarget.getBoundingClientRect()
-    setMenuAnchor({ x: rect.left, y: rect.bottom + 4 })
+  function toggleMenu() {
+    setMenuOpen((open) => !open)
   }
 
   function handleUrlSubmit(e: React.FormEvent) {
@@ -247,8 +231,8 @@ export function BrowserTab({ browserId }: Props) {
         <button
           ref={toggleButtonRef}
           type="button"
-          aria-label="More options"
-          aria-expanded={!!menuAnchor}
+          aria-label="Zoom controls"
+          aria-expanded={menuOpen}
           onClick={toggleMenu}
           className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5"
         >
@@ -256,48 +240,39 @@ export function BrowserTab({ browserId }: Props) {
         </button>
       </div>
 
-      {menuAnchor && (
+      {menuOpen && (
         <div
           ref={menuRef}
-          className="fixed z-[200] w-56 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
-          style={{ left: menuAnchor.x, top: menuAnchor.y }}
+          className="flex items-center justify-end border-b border-border bg-tab-bar px-2 py-1.5 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center gap-1 px-1 py-1">
-            <button
-              type="button"
-              aria-label="Reset zoom"
-              onClick={() => window.api.browserViewZoomReset(browserId)}
-              className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5"
-            >
-              <MagnifyingGlassIcon />
-            </button>
+          <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
             <button
               type="button"
               aria-label="Zoom out"
               onClick={() => window.api.browserViewZoomOut(browserId)}
-              className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5"
+              className="flex h-6 w-7 items-center justify-center text-fg-muted hover:text-fg hover:bg-white/5"
             >
-              −
+              <MinusIcon />
             </button>
-            <span className="flex-1 text-center text-xs text-fg tabular-nums">{zoomPercent}%</span>
+            <button
+              type="button"
+              aria-label="Reset zoom"
+              title="Reset zoom"
+              onClick={() => window.api.browserViewZoomReset(browserId)}
+              className="h-6 min-w-[3.25rem] border-x border-border px-1 text-xs tabular-nums text-fg-muted hover:text-fg hover:bg-white/5"
+            >
+              {zoomPercent}%
+            </button>
             <button
               type="button"
               aria-label="Zoom in"
               onClick={() => window.api.browserViewZoomIn(browserId)}
-              className="flex h-6 w-6 items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5"
+              className="flex h-6 w-7 items-center justify-center text-fg-muted hover:text-fg hover:bg-white/5"
             >
-              +
+              <PlusIcon />
             </button>
           </div>
-          <div className="my-1 h-px bg-border" />
-          <button
-            type="button"
-            disabled
-            className="w-full rounded px-2 py-1.5 text-left text-xs text-fg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Developer Options (Coming Soon)
-          </button>
         </div>
       )}
       <div className="relative flex-1 min-h-0">
@@ -358,11 +333,18 @@ function MoreVerticalIcon() {
   )
 }
 
-function MagnifyingGlassIcon() {
+function MinusIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
