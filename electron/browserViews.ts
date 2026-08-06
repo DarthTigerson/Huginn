@@ -114,6 +114,7 @@ export class BrowserViewManager {
     })
     wc.on('dom-ready', () => {
       this.sendEvent(id, { type: 'dom-ready', webContentsId: wc.id })
+      this.sendEvent(id, { type: 'zoom-changed', level: wc.getZoomLevel() })
       // Trackpad pinch and Ctrl+scroll are delivered to the guest page as a
       // ctrlKey wheel event. Real browsers preventDefault() it to drive their own
       // page zoom, which also happens to be what stops macOS's system-wide

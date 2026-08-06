@@ -139,11 +139,12 @@ export function BrowserTab({ browserId }: Props) {
   const loadError = tabState?.loadError ?? null
 
   // The native view always draws on top of this component's own DOM (including
-  // the inline "page couldn't load" state below), so it has to be explicitly
-  // hidden while that error overlay is what should be visible.
+  // the inline "page couldn't load" state below, and the "..." menu), so it
+  // has to be explicitly hidden whenever either of those should be visible
+  // instead — otherwise they render, but invisibly, behind the guest.
   useEffect(() => {
-    window.api.browserViewSetVisible(browserId, !loadError)
-  }, [browserId, loadError])
+    window.api.browserViewSetVisible(browserId, !loadError && !menuAnchor)
+  }, [browserId, loadError, menuAnchor])
 
   useEffect(() => {
     if (!menuAnchor) return
