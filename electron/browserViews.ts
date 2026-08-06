@@ -1,4 +1,16 @@
-import { BrowserWindow, WebContentsView, ipcMain } from 'electron'
+import { BrowserWindow, WebContentsView, ipcMain, session } from 'electron'
+
+// Guest pages share this dedicated partition with each other (so cookies/logins
+// persist across browser tabs like normal browser tabs would) but NOT with the
+// main window's own session. Without this, WebContentsView shares Electron's
+// default session with the main window, and Chromium's zoom level is scoped to
+// the session rather than the individual webContents — so zooming a guest page
+// silently zoomed the entire app UI (sidebar, tabs, everything) in lockstep.
+// Created lazily (not at module load) because session.fromPartition requires
+// the app to be ready.
+function getBrowserSession(): Electron.Session {
+  return session.fromPartition('persist:browser-tabs')
+}
 
 interface Bounds {
   x: number
@@ -64,6 +76,7 @@ export class BrowserViewManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        session: getBrowserSession(),
       },
     })
     view.setBackgroundColor('#1e1e1e')
