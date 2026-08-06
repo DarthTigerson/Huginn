@@ -22,6 +22,7 @@ vi.stubGlobal('window', {
   api: {
     openFolder: vi.fn().mockResolvedValue('/proj'),
     readDir: vi.fn().mockResolvedValue(mockTree),
+    gitWatchRoot: vi.fn(),
   },
 })
 
