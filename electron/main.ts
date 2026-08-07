@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents } from 'electron'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
@@ -53,13 +53,16 @@ function registerDevtoolsHandlers(): void {
   })
 }
 
-function createWindow(): BrowserWindow {
+const windows = new Map<number, BrowserWindow>()
+
+function createWindow(projectRoot?: string): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     show: false,
+    title: projectRoot ? basename(projectRoot) : 'Huginn',
     titleBarStyle: 'hiddenInset',
     vibrancy: 'sidebar',
     backgroundColor: '#1e1e1e',
@@ -70,7 +73,18 @@ function createWindow(): BrowserWindow {
     },
   })
 
+  windows.set(win.id, win)
   win.once('ready-to-show', () => win.show())
+  win.on('focus', () => buildMenu())
+  win.on('closed', () => {
+    windows.delete(win.id)
+    ptyMgr.disposeWindow(win.id)
+    claudeMgr.disposeWindow(win.id)
+    gitWatcher.disposeWindow(win.id)
+    cosmosMgr.disposeWindow(win.id)
+    browserViewMgr.disposeWindow(win.id)
+    buildMenu()
+  })
 
   // Chromium persists page zoom per-origin across restarts. If it ever gets
   // stuck at some large factor (e.g. a stray native zoom accelerator firing
@@ -84,6 +98,12 @@ function createWindow(): BrowserWindow {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+
+  if (projectRoot) {
+    win.webContents.once('did-finish-load', () => {
+      win.webContents.send('menu:openInitialProject', projectRoot)
+    })
   }
 
   return win
@@ -311,30 +331,54 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+let ptyMgr: PtyManager
+let claudeMgr: ClaudeManager
+let gitWatcher: GitWatcher
+let cosmosMgr: CosmosManager
+let browserViewMgr: BrowserViewManager
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') {
     app.dock?.setIcon(join(__dirname, '../../icon.png'))
   }
-  buildMenu()
+
   registerFsHandlers()
   registerCosmosSettingsHandlers()
   registerDevtoolsHandlers()
   registerSessionHandlers()
-  const win = createWindow()
-  const gitRunner = new GitRunner(win)
-  gitRunner.registerHandlers()
-  const gitWatcher = new GitWatcher(win)
-  gitWatcher.registerHandlers()
-  const ptyMgr = new PtyManager(win)
+
+  ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()
-  const claudeMgr = new ClaudeManager(win)
+  claudeMgr = new ClaudeManager()
   claudeMgr.registerHandlers()
-  const mobileSrv = new MobileServer(win)
-  mobileSrv.registerHandlers()
-  const cosmosMgr = new CosmosManager(win)
+  const gitRunner = new GitRunner()
+  gitRunner.registerHandlers()
+  gitWatcher = new GitWatcher()
+  gitWatcher.registerHandlers()
+  cosmosMgr = new CosmosManager()
   cosmosMgr.registerHandlers()
-  const browserViewMgr = new BrowserViewManager(win)
+  browserViewMgr = new BrowserViewManager()
   browserViewMgr.registerHandlers()
+
+  buildMenu()
+  createWindow()
+
+  // MobileServer (deliberately left untouched — an app-wide singleton per the
+  // spec, not per-window) pushes 'mobile:state' events to whatever `win` it
+  // was constructed with. With multiple real windows there's no single
+  // correct target — its state is account-level (pairing PIN, usage stats),
+  // not tied to any one project — so give it a fake win-shaped object whose
+  // webContents.send() broadcasts to every currently-open window instead.
+  const mobileSrv = new MobileServer({
+    webContents: {
+      send: (...args: unknown[]) => {
+        for (const w of windows.values()) {
+          if (!w.isDestroyed()) (w.webContents.send as (...a: unknown[]) => void)(...args)
+        }
+      },
+    },
+  } as unknown as BrowserWindow)
+  mobileSrv.registerHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
