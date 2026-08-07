@@ -510,6 +510,104 @@ describe('CosmosManager tool calls', () => {
     expect(await readFileFs(to, 'utf-8')).toBe('content')
     await expect(readFileFs(from, 'utf-8')).rejects.toThrow()
   })
+
+  it('two windows awaiting approval on the same tool-call id are independent: approving window B does not resolve window A', async () => {
+    const manager = new CosmosManager()
+    manager.registerHandlers()
+    const winA = { id: 301, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const winB = { id: 302, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const sendHandler = handlers['cosmos:send']
+    const approveHandler = handlers['cosmos:approve']
+    const rejectHandler = handlers['cosmos:reject']
+    const targetA = join(root, 'winA.txt')
+    const targetB = join(root, 'winB.txt')
+
+    // Both conversations share the same global `fetch` mock, so route the
+    // response by inspecting the request body instead of relying on call
+    // order (which round-robins unpredictably between two concurrently
+    // in-flight conversations).
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, opts: any) => {
+      const body = JSON.parse(opts.body)
+      const userMsg = body.messages.find((m: any) => m.role === 'user')?.content
+      const isFirstRound = !body.messages.some((m: any) => m.role === 'tool')
+      if (userMsg === 'write A') {
+        return isFirstRound ? toolCallStream('write_file', { path: targetA, content: 'A' }) : finalTextStream('doneA')
+      }
+      return isFirstRound ? toolCallStream('write_file', { path: targetB, content: 'B' }) : finalTextStream('doneB')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const runA = sendHandler({ sender: winA }, { cwd: root, messages: [{ role: 'user', content: 'write A' }], agentMode: false, settings: SETTINGS })
+    const runB = sendHandler({ sender: winB }, { cwd: root, messages: [{ role: 'user', content: 'write B' }], agentMode: false, settings: SETTINGS })
+
+    await vi.waitFor(() => {
+      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      expect(eventsA).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetA, content: 'A' } })
+      expect(eventsB).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetB, content: 'B' } })
+    })
+
+    // Approve only window B's call_1 — window A's identically-id'd pending
+    // approval must be unaffected, since each window has its own approvals map.
+    approveHandler({ sender: winB }, 'call_1')
+    await runB
+
+    expect(await readFileFs(targetB, 'utf-8')).toBe('B')
+    const eventsAAfterBApproved = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(eventsAAfterBApproved.some((e: any) => e.type === 'tool-result')).toBe(false)
+    await expect(readFileFs(targetA, 'utf-8')).rejects.toThrow()
+
+    // Clean up window A's still-pending conversation so its promise settles.
+    rejectHandler({ sender: winA }, 'call_1')
+    await runA
+    await expect(readFileFs(targetA, 'utf-8')).rejects.toThrow()
+  })
+
+  it('disposeWindow rejects and clears only the disposed window\'s pending approval, leaving another window\'s conversation untouched', async () => {
+    const manager = new CosmosManager()
+    manager.registerHandlers()
+    const winA = { id: 401, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const winB = { id: 402, isDestroyed: () => false, webContents: { send: vi.fn() } }
+    const sendHandler = handlers['cosmos:send']
+    const approveHandler = handlers['cosmos:approve']
+    const targetA = join(root, 'disposeA.txt')
+    const targetB = join(root, 'disposeB.txt')
+
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, opts: any) => {
+      const body = JSON.parse(opts.body)
+      const userMsg = body.messages.find((m: any) => m.role === 'user')?.content
+      const isFirstRound = !body.messages.some((m: any) => m.role === 'tool')
+      if (userMsg === 'dispose A') {
+        return isFirstRound ? toolCallStream('write_file', { path: targetA, content: 'A' }) : finalTextStream('doneA')
+      }
+      return isFirstRound ? toolCallStream('write_file', { path: targetB, content: 'B' }) : finalTextStream('doneB')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const runA = sendHandler({ sender: winA }, { cwd: root, messages: [{ role: 'user', content: 'dispose A' }], agentMode: false, settings: SETTINGS })
+    const runB = sendHandler({ sender: winB }, { cwd: root, messages: [{ role: 'user', content: 'dispose B' }], agentMode: false, settings: SETTINGS })
+
+    await vi.waitFor(() => {
+      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      expect(eventsA).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetA, content: 'A' } })
+      expect(eventsB).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetB, content: 'B' } })
+    })
+
+    manager.disposeWindow(winA.id)
+    await runA
+
+    const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(eventsA).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
+    await expect(readFileFs(targetA, 'utf-8')).rejects.toThrow()
+
+    const eventsBAfterDispose = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    expect(eventsBAfterDispose.some((e: any) => e.type === 'tool-result')).toBe(false)
+
+    approveHandler({ sender: winB }, 'call_1')
+    await runB
+    expect(await readFileFs(targetB, 'utf-8')).toBe('B')
+  })
 })
 
 describe('CosmosManager system prompt', () => {

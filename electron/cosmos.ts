@@ -409,7 +409,12 @@ export class CosmosManager {
   }
 
   private async runConversation(win: BrowserWindow, payload: CosmosSendPayload): Promise<void> {
-    this.cancelledByWindow.set(win.id, false)
+    // Captured once, before any `await`, so every subsequent Map lookup in this
+    // conversation (including inside streamOneCompletion/awaitApproval) keys off
+    // the window identity as it was when the conversation started — not a
+    // possibly-stale `win.id` read after the window has been disposed.
+    const winId = win.id
+    this.cancelledByWindow.set(winId, false)
     const { cwd, settings, agentMode } = payload
     const messages = [...payload.messages]
     if (messages[0]?.role !== 'system') {
@@ -418,7 +423,7 @@ export class CosmosManager {
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       if (round > 0) this.emit(win, { type: 'new-turn' })
-      const streamResult = await this.streamOneCompletion(win, messages, settings)
+      const streamResult = await this.streamOneCompletion(win, winId, messages, settings)
       if (streamResult === null) return // error or abort already emitted
 
       if (streamResult.toolCalls.length === 0) {
@@ -438,7 +443,7 @@ export class CosmosManager {
 
       for (const call of streamResult.toolCalls) {
         this.emit(win, { type: 'tool-call', id: call.id, name: call.name, args: call.args })
-        const approved = agentMode ? true : await this.awaitApproval(win, call)
+        const approved = agentMode ? true : await this.awaitApproval(win, winId, call)
         const execResult = approved
           ? await this.executeTool(call.name, call.args, cwd)
           : { result: 'Rejected by user.', isError: true }
@@ -446,19 +451,19 @@ export class CosmosManager {
         this.emit(win, { type: 'tool-result', id: call.id, result: execResult.result, isError: execResult.isError })
         messages.push({ role: 'tool', tool_call_id: call.id, content: execResult.result })
 
-        if (this.cancelledByWindow.get(win.id)) return
+        if (this.cancelledByWindow.get(winId)) return
       }
 
-      if (this.cancelledByWindow.get(win.id)) return
+      if (this.cancelledByWindow.get(winId)) return
     }
 
     this.emit(win, { type: 'error', message: `Cosmos hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
   }
 
-  private awaitApproval(win: BrowserWindow, call: PendingToolCall): Promise<boolean> {
+  private awaitApproval(win: BrowserWindow, winId: number, call: PendingToolCall): Promise<boolean> {
     this.emit(win, { type: 'need-approval', id: call.id, name: call.name, args: call.args })
     return new Promise((resolve) => {
-      this.approvalsFor(win.id).set(call.id, resolve)
+      this.approvalsFor(winId).set(call.id, resolve)
     })
   }
 
@@ -591,11 +596,12 @@ export class CosmosManager {
 
   private async streamOneCompletion(
     win: BrowserWindow,
+    winId: number,
     messages: CosmosMessage[],
     settings: CosmosSettings
   ): Promise<{ content: string; toolCalls: PendingToolCall[] } | null> {
     const controller = new AbortController()
-    this.controllerByWindow.set(win.id, controller)
+    this.controllerByWindow.set(winId, controller)
 
     let response: Response
     try {
@@ -698,7 +704,19 @@ export class CosmosManager {
   disposeWindow(winId: number): void {
     this.controllerByWindow.get(winId)?.abort()
     this.controllerByWindow.delete(winId)
+    const approvals = this.pendingApprovalsByWindow.get(winId)
+    if (approvals) {
+      for (const resolve of approvals.values()) {
+        resolve(false)
+      }
+      approvals.clear()
+    }
     this.pendingApprovalsByWindow.delete(winId)
-    this.cancelledByWindow.delete(winId)
+    // Set (not delete) so any `runConversation` loop still suspended at an
+    // `await` for this window sees cancellation as true rather than
+    // `undefined` (falsy) — a `delete` here would let it keep executing tool
+    // calls (and would let `streamOneCompletion` silently repopulate
+    // controllerByWindow) on behalf of a window that no longer exists.
+    this.cancelledByWindow.set(winId, true)
   }
 }
