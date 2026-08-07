@@ -42,34 +42,68 @@ interface Entry {
 // needing its pixel bounds pushed from the renderer on every resize/pane-move
 // instead of it just living in the DOM flex layout.
 export class BrowserViewManager {
-  private views = new Map<string, Entry>()
-
-  constructor(private win: BrowserWindow) {}
+  private viewsByWindow = new Map<number, Map<string, Entry>>()
 
   registerHandlers(): void {
-    ipcMain.handle('browserView:create', (_e, id: string, url: string) => this.create(id, url))
-    ipcMain.handle('browserView:setBounds', (_e, id: string, bounds: Bounds) => this.setBounds(id, bounds))
-    ipcMain.handle('browserView:setVisible', (_e, id: string, visible: boolean) => this.setVisible(id, visible))
-    ipcMain.handle('browserView:navigate', (_e, id: string, url: string) => this.get(id)?.webContents.loadURL(url))
-    ipcMain.handle('browserView:goBack', (_e, id: string) => this.get(id)?.webContents.navigationHistory.goBack())
-    ipcMain.handle('browserView:goForward', (_e, id: string) => this.get(id)?.webContents.navigationHistory.goForward())
-    ipcMain.handle('browserView:reload', (_e, id: string) => this.get(id)?.webContents.reload())
-    ipcMain.handle('browserView:zoomIn', (_e, id: string) =>
-      this.setZoom(id, (this.get(id)?.webContents.getZoomLevel() ?? 0) + 1)
+    ipcMain.handle('browserView:create', (event, id: string, url: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      return win ? this.create(win, id, url) : null
+    })
+    ipcMain.handle('browserView:setBounds', (event, id: string, bounds: Bounds) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (win) this.setBounds(win.id, id, bounds)
+    })
+    ipcMain.handle('browserView:setVisible', (event, id: string, visible: boolean) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (win) this.setVisible(win, id, visible)
+    })
+    ipcMain.handle('browserView:navigate', (event, id: string, url: string) =>
+      this.get(this.winIdOf(event), id)?.webContents.loadURL(url)
     )
-    ipcMain.handle('browserView:zoomOut', (_e, id: string) =>
-      this.setZoom(id, (this.get(id)?.webContents.getZoomLevel() ?? 0) - 1)
+    ipcMain.handle('browserView:goBack', (event, id: string) =>
+      this.get(this.winIdOf(event), id)?.webContents.navigationHistory.goBack()
     )
-    ipcMain.handle('browserView:zoomReset', (_e, id: string) => this.setZoom(id, 0))
-    ipcMain.handle('browserView:destroy', (_e, id: string) => this.destroy(id))
+    ipcMain.handle('browserView:goForward', (event, id: string) =>
+      this.get(this.winIdOf(event), id)?.webContents.navigationHistory.goForward()
+    )
+    ipcMain.handle('browserView:reload', (event, id: string) =>
+      this.get(this.winIdOf(event), id)?.webContents.reload()
+    )
+    ipcMain.handle('browserView:zoomIn', (event, id: string) => {
+      const winId = this.winIdOf(event)
+      this.setZoom(winId, id, (this.get(winId, id)?.webContents.getZoomLevel() ?? 0) + 1)
+    })
+    ipcMain.handle('browserView:zoomOut', (event, id: string) => {
+      const winId = this.winIdOf(event)
+      this.setZoom(winId, id, (this.get(winId, id)?.webContents.getZoomLevel() ?? 0) - 1)
+    })
+    ipcMain.handle('browserView:zoomReset', (event, id: string) => this.setZoom(this.winIdOf(event), id, 0))
+    ipcMain.handle('browserView:destroy', (event, id: string) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (win) this.destroy(win, id)
+    })
   }
 
-  private get(id: string): WebContentsView | undefined {
-    return this.views.get(id)?.view
+  private winIdOf(event: Electron.IpcMainInvokeEvent): number {
+    return BrowserWindow.fromWebContents(event.sender)?.id ?? -1
   }
 
-  private create(id: string, url: string): number | null {
-    const existing = this.views.get(id)
+  private entriesFor(winId: number): Map<string, Entry> {
+    let entries = this.viewsByWindow.get(winId)
+    if (!entries) {
+      entries = new Map()
+      this.viewsByWindow.set(winId, entries)
+    }
+    return entries
+  }
+
+  private get(winId: number, id: string): WebContentsView | undefined {
+    return this.viewsByWindow.get(winId)?.get(id)?.view
+  }
+
+  private create(win: BrowserWindow, id: string, url: string): number | null {
+    const entries = this.entriesFor(win.id)
+    const existing = entries.get(id)
     if (existing) return existing.view.webContents.id
 
     const view = new WebContentsView({
@@ -82,18 +116,18 @@ export class BrowserViewManager {
     })
     view.setBackgroundColor('#1e1e1e')
     view.webContents.loadURL(url)
-    this.wireEvents(id, view)
+    this.wireEvents(win, id, view)
 
-    this.win.contentView.addChildView(view)
-    this.views.set(id, { view, attached: true })
+    win.contentView.addChildView(view)
+    entries.set(id, { view, attached: true })
     return view.webContents.id
   }
 
-  private sendEvent(id: string, payload: BrowserViewEvent): void {
-    if (!this.win.isDestroyed()) this.win.webContents.send('browserView:event', id, payload)
+  private sendEvent(win: BrowserWindow, id: string, payload: BrowserViewEvent): void {
+    if (!win.isDestroyed()) win.webContents.send('browserView:event', id, payload)
   }
 
-  private wireEvents(id: string, view: WebContentsView): void {
+  private wireEvents(win: BrowserWindow, id: string, view: WebContentsView): void {
     const wc = view.webContents
 
     // Links/scripts that would normally pop a real OS window (target="_blank",
@@ -101,20 +135,20 @@ export class BrowserViewManager {
     // window of its own to pop one into anyway — and handed to the renderer
     // instead, which opens it as a new browser tab in the app's own tab strip.
     wc.setWindowOpenHandler((details) => {
-      this.sendEvent(id, { type: 'open-in-new-tab', url: details.url })
+      this.sendEvent(win, id, { type: 'open-in-new-tab', url: details.url })
       return { action: 'deny' }
     })
 
-    wc.on('did-start-loading', () => this.sendEvent(id, { type: 'did-start-loading' }))
+    wc.on('did-start-loading', () => this.sendEvent(win, id, { type: 'did-start-loading' }))
     wc.on('did-stop-loading', () =>
-      this.sendEvent(id, {
+      this.sendEvent(win, id, {
         type: 'did-stop-loading',
         canGoBack: wc.navigationHistory.canGoBack(),
         canGoForward: wc.navigationHistory.canGoForward(),
       })
     )
     wc.on('did-navigate', (_e, url) =>
-      this.sendEvent(id, {
+      this.sendEvent(win, id, {
         type: 'did-navigate',
         url,
         canGoBack: wc.navigationHistory.canGoBack(),
@@ -122,22 +156,22 @@ export class BrowserViewManager {
       })
     )
     wc.on('did-navigate-in-page', (_e, url) =>
-      this.sendEvent(id, {
+      this.sendEvent(win, id, {
         type: 'did-navigate-in-page',
         url,
         canGoBack: wc.navigationHistory.canGoBack(),
         canGoForward: wc.navigationHistory.canGoForward(),
       })
     )
-    wc.on('page-title-updated', (_e, title) => this.sendEvent(id, { type: 'page-title-updated', title }))
+    wc.on('page-title-updated', (_e, title) => this.sendEvent(win, id, { type: 'page-title-updated', title }))
     wc.on('did-fail-load', (_e, errorCode, errorDescription, _validatedUrl, isMainFrame) => {
       // -3 is ERR_ABORTED, fired on normal navigation interruption (e.g. redirects) — not a real failure
       if (!isMainFrame || errorCode === -3) return
-      this.sendEvent(id, { type: 'did-fail-load', errorDescription })
+      this.sendEvent(win, id, { type: 'did-fail-load', errorDescription })
     })
     wc.on('dom-ready', () => {
-      this.sendEvent(id, { type: 'dom-ready', webContentsId: wc.id })
-      this.sendEvent(id, { type: 'zoom-changed', level: wc.getZoomLevel() })
+      this.sendEvent(win, id, { type: 'dom-ready', webContentsId: wc.id })
+      this.sendEvent(win, id, { type: 'zoom-changed', level: wc.getZoomLevel() })
       // Trackpad pinch and Ctrl+scroll are delivered to the guest page as a
       // ctrlKey wheel event. Real browsers preventDefault() it to drive their own
       // page zoom, which also happens to be what stops macOS's system-wide
@@ -160,27 +194,28 @@ export class BrowserViewManager {
 
       if (input.key === '=' || input.key === '+') {
         event.preventDefault()
-        this.setZoom(id, wc.getZoomLevel() + 1)
+        this.setZoom(win.id, id, wc.getZoomLevel() + 1)
       } else if (input.key === '-' || input.key === '_') {
         event.preventDefault()
-        this.setZoom(id, wc.getZoomLevel() - 1)
+        this.setZoom(win.id, id, wc.getZoomLevel() - 1)
       } else if (input.key === '0') {
         event.preventDefault()
-        this.setZoom(id, 0)
+        this.setZoom(win.id, id, 0)
       }
     })
   }
 
-  private setZoom(id: string, level: number): void {
-    const wc = this.get(id)?.webContents
+  private setZoom(winId: number, id: string, level: number): void {
+    const wc = this.get(winId, id)?.webContents
     if (!wc) return
     const clamped = Math.max(-8, Math.min(9, level))
     wc.setZoomLevel(clamped)
-    this.sendEvent(id, { type: 'zoom-changed', level: clamped })
+    const win = BrowserWindow.fromId(winId)
+    if (win) this.sendEvent(win, id, { type: 'zoom-changed', level: clamped })
   }
 
-  private setBounds(id: string, bounds: Bounds): void {
-    this.get(id)?.setBounds({
+  private setBounds(winId: number, id: string, bounds: Bounds): void {
+    this.get(winId, id)?.setBounds({
       x: Math.round(bounds.x),
       y: Math.round(bounds.y),
       width: Math.round(bounds.width),
@@ -188,23 +223,32 @@ export class BrowserViewManager {
     })
   }
 
-  private setVisible(id: string, visible: boolean): void {
-    const entry = this.views.get(id)
+  private setVisible(win: BrowserWindow, id: string, visible: boolean): void {
+    const entry = this.viewsByWindow.get(win.id)?.get(id)
     if (!entry) return
     if (visible && !entry.attached) {
-      this.win.contentView.addChildView(entry.view)
+      win.contentView.addChildView(entry.view)
       entry.attached = true
     } else if (!visible && entry.attached) {
-      this.win.contentView.removeChildView(entry.view)
+      win.contentView.removeChildView(entry.view)
       entry.attached = false
     }
   }
 
-  private destroy(id: string): void {
-    const entry = this.views.get(id)
+  private destroy(win: BrowserWindow, id: string): void {
+    const entry = this.viewsByWindow.get(win.id)?.get(id)
     if (!entry) return
-    if (entry.attached) this.win.contentView.removeChildView(entry.view)
+    if (entry.attached) win.contentView.removeChildView(entry.view)
     entry.view.webContents.close({ waitForBeforeUnload: false })
-    this.views.delete(id)
+    this.viewsByWindow.get(win.id)?.delete(id)
+  }
+
+  disposeWindow(winId: number): void {
+    const win = BrowserWindow.fromId(winId)
+    const entries = this.viewsByWindow.get(winId)
+    if (entries && win) {
+      for (const [id] of entries) this.destroy(win, id)
+    }
+    this.viewsByWindow.delete(winId)
   }
 }
