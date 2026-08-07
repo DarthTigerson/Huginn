@@ -41,6 +41,7 @@ vi.mock('electron', () => ({
 }))
 
 import { BrowserViewManager } from '../browserViews'
+import { WebContentsView } from 'electron'
 
 function fakeWin(id: number) {
   return {
@@ -78,5 +79,24 @@ describe('BrowserViewManager multi-window isolation', () => {
 
     expect(winA.contentView.removeChildView).toHaveBeenCalledTimes(1)
     expect(winB.contentView.removeChildView).not.toHaveBeenCalled()
+  })
+
+  it('disposeWindow still closes webContents when the window is no longer resolvable via fromId (e.g. after its "closed" event has already fired)', () => {
+    const manager = new BrowserViewManager()
+    manager.registerHandlers()
+    const winC = fakeWin(3)
+
+    handlers['browserView:create']({ sender: winC }, 'tab-1', 'https://example.com')
+    // Simulate BrowserWindow.fromId no longer being able to resolve the window
+    // by the time disposal runs.
+    winsById.delete(3)
+
+    manager.disposeWindow(3)
+
+    const created = (WebContentsView as unknown as ReturnType<typeof vi.fn>).mock.results
+    const view = created[created.length - 1].value
+    expect(view.webContents.close).toHaveBeenCalledWith({ waitForBeforeUnload: false })
+    // win is unresolvable, so removeChildView (which needs the win object) can't be called
+    expect(winC.contentView.removeChildView).not.toHaveBeenCalled()
   })
 })

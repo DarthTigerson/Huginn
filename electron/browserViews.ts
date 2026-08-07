@@ -244,10 +244,13 @@ export class BrowserViewManager {
   }
 
   disposeWindow(winId: number): void {
-    const win = BrowserWindow.fromId(winId)
     const entries = this.viewsByWindow.get(winId)
-    if (entries && win) {
-      for (const [id] of entries) this.destroy(win, id)
+    if (entries) {
+      const win = BrowserWindow.fromId(winId)
+      for (const [, entry] of entries) {
+        if (win && entry.attached) win.contentView.removeChildView(entry.view)
+        entry.view.webContents.close({ waitForBeforeUnload: false })
+      }
     }
     this.viewsByWindow.delete(winId)
   }
