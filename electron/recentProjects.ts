@@ -13,7 +13,7 @@ function recentsPath(): string {
   return join(app.getPath('userData'), 'recent-projects.json')
 }
 
-async function readRecents(): Promise<RecentProject[]> {
+export async function readRecents(): Promise<RecentProject[]> {
   try {
     const data = await readFile(recentsPath(), 'utf-8')
     return JSON.parse(data)
@@ -27,17 +27,19 @@ async function writeRecents(recents: RecentProject[]): Promise<void> {
   await writeFile(recentsPath(), JSON.stringify(recents), 'utf-8')
 }
 
+export async function addRecentProject(path: string): Promise<void> {
+  const recents = await readRecents()
+  const withoutPath = recents.filter((r) => r.path !== path)
+  const updated = [{ path, lastOpened: Date.now() }, ...withoutPath].slice(0, MAX_RECENTS)
+  await writeRecents(updated)
+}
+
+export async function clearRecentProjects(): Promise<void> {
+  await writeRecents([])
+}
+
 export function registerRecentProjectsHandlers(): void {
   ipcMain.handle('recentProjects:list', async () => readRecents())
-
-  ipcMain.handle('recentProjects:add', async (_e, path: string) => {
-    const recents = await readRecents()
-    const withoutPath = recents.filter((r) => r.path !== path)
-    const updated = [{ path, lastOpened: Date.now() }, ...withoutPath].slice(0, MAX_RECENTS)
-    await writeRecents(updated)
-  })
-
-  ipcMain.handle('recentProjects:clear', async () => {
-    await writeRecents([])
-  })
+  ipcMain.handle('recentProjects:add', async (_e, path: string) => addRecentProject(path))
+  ipcMain.handle('recentProjects:clear', async () => clearRecentProjects())
 }

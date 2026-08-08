@@ -11,7 +11,7 @@ import { CosmosManager } from './cosmos'
 import { BrowserViewManager } from './browserViews'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 import { registerSessionHandlers } from './session'
-import { registerRecentProjectsHandlers } from './recentProjects'
+import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -137,7 +137,8 @@ function registerCosmosSettingsHandlers(): void {
   })
 }
 
-function buildMenu(): void {
+async function buildMenu(): Promise<void> {
+  const recents = await readRecents()
   const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: 'Huginn',
@@ -195,6 +196,42 @@ function buildMenu(): void {
             const win = BrowserWindow.getFocusedWindow()
             if (win) win.webContents.send('menu:openProject')
           },
+        },
+        { type: 'separator' },
+        {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: async () => {
+            const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+            if (result.canceled || !result.filePaths[0]) return
+            const path = result.filePaths[0]
+            await addRecentProject(path)
+            createWindow(path)
+            buildMenu()
+          },
+        },
+        {
+          label: 'Recent Projects',
+          submenu: recents.length === 0
+            ? [{ label: 'No Recent Projects', enabled: false }]
+            : [
+                ...recents.map((r) => ({
+                  label: r.path,
+                  click: async () => {
+                    await addRecentProject(r.path)
+                    createWindow(r.path)
+                    buildMenu()
+                  },
+                })),
+                { type: 'separator' as const },
+                {
+                  label: 'Clear Recent Projects',
+                  click: async () => {
+                    await clearRecentProjects()
+                    buildMenu()
+                  },
+                },
+              ],
         },
         { type: 'separator' },
         {
@@ -330,6 +367,13 @@ function buildMenu(): void {
       submenu: [
         { role: 'minimize' },
         { role: 'zoom' },
+        { type: 'separator' },
+        ...Array.from(windows.values()).map((w) => ({
+          label: w.getTitle(),
+          type: 'radio' as const,
+          checked: w === BrowserWindow.getFocusedWindow(),
+          click: () => w.focus(),
+        })),
         { type: 'separator' },
         { role: 'front' },
       ],
