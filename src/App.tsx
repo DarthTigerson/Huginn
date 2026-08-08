@@ -184,7 +184,19 @@ export default function App() {
   }, [enabledModels, assistant, setAssistant])
 
   useEffect(() => {
-    useFileStore.getState().restoreRoot()
+    let initialProjectReceived = false
+    const unsubscribe = window.api.onMenuOpenInitialProject((projectRoot) => {
+      initialProjectReceived = true
+      useFileStore.getState().openProjectAt(projectRoot)
+    })
+    // Give the (synchronous, IPC-ordered-before-any-render) initial-project
+    // message a chance to arrive first — main.ts sends it from the window's
+    // own 'did-finish-load', which fires before this component's effects run,
+    // so by the time this line executes we already know whether one arrived.
+    if (!initialProjectReceived) {
+      useFileStore.getState().restoreRoot()
+    }
+    return unsubscribe
   }, [])
 
   useHoldToShowShortcuts()

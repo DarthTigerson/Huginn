@@ -24,6 +24,7 @@ interface FileState {
   selectedPath: string | null
   restoreRoot: () => Promise<void>
   openFolder: () => Promise<void>
+  openProjectAt: (root: string) => Promise<void>
   refreshRoot: () => Promise<void>
   expandDir: (dirPath: string) => Promise<void>
   select: (path: string) => void
@@ -66,6 +67,12 @@ export const useFileStore = create<FileState>((set, get) => ({
     if (previousRoot !== null && previousRoot !== root) {
       useEditorStore.getState().resetForNewProject()
     }
+  },
+
+  openProjectAt: async (root: string) => {
+    const tree = await window.api.readDir(root)
+    set({ projectRoot: root, tree })
+    window.api.gitWatchRoot(root)
   },
 
   expandDir: async (dirPath: string) => {

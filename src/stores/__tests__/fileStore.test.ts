@@ -81,4 +81,19 @@ describe('fileStore', () => {
     useFileStore.getState().select('/proj/package.json')
     expect(useFileStore.getState().selectedPath).toBe('/proj/package.json')
   })
+
+  it('openProjectAt sets root and tree from the given path without opening a picker dialog', async () => {
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(mockTree)
+    await useFileStore.getState().openProjectAt('/other-proj')
+    const { projectRoot, tree } = useFileStore.getState()
+    expect(projectRoot).toBe('/other-proj')
+    expect(tree).toEqual(mockTree)
+    expect(window.api.gitWatchRoot).toHaveBeenCalledWith('/other-proj')
+  })
+
+  it('openProjectAt does not write to localStorage (each window keeps its own project)', async () => {
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(mockTree)
+    await useFileStore.getState().openProjectAt('/other-proj')
+    expect(localStorage.getItem('huginn:lastProjectRoot')).toBeNull()
+  })
 })
