@@ -19,7 +19,8 @@ export function postProcessCompletion(raw: string): string | null {
 }
 
 import { BrowserWindow, ipcMain } from 'electron'
-import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'child_process'
+import { execFile, spawn, type ChildProcessByStdio } from 'child_process'
+import type { Readable } from 'stream'
 
 const TIMEOUT_MS = 10000
 
@@ -50,7 +51,7 @@ export function _resetClaudePathCacheForTesting(): void {
 }
 
 export class AutocompleteManager {
-  private currentByWindow = new Map<number, ChildProcessWithoutNullStreams>()
+  private currentByWindow = new Map<number, ChildProcessByStdio<null, Readable, Readable>>()
 
   registerHandlers(): void {
     resolveClaudePath()
@@ -95,7 +96,7 @@ export class AutocompleteManager {
           '--system-prompt', buildSystemPrompt(),
         ],
         { stdio: ['ignore', 'pipe', 'pipe'] }
-      ) as ChildProcessWithoutNullStreams
+      )
 
       this.currentByWindow.set(windowId, proc)
 
