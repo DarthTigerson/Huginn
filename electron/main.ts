@@ -8,6 +8,7 @@ import { GitRunner } from './gitRunner'
 import { GitWatcher } from './gitWatcher'
 import { MobileServer } from './mobile'
 import { CosmosManager } from './cosmos'
+import { AutocompleteManager } from './autocomplete'
 import { BrowserViewManager } from './browserViews'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 import { registerSessionHandlers } from './session'
@@ -122,6 +123,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     gitWatcher.disposeWindow(win.id)
     cosmosMgr.disposeWindow(win.id)
     browserViewMgr.disposeWindow(win.id)
+    autocompleteMgr.disposeWindow(win.id)
     buildMenu()
   })
 
@@ -425,6 +427,7 @@ let claudeMgr: ClaudeManager
 let gitWatcher: GitWatcher
 let cosmosMgr: CosmosManager
 let browserViewMgr: BrowserViewManager
+let autocompleteMgr: AutocompleteManager
 
 app.whenReady().then(() => {
   if (process.platform === 'darwin') {
@@ -454,6 +457,8 @@ app.whenReady().then(() => {
   cosmosMgr.registerHandlers()
   browserViewMgr = new BrowserViewManager()
   browserViewMgr.registerHandlers()
+  autocompleteMgr = new AutocompleteManager()
+  autocompleteMgr.registerHandlers()
 
   buildMenu()
   createWindow()
