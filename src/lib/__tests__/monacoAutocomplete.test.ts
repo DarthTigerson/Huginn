@@ -100,4 +100,27 @@ describe('provideInlineCompletion', () => {
 
     expect(await promise).toEqual([])
   })
+
+  it('resolves to no items (not a rejection) when the IPC call rejects, and still resets busy', async () => {
+    const apiMock = vi.fn().mockRejectedValue(new Error('renderer/main IPC failure'))
+    ;(global as any).window = { api: { autocompleteComplete: apiMock } }
+
+    const promise = provideInlineCompletion(fakeModel(), { lineNumber: 1, column: 1 }, fakeToken())
+    await vi.advanceTimersByTimeAsync(700)
+
+    await expect(promise).resolves.toEqual([])
+    expect(useAutocompleteStatusStore.getState().busy).toBe(false)
+  })
+
+  it('returns no items if autocomplete is paused during the debounce wait', async () => {
+    const apiMock = vi.fn().mockResolvedValue('x')
+    ;(global as any).window = { api: { autocompleteComplete: apiMock } }
+
+    const promise = provideInlineCompletion(fakeModel(), { lineNumber: 1, column: 1 }, fakeToken())
+    useAutocompleteSessionStore.setState({ paused: true })
+    await vi.advanceTimersByTimeAsync(700)
+
+    expect(await promise).toEqual([])
+    expect(apiMock).not.toHaveBeenCalled()
+  })
 })

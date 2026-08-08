@@ -65,6 +65,18 @@ describe('postProcessCompletion', () => {
   it('returns null when the fenced block is empty', () => {
     expect(postProcessCompletion('```\n\n```')).toBeNull()
   })
+
+  it('preserves leading indentation on multi-line completions', () => {
+    expect(postProcessCompletion('\n  return a + b;\n}')).toBe('  return a + b;\n}')
+  })
+
+  it('extracts a fenced block even when preceded by prose', () => {
+    expect(postProcessCompletion("Here's the completion:\n```ts\nconst y = 2\n```")).toBe('const y = 2')
+  })
+
+  it('returns null when the completion exceeds the max length', () => {
+    expect(postProcessCompletion('x'.repeat(2001))).toBeNull()
+  })
 })
 
 function fakeProc() {
@@ -118,6 +130,29 @@ describe('resolveClaudePath', () => {
 
     expect(await resolveClaudePath()).toBeNull()
   })
+
+  it('takes the last non-empty line of stdout, ignoring banner/preamble output', async () => {
+    execFileMock.mockImplementation((_shell, _args, cb) =>
+      cb(null, 'some banner text\n/usr/local/bin/claude\n', '')
+    )
+
+    expect(await resolveClaudePath()).toBe('/usr/local/bin/claude')
+  })
+
+  it('returns null when the resolved line is not an absolute path', async () => {
+    execFileMock.mockImplementation((_shell, _args, cb) => cb(null, 'claude\n', ''))
+
+    expect(await resolveClaudePath()).toBeNull()
+  })
+
+  it('does not cache a failed resolution, so the next call retries', async () => {
+    execFileMock.mockImplementation((_shell, _args, cb) => cb(new Error('not found'), '', ''))
+
+    expect(await resolveClaudePath()).toBeNull()
+    expect(await resolveClaudePath()).toBeNull()
+
+    expect(execFileMock).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('AutocompleteManager autocomplete:complete', () => {
@@ -166,6 +201,9 @@ describe('AutocompleteManager autocomplete:complete', () => {
     // Guards against reintroducing shell interpretation of the prompt
     // (arbitrary user code) via a future `shell: true` "fix" for quoting.
     expect(options.shell).toBeFalsy()
+    // Guards the single most consequence-heavy constraint in this feature:
+    // passing --bare would silently break the user's subscription OAuth.
+    expect(args).not.toContain('--bare')
   })
 
   it('resolves null on non-zero exit', async () => {
@@ -190,6 +228,17 @@ describe('AutocompleteManager autocomplete:complete', () => {
     proc.emit('error', new Error('spawn failed'))
 
     expect(await promise).toBeNull()
+  })
+
+  it('resolves null (not rejects) when spawn() throws synchronously', async () => {
+    const { handler } = setup()
+    spawnMock.mockImplementationOnce(() => {
+      throw new Error('spawn EINVAL, argv contains a null byte')
+    })
+
+    await expect(
+      handler({ sender: fakeWin(1) }, 'a', 'b', 'typescript', 'claude-haiku-4-5-20251001')
+    ).resolves.toBeNull()
   })
 
   it('resolves null without spawning when claude cannot be resolved on PATH', async () => {
@@ -270,7 +319,7 @@ describe('AutocompleteManager timeout handling', () => {
     vi.useRealTimers()
   })
 
-  it('kills the process and resolves null after 10s with no response', async () => {
+  it('kills the process and resolves null after 15s with no response', async () => {
     const manager = new AutocompleteManager()
     manager.registerHandlers()
     const proc = fakeProc()
@@ -285,13 +334,13 @@ describe('AutocompleteManager timeout handling', () => {
     expect(spawnMock).toHaveBeenCalledTimes(1)
     expect(proc.kill).not.toHaveBeenCalled()
 
-    await vi.advanceTimersByTimeAsync(10000)
+    await vi.advanceTimersByTimeAsync(15000)
 
     expect(proc.kill).toHaveBeenCalled()
     expect(await promise).toBeNull()
   })
 
-  it('does not fire the timeout when the process closes before 10s', async () => {
+  it('does not fire the timeout when the process closes before 15s', async () => {
     const manager = new AutocompleteManager()
     manager.registerHandlers()
     const proc = fakeProc()
@@ -312,7 +361,7 @@ describe('AutocompleteManager timeout handling', () => {
     // cancelled — but even if it weren't, advancing past 10s here proves no
     // observable double-kill / late resolution occurs.
     proc.kill.mockClear()
-    await vi.advanceTimersByTimeAsync(10000)
+    await vi.advanceTimersByTimeAsync(15000)
     expect(proc.kill).not.toHaveBeenCalled()
   })
 })

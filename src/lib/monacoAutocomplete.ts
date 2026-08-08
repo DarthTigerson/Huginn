@@ -33,7 +33,7 @@ export async function provideInlineCompletion(
   if (!isAutocompleteEffectivelyEnabled()) return []
 
   await sleep(DEBOUNCE_MS)
-  if (token.isCancellationRequested) return []
+  if (token.isCancellationRequested || !isAutocompleteEffectivelyEnabled()) return []
 
   const { prefix, suffix } = getCompletionContext(model, position)
   const language = model.getLanguageId()
@@ -43,6 +43,8 @@ export async function provideInlineCompletion(
   let text: string | null
   try {
     text = await window.api.autocompleteComplete(prefix, suffix, language, selectedModel)
+  } catch {
+    return []
   } finally {
     useAutocompleteStatusStore.getState().setBusy(false)
   }

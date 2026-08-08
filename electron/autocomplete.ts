@@ -8,21 +8,47 @@ export function buildUserPrompt(prefix: string, suffix: string, language: string
   return `Language: ${language}\n<prefix>\n${prefix}\n</prefix>\n<suffix>\n${suffix}\n</suffix>`
 }
 
+// A well-behaved single completion should never be this long; treat an
+// over-long response as a failed completion rather than truncate mid-token
+// (which could produce broken code). Matches the spirit of the prefix/suffix
+// caps (4000/2000 chars) already enforced elsewhere in this codebase.
+const MAX_COMPLETION_LENGTH = 2000
+
+// Strips only the "noise" prefix the model sometimes emits before real
+// content: a run of blank lines (whitespace-then-newline) at the very start.
+// Leading spaces/tabs that indent the first real line of code are preserved,
+// since Monaco inserts insertText literally at the cursor — stripping them
+// would glue multi-line completions onto the current line.
+function stripLeadingBlankPrefix(text: string): string {
+  const leading = text.match(/^\s*/)?.[0] ?? ''
+  const lastNewline = leading.lastIndexOf('\n')
+  // No newline in the leading run means it's incidental whitespace on what's
+  // meant to be the first line (not a meaningful blank-line separator) — drop it.
+  if (lastNewline === -1) return text.slice(leading.length)
+  return leading.slice(lastNewline + 1) + text.slice(leading.length)
+}
+
 export function postProcessCompletion(raw: string): string | null {
-  let text = raw.trim()
+  let text = stripLeadingBlankPrefix(raw).replace(/\s+$/, '')
   if (!text) return null
 
-  const fenced = text.match(/^```[a-zA-Z0-9]*\n([\s\S]*?)\n?```$/)
+  // Find a fenced code block anywhere in the response (not only when the
+  // entire response is one fence) and prefer its contents over any
+  // surrounding prose ("Here's the completion:\n```ts\n...\n```").
+  const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)\n?```/)
   if (fenced) text = fenced[1].trim()
 
-  return text.length > 0 ? text : null
+  if (!text) return null
+  if (text.length > MAX_COMPLETION_LENGTH) return null
+
+  return text
 }
 
 import { BrowserWindow, ipcMain } from 'electron'
 import { execFile, spawn, type ChildProcessByStdio } from 'child_process'
 import type { Readable } from 'stream'
 
-const TIMEOUT_MS = 10000
+const TIMEOUT_MS = 15000
 
 // Electron-launched apps on macOS don't inherit the interactive shell's PATH,
 // so a bare spawn('claude', ...) fails whenever the CLI lives outside the
@@ -39,9 +65,27 @@ export function resolveClaudePath(): Promise<string | null> {
   return new Promise((resolve) => {
     const shell = process.env.SHELL ?? '/bin/zsh'
     execFile(shell, ['-lic', 'command -v claude'], (err, stdout) => {
-      const resolved = !err && stdout ? stdout.toString().trim() : ''
-      cachedClaudePath = resolved.length > 0 ? resolved : null
-      resolve(cachedClaudePath)
+      // `-lic` runs an interactive login shell, which sources .zshrc/.zprofile
+      // and can prepend banners or version-manager output (nvm, pyenv, ...) to
+      // stdout. Take the last non-empty line rather than the whole trimmed
+      // output, and require it to look like an absolute path.
+      const lines = (stdout ? stdout.toString() : '').split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
+      const lastLine = lines[lines.length - 1]
+      const resolved = !err && lastLine && lastLine.startsWith('/') ? lastLine : null
+
+      if (resolved) {
+        // Only cache successes. Caching a failure would silently disable the
+        // feature for the rest of the app session on a transient hiccup
+        // (shell not ready yet, PATH not sourced yet, etc.) with no retry.
+        cachedClaudePath = resolved
+        resolve(resolved)
+        return
+      }
+
+      // Main-process-only diagnostic (never surfaced to the renderer/user) so
+      // a real deployment issue is at least visible in the app's logs.
+      console.error('[autocomplete] failed to resolve claude CLI path via login shell:', err ?? `unexpected output: ${JSON.stringify(stdout)}`)
+      resolve(null)
     })
   })
 }
@@ -84,44 +128,54 @@ export class AutocompleteManager {
     if (!claudePath) return null
 
     return new Promise((resolve) => {
-      const proc = spawn(
-        claudePath,
-        [
-          '-p', buildUserPrompt(prefix, suffix, language),
-          '--model', model,
-          '--output-format', 'text',
-          '--no-session-persistence',
-          '--tools', '',
-          '--setting-sources', '',
-          '--system-prompt', buildSystemPrompt(),
-        ],
-        { stdio: ['ignore', 'pipe', 'pipe'] }
-      )
+      // spawn() can throw synchronously in real conditions (e.g. argv
+      // containing a null byte, which can happen if a user's file contains
+      // one and it ends up in the prefix/suffix). Left uncaught, that throw
+      // inside the executor rejects this Promise, which rejects
+      // ipcMain.handle's promise, which Electron logs to the main-process
+      // console — violating the "errors resolve null silently" requirement.
+      try {
+        const proc = spawn(
+          claudePath,
+          [
+            '-p', buildUserPrompt(prefix, suffix, language),
+            '--model', model,
+            '--output-format', 'text',
+            '--no-session-persistence',
+            '--tools', '',
+            '--setting-sources', '',
+            '--system-prompt', buildSystemPrompt(),
+          ],
+          { stdio: ['ignore', 'pipe', 'pipe'] }
+        )
 
-      this.currentByWindow.set(windowId, proc)
+        this.currentByWindow.set(windowId, proc)
 
-      let stdout = ''
-      let settled = false
+        let stdout = ''
+        let settled = false
 
-      const finish = (result: string | null) => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        if (this.currentByWindow.get(windowId) === proc) this.currentByWindow.delete(windowId)
-        resolve(result)
+        const finish = (result: string | null) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          if (this.currentByWindow.get(windowId) === proc) this.currentByWindow.delete(windowId)
+          resolve(result)
+        }
+
+        const timer = setTimeout(() => {
+          proc.kill()
+          finish(null)
+        }, TIMEOUT_MS)
+
+        proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        proc.on('error', () => finish(null))
+        proc.on('close', (code) => {
+          if (code !== 0) { finish(null); return }
+          finish(postProcessCompletion(stdout))
+        })
+      } catch {
+        resolve(null)
       }
-
-      const timer = setTimeout(() => {
-        proc.kill()
-        finish(null)
-      }, TIMEOUT_MS)
-
-      proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
-      proc.on('error', () => finish(null))
-      proc.on('close', (code) => {
-        if (code !== 0) { finish(null); return }
-        finish(postProcessCompletion(stdout))
-      })
     })
   }
 }
