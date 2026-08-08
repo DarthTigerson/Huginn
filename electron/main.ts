@@ -11,6 +11,7 @@ import { CosmosManager } from './cosmos'
 import { BrowserViewManager } from './browserViews'
 import { listAllFiles, searchText, buildTree } from './fsOps'
 import { registerSessionHandlers } from './session'
+import { registerRecentProjectsHandlers } from './recentProjects'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -352,6 +353,7 @@ app.whenReady().then(() => {
   registerCosmosSettingsHandlers()
   registerDevtoolsHandlers()
   registerSessionHandlers()
+  registerRecentProjectsHandlers()
 
   ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()
