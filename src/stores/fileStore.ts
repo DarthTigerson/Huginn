@@ -42,6 +42,7 @@ export const useFileStore = create<FileState>((set, get) => ({
       const tree = await window.api.readDir(lastRoot)
       set({ projectRoot: lastRoot, tree })
       window.api.gitWatchRoot(lastRoot)
+      window.api.setWindowTitle(lastRoot)
     } catch {
       localStorage.removeItem(LAST_ROOT_KEY)
     }

@@ -106,7 +106,7 @@ declare global {
       onAssistantData: (cb: (assistant: AssistantKind, data: string) => void) => () => void
 
       onMenuOpenProject: (cb: () => void) => () => void
-      onMenuOpenInitialProject: (cb: (projectRoot: string) => void) => () => void
+      getInitialProject: () => Promise<string | null>
       onMenuCloseActiveTab: (cb: () => void) => () => void
       onMenuZoomIn: (cb: () => void) => () => void
       onMenuZoomOut: (cb: () => void) => () => void

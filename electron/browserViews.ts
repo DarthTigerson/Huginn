@@ -239,7 +239,9 @@ export class BrowserViewManager {
     const entry = this.viewsByWindow.get(win.id)?.get(id)
     if (!entry) return
     if (entry.attached) win.contentView.removeChildView(entry.view)
-    entry.view.webContents.close({ waitForBeforeUnload: false })
+    if (!entry.view.webContents.isDestroyed()) {
+      entry.view.webContents.close({ waitForBeforeUnload: false })
+    }
     this.viewsByWindow.get(win.id)?.delete(id)
   }
 
@@ -249,7 +251,9 @@ export class BrowserViewManager {
       const win = BrowserWindow.fromId(winId)
       for (const [, entry] of entries) {
         if (win && entry.attached) win.contentView.removeChildView(entry.view)
-        entry.view.webContents.close({ waitForBeforeUnload: false })
+        if (!entry.view.webContents.isDestroyed()) {
+          entry.view.webContents.close({ waitForBeforeUnload: false })
+        }
       }
     }
     this.viewsByWindow.delete(winId)

@@ -18,6 +18,7 @@ function fakeWebContentsView() {
       setWindowOpenHandler: vi.fn(),
       on: vi.fn(),
       getZoomLevel: vi.fn(() => 0),
+      isDestroyed: vi.fn(() => false),
       close: vi.fn(),
     },
   }

@@ -57,16 +57,36 @@ function registerDevtoolsHandlers(): void {
 function registerWindowHandlers(): void {
   // Renderer notifies main whenever its projectRoot changes (either "Open
   // Project…" replacing the current window's project, or the initial
-  // project set via menu:openInitialProject) so the Window menu's
+  // project set via window:getInitialProject) so the Window menu's
   // w.getTitle() reflects the current project rather than staying frozen at
   // whatever createWindow() set at construction time.
   ipcMain.on('window:setTitle', (event, root: string) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win && !win.isDestroyed()) win.setTitle(basename(root))
   })
+
+  // Renderer pulls its initial project once, on startup, instead of main
+  // pushing it via 'did-finish-load' — pushing raced against the renderer's
+  // own bootstrap effect (JS is single-threaded, so the IPC message could
+  // never arrive in time to be observed by the very next synchronous line)
+  // and never re-fired on reload. Pulling is deterministic and one-shot: the
+  // entry is deleted on first read, so a later reload correctly falls back
+  // to restoreRoot(), matching how a reloaded window should behave.
+  ipcMain.handle('window:getInitialProject', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return null
+    const project = pendingInitialProject.get(win.id) ?? null
+    pendingInitialProject.delete(win.id)
+    return project
+  })
 }
 
 const windows = new Map<number, BrowserWindow>()
+// Keyed by window id, populated in createWindow() when a projectRoot is
+// passed. Consumed exactly once by the 'window:getInitialProject' handler
+// above — see registerWindowHandlers() for why this replaced the old
+// push-based 'menu:openInitialProject' message.
+const pendingInitialProject = new Map<number, string>()
 
 function createWindow(projectRoot?: string): BrowserWindow {
   const win = new BrowserWindow({
@@ -120,9 +140,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
   }
 
   if (projectRoot) {
-    win.webContents.once('did-finish-load', () => {
-      win.webContents.send('menu:openInitialProject', projectRoot)
-    })
+    pendingInitialProject.set(win.id, projectRoot)
   }
 
   return win
@@ -410,7 +428,11 @@ let browserViewMgr: BrowserViewManager
 
 app.whenReady().then(() => {
   if (process.platform === 'darwin') {
-    app.dock?.setIcon(join(__dirname, '../../icon.png'))
+    try {
+      app.dock?.setIcon(join(__dirname, '../../icon.png'))
+    } catch (err) {
+      console.warn('Failed to set Dock icon:', err)
+    }
   }
 
   registerFsHandlers()

@@ -107,11 +107,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('menu:openProject', handler)
     return () => ipcRenderer.removeListener('menu:openProject', handler)
   },
-  onMenuOpenInitialProject: (cb: (projectRoot: string) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, projectRoot: string) => cb(projectRoot)
-    ipcRenderer.on('menu:openInitialProject', handler)
-    return () => ipcRenderer.removeListener('menu:openInitialProject', handler)
-  },
+  getInitialProject: () => ipcRenderer.invoke('window:getInitialProject'),
   onMenuCloseActiveTab: (cb: () => void) => {
     const handler = () => cb()
     ipcRenderer.on('menu:closeActiveTab', handler)

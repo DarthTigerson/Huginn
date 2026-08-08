@@ -16,7 +16,8 @@ function recentsPath(): string {
 export async function readRecents(): Promise<RecentProject[]> {
   try {
     const data = await readFile(recentsPath(), 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }

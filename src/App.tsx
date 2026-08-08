@@ -184,19 +184,22 @@ export default function App() {
   }, [enabledModels, assistant, setAssistant])
 
   useEffect(() => {
-    let initialProjectReceived = false
-    const unsubscribe = window.api.onMenuOpenInitialProject((projectRoot) => {
-      initialProjectReceived = true
-      useFileStore.getState().openProjectAt(projectRoot)
-    })
-    // Give the (synchronous, IPC-ordered-before-any-render) initial-project
-    // message a chance to arrive first — main.ts sends it from the window's
-    // own 'did-finish-load', which fires before this component's effects run,
-    // so by the time this line executes we already know whether one arrived.
-    if (!initialProjectReceived) {
-      useFileStore.getState().restoreRoot()
-    }
-    return unsubscribe
+    // Pull (not push): ask main whether this window was opened with a
+    // specific initial project (New Window / Recent Projects) and await the
+    // answer before deciding whether to fall back to restoreRoot() (the
+    // shared localStorage last-project, used by the app-launch window). This
+    // is deterministic — unlike the old push-based listener, which could
+    // never actually observe an IPC message arriving before the very next
+    // synchronous line ran — and reload-safe, since the main-process side is
+    // one-shot per window and returns null on a later call.
+    ;(async () => {
+      const initialProject = await window.api.getInitialProject()
+      if (initialProject) {
+        useFileStore.getState().openProjectAt(initialProject)
+      } else {
+        useFileStore.getState().restoreRoot()
+      }
+    })()
   }, [])
 
   useHoldToShowShortcuts()
@@ -258,12 +261,14 @@ export default function App() {
 
   useEffect(() => {
     return window.api.onMenuNewFile(() => {
+      setLeftPanel('files')
       useSidebarUiStore.getState().requestCreate('file')
     })
   }, [])
 
   useEffect(() => {
     return window.api.onMenuNewFolder(() => {
+      setLeftPanel('files')
       useSidebarUiStore.getState().requestCreate('directory')
     })
   }, [])
