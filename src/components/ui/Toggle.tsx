@@ -13,6 +13,7 @@ export function Toggle({ label, description, checked, onChange }: {
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={[
