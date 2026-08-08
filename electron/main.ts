@@ -54,6 +54,18 @@ function registerDevtoolsHandlers(): void {
   })
 }
 
+function registerWindowHandlers(): void {
+  // Renderer notifies main whenever its projectRoot changes (either "Open
+  // Project…" replacing the current window's project, or the initial
+  // project set via menu:openInitialProject) so the Window menu's
+  // w.getTitle() reflects the current project rather than staying frozen at
+  // whatever createWindow() set at construction time.
+  ipcMain.on('window:setTitle', (event, root: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && !win.isDestroyed()) win.setTitle(basename(root))
+  })
+}
+
 const windows = new Map<number, BrowserWindow>()
 
 function createWindow(projectRoot?: string): BrowserWindow {
@@ -138,6 +150,7 @@ function registerCosmosSettingsHandlers(): void {
 }
 
 async function buildMenu(): Promise<void> {
+  try {
   const recents = await readRecents()
   const template: Electron.MenuItemConstructorOptions[] = [
     {
@@ -368,18 +381,25 @@ async function buildMenu(): Promise<void> {
         { role: 'minimize' },
         { role: 'zoom' },
         { type: 'separator' },
-        ...Array.from(windows.values()).map((w) => ({
-          label: w.getTitle(),
-          type: 'radio' as const,
-          checked: w === BrowserWindow.getFocusedWindow(),
-          click: () => w.focus(),
-        })),
+        ...Array.from(windows.values())
+          .filter((w) => !w.isDestroyed())
+          .map((w) => ({
+            label: w.getTitle(),
+            type: 'radio' as const,
+            checked: w === BrowserWindow.getFocusedWindow(),
+            click: () => {
+              if (!w.isDestroyed()) w.focus()
+            },
+          })),
         { type: 'separator' },
         { role: 'front' },
       ],
     },
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+  } catch (err) {
+    console.error('buildMenu failed:', err)
+  }
 }
 
 let ptyMgr: PtyManager
@@ -398,6 +418,7 @@ app.whenReady().then(() => {
   registerDevtoolsHandlers()
   registerSessionHandlers()
   registerRecentProjectsHandlers()
+  registerWindowHandlers()
 
   ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()

@@ -24,6 +24,7 @@ vi.stubGlobal('window', {
     readDir: vi.fn().mockResolvedValue(mockTree),
     gitWatchRoot: vi.fn(),
     recentProjectsAdd: vi.fn(),
+    setWindowTitle: vi.fn(),
   },
 })
 

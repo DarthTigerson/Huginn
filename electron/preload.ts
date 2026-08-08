@@ -224,4 +224,6 @@ contextBridge.exposeInMainWorld('api', {
   recentProjectsList: () => ipcRenderer.invoke('recentProjects:list'),
   recentProjectsAdd: (path: string) => ipcRenderer.invoke('recentProjects:add', path),
   recentProjectsClear: () => ipcRenderer.invoke('recentProjects:clear'),
+
+  setWindowTitle: (root: string) => ipcRenderer.send('window:setTitle', root),
 })

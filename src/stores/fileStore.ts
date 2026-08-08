@@ -63,6 +63,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     set({ projectRoot: root, tree })
     window.api.gitWatchRoot(root)
     window.api.recentProjectsAdd(root)
+    window.api.setWindowTitle(root)
     // Every open tab (file/terminal/browser) points at the old repo — start
     // the new one clean rather than leaving them dangling around.
     if (previousRoot !== null && previousRoot !== root) {
@@ -74,6 +75,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     const tree = await window.api.readDir(root)
     set({ projectRoot: root, tree })
     window.api.gitWatchRoot(root)
+    window.api.setWindowTitle(root)
   },
 
   expandDir: async (dirPath: string) => {

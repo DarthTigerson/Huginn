@@ -162,6 +162,8 @@ declare global {
       recentProjectsList: () => Promise<RecentProject[]>
       recentProjectsAdd: (path: string) => Promise<void>
       recentProjectsClear: () => Promise<void>
+
+      setWindowTitle: (root: string) => void
     }
   }
 }
