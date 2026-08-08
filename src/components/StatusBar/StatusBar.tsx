@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
-import { GitIcon } from '@/components/ActivityBar/ActivityBar'
+import { GitIcon, AutocompleteIcon } from '@/components/ActivityBar/ActivityBar'
 import { GitActionsMenu } from '@/components/Git/GitActionsMenu'
+import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
+import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
+import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
@@ -15,6 +18,12 @@ export function StatusBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [gitMenuOpen, setGitMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const autocompleteEnabled = useAutocompleteSettingsStore((s) => s.enabled)
+  const autocompletePaused = useAutocompleteSessionStore((s) => s.paused)
+  const togglePaused = useAutocompleteSessionStore((s) => s.togglePaused)
+  const autocompleteBusy = useAutocompleteStatusStore((s) => s.busy)
+  const autocompleteActive = autocompleteEnabled && !autocompletePaused
+  const [autocompleteMenuOpen, setAutocompleteMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -29,6 +38,13 @@ export function StatusBar() {
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [gitMenuOpen])
+
+  useEffect(() => {
+    if (!autocompleteMenuOpen) return
+    const close = () => setAutocompleteMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [autocompleteMenuOpen])
 
   useEffect(() => {
     refreshBranch(projectRoot)
@@ -66,6 +82,39 @@ export function StatusBar() {
         <span />
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+            className={[
+              'w-5 h-5 flex items-center justify-center transition-colors',
+              autocompleteActive ? 'text-fg-muted hover:text-fg' : 'text-fg-subtle hover:text-fg-muted',
+            ].join(' ')}
+            aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
+            title={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
+          >
+            <AutocompleteIcon
+              crossedOut={!autocompleteActive}
+              className={autocompleteActive && autocompleteBusy ? 'animate-pulse' : ''}
+            />
+          </button>
+          {autocompleteMenuOpen && (
+            <div className="absolute bottom-full right-0 mb-1 w-56 rounded border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
+              {!autocompleteEnabled ? (
+                <div className="px-3 py-1.5 text-xs text-fg-subtle">Autocomplete is off in Settings</div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { togglePaused(); setAutocompleteMenuOpen(false) }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-fg hover:bg-white/5 transition-colors"
+                >
+                  {autocompletePaused ? 'Resume' : 'Pause for this session'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={decrease}
