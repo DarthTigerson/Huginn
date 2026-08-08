@@ -13,6 +13,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { registerAutocompleteProvider } from '@/lib/monacoAutocomplete'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import {
@@ -347,10 +348,12 @@ function EditorPane({ paneId }: { paneId: string }) {
                 renderLineHighlight: 'all',
                 padding: { top: 8 },
                 automaticLayout: true,
+                inlineSuggest: { enabled: true },
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
                 editorRef.current = editor
+                registerAutocompleteProvider(monaco)
                 editor.onDidFocusEditorWidget(activatePane)
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                   activatePane()
