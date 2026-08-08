@@ -220,4 +220,8 @@ contextBridge.exposeInMainWorld('api', {
   sessionLoad: (projectRoot: string) => ipcRenderer.invoke('session:load', projectRoot),
   sessionSave: (projectRoot: string, data: unknown) =>
     ipcRenderer.invoke('session:save', projectRoot, data),
+
+  recentProjectsList: () => ipcRenderer.invoke('recentProjects:list'),
+  recentProjectsAdd: (path: string) => ipcRenderer.invoke('recentProjects:add', path),
+  recentProjectsClear: () => ipcRenderer.invoke('recentProjects:clear'),
 })

@@ -44,6 +44,11 @@ export interface CosmosSettings {
   modelId: string
 }
 
+export interface RecentProject {
+  path: string
+  lastOpened: number
+}
+
 export type CosmosEvent =
   | { type: 'text-delta'; delta: string }
   | { type: 'content-replace'; content: string }
@@ -153,6 +158,10 @@ declare global {
 
       sessionLoad: (projectRoot: string) => Promise<SessionData | null>
       sessionSave: (projectRoot: string, data: SessionData) => Promise<void>
+
+      recentProjectsList: () => Promise<RecentProject[]>
+      recentProjectsAdd: (path: string) => Promise<void>
+      recentProjectsClear: () => Promise<void>
     }
   }
 }
