@@ -76,6 +76,12 @@ function createWindow(projectRoot?: string): BrowserWindow {
   windows.set(win.id, win)
   win.once('ready-to-show', () => win.show())
   win.on('focus', () => buildMenu())
+  // index.html declares <title>Huginn</title>, and Electron lets the loaded
+  // page's title win over the constructor's `title:` option (and over any
+  // later win.setTitle(...) call) once that tag is parsed — without this,
+  // the project-name title set above would be silently clobbered back to
+  // "Huginn" right after load. Preventing the default keeps our title.
+  win.on('page-title-updated', (e) => e.preventDefault())
   win.on('closed', () => {
     windows.delete(win.id)
     ptyMgr.disposeWindow(win.id)
