@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { EventEmitter } from 'events'
 
 const { handlers, spawnMock, execFileMock } = vi.hoisted(() => ({
@@ -157,12 +157,15 @@ describe('AutocompleteManager autocomplete:complete', () => {
     proc.emit('close', 0)
     await promise
 
-    const [command, args] = spawnMock.mock.calls[0]
+    const [command, args, options] = spawnMock.mock.calls[0]
     expect(command).toBe('/usr/local/bin/claude')
     expect(args).toContain('-p')
     expect(args[args.indexOf('--model') + 1]).toBe('claude-opus-5')
     expect(args[args.indexOf('--output-format') + 1]).toBe('text')
     expect(args).toContain('--no-session-persistence')
+    // Guards against reintroducing shell interpretation of the prompt
+    // (arbitrary user code) via a future `shell: true` "fix" for quoting.
+    expect(options.shell).toBeFalsy()
   })
 
   it('resolves null on non-zero exit', async () => {
@@ -251,5 +254,65 @@ describe('AutocompleteManager disposeWindow', () => {
 
     expect(proc.kill).toHaveBeenCalled()
     await promise
+  })
+})
+
+describe('AutocompleteManager timeout handling', () => {
+  beforeEach(() => {
+    spawnMock.mockReset()
+    execFileMock.mockReset()
+    execFileMock.mockImplementation((_shell, _args, cb) => cb(null, '/usr/local/bin/claude', ''))
+    _resetClaudePathCacheForTesting()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('kills the process and resolves null after 10s with no response', async () => {
+    const manager = new AutocompleteManager()
+    manager.registerHandlers()
+    const proc = fakeProc()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const promise = handlers['autocomplete:complete']({ sender: fakeWin(1) }, 'a', '', 'typescript', 'claude-haiku-4-5-20251001')
+    // Real flushMicrotasks() relies on a real setTimeout(0) to drain the
+    // microtask hops before spawn() is called; under fake timers that never
+    // fires on its own, so advance fake time by 0ms to achieve the same effect.
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+    expect(proc.kill).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(10000)
+
+    expect(proc.kill).toHaveBeenCalled()
+    expect(await promise).toBeNull()
+  })
+
+  it('does not fire the timeout when the process closes before 10s', async () => {
+    const manager = new AutocompleteManager()
+    manager.registerHandlers()
+    const proc = fakeProc()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const promise = handlers['autocomplete:complete']({ sender: fakeWin(1) }, 'a', '', 'typescript', 'claude-haiku-4-5-20251001')
+    await vi.advanceTimersByTimeAsync(0)
+
+    proc.stdout.emit('data', Buffer.from('done'))
+    proc.emit('close', 0)
+
+    expect(await promise).toBe('done')
+
+    // The `finish()` early-exit path (electron/autocomplete.ts: `const finish
+    // = (result) => { if (settled) return; ... }`) means a subsequent timer
+    // firing must not re-kill an already-settled process. clearTimeout(timer)
+    // is also called unconditionally inside finish(), so the timer is in fact
+    // cancelled — but even if it weren't, advancing past 10s here proves no
+    // observable double-kill / late resolution occurs.
+    proc.kill.mockClear()
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(proc.kill).not.toHaveBeenCalled()
   })
 })
