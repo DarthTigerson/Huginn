@@ -164,6 +164,8 @@ declare global {
       recentProjectsClear: () => Promise<void>
 
       setWindowTitle: (root: string) => void
+
+      autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) => Promise<string | null>
     }
   }
 }

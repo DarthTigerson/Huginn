@@ -222,4 +222,7 @@ contextBridge.exposeInMainWorld('api', {
   recentProjectsClear: () => ipcRenderer.invoke('recentProjects:clear'),
 
   setWindowTitle: (root: string) => ipcRenderer.send('window:setTitle', root),
+
+  autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) =>
+    ipcRenderer.invoke('autocomplete:complete', prefix, suffix, language, model),
 })
