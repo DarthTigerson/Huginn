@@ -44,6 +44,14 @@ import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
+import {
+  isImagePreviewTab,
+  parseImagePreviewPath,
+  isMarkdownPreviewTab,
+  parseMarkdownPreviewPath,
+} from '@/components/Viewer/paths'
+import { ImageViewer } from '@/components/Viewer/ImageViewer'
+import { MarkdownViewer } from '@/components/Viewer/MarkdownViewer'
 import type { GitDiffContent, Tab } from '@/types/index'
 
 function isVirtualTab(tab: Tab | null): boolean {
@@ -58,7 +66,9 @@ function isReadOnlyTab(tab: Tab | null): boolean {
     isGitGraphTab(tab.path) ||
     isGitBranchDiffTab(tab.path) ||
     isTerminalTab(tab.path) ||
-    isBrowserTab(tab.path)
+    isBrowserTab(tab.path) ||
+    isImagePreviewTab(tab.path) ||
+    isMarkdownPreviewTab(tab.path)
   )
 }
 
@@ -80,7 +90,7 @@ async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boole
   markSaved(tab.path, savedContent)
   const root = useFileStore.getState().projectRoot
   if (root) {
-    useFileStore.getState().refreshRoot()
+    useFileStore.getState().refreshTree()
     useGitStore.getState().refreshStatus(root)
   }
 }
@@ -200,6 +210,8 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
+  const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
+  const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
 
   function activatePane() {
     setActivePane(paneId)
@@ -299,6 +311,10 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GitGraphPage />
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
+        ) : isImagePreview ? (
+          <ImageViewer key={activeTab.path} path={parseImagePreviewPath(activeTab.path)} />
+        ) : isMarkdownPreview ? (
+          <MarkdownViewer key={activeTab.path} path={parseMarkdownPreviewPath(activeTab.path)} />
         ) : isDiff ? (
           <div className="h-full overflow-hidden">
             {diffContent && (

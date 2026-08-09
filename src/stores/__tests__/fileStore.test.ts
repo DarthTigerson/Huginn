@@ -23,6 +23,7 @@ vi.stubGlobal('window', {
     openFolder: vi.fn().mockResolvedValue('/proj'),
     readDir: vi.fn().mockResolvedValue(mockTree),
     gitWatchRoot: vi.fn(),
+    fsWatchRoot: vi.fn(),
     recentProjectsAdd: vi.fn(),
     setWindowTitle: vi.fn(),
   },
@@ -31,7 +32,7 @@ vi.stubGlobal('window', {
 describe('fileStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null })
+    useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null, expandedPaths: new Set() })
     useEditorStore.getState().resetForNewProject()
   })
 
@@ -68,7 +69,7 @@ describe('fileStore', () => {
     expect(useEditorStore.getState().tabs).toHaveLength(0)
   })
 
-  it('expandDir updates the matching node children in the tree', async () => {
+  it('expandDir updates the matching node children in the tree and marks it expanded', async () => {
     useFileStore.setState({ tree: mockTree })
     const children: FileNode[] = [
       { name: 'App.tsx', path: '/proj/src/App.tsx', isDirectory: false },
@@ -77,6 +78,62 @@ describe('fileStore', () => {
     await useFileStore.getState().expandDir('/proj/src')
     const srcNode = useFileStore.getState().tree.find((n) => n.path === '/proj/src')
     expect(srcNode?.children).toEqual(children)
+    expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(true)
+  })
+
+  it('collapseDir removes the path from expandedPaths without touching cached children', async () => {
+    useFileStore.setState({ tree: mockTree })
+    vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    await useFileStore.getState().expandDir('/proj/src')
+    useFileStore.getState().collapseDir('/proj/src')
+    expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(false)
+  })
+
+  it('collapseAll clears every expanded path', async () => {
+    useFileStore.setState({ tree: mockTree })
+    vi.mocked(window.api.readDir).mockResolvedValue([])
+    await useFileStore.getState().expandDir('/proj/src')
+    useFileStore.getState().collapseAll()
+    expect(useFileStore.getState().expandedPaths.size).toBe(0)
+  })
+
+  it('refreshTree reloads the root and every expanded directory, preserving expansion', async () => {
+    useFileStore.setState({ projectRoot: '/proj', tree: mockTree, expandedPaths: new Set() })
+    vi.mocked(window.api.readDir).mockResolvedValueOnce([
+      { name: 'App.tsx', path: '/proj/src/App.tsx', isDirectory: false },
+    ])
+    await useFileStore.getState().expandDir('/proj/src')
+
+    const freshRoot: FileNode[] = [
+      { name: 'src', path: '/proj/src', isDirectory: true },
+      { name: 'new-file.ts', path: '/proj/new-file.ts', isDirectory: false },
+    ]
+    const freshChildren: FileNode[] = [
+      { name: 'App.tsx', path: '/proj/src/App.tsx', isDirectory: false },
+      { name: 'new-child.ts', path: '/proj/src/new-child.ts', isDirectory: false },
+    ]
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(freshRoot)
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(freshChildren)
+
+    await useFileStore.getState().refreshTree()
+
+    const { tree, expandedPaths } = useFileStore.getState()
+    expect(tree.map((n) => n.name)).toEqual(['src', 'new-file.ts'])
+    expect(tree.find((n) => n.path === '/proj/src')?.children).toEqual(freshChildren)
+    expect(expandedPaths.has('/proj/src')).toBe(true)
+  })
+
+  it('refreshTree drops expanded directories that no longer exist', async () => {
+    useFileStore.setState({ projectRoot: '/proj', tree: mockTree, expandedPaths: new Set() })
+    vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    await useFileStore.getState().expandDir('/proj/src')
+
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(mockTree)
+    vi.mocked(window.api.readDir).mockRejectedValueOnce(new Error('ENOENT'))
+
+    await useFileStore.getState().refreshTree()
+
+    expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(false)
   })
 
   it('select sets selectedPath', () => {

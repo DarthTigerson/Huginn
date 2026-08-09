@@ -113,6 +113,22 @@ export async function getGitStatus(cwd: string): Promise<GitStatus> {
   }
 }
 
+// --directory collapses a whole ignored directory (e.g. node_modules) into a
+// single entry instead of every file inside it — exactly what the sidebar
+// tree needs to dim a folder without listing thousands of descendants.
+export async function getIgnoredPaths(cwd: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'],
+      { cwd }
+    )
+    return stdout.split('\0').filter(Boolean).map((path) => path.replace(/\/$/, ''))
+  } catch {
+    return []
+  }
+}
+
 export async function stageFiles(cwd: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return
   await execFileAsync('git', ['add', '--', ...paths], { cwd })

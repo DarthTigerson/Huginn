@@ -214,6 +214,18 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Catches file changes made outside the app's own UI — Finder, an
+    // external editor, a build script, `mkdir`/`touch` in a terminal — which
+    // the app's own create/rename/delete actions already refresh for, but
+    // nothing else does.
+    return window.api.onFsChanged((cwd) => {
+      if (cwd === useFileStore.getState().projectRoot) {
+        useFileStore.getState().refreshTree()
+      }
+    })
+  }, [])
+
+  useEffect(() => {
     return window.api.onMenuOpenProject(() => {
       useFileStore.getState().openFolder()
     })

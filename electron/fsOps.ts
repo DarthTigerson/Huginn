@@ -1,6 +1,18 @@
 import { readdir, readFile, stat } from 'fs/promises'
 import { join, extname } from 'path'
 
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.bmp': 'image/bmp',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
+}
+
 export interface FileNode {
   name: string
   path: string
@@ -98,4 +110,10 @@ export async function buildTree(dirPath: string): Promise<FileNode[]> {
       path: join(dirPath, e.name),
       isDirectory: e.isDirectory(),
     }))
+}
+
+export async function readImageDataUrl(filePath: string): Promise<string> {
+  const mime = IMAGE_MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+  const buffer = await readFile(filePath)
+  return `data:${mime};base64,${buffer.toString('base64')}`
 }

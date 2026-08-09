@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('api', {
   readDir: (path: string) => ipcRenderer.invoke('fs:readDir', path),
   readFile: (path: string) => ipcRenderer.invoke('fs:readFile', path),
+  readImageDataUrl: (path: string) => ipcRenderer.invoke('fs:readImageDataUrl', path),
   pathExists: (path: string) => ipcRenderer.invoke('fs:exists', path),
   writeFile: (path: string, content: string) =>
     ipcRenderer.invoke('fs:writeFile', path, content),
@@ -13,10 +14,17 @@ contextBridge.exposeInMainWorld('api', {
   searchText: (root: string, query: string, caseSensitive: boolean) =>
     ipcRenderer.invoke('fs:searchText', root, query, caseSensitive),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  fsWatchRoot: (cwd: string | null) => ipcRenderer.send('fs:watchRoot', cwd),
+  onFsChanged: (cb: (cwd: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)
+    ipcRenderer.on('fs:changed', handler)
+    return () => ipcRenderer.removeListener('fs:changed', handler)
+  },
 
   gitBranch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
   gitAheadBehind: (cwd: string) => ipcRenderer.invoke('git:aheadBehind', cwd),
   gitStatus: (cwd: string) => ipcRenderer.invoke('git:status', cwd),
+  gitListIgnored: (cwd: string) => ipcRenderer.invoke('git:listIgnored', cwd),
   gitStage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:stage', cwd, paths),
   gitUnstage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:unstage', cwd, paths),
   gitStageAll: (cwd: string) => ipcRenderer.invoke('git:stageAll', cwd),

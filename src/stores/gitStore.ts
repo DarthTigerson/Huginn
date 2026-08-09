@@ -9,6 +9,7 @@ interface GitStore {
   branch: string | null
   aheadBehind: GitAheadBehind | null
   status: GitStatus
+  ignoredPaths: string[]
   commitMessage: string
   commitError: string | null
   commandStatus: 'idle' | 'running'
@@ -69,13 +70,14 @@ export const useGitStore = create<GitStore>((set, get) => {
   branch: null,
   aheadBehind: null,
   status: { staged: [], unstaged: [] },
+  ignoredPaths: [],
   commitMessage: '',
   commitError: null,
   commandStatus: 'idle' as const,
 
   refresh: async (cwd) => {
     if (!cwd) {
-      set({ branch: null, aheadBehind: null, status: { staged: [], unstaged: [] } })
+      set({ branch: null, aheadBehind: null, status: { staged: [], unstaged: [] }, ignoredPaths: [] })
       return
     }
     const [branch, aheadBehind] = await Promise.all([
@@ -88,11 +90,14 @@ export const useGitStore = create<GitStore>((set, get) => {
 
   refreshStatus: async (cwd) => {
     if (!cwd) {
-      set({ status: { staged: [], unstaged: [] } })
+      set({ status: { staged: [], unstaged: [] }, ignoredPaths: [] })
       return
     }
-    const status = await window.api.gitStatus(cwd)
-    set({ status })
+    const [status, ignoredPaths] = await Promise.all([
+      window.api.gitStatus(cwd),
+      window.api.gitListIgnored(cwd),
+    ])
+    set({ status, ignoredPaths })
   },
 
   stage: async (cwd, path) => {

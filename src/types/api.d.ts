@@ -68,6 +68,7 @@ declare global {
     api: {
       readDir: (path: string) => Promise<FileNode[]>
       readFile: (path: string) => Promise<string>
+      readImageDataUrl: (path: string) => Promise<string>
       pathExists: (path: string) => Promise<boolean>
       writeFile: (path: string, content: string) => Promise<void>
       mkdir: (path: string) => Promise<void>
@@ -76,10 +77,13 @@ declare global {
       listAllFiles: (root: string) => Promise<string[]>
       searchText: (root: string, query: string, caseSensitive: boolean) => Promise<SearchMatch[]>
       openFolder: () => Promise<string | null>
+      fsWatchRoot: (cwd: string | null) => void
+      onFsChanged: (cb: (cwd: string) => void) => () => void
 
       gitBranch: (cwd: string) => Promise<string | null>
       gitAheadBehind: (cwd: string) => Promise<GitAheadBehind | null>
       gitStatus: (cwd: string) => Promise<GitStatus>
+      gitListIgnored: (cwd: string) => Promise<string[]>
       gitStage: (cwd: string, paths: string[]) => Promise<void>
       gitUnstage: (cwd: string, paths: string[]) => Promise<void>
       gitStageAll: (cwd: string) => Promise<void>

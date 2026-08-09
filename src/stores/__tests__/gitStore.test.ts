@@ -33,6 +33,7 @@ vi.stubGlobal('window', {
     gitBranch: vi.fn().mockResolvedValue('main'),
     gitAheadBehind: vi.fn().mockResolvedValue(mockAheadBehind),
     gitStatus: vi.fn().mockResolvedValue(mockStatus),
+    gitListIgnored: vi.fn().mockResolvedValue(['node_modules', 'dist']),
     gitStage: vi.fn().mockResolvedValue(undefined),
     gitUnstage: vi.fn().mockResolvedValue(undefined),
     gitStageAll: vi.fn().mockResolvedValue(undefined),
@@ -52,6 +53,7 @@ describe('gitStore', () => {
       branch: null,
       aheadBehind: null,
       status: emptyStatus,
+      ignoredPaths: [],
       commitMessage: '',
       commitError: null,
       commandStatus: 'idle',
@@ -82,6 +84,18 @@ describe('gitStore', () => {
     expect(branch).toBeNull()
     expect(aheadBehind).toBeNull()
     expect(status).toEqual(emptyStatus)
+  })
+
+  it('refreshStatus loads ignored paths alongside status', async () => {
+    await useGitStore.getState().refreshStatus('/proj')
+    expect(window.api.gitListIgnored).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().ignoredPaths).toEqual(['node_modules', 'dist'])
+  })
+
+  it('refreshStatus with null cwd clears ignored paths', async () => {
+    useGitStore.setState({ ignoredPaths: ['node_modules'] })
+    await useGitStore.getState().refreshStatus(null)
+    expect(useGitStore.getState().ignoredPaths).toEqual([])
   })
 
   it('stage calls gitStage with the path and refreshes status', async () => {
