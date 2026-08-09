@@ -58,11 +58,18 @@ const TIMEOUT_MS = 15000
 // paying a login shell's startup cost on every keystroke, and avoids ever
 // shell-interpreting the prompt content (arbitrary user code) on every call.
 let cachedClaudePath: string | null | undefined
+// Caches the in-flight resolution promise (not just the final value) so that
+// two managers prewarming this at app startup back-to-back (AutocompleteManager
+// and InlineEditManager, both calling this fire-and-forget in registerHandlers())
+// share a single login-shell resolution instead of each spawning their own
+// concurrent `execFile($SHELL, ['-lic', ...])`.
+let pendingClaudePathResolution: Promise<string | null> | undefined
 
 export function resolveClaudePath(): Promise<string | null> {
   if (cachedClaudePath !== undefined) return Promise.resolve(cachedClaudePath)
+  if (pendingClaudePathResolution) return pendingClaudePathResolution
 
-  return new Promise((resolve) => {
+  pendingClaudePathResolution = new Promise<string | null>((resolve) => {
     const shell = process.env.SHELL ?? '/bin/zsh'
     execFile(shell, ['-lic', 'command -v claude'], (err, stdout) => {
       // `-lic` runs an interactive login shell, which sources .zshrc/.zprofile
@@ -88,10 +95,28 @@ export function resolveClaudePath(): Promise<string | null> {
       resolve(null)
     })
   })
+
+  // Clear the pending-promise cache once this resolution settles (success or
+  // failure), via a .finally() microtask rather than synchronously inside
+  // the execFile callback above. execFile's callback can in principle fire
+  // synchronously (e.g. under a test double that invokes its callback
+  // inline) — clearing there would race against the
+  // `pendingClaudePathResolution = new Promise(...)` assignment still being
+  // in progress on this line, and the outer assignment completing last would
+  // silently undo the clear, leaving a stale resolved promise cached forever
+  // (permanently short-circuiting retries on failure). Deferring to
+  // .finally() guarantees this always runs after the assignment above,
+  // regardless of callback timing.
+  pendingClaudePathResolution.finally(() => {
+    pendingClaudePathResolution = undefined
+  })
+
+  return pendingClaudePathResolution
 }
 
 export function _resetClaudePathCacheForTesting(): void {
   cachedClaudePath = undefined
+  pendingClaudePathResolution = undefined
 }
 
 export class AutocompleteManager {

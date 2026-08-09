@@ -96,6 +96,9 @@ describe('parseStreamJsonLine', () => {
 function fakeProc() {
   const proc: any = new EventEmitter()
   proc.stdout = new EventEmitter()
+  proc.stdout.setEncoding = vi.fn()
+  proc.stderr = new EventEmitter()
+  proc.stderr.resume = vi.fn()
   proc.kill = vi.fn(() => proc.emit('close', null))
   return proc
 }
@@ -369,6 +372,34 @@ describe('InlineEditManager timeout handling', () => {
 
     expect(proc.kill).not.toHaveBeenCalled()
     expect(win.webContents.send).not.toHaveBeenCalled()
+  })
+
+  it('does not time out if a delta arrives mid-flight, resetting the idle clock', async () => {
+    const manager = new InlineEditManager()
+    manager.registerHandlers()
+    const proc = fakeProc()
+    spawnMock.mockReturnValueOnce(proc)
+    const win = fakeWin(1)
+
+    handlers['inlineEdit:start']({ sender: win }, BASE_PAYLOAD)
+    await vi.advanceTimersByTimeAsync(0)
+
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(proc.kill).not.toHaveBeenCalled()
+
+    proc.stdout.emit('data', '{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"still going"}}}\n')
+
+    // Total elapsed since spawn is now 40000ms (20000 + 20000), past the
+    // original 30000ms wall-clock timeout — but only 20000ms have elapsed
+    // since the delta reset the idle timer, so it must not fire yet.
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(proc.kill).not.toHaveBeenCalled()
+
+    // Now advance the remaining 10000ms with no further deltas: 30000ms of
+    // idle time since the last delta has now elapsed, so it should fire.
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(proc.kill).toHaveBeenCalled()
+    expect(win.webContents.send).toHaveBeenCalledWith('inlineEdit:event', { type: 'error', requestId: 'req-1', message: 'Timed out' })
   })
 })
 

@@ -5,6 +5,25 @@ import { getCompletionContext } from './autocompleteContext'
 import { startInlineEdit, cancelInlineEdit, subscribeToInlineEditEvents } from './inlineEditClient'
 import type * as Monaco from 'monaco-editor'
 
+// Bounds the size of the <selection> block sent to `claude -p`. Unlike
+// prefix/suffix (capped at 4000/2000 chars via getCompletionContext), the
+// selection itself was previously uncapped — a "select all, Cmd+K" on a
+// large file could put the whole file into a single argv element, risking
+// an ARG_MAX spawn failure and, well below that threshold, silently burning
+// significant subscription quota on an oversized request. Selections over
+// this cap are rejected before any request is sent (see submit()).
+const MAX_SELECTION_CHARS = 4000
+
+function postProcessEditText(raw: string): string {
+  let text = raw.trim()
+  if (!text) return text
+
+  const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)\n?```/)
+  if (fenced) text = fenced[1].trim()
+
+  return text
+}
+
 export function registerInlineEditCommands(
   editor: Monaco.editor.IStandaloneCodeEditor,
   monaco: typeof Monaco
@@ -111,9 +130,24 @@ export function registerInlineEditCommands(
 
     const range = targetRange(target)
     const selection = model.getValueInRange(range)
-    const { prefix, suffix } = getCompletionContext(model, {
+
+    // Reject oversized selections before spawning anything — see
+    // MAX_SELECTION_CHARS above. Mirrors the Escape-key behavior (silently
+    // close the prompt, widget already closed above) since this is a
+    // pre-flight validation failure, not a mid-generation one, so it doesn't
+    // go through the fail()/error-display path built for the latter.
+    if (selection.length > MAX_SELECTION_CHARS) {
+      useInlineEditStore.getState().closePrompt()
+      return
+    }
+
+    const { prefix } = getCompletionContext(model, {
       lineNumber: target.startLineNumber,
       column: target.startColumn,
+    })
+    const { suffix } = getCompletionContext(model, {
+      lineNumber: target.endLineNumber,
+      column: target.endColumn,
     })
     const language = model.getLanguageId()
     const selectedModel = useInlineEditSettingsStore.getState().model
@@ -132,6 +166,9 @@ export function registerInlineEditCommands(
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
     if (!useInlineEditSettingsStore.getState().enabled) return
+    if (useInlineEditStore.getState().status !== 'idle') {
+      cancelInlineEdit()
+    }
 
     const selection = editor.getSelection()
     if (!selection) return
@@ -150,7 +187,8 @@ export function registerInlineEditCommands(
   function acceptEdit() {
     const state = useInlineEditStore.getState()
     if (!state.target) return
-    editor.executeEdits('inline-edit', [{ range: targetRange(state.target), text: state.accumulatedText }])
+    editor.updateOptions({ readOnly: false })
+    editor.executeEdits('inline-edit', [{ range: targetRange(state.target), text: postProcessEditText(state.accumulatedText) }])
     state.reset()
   }
 
@@ -160,6 +198,11 @@ export function registerInlineEditCommands(
 
     if (state.status === 'reviewing' && e.keyCode === monaco.KeyCode.Enter) {
       e.preventDefault()
+      // Also stop propagation: this IKeyboardEvent wraps the same browser
+      // event Monaco's own keybinding service dispatches from, and its own
+      // Enter-inserts-newline command could otherwise still fire alongside
+      // acceptEdit() below, inserting a stray newline into the document.
+      e.stopPropagation()
       acceptEdit()
     } else if (state.status === 'generating' && e.keyCode === monaco.KeyCode.Escape) {
       e.preventDefault()
@@ -178,11 +221,16 @@ export function registerInlineEditCommands(
     if (!state.target || state.status === 'prompting') return
 
     if (state.status === 'error') {
-      renderZone(state.target, state.errorMessage ?? 'Something went wrong', true)
+      renderZone(state.target, `${state.errorMessage ?? 'Something went wrong'} (Esc to dismiss)`, true)
     } else {
       renderZone(state.target, state.accumulatedText, false)
     }
   })
 
-  editor.onDidDispose(() => unsubscribe())
+  editor.onDidDispose(() => {
+    unsubscribe()
+    if (useInlineEditStore.getState().owner === editor) {
+      cancelInlineEdit()
+    }
+  })
 }

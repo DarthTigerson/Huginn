@@ -174,16 +174,44 @@ export class InlineEditManager {
 
       this.currentByWindow.set(win.id, { proc, suppressReporting })
 
-      const timer = setTimeout(() => {
-        reportError('Timed out')
-        proc.kill()
-      }, TIMEOUT_MS)
+      // An idle timeout, not a hard wall-clock: armTimer() is re-called on
+      // every genuine delta, so the timer only fires after a real stall. If
+      // no delta ever arrives, only the initial armTimer() call below runs,
+      // so a fully silent process still times out at exactly TIMEOUT_MS from
+      // spawn (matching the existing "no response" behavior/tests).
+      let timer: ReturnType<typeof setTimeout>
+      const armTimer = () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          // Report before killing (not after): a real child's 'close' event
+          // is always asynchronous, so production behavior is unaffected —
+          // but killing first would let a test double with a synchronous
+          // kill() (emitting 'close' inline) win the `reported` race with
+          // "Something went wrong" instead of the correct "Timed out".
+          reportError('Timed out')
+          proc.kill()
+        }, TIMEOUT_MS)
+      }
+      armTimer()
+
+      // String mode (rather than decoding each Buffer chunk independently)
+      // lets Node's internal StringDecoder correctly hold partial multi-byte
+      // UTF-8 sequences that land on a chunk boundary, instead of corrupting
+      // them.
+      proc.stdout.setEncoding('utf8')
+      // stderr is piped but intentionally unused; draining it without
+      // inspecting its content prevents the OS pipe buffer from filling and
+      // blocking the child process on write (more likely here than in
+      // AutocompleteManager since --verbose materially increases stderr
+      // volume) — an unread-but-piped stderr can otherwise silently degrade
+      // into a misleading "Timed out" once the buffer fills.
+      proc.stderr.resume()
 
       let buffer = ''
       let sawError = false
 
-      proc.stdout.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString()
+      proc.stdout.on('data', (chunk: string) => {
+        buffer += chunk
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
         for (const line of lines) {
@@ -191,6 +219,7 @@ export class InlineEditManager {
           const parsed = parseStreamJsonLine(line)
           if (parsed?.type === 'delta') {
             reportDelta(parsed.text)
+            armTimer()
           } else if (parsed?.type === 'result' && parsed.isError) {
             sawError = true
           }
@@ -203,6 +232,7 @@ export class InlineEditManager {
         else reportDone()
       })
     } catch {
+      this.currentByWindow.delete(win.id)
       if (!win.isDestroyed()) {
         win.webContents.send('inlineEdit:event', { type: 'error', requestId: payload.requestId, message: 'Failed to start claude' } satisfies InlineEditEvent)
       }

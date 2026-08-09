@@ -153,6 +153,17 @@ describe('resolveClaudePath', () => {
 
     expect(execFileMock).toHaveBeenCalledTimes(2)
   })
+
+  it('shares a single in-flight resolution across concurrent callers (no await between calls)', async () => {
+    execFileMock.mockImplementation((_shell, _args, cb) => cb(null, '/usr/local/bin/claude', ''))
+
+    const first = resolveClaudePath()
+    const second = resolveClaudePath()
+
+    expect(await first).toBe('/usr/local/bin/claude')
+    expect(await second).toBe('/usr/local/bin/claude')
+    expect(execFileMock).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('AutocompleteManager autocomplete:complete', () => {
