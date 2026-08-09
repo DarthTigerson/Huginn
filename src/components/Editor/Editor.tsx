@@ -15,6 +15,7 @@ import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { registerAutocompleteProvider } from '@/lib/monacoAutocomplete'
 import { registerInlineEditCommands } from '@/lib/inlineEditMonaco'
+import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import {
@@ -391,7 +392,21 @@ function EditorPane({ paneId }: { paneId: string }) {
                   useEditorStore.getState().openTab({ path: `terminal://${id}`, content: '', dirty: false })
                 })
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
-                  useClaudeStore.getState().toggleChatVisible()
+                  activatePane()
+                  const selection = editor.getSelection()
+                  const model = editor.getModel()
+                  if (!selection || selection.isEmpty() || !model || !activeTab) {
+                    useClaudeStore.getState().focusChat()
+                    return
+                  }
+                  const text = formatSelectionForAssistant({
+                    relPath: toRelativePath(activeTab.path, projectRoot),
+                    startLine: selection.startLineNumber,
+                    endLine: selection.endLineNumber,
+                    language: model.getLanguageId(),
+                    code: model.getValueInRange(selection),
+                  })
+                  useClaudeStore.getState().sendSelection(text)
                 })
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Equal, () => {
                   useInstanceFontSizeStore.getState().increase(activeTab.path)
