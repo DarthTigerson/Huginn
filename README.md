@@ -7,6 +7,8 @@ display.
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![GitHub release](https://img.shields.io/github/v/release/DarthTigerson/Huginn)
 
+![Huginn main window](docs/screenshots/hero.png)
+
 > **Not affiliated with Anthropic or OpenAI.** Huginn integrates the Claude
 > Code CLI and the OpenAI Codex CLI as terminal agents, and includes a panel
 > for connecting to any OpenAI-compatible local LLM endpoint ("Cosmos"). It
@@ -34,6 +36,10 @@ switching between a browser, a terminal, and an editor.
 - **Usage tracking** — Claude usage/burn-rate monitoring built into the
   status bar
 - **Command palette & shortcuts overlay** — keyboard-first navigation
+
+| Git graph | Mobile Display |
+|---|---|
+| ![Git graph view](docs/screenshots/git-graph.png) | ![Mobile Display pairing](docs/screenshots/mobile-display.png) |
 
 ## Requirements
 
