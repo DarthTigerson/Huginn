@@ -5,12 +5,14 @@ import { ModelsSettingsPage } from '../ModelsSettingsPage'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
+import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 
 afterEach(() => {
   cleanup()
   useAutocompleteSettingsStore.setState({ enabled: true, model: 'claude-haiku-4-5-20251001' })
   useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
   useCosmosSettingsStore.setState({ endpoint: '', apiKey: '', modelId: '' })
+  useInlineEditSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5' })
 })
 
 describe('ModelsSettingsPage assistants section', () => {
@@ -97,5 +99,31 @@ describe('ModelsSettingsPage autocomplete section', () => {
     render(<ModelsSettingsPage />)
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'claude-sonnet-5' } })
     expect(useAutocompleteSettingsStore.getState().model).toBe('claude-sonnet-5')
+  })
+})
+
+describe('ModelsSettingsPage inline edit section', () => {
+  it('reflects the current enabled state', () => {
+    useInlineEditSettingsStore.setState({ enabled: false })
+    render(<ModelsSettingsPage />)
+    expect(screen.getByRole('switch', { name: 'Inline Edit (Cmd+K)' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('toggles inline edit on click', () => {
+    render(<ModelsSettingsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Inline Edit (Cmd+K)' }))
+    expect(useInlineEditSettingsStore.getState().enabled).toBe(false)
+  })
+
+  it('reflects the current model selection', () => {
+    useInlineEditSettingsStore.setState({ model: 'claude-opus-5' })
+    render(<ModelsSettingsPage />)
+    expect((screen.getByLabelText('Inline Edit Model') as HTMLSelectElement).value).toBe('claude-opus-5')
+  })
+
+  it('updates the model when changed', () => {
+    render(<ModelsSettingsPage />)
+    fireEvent.change(screen.getByLabelText('Inline Edit Model'), { target: { value: 'claude-haiku-4-5-20251001' } })
+    expect(useInlineEditSettingsStore.getState().model).toBe('claude-haiku-4-5-20251001')
   })
 })

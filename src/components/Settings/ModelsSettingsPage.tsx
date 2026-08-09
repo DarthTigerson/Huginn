@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useAutocompleteSettingsStore, AUTOCOMPLETE_MODELS } from '@/stores/autocompleteSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
+import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
 import type { AssistantKind } from '@/types/api'
 
@@ -76,6 +77,10 @@ export function ModelsSettingsPage() {
   const setAutocompleteEnabled = useAutocompleteSettingsStore((s) => s.setEnabled)
   const autocompleteModel = useAutocompleteSettingsStore((s) => s.model)
   const setAutocompleteModel = useAutocompleteSettingsStore((s) => s.setModel)
+  const inlineEditEnabled = useInlineEditSettingsStore((s) => s.enabled)
+  const setInlineEditEnabled = useInlineEditSettingsStore((s) => s.setEnabled)
+  const inlineEditModel = useInlineEditSettingsStore((s) => s.model)
+  const setInlineEditModel = useInlineEditSettingsStore((s) => s.setModel)
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -120,6 +125,38 @@ export function ModelsSettingsPage() {
                 id="autocomplete-model"
                 value={autocompleteModel}
                 onChange={(e) => setAutocompleteModel(e.target.value)}
+                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
+              >
+                {AUTOCOMPLETE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                ▾
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+            Inline Edit
+          </h2>
+
+          <Toggle
+            label="Inline Edit (Cmd+K)"
+            description="Select code (or place your cursor) and press Cmd+K to describe a change."
+            checked={inlineEditEnabled}
+            onChange={setInlineEditEnabled}
+          />
+
+          <div>
+            <label htmlFor="inline-edit-model" className="text-xs text-fg-muted mb-1.5 block">Inline Edit Model</label>
+            <div className="relative">
+              <select
+                id="inline-edit-model"
+                value={inlineEditModel}
+                onChange={(e) => setInlineEditModel(e.target.value)}
                 className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
               >
                 {AUTOCOMPLETE_MODELS.map((m) => (
