@@ -467,13 +467,15 @@ with:
   const focusToken = useClaudeStore((s) => s.focusToken)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const seenFocusTokenRef = useRef(focusToken)
 ```
 
 Add a new effect, right after the existing scroll-into-view effect (`useEffect(() => { bottomRef.current?.scrollIntoView?.(...) }, [messages])`):
 
 ```ts
   useEffect(() => {
-    if (focusToken === 0) return
+    if (focusToken === seenFocusTokenRef.current) return
+    seenFocusTokenRef.current = focusToken
     const injection = useClaudeStore.getState().pendingInjection
     if (injection) {
       appendDraftInput(injection)
@@ -482,6 +484,8 @@ Add a new effect, right after the existing scroll-into-view effect (`useEffect((
     textareaRef.current?.focus()
   }, [focusToken, appendDraftInput])
 ```
+
+`focusToken` lives in the module-level `claudeStore`, so it does not reset when `CosmosChat` unmounts (e.g. switching to the Claude/Codex tab and back). A bare `focusToken === 0` check would only catch the app's very first mount ever — after that, any later remount of `CosmosChat` (from switching assistants and switching back) would see a stale nonzero `focusToken` and immediately steal focus with no new Cmd+L press. `seenFocusTokenRef` is initialized once per mount (`useRef`'s initial-value argument is only used on that instance's first render), so the effect only reacts to a token that changes *after this mount*, not to whatever value was already sitting there when it mounted.
 
 Add `ref={textareaRef}` to the `<textarea>` element (alongside its existing `value`/`onChange`/`onKeyDown` props).
 
@@ -583,18 +587,24 @@ Add the import (with the other imports at the top of `src/components/Chat/Chat.t
 import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
 ```
 
-Add `focusToken` to the set of subscribed store values, right after the existing `const assistant = useClaudeStore((s) => s.assistant)` line:
+Add `focusToken` to the set of subscribed store values, right after the existing `const assistant = useClaudeStore((s) => s.assistant)` line, and add a ref to track the last `focusToken` this component instance has already handled (right after the existing `const isFirstRestart = useRef(true)` line):
 
 ```ts
   const assistant = useClaudeStore((s) => s.assistant)
   const focusToken = useClaudeStore((s) => s.focusToken)
 ```
 
+```ts
+  const isFirstRestart = useRef(true)
+  const seenFocusTokenRef = useRef(focusToken)
+```
+
 Add a new effect immediately after the closing `}, [projectRoot, assistant])` of the main terminal-creation effect (the one starting `useEffect(() => { if (!projectRoot || !containerRef.current || assistant === 'cosmos') return ...`):
 
 ```ts
   useEffect(() => {
-    if (focusToken === 0 || assistant === 'cosmos') return
+    if (focusToken === seenFocusTokenRef.current || assistant === 'cosmos') return
+    seenFocusTokenRef.current = focusToken
     const terminal = terminalsRef.current[assistant]
     if (!terminal) return
 
@@ -606,6 +616,8 @@ Add a new effect immediately after the closing `}, [projectRoot, assistant])` of
     terminal.xterm.focus()
   }, [focusToken, assistant])
 ```
+
+Same reasoning as Task 3's `CosmosChat` effect: `focusToken` lives in the module-level `claudeStore` and doesn't reset on remount, so comparing against a ref seeded at mount (rather than the literal `0`) is what actually means "a new Cmd+L happened since this component started watching," not "any Cmd+L ever happened this session."
 
 - [ ] **Step 4: Run tests to verify they pass**
 
