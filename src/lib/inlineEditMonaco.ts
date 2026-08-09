@@ -170,7 +170,7 @@ export function registerInlineEditCommands(
     }
   })
 
-  useInlineEditStore.subscribe((state) => {
+  const unsubscribe = useInlineEditStore.subscribe((state) => {
     if (state.owner !== editor || state.status === 'idle') {
       teardown()
       return
@@ -183,4 +183,6 @@ export function registerInlineEditCommands(
       renderZone(state.target, state.accumulatedText, false)
     }
   })
+
+  editor.onDidDispose(() => unsubscribe())
 }
