@@ -68,7 +68,7 @@ export type InlineEditEvent =
   | { type: 'error'; requestId: string; message: string }
 
 interface WindowState {
-  proc: ChildProcessByStdio<null, Readable, Readable>
+  proc: ChildProcessByStdio<null, Readable, Readable> | null
   suppressReporting: () => void
 }
 
@@ -99,15 +99,26 @@ export class InlineEditManager {
     const state = this.currentByWindow.get(windowId)
     if (!state) return
     state.suppressReporting()
-    state.proc.kill()
+    state.proc?.kill()
     this.currentByWindow.delete(windowId)
   }
 
   private async start(win: BrowserWindow, payload: InlineEditStartPayload): Promise<void> {
     this.cancelWindow(win.id)
 
+    // Reserve this window's slot synchronously, before the only await below —
+    // otherwise a second start() call arriving during that await would find
+    // nothing in currentByWindow to supersede (cancelWindow only cancels an
+    // already-registered entry), and both requests could end up spawning live
+    // processes for the same window.
+    let superseded = false
+    this.currentByWindow.set(win.id, { proc: null, suppressReporting: () => { superseded = true } })
+
     const claudePath = await resolveClaudePath()
+    if (superseded) return
+
     if (!claudePath) {
+      this.currentByWindow.delete(win.id)
       if (!win.isDestroyed()) {
         win.webContents.send('inlineEdit:event', { type: 'error', requestId: payload.requestId, message: 'claude CLI not found' } satisfies InlineEditEvent)
       }

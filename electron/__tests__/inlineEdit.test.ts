@@ -271,6 +271,22 @@ describe('InlineEditManager', () => {
     expect(win.webContents.send).toHaveBeenCalledWith('inlineEdit:event', { type: 'done', requestId: 'req-b' })
   })
 
+  it('supersedes a request still resolving the claude path when a second one arrives before it (no await between calls)', async () => {
+    const { startHandler } = setup()
+    const proc = fakeProc()
+    spawnMock.mockReturnValueOnce(proc)
+    const win = fakeWin(1)
+
+    startHandler({ sender: win }, { ...BASE_PAYLOAD, requestId: 'req-a' })
+    startHandler({ sender: win }, { ...BASE_PAYLOAD, requestId: 'req-b' })
+    await flushMicrotasks()
+
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+    proc.emit('close', 0)
+    expect(win.webContents.send).toHaveBeenCalledWith('inlineEdit:event', { type: 'done', requestId: 'req-b' })
+    expect(win.webContents.send).not.toHaveBeenCalledWith('inlineEdit:event', expect.objectContaining({ requestId: 'req-a' }))
+  })
+
   it('does not affect an in-flight request in a different window', async () => {
     const { startHandler } = setup()
     const procA = fakeProc()
