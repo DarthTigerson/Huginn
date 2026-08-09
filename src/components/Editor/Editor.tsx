@@ -23,6 +23,7 @@ import {
   isGitLogTab,
   isGitGraphTab,
   isGitBranchDiffTab,
+  isGraphifyGraphTab,
   isTerminalTab,
   getTerminalId,
   isBrowserTab,
@@ -44,6 +45,7 @@ import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
+import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
 import {
   isImagePreviewTab,
   parseImagePreviewPath,
@@ -65,6 +67,7 @@ function isReadOnlyTab(tab: Tab | null): boolean {
     isGitLogTab(tab.path) ||
     isGitGraphTab(tab.path) ||
     isGitBranchDiffTab(tab.path) ||
+    isGraphifyGraphTab(tab.path) ||
     isTerminalTab(tab.path) ||
     isBrowserTab(tab.path) ||
     isImagePreviewTab(tab.path) ||
@@ -210,6 +213,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
+  const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
 
@@ -309,6 +313,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GitLogView />
         ) : isGitGraph ? (
           <GitGraphPage />
+        ) : isGraphifyGraph ? (
+          <GraphifyGraphPage />
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
         ) : isImagePreview ? (
