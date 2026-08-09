@@ -14,6 +14,7 @@ import { useGitStore } from '@/stores/gitStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { registerAutocompleteProvider } from '@/lib/monacoAutocomplete'
+import { registerInlineEditCommands } from '@/lib/inlineEditMonaco'
 import { TabBar } from './TabBar'
 import { detectLang } from './utils'
 import {
@@ -354,6 +355,7 @@ function EditorPane({ paneId }: { paneId: string }) {
               onMount={(editor, monaco) => {
                 editorRef.current = editor
                 registerAutocompleteProvider(monaco)
+                registerInlineEditCommands(editor, monaco)
                 editor.onDidFocusEditorWidget(activatePane)
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                   activatePane()

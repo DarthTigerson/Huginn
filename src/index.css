@@ -151,3 +151,8 @@ body {
   background-color: rgba(255, 200, 0, 0.35);
   border-radius: 2px;
 }
+
+.inline-edit-removed {
+  text-decoration: line-through;
+  background-color: rgba(248, 81, 73, 0.15);
+}
