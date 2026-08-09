@@ -225,4 +225,13 @@ contextBridge.exposeInMainWorld('api', {
 
   autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) =>
     ipcRenderer.invoke('autocomplete:complete', prefix, suffix, language, model),
+
+  inlineEditStart: (payload: import('./inlineEdit').InlineEditStartPayload) =>
+    ipcRenderer.send('inlineEdit:start', payload),
+  inlineEditCancel: () => ipcRenderer.send('inlineEdit:cancel'),
+  onInlineEditEvent: (cb: (event: import('./inlineEdit').InlineEditEvent) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, event: import('./inlineEdit').InlineEditEvent) => cb(event)
+    ipcRenderer.on('inlineEdit:event', handler)
+    return () => ipcRenderer.removeListener('inlineEdit:event', handler)
+  },
 })

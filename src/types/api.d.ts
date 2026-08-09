@@ -1,5 +1,6 @@
 import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
 import type { BrowserViewEvent } from '../../electron/browserViews'
+import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -166,6 +167,10 @@ declare global {
       setWindowTitle: (root: string) => void
 
       autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) => Promise<string | null>
+
+      inlineEditStart: (payload: InlineEditStartPayload) => void
+      inlineEditCancel: () => void
+      onInlineEditEvent: (cb: (event: InlineEditEvent) => void) => () => void
     }
   }
 }
