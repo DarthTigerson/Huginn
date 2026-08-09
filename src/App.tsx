@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { clampSize, loadPanelSize } from '@/lib/panelSize'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
@@ -61,7 +62,7 @@ function assistantIcon(kind: AssistantKind) {
 }
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
-const SIDEBAR_DEFAULT_SIZE = 20
+const SIDEBAR_DEFAULT_SIZE = 26
 const SIDEBAR_MIN_SIZE = 4
 const SIDEBAR_MAX_SIZE = 40
 const CHAT_SIZE_KEY = 'huginn:layout:chatSize'
@@ -69,22 +70,12 @@ const CHAT_DEFAULT_SIZE = 25
 const CHAT_MIN_SIZE = 15
 const CHAT_MAX_SIZE = 50
 
-function clampSize(size: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, size))
-}
-
 function loadSidebarSize(): number {
-  const stored = Number(localStorage.getItem(SIDEBAR_SIZE_KEY))
-  return Number.isFinite(stored)
-    ? clampSize(stored, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
-    : SIDEBAR_DEFAULT_SIZE
+  return loadPanelSize(SIDEBAR_SIZE_KEY, SIDEBAR_DEFAULT_SIZE, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
 }
 
 function loadChatSize(): number {
-  const stored = Number(localStorage.getItem(CHAT_SIZE_KEY))
-  return Number.isFinite(stored)
-    ? clampSize(stored, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
-    : CHAT_DEFAULT_SIZE
+  return loadPanelSize(CHAT_SIZE_KEY, CHAT_DEFAULT_SIZE, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
 }
 
 export default function App() {
