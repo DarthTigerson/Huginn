@@ -11,5 +11,11 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  // src/types/api.d.ts type-imports from electron/ (BrowserViewEvent,
+  // InlineEditEvent, LatestUsage), which drags those main-process modules and
+  // everything they import into this project's program. Referencing the node
+  // project routes them through its declaration output instead of pulling the
+  // sources in as stray files (TS6307).
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
