@@ -2,6 +2,8 @@
   "name": "huginn",
   "version": "0.1.0",
   "description": "A Claude-native IDE",
+  "author": "Thomas Bonnici",
+  "license": "MIT",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
