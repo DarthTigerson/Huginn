@@ -268,4 +268,19 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('inlineEdit:event', handler)
     return () => ipcRenderer.removeListener('inlineEdit:event', handler)
   },
+
+  graphifyIsAvailable: () => ipcRenderer.invoke('graphify:isAvailable'),
+  graphifyRun: (id: string, cwd: string) => ipcRenderer.invoke('graphify:run', id, cwd),
+  graphifyReadGraph: (cwd: string) => ipcRenderer.invoke('graphify:readGraph', cwd),
+  graphifyInstallClaudeSkill: (cwd: string) => ipcRenderer.invoke('graphify:installClaudeSkill', cwd),
+  onGraphifyData: (cb: (id: string, data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, data: string) => cb(id, data)
+    ipcRenderer.on('graphify:data', handler)
+    return () => ipcRenderer.removeListener('graphify:data', handler)
+  },
+  onGraphifyExit: (cb: (id: string, code: number) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, code: number) => cb(id, code)
+    ipcRenderer.on('graphify:exit', handler)
+    return () => ipcRenderer.removeListener('graphify:exit', handler)
+  },
 })

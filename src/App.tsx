@@ -13,6 +13,7 @@ import {
   GitIcon,
   TodoIcon,
   PhoneIcon,
+  GraphIcon,
   SettingsIcon,
   TerminalIcon,
   BrowserIcon,
@@ -31,6 +32,7 @@ import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { TodoPanel } from './components/Todos/TodoPanel'
 import { GitPanel } from './components/Git/GitPanel'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
+import { GraphifyPanel } from './components/Graphify/GraphifyPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { CommandPalette } from './components/Search/CommandPalette'
 import { RecentProjectsPalette } from './components/Search/RecentProjectsPalette'
@@ -91,8 +93,8 @@ export default function App() {
   const enabledModels = useModelSettingsStore((s) => s.enabled)
   const visibleAssistantOptions = ASSISTANT_OPTIONS.filter((option) => enabledModels[option.id])
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'settings' | null>('files')
-  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'settings'>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'graphify' | 'settings' | null>('files')
+  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'graphify' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
@@ -441,6 +443,13 @@ export default function App() {
               badge: mobileBadge,
               onClick: () => setLeftPanel((p) => (p === 'mobile' ? null : 'mobile')),
             },
+            {
+              id: 'graphify',
+              icon: <GraphIcon />,
+              title: 'Graphify',
+              active: leftPanel === 'graphify',
+              onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
+            },
           ]]}
           bottomGroups={[[
             {
@@ -482,7 +491,7 @@ export default function App() {
                 order={1}
                 onResize={saveSidebarSize}
               >
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : <SettingsPanel />}
+                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : leftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>

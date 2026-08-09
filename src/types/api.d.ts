@@ -3,6 +3,7 @@ import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 import type { LatestUsage } from '../../electron/usagePoller'
 import type { UpdateInfo } from '../../electron/updateChecker'
+import type { GraphifyGraph } from './graphify'
 
 export type { LatestUsage, UpdateInfo }
 
@@ -192,6 +193,13 @@ declare global {
       inlineEditStart: (payload: InlineEditStartPayload) => void
       inlineEditCancel: () => void
       onInlineEditEvent: (cb: (event: InlineEditEvent) => void) => () => void
+
+      graphifyIsAvailable: () => Promise<boolean>
+      graphifyRun: (id: string, cwd: string) => Promise<void>
+      graphifyReadGraph: (cwd: string) => Promise<GraphifyGraph>
+      graphifyInstallClaudeSkill: (cwd: string) => Promise<{ ok: boolean; output: string }>
+      onGraphifyData: (cb: (id: string, data: string) => void) => () => void
+      onGraphifyExit: (cb: (id: string, code: number) => void) => () => void
     }
   }
 }

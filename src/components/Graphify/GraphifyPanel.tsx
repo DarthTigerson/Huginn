@@ -1,0 +1,116 @@
+import { useEffect, useRef } from 'react'
+import { useGraphifyStore } from '@/stores/graphifyStore'
+import { useFileStore } from '@/stores/fileStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { GRAPHIFY_GRAPH_TAB_PATH } from '@/components/Settings/paths'
+import { buildMarkdownPreviewPath } from '@/components/Viewer/paths'
+
+// Matches GitPanel's pill button styling so Graphify's controls read as part
+// of the same left-sidebar panel family.
+const pillButtonClass =
+  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100 disabled:shadow-none'
+
+export function GraphifyPanel() {
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const {
+    available, checking, running, progress, error, graph, checkAvailable, run, loadGraph,
+  } = useGraphifyStore()
+  const openTab = useEditorStore((s) => s.openTab)
+
+  useEffect(() => {
+    if (available === null && !checking) checkAvailable()
+  }, [available, checking, checkAvailable])
+
+  // Auto-open the Graph tab the moment a build finishes successfully, so a
+  // fresh build doesn't require a second click on "Open Graph" — only fires
+  // on the true→false edge of `running`, not on every render.
+  const wasRunningRef = useRef(false)
+  useEffect(() => {
+    if (wasRunningRef.current && !running && !error && graph) {
+      openTab({ path: GRAPHIFY_GRAPH_TAB_PATH, content: '', dirty: false })
+    }
+    wasRunningRef.current = running
+  }, [running, error, graph, openTab])
+
+  if (available === false) {
+    return (
+      <div className="h-full flex items-center justify-center p-6 text-center bg-sidebar border-r border-border">
+        <div>
+          <p className="text-sm text-fg mb-2">graphify isn't installed.</p>
+          <p className="text-xs text-fg-subtle font-mono">uv tool install graphifyy && graphify install</p>
+        </div>
+      </div>
+    )
+  }
+
+  function openGraph() {
+    openTab({ path: GRAPHIFY_GRAPH_TAB_PATH, content: '', dirty: false })
+    // Always re-read graphify-out/graph.json for the current project from
+    // disk at click time, rather than relying on stale in-memory state —
+    // this is what lets the panel pick up a graph that already existed on
+    // disk (built in a prior session, or via the CLI directly) and keeps a
+    // project switch from showing a previous project's graph.
+    if (projectRoot) loadGraph(projectRoot)
+  }
+
+  function openReport() {
+    if (!projectRoot) return
+    openTab({
+      path: buildMarkdownPreviewPath(`${projectRoot}/graphify-out/GRAPH_REPORT.md`),
+      content: '',
+      dirty: false,
+    })
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
+      <div className="h-9 px-3 border-b border-border shrink-0 flex items-center">
+        <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+          Graphify
+        </span>
+      </div>
+
+      <div className="shrink-0 px-3 py-2 flex flex-col gap-1.5 border-b border-border">
+        <button
+          type="button"
+          className={pillButtonClass}
+          disabled={!projectRoot || running}
+          onClick={() => projectRoot && run(projectRoot)}
+        >
+          {graph ? 'Rebuild graph' : 'Build graph'}
+        </button>
+        <button
+          type="button"
+          className={pillButtonClass}
+          disabled={!projectRoot}
+          onClick={openGraph}
+        >
+          Open Graph
+        </button>
+        <button
+          type="button"
+          className={pillButtonClass}
+          disabled={!projectRoot}
+          onClick={openReport}
+        >
+          Open Report
+        </button>
+      </div>
+
+      {(running || (error && !running)) && (
+        <div className="shrink-0 px-3 py-2 flex flex-col gap-2 overflow-y-auto">
+          {running && (
+            <div className="text-xs text-fg-muted font-mono whitespace-pre-wrap border border-border rounded p-2 max-h-64 overflow-y-auto">
+              {progress || 'Running graphify…'}
+            </div>
+          )}
+          {error && !running && (
+            <div className="text-xs text-red-400 whitespace-pre-wrap border border-red-400/30 rounded p-2 max-h-64 overflow-y-auto">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

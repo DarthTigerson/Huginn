@@ -23,6 +23,7 @@ import {
   isGitLogTab,
   isGitGraphTab,
   isGitBranchDiffTab,
+  isGraphifyGraphTab,
   isTerminalTab,
   getTerminalId,
   isBrowserTab,
@@ -32,6 +33,7 @@ import {
   GIT_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
   MODELS_SETTINGS_TAB_PATH,
+  GRAPHIFY_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
@@ -40,10 +42,12 @@ import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
 import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
+import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
+import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
 import {
   isImagePreviewTab,
   parseImagePreviewPath,
@@ -65,6 +69,7 @@ function isReadOnlyTab(tab: Tab | null): boolean {
     isGitLogTab(tab.path) ||
     isGitGraphTab(tab.path) ||
     isGitBranchDiffTab(tab.path) ||
+    isGraphifyGraphTab(tab.path) ||
     isTerminalTab(tab.path) ||
     isBrowserTab(tab.path) ||
     isImagePreviewTab(tab.path) ||
@@ -210,6 +215,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
+  const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
 
@@ -300,6 +306,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <BrowserSettingsPage />
           ) : activeTab.path === MODELS_SETTINGS_TAB_PATH ? (
             <ModelsSettingsPage />
+          ) : activeTab.path === GRAPHIFY_SETTINGS_TAB_PATH ? (
+            <GraphifySettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (
@@ -309,6 +317,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GitLogView />
         ) : isGitGraph ? (
           <GitGraphPage />
+        ) : isGraphifyGraph ? (
+          <GraphifyGraphPage />
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
         ) : isImagePreview ? (

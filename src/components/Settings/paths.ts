@@ -13,6 +13,7 @@ export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'
 export const BROWSER_SETTINGS_TAB_PATH = 'settings://Browser'
 export const MODELS_SETTINGS_TAB_PATH = 'settings://Models'
+export const GRAPHIFY_SETTINGS_TAB_PATH = 'settings://Graphify'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {
@@ -33,4 +34,10 @@ export const GIT_BRANCH_DIFF_TAB_PATH = 'git-branch-diff://Branch Diff'
 
 export function isGitBranchDiffTab(path: string): boolean {
   return path === GIT_BRANCH_DIFF_TAB_PATH
+}
+
+export const GRAPHIFY_GRAPH_TAB_PATH = 'graphify-graph://Graph'
+
+export function isGraphifyGraphTab(path: string): boolean {
+  return path === GRAPHIFY_GRAPH_TAB_PATH
 }

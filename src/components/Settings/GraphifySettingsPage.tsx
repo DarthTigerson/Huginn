@@ -1,0 +1,52 @@
+import { useGraphifyStore } from '@/stores/graphifyStore'
+import { useFileStore } from '@/stores/fileStore'
+
+export function GraphifySettingsPage() {
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const { installingSkill, skillInstallResult, installClaudeSkill } = useGraphifyStore()
+
+  return (
+    <div className="h-full overflow-auto p-6 bg-panel">
+      <h1 className="text-base font-semibold text-fg mb-1">Graphify</h1>
+      <p className="text-sm text-fg-muted mb-8">
+        graphify builds a knowledge graph of your codebase, viewable from the Graphify panel.
+      </p>
+
+      <div className="grid grid-cols-1 gap-6 max-w-lg">
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-4">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Claude Code integration</h2>
+          <p className="text-sm text-fg-muted">
+            Registers graphify as a Claude Code skill for the current project
+            (<code className="text-xs bg-white/10 rounded px-1 py-0.5">.claude/skills/graphify</code>, plus a
+            CLAUDE.md section), so Claude can query the graph itself
+            (<code className="text-xs bg-white/10 rounded px-1 py-0.5">graphify query</code>/
+            <code className="text-xs bg-white/10 rounded px-1 py-0.5">explain</code>/
+            <code className="text-xs bg-white/10 rounded px-1 py-0.5">path</code>) instead of grepping raw files —
+            saving tokens on codebase questions.
+          </p>
+
+          <button
+            type="button"
+            className="w-full h-8 rounded-full flex items-center justify-center text-xs font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 disabled:opacity-40 disabled:pointer-events-none"
+            disabled={!projectRoot || installingSkill}
+            onClick={() => projectRoot && installClaudeSkill(projectRoot)}
+          >
+            {installingSkill ? 'Enabling…' : 'Enable for Claude Code'}
+          </button>
+
+          {skillInstallResult && (
+            <div
+              className={`text-xs whitespace-pre-wrap border rounded p-2 max-h-64 overflow-y-auto ${
+                skillInstallResult.ok ? 'text-fg-muted border-border' : 'text-red-400 border-red-400/30'
+              }`}
+            >
+              {skillInstallResult.ok
+                ? 'Claude Code can now use graphify on this project (skill + CLAUDE.md added under .claude/ — commit it to share with your team).'
+                : `Failed to enable graphify for Claude Code:\n${skillInstallResult.output}`}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
