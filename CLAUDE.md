@@ -1,0 +1,79 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Huginn is an Electron desktop app ("a Claude-native IDE"): a Monaco editor,
+a real terminal (`node-pty`), and git tooling built around one or more AI
+coding agent panels (Claude Code CLI, OpenAI Codex CLI, and "Cosmos" for any
+OpenAI-compatible local LLM endpoint) running side-by-side. Huginn launches
+these CLIs as terminal processes — it does not reimplement agent logic.
+
+## Commands
+
+```bash
+npm run dev            # electron-vite dev — launches the app with HMR
+npm run build           # electron-vite build (type-checks via tsc, then bundles)
+npm test                 # vitest run — full suite
+npx vitest run <path>     # run a single test file
+npx vitest <path>          # watch mode for a single test file
+npm run rebuild            # rebuild native node-pty module against Electron's ABI
+npm run dist:mac            # build + package a macOS .zip (release/)
+npm run dist:linux           # build + package a Linux .tar.gz (release/)
+```
+
+There is no separate lint script; type errors surface via `npm run build`
+(`tsc -b` runs before the Vite build for both `tsconfig.node.json` and
+`tsconfig.web.json`).
+
+Tests are colocated in `__tests__` directories next to the source they
+cover (e.g. `src/components/Git/__tests__/`, `electron/__tests__/`).
+Component tests (`.test.tsx` under `src/components/**/__tests__/`) run in
+`jsdom`; everything else (stores, lib, electron main-process code) runs in
+plain `node`, per the `environmentMatchGlobs` split in `vitest.config.ts`.
+
+## Architecture
+
+**Three-tier IPC structure**, consistent across every feature:
+
+1. **Electron main process** (`electron/*.ts`) — one file per domain (e.g.
+   `git.ts`/`gitRunner.ts`/`gitWatcher.ts`, `claude.ts`, `cosmos.ts`,
+   `pty.ts`, `mobile.ts`, `fsOps.ts`, `autocomplete.ts`, `inlineEdit.ts`,
+   `usageManager.ts`/`usagePoller.ts`). Each registers its own
+   `ipcMain.handle`/`ipcMain.on` calls, generally via a `register*Handlers()`
+   function wired up in `electron/main.ts`. Long-lived per-domain state
+   (running PTYs, watchers, servers) lives in manager classes here, not in
+   the renderer.
+2. **Preload bridge** (`electron/preload.ts`) — a flat `window.api` surface
+   built with `contextBridge.exposeInMainWorld`, one method per IPC channel,
+   plus `on*` subscription helpers that return an unsubscribe function for
+   push-style events (log streams, file-watcher changes, etc.).
+3. **Renderer** (`src/`) — React + Zustand. Each feature has a store under
+   `src/stores/` (e.g. `gitStore.ts`, `claudeStore.ts`, `mobileStore.ts`)
+   that calls `window.api.*` and holds UI/domain state; components under
+   `src/components/<Feature>/` consume the store. `src/App.tsx` is the
+   composition root: it lays out the activity bar, sidebar, editor, and
+   per-assistant terminal panels inside resizable `react-resizable-panels`
+   groups, and owns top-level modal/palette state.
+
+**Multi-instance panels**: Claude/Codex/Cosmos terminal panels and browser
+tabs are addressed by path-like IDs built via helpers such as
+`buildTerminalPath`/`buildBrowserPath` (`src/components/Settings/paths.ts`),
+allowing multiple concurrent instances per assistant kind
+(`AssistantKind` in `src/types/api.ts`: `'claude' | 'codex' | 'cosmos'`).
+
+**Mobile Display**: `electron/mobile.ts` runs a local HTTP server
+(`MobileServer`) that a phone pairs to over the LAN via QR code + PIN; the
+served web assets live in `electron/mobileWeb/` and are included verbatim
+in packaged builds (see `build.files` in `package.json`), not bundled by
+Vite.
+
+**Design-doc workflow**: nontrivial features go through a brainstorm →
+spec → plan cycle before implementation, with artifacts committed to
+`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and
+`docs/superpowers/plans/YYYY-MM-DD-<topic>.md`. Check these directories for
+prior art/rationale before redesigning an existing feature.
+
+**Platform support**: macOS (Apple Silicon only) and Linux (x86_64,
+Debian/Ubuntu-based) — no Intel Mac, no Windows.
