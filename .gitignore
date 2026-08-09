@@ -1,7 +1,9 @@
 .superpowers/
+docs/superpowers/
 .worktrees/
 node_modules/
 out/
+release/
 .DS_Store
 
 # TypeScript composite build artifacts (electron-vite handles the real build)
