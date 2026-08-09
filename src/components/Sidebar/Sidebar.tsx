@@ -5,6 +5,8 @@ import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import { buildImagePreviewPath, buildMarkdownPreviewPath } from '@/components/Viewer/paths'
+import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
 import { FileTree, type TreePromptState } from './FileTree'
 import { Modal } from '@/components/ui/Modal'
 import { clampToViewport } from '@/components/ui/clampToViewport'
@@ -46,14 +48,12 @@ function copyText(text: string): void {
 }
 
 export function Sidebar() {
-  const { projectRoot, tree, openFolder, refreshRoot, expandDir } = useFileStore()
+  const { projectRoot, tree, openFolder, refreshTree, expandDir, collapseAll } = useFileStore()
   const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [prompt, setPrompt] = useState<TreePromptState | null>(null)
-  const [autoExpandPath, setAutoExpandPath] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null)
-  const [collapseAllKey, setCollapseAllKey] = useState(0)
 
   useEffect(() => {
     if (!projectRoot || !activeTabPath) return
@@ -83,7 +83,6 @@ export function Sidebar() {
         if (cancelled) return
         await expandDir(ancestor)
       }
-      if (!cancelled) setAutoExpandPath(realPath)
     })()
 
     return () => { cancelled = true }
@@ -138,8 +137,7 @@ export function Sidebar() {
   async function startCreate(kind: CreateKind, node: FileNode | null) {
     const directory = targetDirectory(node)
     if (!directory) return
-    if (node?.isDirectory && node.children === undefined) await expandDir(node.path)
-    setAutoExpandPath(node?.isDirectory ? node.path : null)
+    if (node?.isDirectory) await expandDir(node.path)
     setMenu(null)
     setPrompt({
       kind,
@@ -166,11 +164,20 @@ export function Sidebar() {
     openTab({ path: node.path, content, dirty: false })
   }
 
+  function openImagePreview(node: FileNode) {
+    setMenu(null)
+    openTab({ path: buildImagePreviewPath(node.path), content: '', dirty: false })
+  }
+
+  function openMarkdownPreview(node: FileNode) {
+    setMenu(null)
+    openTab({ path: buildMarkdownPreviewPath(node.path), content: '', dirty: false })
+  }
+
   async function commitPrompt() {
     if (!prompt) return
     const name = prompt.value.trim()
     if (!name) {
-      setAutoExpandPath(null)
       setPrompt(null)
       return
     }
@@ -178,18 +185,15 @@ export function Sidebar() {
     const path = joinPath(prompt.directory, name)
     if (prompt.kind === 'file') {
       await window.api.writeFile(path, '')
-      await refreshRoot()
+      await refreshTree()
       const content = await window.api.readFile(path)
       openTab({ path, content, dirty: false })
-      setAutoExpandPath(null)
     } else if (prompt.kind === 'directory') {
       await window.api.mkdir(path)
-      await refreshRoot()
-      setAutoExpandPath(null)
+      await refreshTree()
     } else if (prompt.node && path !== prompt.node.path) {
       await window.api.renamePath(prompt.node.path, path)
-      await refreshRoot()
-      setAutoExpandPath(null)
+      await refreshTree()
     }
 
     setPrompt(null)
@@ -200,7 +204,6 @@ export function Sidebar() {
   }
 
   function cancelPrompt() {
-    setAutoExpandPath(null)
     setPrompt(null)
   }
 
@@ -219,7 +222,7 @@ export function Sidebar() {
   async function trashNode(node: FileNode) {
     await window.api.trashPath(node.path)
     useEditorStore.getState().markTabsMissingForDeletedPath(node.path)
-    await refreshRoot()
+    await refreshTree()
     setDeleteTarget(null)
   }
 
@@ -242,8 +245,6 @@ export function Sidebar() {
               directoryPath={projectRoot}
               onContextMenu={openContextMenu}
               prompt={prompt}
-              autoExpandPath={autoExpandPath}
-              collapseAllKey={collapseAllKey}
               setPromptValue={setPromptValue}
               commitPrompt={commitPrompt}
               cancelPrompt={cancelPrompt}
@@ -262,6 +263,16 @@ export function Sidebar() {
                   Open / Edit
                 </ContextMenuButton>
               )}
+              {menu.node && !menu.node.isDirectory && isImageFile(menu.node.name) && (
+                <ContextMenuButton onClick={() => openImagePreview(menu.node!)}>
+                  View in Image Viewer
+                </ContextMenuButton>
+              )}
+              {menu.node && !menu.node.isDirectory && isMarkdownFile(menu.node.name) && (
+                <ContextMenuButton onClick={() => openMarkdownPreview(menu.node!)}>
+                  View in Markdown Viewer
+                </ContextMenuButton>
+              )}
               {menu.node && !menu.node.isDirectory && menu.node.name.endsWith('.sh') && (
                 <ContextMenuButton onClick={() => runScript(menu.node!)}>
                   Run
@@ -275,7 +286,7 @@ export function Sidebar() {
               </ContextMenuButton>
               <ContextMenuDivider />
               <ContextMenuButton onClick={() => {
-                setCollapseAllKey((k) => k + 1)
+                collapseAll()
                 setMenu(null)
               }}>
                 Collapse All

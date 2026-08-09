@@ -6,19 +6,21 @@ import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { GitWatcher } from './gitWatcher'
+import { FileWatcher } from './fileWatcher'
 import { MobileServer } from './mobile'
 import { UsageManager } from './usageManager'
 import { CosmosManager } from './cosmos'
 import { AutocompleteManager } from './autocomplete'
 import { InlineEditManager } from './inlineEdit'
 import { BrowserViewManager } from './browserViews'
-import { listAllFiles, searchText, buildTree } from './fsOps'
+import { listAllFiles, searchText, buildTree, readImageDataUrl } from './fsOps'
 import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
   ipcMain.handle('fs:readFile', (_e, path: string) => readFile(path, 'utf-8'))
+  ipcMain.handle('fs:readImageDataUrl', (_e, path: string) => readImageDataUrl(path))
   ipcMain.handle('fs:exists', async (_e, path: string) => {
     try {
       await access(path)
@@ -123,6 +125,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     ptyMgr.disposeWindow(win.id)
     claudeMgr.disposeWindow(win.id)
     gitWatcher.disposeWindow(win.id)
+    fileWatcher.disposeWindow(win.id)
     cosmosMgr.disposeWindow(win.id)
     browserViewMgr.disposeWindow(win.id)
     autocompleteMgr.disposeWindow(win.id)
@@ -428,6 +431,7 @@ async function buildMenu(): Promise<void> {
 let ptyMgr: PtyManager
 let claudeMgr: ClaudeManager
 let gitWatcher: GitWatcher
+let fileWatcher: FileWatcher
 let cosmosMgr: CosmosManager
 let browserViewMgr: BrowserViewManager
 let autocompleteMgr: AutocompleteManager
@@ -457,6 +461,8 @@ app.whenReady().then(() => {
   gitRunner.registerHandlers()
   gitWatcher = new GitWatcher()
   gitWatcher.registerHandlers()
+  fileWatcher = new FileWatcher()
+  fileWatcher.registerHandlers()
   cosmosMgr = new CosmosManager()
   cosmosMgr.registerHandlers()
   browserViewMgr = new BrowserViewManager()

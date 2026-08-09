@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdtemp, writeFile, mkdir, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { listAllFiles, searchText, buildTree } from '../fsOps'
+import { listAllFiles, searchText, buildTree, readImageDataUrl } from '../fsOps'
 
 describe('fsOps', () => {
   let root: string
@@ -41,5 +41,19 @@ describe('fsOps', () => {
     expect(tree.map((n) => n.name)).toEqual(['sub', 'a.txt'])
     expect(tree[0].isDirectory).toBe(true)
     expect(tree[1].isDirectory).toBe(false)
+  })
+
+  it('readImageDataUrl encodes file contents as a base64 data url with the right mime type', async () => {
+    const pngPath = join(root, 'pixel.png')
+    await writeFile(pngPath, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const dataUrl = await readImageDataUrl(pngPath)
+    expect(dataUrl).toBe('data:image/png;base64,iVBORw==')
+  })
+
+  it('readImageDataUrl falls back to octet-stream for unknown extensions', async () => {
+    const path = join(root, 'mystery.xyz')
+    await writeFile(path, Buffer.from([1, 2, 3]))
+    const dataUrl = await readImageDataUrl(path)
+    expect(dataUrl.startsWith('data:application/octet-stream;base64,')).toBe(true)
   })
 })

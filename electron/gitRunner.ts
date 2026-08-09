@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import type { GitCommandAction } from '../src/types/index'
-import { getGitBranch, getGitBranches, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, getDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat } from './git'
+import { getGitBranch, getGitBranches, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, getDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths } from './git'
 
 const ARGS: Record<GitCommandAction, string[]> = {
   fetch:           ['fetch'],
@@ -46,6 +46,7 @@ export class GitRunner {
     ipcMain.handle('git:branch', (_e, cwd: string) => getGitBranch(cwd))
     ipcMain.handle('git:aheadBehind', (_e, cwd: string) => getAheadBehind(cwd))
     ipcMain.handle('git:status', (_e, cwd: string) => getGitStatus(cwd))
+    ipcMain.handle('git:listIgnored', (_e, cwd: string) => getIgnoredPaths(cwd))
     ipcMain.handle('git:stage', (_e, cwd: string, paths: string[]) => stageFiles(cwd, paths))
     ipcMain.handle('git:unstage', (_e, cwd: string, paths: string[]) => unstageFiles(cwd, paths))
     ipcMain.handle('git:stageAll', (_e, cwd: string) => stageAll(cwd))
