@@ -8,6 +8,7 @@ import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { CosmosChat } from './CosmosChat'
+import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -68,6 +69,26 @@ export function Chat() {
       const fit = new FitAddon()
       xterm.loadAddon(fit)
       xterm.open(host)
+
+      if (kind === 'claude') {
+        // xterm sends the same CR byte for Enter and Shift+Enter by default, which
+        // Claude Code's CLI reads as "submit" either way. Send the ESC+CR sequence
+        // it expects for "insert newline" instead of falling through to xterm's
+        // default Enter handling.
+        //
+        // Returning false here short-circuits xterm's own _keyDown before it ever
+        // calls cancel() (its preventDefault/stopPropagation), so without calling
+        // preventDefault ourselves the browser still runs Enter's default action —
+        // inserting a newline into xterm's hidden textarea — which xterm's input
+        // handler then forwards to the PTY as a stray extra keystroke right behind
+        // our escape sequence, submitting the message anyway.
+        xterm.attachCustomKeyEventHandler((event) => {
+          if (!isShiftEnterKeydown(event)) return true
+          event.preventDefault()
+          window.api.assistantWrite(kind, SHIFT_ENTER_SEQUENCE)
+          return false
+        })
+      }
 
       window.api.assistantSpawn(projectRoot, kind)
       const cleanupData = window.api.onAssistantData((source, data) => {
