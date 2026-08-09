@@ -132,6 +132,8 @@ declare global {
       onMenuCommandPalette: (cb: () => void) => () => void
       onMenuActionPalette: (cb: () => void) => () => void
       onMenuToggleClaudeChat: (cb: () => void) => () => void
+      onMenuRecentProjectsPalette: (cb: () => void) => () => void
+      openProjectInNewWindow: (path: string) => Promise<void>
 
       mobileStart: () => Promise<void>
       mobileStop: () => Promise<void>
