@@ -20,8 +20,8 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
       - uses: actions/upload-artifact@v4
         with:
-          name: mac-dmg
-          path: release/*.dmg
+          name: mac-zip
+          path: release/*.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -35,8 +35,8 @@ jobs:
       - run: npm run dist:linux -- --publish=never
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-deb
-          path: release/*.deb
+          name: linux-targz
+          path: release/*.tar.gz
 
   publish:
     needs: [build-mac, build-linux]
@@ -49,5 +49,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            mac-dmg/*.dmg
-            linux-deb/*.deb
+            mac-zip/*.zip
+            linux-targz/*.tar.gz
