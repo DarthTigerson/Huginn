@@ -272,6 +272,7 @@ contextBridge.exposeInMainWorld('api', {
   graphifyIsAvailable: () => ipcRenderer.invoke('graphify:isAvailable'),
   graphifyRun: (id: string, cwd: string) => ipcRenderer.invoke('graphify:run', id, cwd),
   graphifyReadGraph: (cwd: string) => ipcRenderer.invoke('graphify:readGraph', cwd),
+  graphifyInstallClaudeSkill: (cwd: string) => ipcRenderer.invoke('graphify:installClaudeSkill', cwd),
   onGraphifyData: (cb: (id: string, data: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, id: string, data: string) => cb(id, data)
     ipcRenderer.on('graphify:data', handler)

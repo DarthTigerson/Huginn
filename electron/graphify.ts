@@ -124,6 +124,24 @@ export class GraphifyManager {
       })
     })
 
+    // One-shot, non-streaming: registers graphify's Claude Code skill for
+    // `cwd` (`.claude/skills/graphify/`, a CLAUDE.md section, project-scoped
+    // — no --strict, so it doesn't start blocking Claude's tool calls) so
+    // Claude can invoke graphify's own query/path/explain commands on this
+    // project instead of only being usable from this panel.
+    ipcMain.handle('graphify:installClaudeSkill', async (_e, cwd: string): Promise<{ ok: boolean; output: string }> => {
+      if (!existsSync(cwd)) {
+        return { ok: false, output: `Error: project directory not found: ${cwd}` }
+      }
+      const bin = (await resolveGraphifyPath()) ?? 'graphify'
+      return new Promise((resolve) => {
+        execFile(bin, ['install', '--platform', 'claude', '--project'], { cwd }, (err, stdout, stderr) => {
+          const output = [stdout, stderr].filter((s) => s && s.trim().length > 0).join('\n').trim()
+          resolve(err ? { ok: false, output: output || err.message } : { ok: true, output })
+        })
+      })
+    })
+
     ipcMain.handle('graphify:readGraph', async (_e, cwd: string): Promise<GraphifyGraph> => {
       const raw = await readFile(join(cwd, 'graphify-out', 'graph.json'), 'utf-8')
       const parsed = JSON.parse(raw)

@@ -33,6 +33,7 @@ import {
   GIT_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
   MODELS_SETTINGS_TAB_PATH,
+  GRAPHIFY_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
@@ -41,6 +42,7 @@ import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
 import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
+import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -304,6 +306,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <BrowserSettingsPage />
           ) : activeTab.path === MODELS_SETTINGS_TAB_PATH ? (
             <ModelsSettingsPage />
+          ) : activeTab.path === GRAPHIFY_SETTINGS_TAB_PATH ? (
+            <GraphifySettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (

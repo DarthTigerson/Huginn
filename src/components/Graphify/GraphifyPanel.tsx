@@ -12,7 +12,9 @@ const pillButtonClass =
 
 export function GraphifyPanel() {
   const projectRoot = useFileStore((s) => s.projectRoot)
-  const { available, checking, running, progress, error, graph, checkAvailable, run, loadGraph } = useGraphifyStore()
+  const {
+    available, checking, running, progress, error, graph, checkAvailable, run, loadGraph,
+  } = useGraphifyStore()
   const openTab = useEditorStore((s) => s.openTab)
 
   useEffect(() => {

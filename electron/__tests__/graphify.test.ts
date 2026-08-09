@@ -251,6 +251,64 @@ describe('GraphifyManager', () => {
     await expect(ipcHandlers['graphify:readGraph']({}, '/project')).rejects.toThrow()
   })
 
+  describe('installClaudeSkill', () => {
+    // A single execFileMock backs both the login-shell path resolution
+    // (3-arg call: shell, ['-lic', ...], cb) and the actual install command
+    // (4-arg call: bin, ['install', ...], options, cb) — dispatch on shape.
+    function stubExecFile(installResult: { err?: Error; stdout?: string; stderr?: string }) {
+      execFileMock.mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as (err: Error | null, stdout?: string, stderr?: string) => void
+        const cmdArgs = args[1] as string[]
+        if (cmdArgs[0] === '-lic') {
+          cb(new Error('not found'), '')
+        } else {
+          cb(installResult.err ?? null, installResult.stdout ?? '', installResult.stderr ?? '')
+        }
+      })
+    }
+
+    it('runs "graphify install --platform claude --project" in cwd and resolves ok on success', async () => {
+      stubExecFile({ stdout: 'skill installed  ->  .claude/skills/graphify/SKILL.md\n' })
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+
+      const result = await ipcHandlers['graphify:installClaudeSkill']({}, '/project')
+
+      expect(execFileMock).toHaveBeenCalledWith(
+        'graphify',
+        ['install', '--platform', 'claude', '--project'],
+        { cwd: '/project' },
+        expect.any(Function)
+      )
+      expect(result).toEqual({ ok: true, output: 'skill installed  ->  .claude/skills/graphify/SKILL.md' })
+    })
+
+    it('resolves ok:false with the captured output when the install command fails', async () => {
+      stubExecFile({ err: new Error('exit code 1'), stderr: 'error: not a git repository' })
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+
+      const result = await ipcHandlers['graphify:installClaudeSkill']({}, '/project')
+
+      expect(result).toEqual({ ok: false, output: 'error: not a git repository' })
+    })
+
+    it('resolves ok:false without spawning when cwd does not exist', async () => {
+      existsSyncMock.mockReturnValue(false)
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+      // registerHandlers() itself prewarms resolveGraphifyPath() via execFile —
+      // clear that call so this assertion is scoped to the handler under test.
+      execFileMock.mockClear()
+
+      const result = await ipcHandlers['graphify:installClaudeSkill']({}, '/deleted-project') as { ok: boolean; output: string }
+
+      expect(result.ok).toBe(false)
+      expect(result.output).toContain('/deleted-project')
+      expect(execFileMock).not.toHaveBeenCalled()
+    })
+  })
+
   describe('resolveGraphifyPath', () => {
     it('caches a successful resolution across calls (only resolves via the login shell once)', async () => {
       execFileMock.mockImplementation((_shell: string, _args: string[], cb: (err: Error | null, stdout: string) => void) => {

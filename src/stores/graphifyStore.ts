@@ -16,9 +16,12 @@ interface GraphifyStore {
   error: string | null
   graph: GraphifyGraph | null
   loadingGraph: boolean
+  installingSkill: boolean
+  skillInstallResult: { ok: boolean; output: string } | null
   checkAvailable: () => Promise<void>
   run: (cwd: string) => Promise<void>
   loadGraph: (cwd: string) => Promise<void>
+  installClaudeSkill: (cwd: string) => Promise<void>
 }
 
 export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
@@ -29,6 +32,8 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
   error: null,
   graph: null,
   loadingGraph: false,
+  installingSkill: false,
+  skillInstallResult: null,
 
   checkAvailable: async () => {
     set({ checking: true })
@@ -87,6 +92,19 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
       set({ graph, loadingGraph: false })
     } catch {
       set({ graph: null, loadingGraph: false })
+    }
+  },
+
+  installClaudeSkill: async (cwd) => {
+    set({ installingSkill: true, skillInstallResult: null })
+    try {
+      const result = await window.api.graphifyInstallClaudeSkill(cwd)
+      set({ installingSkill: false, skillInstallResult: result })
+    } catch (err) {
+      set({
+        installingSkill: false,
+        skillInstallResult: { ok: false, output: err instanceof Error ? err.message : String(err) },
+      })
     }
   },
 }))

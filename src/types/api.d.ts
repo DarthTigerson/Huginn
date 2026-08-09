@@ -197,6 +197,7 @@ declare global {
       graphifyIsAvailable: () => Promise<boolean>
       graphifyRun: (id: string, cwd: string) => Promise<void>
       graphifyReadGraph: (cwd: string) => Promise<GraphifyGraph>
+      graphifyInstallClaudeSkill: (cwd: string) => Promise<{ ok: boolean; output: string }>
       onGraphifyData: (cb: (id: string, data: string) => void) => () => void
       onGraphifyExit: (cb: (id: string, code: number) => void) => () => void
     }

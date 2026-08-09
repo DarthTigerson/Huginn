@@ -25,6 +25,7 @@ vi.stubGlobal('window', {
     graphifyIsAvailable: vi.fn().mockResolvedValue(true),
     graphifyRun: vi.fn().mockResolvedValue(undefined),
     graphifyReadGraph: vi.fn().mockResolvedValue(sampleGraph),
+    graphifyInstallClaudeSkill: vi.fn().mockResolvedValue({ ok: true, output: 'skill installed' }),
     onGraphifyData: vi.fn((cb) => {
       dataHandler = cb
       return onGraphifyDataCleanup
@@ -46,7 +47,7 @@ describe('graphifyStore', () => {
     onGraphifyExitCleanup = vi.fn()
     useGraphifyStore.setState({
       available: null, checking: false, running: false, progress: '', error: null,
-      graph: null, loadingGraph: false,
+      graph: null, loadingGraph: false, installingSkill: false, skillInstallResult: null,
     })
   })
 
@@ -153,5 +154,26 @@ describe('graphifyStore', () => {
 
     expect(useGraphifyStore.getState().graph).toBeNull()
     expect(useGraphifyStore.getState().loadingGraph).toBe(false)
+  })
+
+  it('installClaudeSkill stores the ok result and clears installingSkill', async () => {
+    const installPromise = useGraphifyStore.getState().installClaudeSkill('/project')
+    expect(useGraphifyStore.getState().installingSkill).toBe(true)
+    expect(useGraphifyStore.getState().skillInstallResult).toBeNull()
+
+    await installPromise
+
+    expect(window.api.graphifyInstallClaudeSkill).toHaveBeenCalledWith('/project')
+    expect(useGraphifyStore.getState().installingSkill).toBe(false)
+    expect(useGraphifyStore.getState().skillInstallResult).toEqual({ ok: true, output: 'skill installed' })
+  })
+
+  it('installClaudeSkill stores a failure result rather than throwing when the IPC call rejects', async () => {
+    ;(window.api.graphifyInstallClaudeSkill as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('spawn failed'))
+
+    await useGraphifyStore.getState().installClaudeSkill('/project')
+
+    expect(useGraphifyStore.getState().installingSkill).toBe(false)
+    expect(useGraphifyStore.getState().skillInstallResult).toEqual({ ok: false, output: 'spawn failed' })
   })
 })
