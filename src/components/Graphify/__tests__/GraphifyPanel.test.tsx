@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { GraphifyPanel } from '../GraphifyPanel'
 import { useGraphifyStore } from '@/stores/graphifyStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -113,6 +113,33 @@ describe('GraphifyPanel', () => {
       content: '',
       dirty: false,
     })
+  })
+
+  it('auto-opens the Graph tab the moment a build finishes successfully', () => {
+    useGraphifyStore.setState({ available: true, running: true, graph: null })
+    render(<GraphifyPanel />)
+    expect(openTabMock).not.toHaveBeenCalled()
+
+    act(() => {
+      useGraphifyStore.setState({
+        running: false,
+        error: null,
+        graph: { directed: false, multigraph: false, nodes: [], links: [], hyperedges: [] },
+      })
+    })
+
+    expect(openTabMock).toHaveBeenCalledWith({ path: GRAPHIFY_GRAPH_TAB_PATH, content: '', dirty: false })
+  })
+
+  it('does not auto-open the Graph tab when a build finishes with an error', () => {
+    useGraphifyStore.setState({ available: true, running: true, graph: null })
+    render(<GraphifyPanel />)
+
+    act(() => {
+      useGraphifyStore.setState({ running: false, error: 'graphify exited with code 1', graph: null })
+    })
+
+    expect(openTabMock).not.toHaveBeenCalled()
   })
 
   it('disables Build/Rebuild, Open Graph, and Open Report when there is no project open', () => {

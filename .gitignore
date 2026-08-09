@@ -19,3 +19,6 @@ electron.vite.config.d.ts
 *.tsbuildinfo
 
 ToDo.md
+
+# graphify writes its build output straight into the analyzed project root
+graphify-out/

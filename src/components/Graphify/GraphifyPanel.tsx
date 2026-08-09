@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useGraphifyStore } from '@/stores/graphifyStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -18,6 +18,17 @@ export function GraphifyPanel() {
   useEffect(() => {
     if (available === null && !checking) checkAvailable()
   }, [available, checking, checkAvailable])
+
+  // Auto-open the Graph tab the moment a build finishes successfully, so a
+  // fresh build doesn't require a second click on "Open Graph" — only fires
+  // on the true→false edge of `running`, not on every render.
+  const wasRunningRef = useRef(false)
+  useEffect(() => {
+    if (wasRunningRef.current && !running && !error && graph) {
+      openTab({ path: GRAPHIFY_GRAPH_TAB_PATH, content: '', dirty: false })
+    }
+    wasRunningRef.current = running
+  }, [running, error, graph, openTab])
 
   if (available === false) {
     return (
@@ -57,20 +68,7 @@ export function GraphifyPanel() {
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2">
-        {running && (
-          <div className="text-xs text-fg-muted font-mono whitespace-pre-wrap border border-border rounded p-2 max-h-64 overflow-y-auto">
-            {progress || 'Running graphify…'}
-          </div>
-        )}
-        {error && !running && (
-          <div className="text-xs text-red-400 whitespace-pre-wrap border border-red-400/30 rounded p-2 max-h-64 overflow-y-auto">
-            {error}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
+      <div className="shrink-0 px-3 py-2 flex flex-col gap-1.5 border-b border-border">
         <button
           type="button"
           className={pillButtonClass}
@@ -96,6 +94,21 @@ export function GraphifyPanel() {
           Open Report
         </button>
       </div>
+
+      {(running || (error && !running)) && (
+        <div className="shrink-0 px-3 py-2 flex flex-col gap-2 overflow-y-auto">
+          {running && (
+            <div className="text-xs text-fg-muted font-mono whitespace-pre-wrap border border-border rounded p-2 max-h-64 overflow-y-auto">
+              {progress || 'Running graphify…'}
+            </div>
+          )}
+          {error && !running && (
+            <div className="text-xs text-red-400 whitespace-pre-wrap border border-red-400/30 rounded p-2 max-h-64 overflow-y-auto">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
