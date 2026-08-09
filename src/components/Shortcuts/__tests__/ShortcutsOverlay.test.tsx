@@ -14,7 +14,7 @@ describe('ShortcutsOverlay', () => {
     expect(screen.getByText('Toggle Sidebar')).toBeTruthy()
     expect(screen.getByText('Split Pane Vertical')).toBeTruthy()
     expect(screen.getByText('Open Project')).toBeTruthy()
-    expect(screen.getByText('Toggle Chat Panel')).toBeTruthy()
+    expect(screen.getByText('Send Selection to Chat / Show Chat')).toBeTruthy()
   })
 
   it('renders one key cap per shortcut key, including shift symbols', () => {

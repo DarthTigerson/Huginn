@@ -24,5 +24,14 @@ export const BRACKETED_PASTE_START = '\x1b[200~'
 export const BRACKETED_PASTE_END = '\x1b[201~'
 
 export function wrapBracketedPaste(text: string): string {
-  return `${BRACKETED_PASTE_START}${text}${BRACKETED_PASTE_END}`
+  // Strip C0 control characters (other than \n/\t, which are legitimate in
+  // selected code) and DEL before wrapping. Without this, a selection
+  // containing a literal ESC byte could forge the bracketed-paste end
+  // sequence (or another escape sequence) and terminate the paste early from
+  // the receiving CLI's point of view — everything written after it in the
+  // same write() call would then be interpreted as live keystrokes,
+  // including a literal \r that submits, silently auto-submitting
+  // attacker-controlled input to a tool-executing CLI.
+  const safe = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+  return `${BRACKETED_PASTE_START}${safe}${BRACKETED_PASTE_END}`
 }

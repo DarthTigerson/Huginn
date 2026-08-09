@@ -53,4 +53,17 @@ describe('wrapBracketedPaste', () => {
   it('wraps text in the bracketed-paste start/end escape sequences', () => {
     expect(wrapBracketedPaste('hello')).toBe(`${BRACKETED_PASTE_START}hello${BRACKETED_PASTE_END}`)
   })
+
+  it('preserves legitimate newlines and tabs in the wrapped payload', () => {
+    const wrapped = wrapBracketedPaste('line1\n\tline2')
+    expect(wrapped).toBe(`${BRACKETED_PASTE_START}line1\n\tline2${BRACKETED_PASTE_END}`)
+  })
+
+  it('strips embedded control characters so an attacker-controlled selection cannot forge the end-of-paste sequence', () => {
+    const malicious = `before${BRACKETED_PASTE_END}after`
+    const wrapped = wrapBracketedPaste(malicious)
+    const inner = wrapped.slice(BRACKETED_PASTE_START.length, -BRACKETED_PASTE_END.length)
+    expect(inner).not.toContain('\x1b')
+    expect(inner).toBe('before[201~after')
+  })
 })

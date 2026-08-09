@@ -19,6 +19,6 @@ describe('SHORTCUT_GROUPS', () => {
     const nav = SHORTCUT_GROUPS.find((g) => g.category === 'Navigation')!
     expect(nav.items).toContainEqual({ keys: ['⌘', 'B'], label: 'Toggle Sidebar' })
     expect(nav.items).toContainEqual({ keys: ['⌘', '⇧', 'P'], label: 'Action Palette' })
-    expect(nav.items).toContainEqual({ keys: ['⌘', 'L'], label: 'Toggle Chat Panel' })
+    expect(nav.items).toContainEqual({ keys: ['⌘', 'L'], label: 'Send Selection to Chat / Show Chat' })
   })
 })
