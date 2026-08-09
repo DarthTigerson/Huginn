@@ -42,6 +42,18 @@ describe('inlineEditStore', () => {
     expect(s.target).toBeNull()
   })
 
+  it('closePrompt clears requestId, accumulated text, and error message too', () => {
+    useInlineEditStore.getState().openPrompt(OWNER_A, TARGET)
+    useInlineEditStore.getState().startGenerating('req-1')
+    useInlineEditStore.getState().appendDelta('req-1', 'some text')
+    useInlineEditStore.getState().closePrompt()
+
+    const s = useInlineEditStore.getState()
+    expect(s.requestId).toBeNull()
+    expect(s.accumulatedText).toBe('')
+    expect(s.errorMessage).toBeNull()
+  })
+
   it('startGenerating sets generating and the request id, preserving owner and target', () => {
     useInlineEditStore.getState().openPrompt(OWNER_A, TARGET)
     useInlineEditStore.getState().startGenerating('req-1')

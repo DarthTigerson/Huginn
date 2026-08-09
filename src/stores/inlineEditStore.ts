@@ -38,7 +38,9 @@ export const useInlineEditStore = create<InlineEditStore>((set, get) => ({
     status: 'prompting', owner, target, requestId: null, accumulatedText: '', errorMessage: null,
   }),
 
-  closePrompt: () => set({ status: 'idle', owner: null, target: null }),
+  closePrompt: () => set({
+    status: 'idle', owner: null, requestId: null, target: null, accumulatedText: '', errorMessage: null,
+  }),
 
   startGenerating: (requestId) => set({ status: 'generating', requestId, accumulatedText: '', errorMessage: null }),
 
