@@ -113,19 +113,31 @@ export function CosmosChat({ cwd }: { cwd: string }) {
   const focusToken = useClaudeStore((s) => s.focusToken)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const seenFocusTokenRef = useRef(focusToken)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
   }, [messages])
 
   useEffect(() => {
-    if (focusToken === 0) return
+    const tokenChangedSinceMount = focusToken !== seenFocusTokenRef.current
+    seenFocusTokenRef.current = focusToken
     const injection = useClaudeStore.getState().pendingInjection
+    // A real pendingInjection is always fresh: consumeInjection() nulls it out immediately
+    // after use, so a stale remount (old focusToken, already-consumed injection) never has
+    // one — only a genuine not-yet-consumed Cmd+L send does, even at first mount.
     if (injection) {
       appendDraftInput(injection)
       useClaudeStore.getState().consumeInjection()
+      textareaRef.current?.focus()
+      return
     }
-    textareaRef.current?.focus()
+    // No injection to consume: only steal focus if focusToken changed while THIS instance
+    // was mounted (a live "just focus the chat" call). A token that was already elevated at
+    // mount time (e.g. from an earlier Cmd+L press on a previous mount) must not re-trigger.
+    if (tokenChangedSinceMount) {
+      textareaRef.current?.focus()
+    }
   }, [focusToken, appendDraftInput])
 
   const onSubmit = (e: React.FormEvent) => {

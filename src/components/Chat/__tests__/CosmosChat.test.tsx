@@ -168,4 +168,17 @@ describe('CosmosChat', () => {
     const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
     expect(textarea.value).toBe('')
   })
+
+  it('does not steal focus on remount when focusToken was already bumped by an earlier mount', () => {
+    // Simulates: an earlier Cmd+L press happened while some other CosmosChat instance was
+    // mounted (bumping focusToken and consuming the injection), then the user switches away
+    // and back to the Cosmos tab, remounting CosmosChat with that already-stale token.
+    useClaudeStore.setState({ pendingInjection: null, focusToken: 5 })
+
+    render(<CosmosChat cwd="/project" />)
+
+    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    expect(textarea.value).toBe('')
+    expect(document.activeElement).not.toBe(textarea)
+  })
 })
