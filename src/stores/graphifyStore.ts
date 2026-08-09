@@ -1,6 +1,13 @@
 import { create } from 'zustand'
 import type { GraphifyGraph } from '@/types/graphify'
 
+// How much of the accumulated stderr/stdout progress text to fold into the
+// error message on a non-zero exit, so the panel's error banner shows the
+// actual failure output (install instructions, tracebacks, ...) rather than
+// just an exit code. Measured in characters, taken from the tail (most
+// recent output) of the accumulated progress.
+const ERROR_TAIL_CHARS = 2000
+
 interface GraphifyStore {
   available: boolean | null
   checking: boolean
@@ -29,7 +36,11 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
       const available = await window.api.graphifyIsAvailable()
       set({ available, checking: false })
     } catch {
-      set({ checking: false })
+      // Must land on a non-null `available` here — GraphifyPanel's mount
+      // effect re-fires whenever `checking` flips back to false while
+      // `available` is still null, so leaving it null on failure causes an
+      // infinite checkAvailable() retry loop.
+      set({ available: false, checking: false })
     }
   },
 
@@ -46,11 +57,17 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
       if (evtId !== id) return
       cleanupData()
       cleanupExit()
+      const finalProgress = get().progress
       set({ running: false })
       if (code === 0) {
         get().loadGraph(cwd)
       } else {
-        set({ error: `graphify exited with code ${code}` })
+        const tail = finalProgress.slice(-ERROR_TAIL_CHARS)
+        set({
+          error: tail
+            ? `graphify exited with code ${code}:\n${tail}`
+            : `graphify exited with code ${code}`,
+        })
       }
     })
 

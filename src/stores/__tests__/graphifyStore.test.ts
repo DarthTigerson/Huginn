@@ -81,6 +81,36 @@ describe('graphifyStore', () => {
     expect(window.api.graphifyReadGraph).not.toHaveBeenCalled()
   })
 
+  it('run folds the tail of the accumulated progress into the error on a non-zero exit', async () => {
+    const runPromise = useGraphifyStore.getState().run('/project')
+
+    dataHandler?.('fixed-id', 'Traceback (most recent call last):\n')
+    dataHandler?.('fixed-id', '  File "graphify/cli.py", line 42\nRuntimeError: something broke\n')
+
+    exitHandler?.('fixed-id', 1)
+    await runPromise
+
+    const { error } = useGraphifyStore.getState()
+    expect(error).toContain('RuntimeError: something broke')
+    expect(error).toContain('code 1')
+  })
+
+  it('run caps the error tail at the last ERROR_TAIL_CHARS (2000) characters of progress', async () => {
+    const runPromise = useGraphifyStore.getState().run('/project')
+
+    const longChunk = 'x'.repeat(3000) + 'END_MARKER'
+    dataHandler?.('fixed-id', longChunk)
+
+    exitHandler?.('fixed-id', 1)
+    await runPromise
+
+    const { error } = useGraphifyStore.getState()
+    expect(error).toContain('END_MARKER')
+    // 2000-char tail + the "graphify exited with code 1:\n" prefix — the raw
+    // 3000-char run of 'x' must not appear in full.
+    expect(error?.length).toBeLessThan(longChunk.length)
+  })
+
   it('a second run while one is in flight is a no-op', async () => {
     const runPromise1 = useGraphifyStore.getState().run('/project')
     const stateAfterFirst = useGraphifyStore.getState()
@@ -109,11 +139,12 @@ describe('graphifyStore', () => {
     expect(window.api.graphifyReadGraph).not.toHaveBeenCalled()
   })
 
-  it('checkAvailable sets checking to false on error', async () => {
+  it('checkAvailable sets checking to false and available to false on error (not null, to avoid an infinite retry loop)', async () => {
     ;(window.api.graphifyIsAvailable as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('unavailable'))
     await useGraphifyStore.getState().checkAvailable()
 
     expect(useGraphifyStore.getState().checking).toBe(false)
+    expect(useGraphifyStore.getState().available).toBe(false)
   })
 
   it('loadGraph clears graph to null on failure', async () => {
