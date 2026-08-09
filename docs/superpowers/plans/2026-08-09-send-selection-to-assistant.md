@@ -603,8 +603,7 @@ Add a new effect immediately after the closing `}, [projectRoot, assistant])` of
 
 ```ts
   useEffect(() => {
-    if (focusToken === seenFocusTokenRef.current || assistant === 'cosmos') return
-    seenFocusTokenRef.current = focusToken
+    if (assistant === 'cosmos') return
     const terminal = terminalsRef.current[assistant]
     if (!terminal) return
 
@@ -612,12 +611,17 @@ Add a new effect immediately after the closing `}, [projectRoot, assistant])` of
     if (injection) {
       window.api.assistantWrite(assistant, wrapBracketedPaste(injection))
       useClaudeStore.getState().consumeInjection()
+      seenFocusTokenRef.current = focusToken
+      terminal.xterm.focus()
+      return
     }
+    if (focusToken === seenFocusTokenRef.current) return
+    seenFocusTokenRef.current = focusToken
     terminal.xterm.focus()
   }, [focusToken, assistant])
 ```
 
-Same reasoning as Task 3's `CosmosChat` effect: `focusToken` lives in the module-level `claudeStore` and doesn't reset on remount, so comparing against a ref seeded at mount (rather than the literal `0`) is what actually means "a new Cmd+L happened since this component started watching," not "any Cmd+L ever happened this session."
+Same reasoning as Task 3's `CosmosChat` effect, and the same branch shape its fix round landed on: `focusToken` lives in the module-level `claudeStore` and doesn't reset on remount, so comparing against a ref seeded at mount (rather than the literal `0`) is what actually means "a new Cmd+L happened since this component started watching." A pending injection is always delivered regardless of that check — an unconsumed injection is never a stale leftover, since `pendingInjection` is only ever non-null immediately after `sendSelection` sets it alongside a fresh `focusToken` bump, and `consumeInjection` clears it right after use — so gating delivery on "did the token change since I mounted" would (as Task 3's fix round discovered) incorrectly drop a genuine injection that arrived at/before this effect's owning component mounted. The token-changed check applies only to the no-injection, focus-only path.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
