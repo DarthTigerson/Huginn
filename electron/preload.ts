@@ -215,6 +215,13 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('menu:toggleClaudeChat', handler)
     return () => ipcRenderer.removeListener('menu:toggleClaudeChat', handler)
   },
+  onMenuRecentProjectsPalette: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:recentProjectsPalette', handler)
+    return () => ipcRenderer.removeListener('menu:recentProjectsPalette', handler)
+  },
+
+  openProjectInNewWindow: (path: string) => ipcRenderer.invoke('window:openInNewWindow', path),
 
   devtoolsAttach: (targetId: number, hostId: number) =>
     ipcRenderer.invoke('devtools:attach', targetId, hostId),

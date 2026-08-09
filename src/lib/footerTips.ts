@@ -20,4 +20,5 @@ export const FOOTER_TIPS: string[] = [
   'The sidebar stays in sync with changes made outside Huginn, like in Finder or a terminal',
   '⌘⇧N opens a new window on a different project',
   '⌘O opens a project folder',
+  '⌃R opens the Switch Project palette — hold ⌘ (or Ctrl on Linux) at Enter to open it in a new window',
 ]

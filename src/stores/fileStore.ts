@@ -31,9 +31,28 @@ interface FileState {
   collapseDir: (dirPath: string) => void
   collapseAll: () => void
   select: (path: string) => void
+  openRecentProject: (root: string) => Promise<void>
 }
 
-export const useFileStore = create<FileState>((set, get) => ({
+export const useFileStore = create<FileState>((set, get) => {
+  // Shared by openFolder (root chosen via dialog) and openRecentProject (root
+  // chosen from the Recent Projects palette) — both replace this window's
+  // project the same way: fresh tree, tabs reset, root persisted/watched.
+  const switchToProject = async (root: string) => {
+    const tree = await window.api.readDir(root)
+    const previousRoot = get().projectRoot
+    localStorage.setItem(LAST_ROOT_KEY, root)
+    set({ projectRoot: root, tree, expandedPaths: new Set() })
+    window.api.gitWatchRoot(root)
+    window.api.fsWatchRoot(root)
+    window.api.recentProjectsAdd(root)
+    window.api.setWindowTitle(root)
+    if (previousRoot !== null && previousRoot !== root) {
+      useEditorStore.getState().resetForNewProject()
+    }
+  }
+
+  return {
   projectRoot: null,
   tree: [],
   selectedPath: null,
@@ -79,19 +98,11 @@ export const useFileStore = create<FileState>((set, get) => ({
   openFolder: async () => {
     const root = await window.api.openFolder()
     if (!root) return
-    const tree = await window.api.readDir(root)
-    const previousRoot = get().projectRoot
-    localStorage.setItem(LAST_ROOT_KEY, root)
-    set({ projectRoot: root, tree, expandedPaths: new Set() })
-    window.api.gitWatchRoot(root)
-    window.api.fsWatchRoot(root)
-    window.api.recentProjectsAdd(root)
-    window.api.setWindowTitle(root)
-    // Every open tab (file/terminal/browser) points at the old repo — start
-    // the new one clean rather than leaving them dangling around.
-    if (previousRoot !== null && previousRoot !== root) {
-      useEditorStore.getState().resetForNewProject()
-    }
+    await switchToProject(root)
+  },
+
+  openRecentProject: async (root: string) => {
+    await switchToProject(root)
   },
 
   openProjectAt: async (root: string) => {
@@ -121,4 +132,5 @@ export const useFileStore = create<FileState>((set, get) => ({
   collapseAll: () => set({ expandedPaths: new Set() }),
 
   select: (path: string) => set({ selectedPath: path }),
-}))
+  }
+})

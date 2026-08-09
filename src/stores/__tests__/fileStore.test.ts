@@ -69,6 +69,29 @@ describe('fileStore', () => {
     expect(useEditorStore.getState().tabs).toHaveLength(0)
   })
 
+  it('openRecentProject sets root and loads tree without a dialog', async () => {
+    vi.mocked(window.api.openFolder).mockClear()
+    vi.mocked(window.api.readDir).mockResolvedValueOnce(mockTree)
+    await useFileStore.getState().openRecentProject('/proj')
+    const { projectRoot, tree } = useFileStore.getState()
+    expect(projectRoot).toBe('/proj')
+    expect(tree).toEqual(mockTree)
+    expect(window.api.openFolder).not.toHaveBeenCalled()
+    expect(window.api.recentProjectsAdd).toHaveBeenCalledWith('/proj')
+  })
+
+  it('openRecentProject closes tabs left over from the previous project', async () => {
+    await useFileStore.getState().openFolder()
+    useEditorStore.getState().openTab({ path: '/proj/a.ts', content: '', dirty: false })
+    expect(useEditorStore.getState().tabs).toHaveLength(1)
+
+    vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    await useFileStore.getState().openRecentProject('/other-proj')
+
+    expect(useFileStore.getState().projectRoot).toBe('/other-proj')
+    expect(useEditorStore.getState().tabs).toHaveLength(0)
+  })
+
   it('expandDir updates the matching node children in the tree and marks it expanded', async () => {
     useFileStore.setState({ tree: mockTree })
     const children: FileNode[] = [

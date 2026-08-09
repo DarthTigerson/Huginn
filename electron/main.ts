@@ -85,6 +85,8 @@ function registerWindowHandlers(): void {
     pendingInitialProject.delete(win.id)
     return project
   })
+
+  ipcMain.handle('window:openInNewWindow', (_e, path: string) => openProjectInNewWindow(path))
 }
 
 const windows = new Map<number, BrowserWindow>()
@@ -153,6 +155,12 @@ function createWindow(projectRoot?: string): BrowserWindow {
   }
 
   return win
+}
+
+async function openProjectInNewWindow(path: string): Promise<void> {
+  await addRecentProject(path)
+  createWindow(path)
+  buildMenu()
 }
 
 app.name = 'Huginn'
@@ -244,10 +252,7 @@ async function buildMenu(): Promise<void> {
           click: async () => {
             const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
             if (result.canceled || !result.filePaths[0]) return
-            const path = result.filePaths[0]
-            await addRecentProject(path)
-            createWindow(path)
-            buildMenu()
+            await openProjectInNewWindow(result.filePaths[0])
           },
         },
         {
@@ -257,11 +262,7 @@ async function buildMenu(): Promise<void> {
             : [
                 ...recents.map((r) => ({
                   label: r.path,
-                  click: async () => {
-                    await addRecentProject(r.path)
-                    createWindow(r.path)
-                    buildMenu()
-                  },
+                  click: () => openProjectInNewWindow(r.path),
                 })),
                 { type: 'separator' as const },
                 {
@@ -272,6 +273,14 @@ async function buildMenu(): Promise<void> {
                   },
                 },
               ],
+        },
+        {
+          label: 'Switch Project…',
+          accelerator: 'Control+R',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:recentProjectsPalette')
+          },
         },
         { type: 'separator' },
         {
@@ -334,8 +343,15 @@ async function buildMenu(): Promise<void> {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
+        // Control+R is claimed by "Switch Project…" above, so Reload/Force
+        // Reload need non-colliding accelerators on Linux (mac keeps its
+        // Cmd+R/Cmd+Shift+R defaults, which never overlapped Control+R).
+        process.platform === 'darwin'
+          ? { role: 'reload' }
+          : { role: 'reload', accelerator: 'Control+Shift+R' },
+        process.platform === 'darwin'
+          ? { role: 'forceReload' }
+          : { role: 'forceReload', accelerator: 'Control+Alt+Shift+R' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
         {

@@ -33,6 +33,7 @@ import { GitPanel } from './components/Git/GitPanel'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { CommandPalette } from './components/Search/CommandPalette'
+import { RecentProjectsPalette } from './components/Search/RecentProjectsPalette'
 import { SearchModal } from './components/Search/SearchModal'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
@@ -100,6 +101,7 @@ export default function App() {
   const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
   const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
   const shortcutsOverlayOpen = useSearchStore((s) => s.shortcutsOverlayOpen)
+  const recentProjectsPaletteOpen = useSearchStore((s) => s.recentProjectsPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
@@ -325,6 +327,12 @@ export default function App() {
   useEffect(() => {
     return window.api.onMenuActionPalette(() => {
       useSearchStore.getState().openActionPalette()
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onMenuRecentProjectsPalette(() => {
+      useSearchStore.getState().openRecentProjectsPalette()
     })
   }, [])
 
@@ -601,6 +609,9 @@ export default function App() {
         <ActionPalette onClose={() => useSearchStore.getState().closeActionPalette()} />
       )}
       {shortcutsOverlayOpen && <ShortcutsOverlay />}
+      {recentProjectsPaletteOpen && (
+        <RecentProjectsPalette onClose={() => useSearchStore.getState().closeRecentProjectsPalette()} />
+      )}
     </div>
   )
 }
