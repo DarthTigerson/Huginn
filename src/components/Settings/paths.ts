@@ -11,8 +11,8 @@ export function getBrowserId(path: string): string { return path.slice(BROWSER_P
 export const DISPLAY_TAB_PATH = 'settings://Display'
 export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'
-export const COSMOS_SETTINGS_TAB_PATH = 'settings://Cosmos'
 export const BROWSER_SETTINGS_TAB_PATH = 'settings://Browser'
+export const MODELS_SETTINGS_TAB_PATH = 'settings://Models'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {

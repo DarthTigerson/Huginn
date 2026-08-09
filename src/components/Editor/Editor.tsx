@@ -28,16 +28,16 @@ import {
   DISPLAY_TAB_PATH,
   EDITOR_SETTINGS_TAB_PATH,
   GIT_SETTINGS_TAB_PATH,
-  COSMOS_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
+  MODELS_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
 import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
-import { CosmosSettingsPage } from '@/components/Settings/CosmosSettingsPage'
 import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
+import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -282,10 +282,10 @@ function EditorPane({ paneId }: { paneId: string }) {
             <GitSettingsPage />
           ) : activeTab.path === EDITOR_SETTINGS_TAB_PATH ? (
             <EditorSettingsPage />
-          ) : activeTab.path === COSMOS_SETTINGS_TAB_PATH ? (
-            <CosmosSettingsPage />
           ) : activeTab.path === BROWSER_SETTINGS_TAB_PATH ? (
             <BrowserSettingsPage />
+          ) : activeTab.path === MODELS_SETTINGS_TAB_PATH ? (
+            <ModelsSettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (
