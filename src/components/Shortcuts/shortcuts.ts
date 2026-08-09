@@ -15,7 +15,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['⌘', 'B'], label: 'Toggle Sidebar' },
       { keys: ['⌘', 'P'], label: 'Command Palette' },
       { keys: ['⌘', '⇧', 'P'], label: 'Action Palette' },
-      { keys: ['⌘', 'F'], label: 'Search' },
+      { keys: ['⌘', 'F'], label: 'Find' },
+      { keys: ['⌘', '⇧', 'F'], label: 'Find in Files' },
       { keys: ['⌘', 'T'], label: 'New Terminal' },
       { keys: ['⌘', 'L'], label: 'Send Selection to Chat / Show Chat' },
       { keys: ['⇧', '⇥'], label: 'Toggle Cosmos Agent Mode' },
@@ -25,6 +26,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     category: 'Editor',
     items: [
       { keys: ['⌘', 'S'], label: 'Save' },
+      { keys: ['⌘', 'K'], label: 'Inline Edit' },
       { keys: ['⌘', 'D'], label: 'Split Pane Horizontal' },
       { keys: ['⌘', '⇧', 'D'], label: 'Split Pane Vertical' },
     ],
@@ -32,17 +34,24 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     category: 'Project',
     items: [
+      { keys: ['⌘', 'N'], label: 'New File' },
+      { keys: ['⌘', 'O'], label: 'Open Project' },
+      { keys: ['⌘', '⇧', 'N'], label: 'New Window' },
       { keys: ['⌘', 'W'], label: 'Close Tab' },
+      { keys: ['⌘', '⇧', 'W'], label: 'Close Window' },
       { keys: ['⌘', '⇧', 'T'], label: 'Reopen Closed Tab' },
-      { keys: ['⌘', '⇧', 'O'], label: 'Open Project' },
     ],
+  },
+  {
+    category: 'App',
+    items: [{ keys: ['⌘', ','], label: 'Preferences' }],
   },
   {
     category: 'Display',
     items: [
-      { keys: ['⌘', '+'], label: 'Zoom In (Focused Editor/Terminal)' },
-      { keys: ['⌘', '-'], label: 'Zoom Out (Focused Editor/Terminal)' },
-      { keys: ['⌘', '0'], label: 'Reset Zoom (Focused Editor/Terminal)' },
+      { keys: ['⌘', '+'], label: 'Zoom In (Focused Editor/Terminal/Browser)' },
+      { keys: ['⌘', '-'], label: 'Zoom Out (Focused Editor/Terminal/Browser)' },
+      { keys: ['⌘', '0'], label: 'Reset Zoom (Focused Editor/Terminal/Browser)' },
       { keys: ['⌘', '⇧', '+'], label: 'Zoom In (Global)' },
       { keys: ['⌘', '⇧', '-'], label: 'Zoom Out (Global)' },
       { keys: ['⌘', '⇧', '0'], label: 'Reset Zoom (Global)' },
