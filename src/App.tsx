@@ -48,6 +48,7 @@ import { useSearchStore } from './stores/searchStore'
 import { useFontSizeStore } from './stores/fontSizeStore'
 import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
 import { useSidebarUiStore } from './stores/sidebarUiStore'
+import { useUpdateStore } from './stores/updateStore'
 import { buildTerminalPath, buildBrowserPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
@@ -223,6 +224,11 @@ export default function App() {
         useFileStore.getState().refreshTree()
       }
     })
+  }, [])
+
+  useEffect(() => {
+    window.api.updateGetLatest().then((info) => useUpdateStore.getState().setAvailable(info))
+    return window.api.onUpdateAvailable((info) => useUpdateStore.getState().setAvailable(info))
   }, [])
 
   useEffect(() => {

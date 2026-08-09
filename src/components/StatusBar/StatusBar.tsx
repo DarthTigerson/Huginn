@@ -7,6 +7,7 @@ import { GitActionsMenu } from '@/components/Git/GitActionsMenu'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
 import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
+import { FooterMessage } from './FooterMessage'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
@@ -54,7 +55,8 @@ export function StatusBar() {
   }, [projectRoot, refreshBranch])
 
   return (
-    <div className="h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
+    <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
+      <FooterMessage />
       {branch ? (
         <div className="relative">
           <span

@@ -107,6 +107,14 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('usage:update', handler)
   },
 
+  updateGetLatest: () => ipcRenderer.invoke('update:getLatest'),
+  updateRestart: () => ipcRenderer.send('update:restart'),
+  onUpdateAvailable: (cb: (info: import('./updateChecker').UpdateInfo | null) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, info: import('./updateChecker').UpdateInfo | null) => cb(info)
+    ipcRenderer.on('update:available', handler)
+    return () => ipcRenderer.removeListener('update:available', handler)
+  },
+
   cosmosSend: (cwd: string, messages: unknown[], agentMode: boolean, settings: unknown) =>
     ipcRenderer.send('cosmos:send', { cwd, messages, agentMode, settings }),
   cosmosApprove: (toolCallId: string) => ipcRenderer.send('cosmos:approve', toolCallId),

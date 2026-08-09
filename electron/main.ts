@@ -16,6 +16,7 @@ import { BrowserViewManager } from './browserViews'
 import { listAllFiles, searchText, buildTree, readImageDataUrl } from './fsOps'
 import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
+import { UpdateChecker } from './updateChecker'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -501,6 +502,17 @@ app.whenReady().then(() => {
 
   const mobileSrv = new MobileServer(broadcastWin, usageMgr)
   mobileSrv.registerHandlers()
+
+  const updateChecker = new UpdateChecker(app.getVersion(), (info) => {
+    broadcastWin.webContents.send('update:available', info)
+  })
+  updateChecker.registerHandlers()
+  updateChecker.start()
+
+  ipcMain.on('update:restart', () => {
+    app.relaunch()
+    app.exit(0)
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
