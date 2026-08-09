@@ -2,8 +2,9 @@ import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehi
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 import type { LatestUsage } from '../../electron/usagePoller'
+import type { UpdateInfo } from '../../electron/updateChecker'
 
-export type { LatestUsage }
+export type { LatestUsage, UpdateInfo }
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -145,6 +146,10 @@ declare global {
       usageGetPassiveEnabled: () => Promise<boolean>
       usageSetPassiveEnabled: (enabled: boolean) => Promise<void>
       onUsageUpdate: (cb: (latest: LatestUsage | null) => void) => () => void
+
+      updateGetLatest: () => Promise<UpdateInfo | null>
+      updateRestart: () => void
+      onUpdateAvailable: (cb: (info: UpdateInfo | null) => void) => () => void
 
       cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void
       cosmosApprove: (toolCallId: string) => void

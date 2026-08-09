@@ -30,8 +30,12 @@ case "$os" in
     # way browser downloads are, but strip any quarantine flag just in case.
     xattr -cr /Applications/Huginn.app
 
-    echo "Huginn installed. Launching..."
-    open /Applications/Huginn.app
+    if [ -z "${HUGINN_NO_LAUNCH:-}" ]; then
+      echo "Huginn installed. Launching..."
+      open /Applications/Huginn.app
+    else
+      echo "Huginn installed."
+    fi
     ;;
 
   Linux)

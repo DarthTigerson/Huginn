@@ -1,0 +1,78 @@
+import { useEffect, useState } from 'react'
+import { FOOTER_TIPS } from '@/lib/footerTips'
+import { useUpdateStore } from '@/stores/updateStore'
+
+const ROTATE_INTERVAL_MS = 9000
+const FADE_MS = 200
+
+function randomTipIndex(exclude?: number): number {
+  if (FOOTER_TIPS.length <= 1) return 0
+  let next = Math.floor(Math.random() * FOOTER_TIPS.length)
+  while (next === exclude) next = Math.floor(Math.random() * FOOTER_TIPS.length)
+  return next
+}
+
+export function FooterMessage() {
+  const available = useUpdateStore((s) => s.available)
+  const status = useUpdateStore((s) => s.status)
+  const startUpdate = useUpdateStore((s) => s.startUpdate)
+  const restart = useUpdateStore((s) => s.restart)
+
+  const [tipIndex, setTipIndex] = useState(() => randomTipIndex())
+  const [fading, setFading] = useState(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFading(true)
+      setTimeout(() => {
+        setTipIndex((i) => randomTipIndex(i))
+        setFading(false)
+      }, FADE_MS)
+    }, ROTATE_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [])
+
+  const positionClasses = 'absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate text-xs'
+
+  if (available) {
+    const label =
+      status === 'ready'
+        ? 'Update installed — click to restart'
+        : status === 'updating'
+          ? 'Updating Huginn… (see terminal)'
+          : status === 'failed'
+            ? `Update failed — click to retry (v${available.version} available)`
+            : `Huginn v${available.version} is available — click to update`
+
+    const onClick = status === 'ready' ? restart : status === 'updating' ? undefined : startUpdate
+
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={status === 'updating'}
+        className={[
+          positionClasses,
+          status === 'updating'
+            ? 'text-fg-subtle cursor-default'
+            : 'text-accent hover:underline cursor-pointer',
+        ].join(' ')}
+      >
+        {label}
+      </button>
+    )
+  }
+
+  return (
+    <span
+      className={[
+        positionClasses,
+        'text-fg-subtle select-none pointer-events-none transition-opacity',
+        fading ? 'opacity-0' : 'opacity-100',
+      ].join(' ')}
+      style={{ transitionDuration: `${FADE_MS}ms` }}
+    >
+      {FOOTER_TIPS[tipIndex]}
+    </span>
+  )
+}
