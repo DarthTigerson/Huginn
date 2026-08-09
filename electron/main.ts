@@ -5,6 +5,7 @@ import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
+import { GraphifyManager } from './graphify'
 import { GitWatcher } from './gitWatcher'
 import { FileWatcher } from './fileWatcher'
 import { MobileServer } from './mobile'
@@ -476,6 +477,9 @@ app.whenReady().then(() => {
   claudeMgr.registerHandlers()
   const gitRunner = new GitRunner()
   gitRunner.registerHandlers()
+
+  const graphifyMgr = new GraphifyManager()
+  graphifyMgr.registerHandlers()
   gitWatcher = new GitWatcher()
   gitWatcher.registerHandlers()
   fileWatcher = new FileWatcher()
