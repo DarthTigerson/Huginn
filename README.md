@@ -43,7 +43,8 @@ switching between a browser, a terminal, and an editor.
 
 ## Requirements
 
-- macOS or Linux (Windows isn't supported yet)
+- macOS (Apple Silicon) or Linux (x86_64, Debian/Ubuntu-based) — Intel Mac
+  and other Linux distros aren't supported yet
 - [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) and/or the
   [OpenAI Codex CLI](https://github.com/openai/codex) installed separately,
   for the agent panels you want to use — Huginn launches them, it doesn't
@@ -51,19 +52,31 @@ switching between a browser, a terminal, and an editor.
 
 ## Installation
 
-Download the latest build for your platform from the
+```bash
+curl -fsSL https://raw.githubusercontent.com/DarthTigerson/Huginn/main/install.sh | bash
+```
+
+This downloads the latest release and installs it — to `/Applications` on
+macOS, or `~/.local/share/huginn` (with a `huginn` command symlinked into
+`~/.local/bin`) on Linux.
+
+### Manual installation
+
+Download the latest archive for your platform from the
 [Releases page](https://github.com/DarthTigerson/Huginn/releases):
 
-- **macOS**: download the `.dmg`, open it, and drag Huginn to Applications.
-  The build isn't code-signed yet (no Apple Developer account), so macOS
-  Gatekeeper will refuse to open it with a normal double-click. Either
-  right-click the app → **Open** → confirm in the dialog, or run:
+- **macOS**: download `Huginn-arm64.zip`, unzip it, and drag `Huginn.app` to
+  Applications. If macOS reports the app as "damaged" (a Gatekeeper quirk
+  for unsigned, browser-downloaded apps — the app isn't actually damaged),
+  run:
   ```bash
   xattr -cr /Applications/Huginn.app
   ```
-- **Linux**: download the `.deb` and install it:
+- **Linux**: download `Huginn-x64.tar.gz` and extract it wherever you like:
   ```bash
-  sudo dpkg -i huginn_*.deb
+  mkdir -p ~/.local/share/huginn
+  tar -xzf Huginn-x64.tar.gz -C ~/.local/share/huginn
+  ~/.local/share/huginn/huginn
   ```
 
 ### Build from source
@@ -75,11 +88,11 @@ npm install
 npm run dev
 ```
 
-To build your own installer:
+To build your own archive:
 
 ```bash
-npm run dist:mac    # produces a .dmg under release/
-npm run dist:linux  # produces a .deb under release/
+npm run dist:mac    # produces Huginn-arm64.zip under release/
+npm run dist:linux  # produces Huginn-x64.tar.gz under release/
 ```
 
 ## Contributing

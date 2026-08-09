@@ -66,13 +66,14 @@
       "electron/mobileWeb/**/*",
       "icon.png"
     ],
+    "artifactName": "Huginn-${arch}.${ext}",
     "mac": {
-      "target": "dmg",
+      "target": "zip",
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": "deb",
-      "maintainer": "DarthTigerson <darthtigerson@users.noreply.github.com>",
+      "target": "tar.gz",
+      "executableName": "huginn",
       "category": "Development"
     }
   }
