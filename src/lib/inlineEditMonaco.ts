@@ -14,14 +14,24 @@ import type * as Monaco from 'monaco-editor'
 // this cap are rejected before any request is sent (see submit()).
 const MAX_SELECTION_CHARS = 4000
 
-function postProcessEditText(raw: string): string {
-  let text = raw.trim()
-  if (!text) return text
+// Unlike autocomplete's postProcessCompletion, this must NOT unconditionally
+// trim(): the replacement text is inserted via executeEdits over a selection
+// that may itself end with a newline (a full-line selection) or start with
+// meaningful leading indentation on its very first line — the model's
+// <prefix> only extends to the selection's start column, so when a
+// selection starts at column 1 the model must reproduce that line's
+// indentation itself. Unlike autocomplete's cursor-insertion case, that
+// indentation is real here even with no preceding blank line, so it's never
+// safe to treat "leading whitespace with no newline before it" as noise.
+// Only strip complete leading blank LINES (whitespace immediately followed
+// by a newline, repeated) and prefer a fenced block's contents over
+// surrounding prose — never touch the first real line's own indentation or
+// any trailing whitespace.
+export function postProcessEditText(raw: string): string {
+  const text = raw.replace(/^(?:[ \t]*\n)+/, '')
 
   const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)\n?```/)
-  if (fenced) text = fenced[1].trim()
-
-  return text
+  return fenced ? fenced[1] : text
 }
 
 export function registerInlineEditCommands(
