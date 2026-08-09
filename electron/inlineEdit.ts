@@ -44,3 +44,157 @@ export function parseStreamJsonLine(line: string): StreamLineEvent | null {
 
   return null
 }
+
+import { BrowserWindow, ipcMain } from 'electron'
+import { spawn, type ChildProcessByStdio } from 'child_process'
+import type { Readable } from 'stream'
+import { resolveClaudePath } from './autocomplete'
+
+const TIMEOUT_MS = 30000
+
+export interface InlineEditStartPayload {
+  requestId: string
+  prefix: string
+  suffix: string
+  selection: string
+  instruction: string
+  language: string
+  model: string
+}
+
+export type InlineEditEvent =
+  | { type: 'delta'; requestId: string; text: string }
+  | { type: 'done'; requestId: string }
+  | { type: 'error'; requestId: string; message: string }
+
+interface WindowState {
+  proc: ChildProcessByStdio<null, Readable, Readable>
+  suppressReporting: () => void
+}
+
+export class InlineEditManager {
+  private currentByWindow = new Map<number, WindowState>()
+
+  registerHandlers(): void {
+    resolveClaudePath()
+
+    ipcMain.on('inlineEdit:start', (event, payload: InlineEditStartPayload) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      this.start(win, payload)
+    })
+
+    ipcMain.on('inlineEdit:cancel', (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      this.cancelWindow(win.id)
+    })
+  }
+
+  disposeWindow(windowId: number): void {
+    this.cancelWindow(windowId)
+  }
+
+  private cancelWindow(windowId: number): void {
+    const state = this.currentByWindow.get(windowId)
+    if (!state) return
+    state.suppressReporting()
+    state.proc.kill()
+    this.currentByWindow.delete(windowId)
+  }
+
+  private async start(win: BrowserWindow, payload: InlineEditStartPayload): Promise<void> {
+    this.cancelWindow(win.id)
+
+    const claudePath = await resolveClaudePath()
+    if (!claudePath) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('inlineEdit:event', { type: 'error', requestId: payload.requestId, message: 'claude CLI not found' } satisfies InlineEditEvent)
+      }
+      return
+    }
+
+    try {
+      const proc = spawn(
+        claudePath,
+        [
+          '-p', buildEditPrompt(payload.prefix, payload.suffix, payload.selection, payload.instruction, payload.language),
+          '--model', payload.model,
+          '--output-format', 'stream-json',
+          '--include-partial-messages',
+          '--verbose',
+          '--no-session-persistence',
+          '--tools', '',
+          '--setting-sources', '',
+          '--system-prompt', buildEditSystemPrompt(),
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] }
+      )
+
+      let reported = false
+
+      const removeIfCurrent = () => {
+        if (this.currentByWindow.get(win.id)?.proc === proc) this.currentByWindow.delete(win.id)
+      }
+
+      const reportDelta = (text: string) => {
+        if (reported) return
+        if (!win.isDestroyed()) win.webContents.send('inlineEdit:event', { type: 'delta', requestId: payload.requestId, text } satisfies InlineEditEvent)
+      }
+      const reportDone = () => {
+        if (reported) return
+        reported = true
+        clearTimeout(timer)
+        removeIfCurrent()
+        if (!win.isDestroyed()) win.webContents.send('inlineEdit:event', { type: 'done', requestId: payload.requestId } satisfies InlineEditEvent)
+      }
+      const reportError = (message: string) => {
+        if (reported) return
+        reported = true
+        clearTimeout(timer)
+        removeIfCurrent()
+        if (!win.isDestroyed()) win.webContents.send('inlineEdit:event', { type: 'error', requestId: payload.requestId, message } satisfies InlineEditEvent)
+      }
+      const suppressReporting = () => {
+        reported = true
+        clearTimeout(timer)
+        removeIfCurrent()
+      }
+
+      this.currentByWindow.set(win.id, { proc, suppressReporting })
+
+      const timer = setTimeout(() => {
+        reportError('Timed out')
+        proc.kill()
+      }, TIMEOUT_MS)
+
+      let buffer = ''
+      let sawError = false
+
+      proc.stdout.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString()
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const parsed = parseStreamJsonLine(line)
+          if (parsed?.type === 'delta') {
+            reportDelta(parsed.text)
+          } else if (parsed?.type === 'result' && parsed.isError) {
+            sawError = true
+          }
+        }
+      })
+
+      proc.on('error', () => reportError('Failed to start claude'))
+      proc.on('close', (code) => {
+        if (code !== 0 || sawError) reportError('Something went wrong')
+        else reportDone()
+      })
+    } catch {
+      if (!win.isDestroyed()) {
+        win.webContents.send('inlineEdit:event', { type: 'error', requestId: payload.requestId, message: 'Failed to start claude' } satisfies InlineEditEvent)
+      }
+    }
+  }
+}
