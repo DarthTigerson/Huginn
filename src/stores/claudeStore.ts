@@ -18,6 +18,8 @@ interface ClaudeState {
   restartToken: number
   usageOpen: boolean
   chatVisible: boolean
+  pendingInjection: string | null
+  focusToken: number
   setAssistant: (assistant: AssistantKind) => void
   newSession: (cwd: string) => void
   previousSession: (cwd: string) => void
@@ -27,6 +29,9 @@ interface ClaudeState {
   model: () => void
   fast: () => void
   toggleChatVisible: () => void
+  sendSelection: (text: string) => void
+  focusChat: () => void
+  consumeInjection: () => void
 }
 
 export const useClaudeStore = create<ClaudeState>((set, get) => ({
@@ -34,6 +39,8 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   restartToken: 0,
   usageOpen: false,
   chatVisible: true,
+  pendingInjection: null,
+  focusToken: 0,
 
   setAssistant: (assistant: AssistantKind) => {
     try { localStorage.setItem(ASSISTANT_KEY, assistant) } catch {}
@@ -41,6 +48,16 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   },
 
   toggleChatVisible: () => set((s) => ({ chatVisible: !s.chatVisible })),
+
+  sendSelection: (text) => {
+    set((s) => ({ chatVisible: true, pendingInjection: text, focusToken: s.focusToken + 1 }))
+  },
+
+  focusChat: () => {
+    set((s) => ({ chatVisible: true, focusToken: s.focusToken + 1 }))
+  },
+
+  consumeInjection: () => set({ pendingInjection: null }),
 
   newSession: (cwd: string) => {
     set((s) => ({ restartToken: s.restartToken + 1 }))
