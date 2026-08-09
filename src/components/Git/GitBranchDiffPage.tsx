@@ -1,0 +1,339 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFileStore } from '@/stores/fileStore'
+import { useGitStore } from '@/stores/gitStore'
+import type { GitCommit } from '@/types/index'
+
+const ROW_H = 70
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function formatExactDate(iso: string): string {
+  const date = new Date(iso)
+  const yyyy = date.getFullYear()
+  const mm = padDatePart(date.getMonth() + 1)
+  const dd = padDatePart(date.getDate())
+  const hh = padDatePart(date.getHours())
+  const min = padDatePart(date.getMinutes())
+  const ss = padDatePart(date.getSeconds())
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`
+}
+
+function normalizeRef(ref: string): string {
+  return ref.replace('HEAD -> ', '').replace('tag: ', '')
+}
+
+function chooseTarget(branches: string[], source: string): string {
+  const preferred = [
+    `origin/${source}`,
+    'origin/main',
+    'origin/master',
+    'main',
+    'master',
+  ].find((branch) => branch !== source && branches.includes(branch))
+
+  return preferred ?? branches.find((branch) => branch !== source) ?? ''
+}
+
+function branchTone(branch: string): string {
+  if (branch.startsWith('origin/')) return 'border-[#dc2626]/50 bg-[#dc2626]/10 text-[#fecaca]'
+  if (branch === 'main' || branch === 'master') {
+    return 'border-[#2563eb]/60 bg-[#2563eb]/15 text-[#bfdbfe]'
+  }
+  return 'border-[#16a34a]/50 bg-[#16a34a]/10 text-[#bbf7d0]'
+}
+
+function BranchCombobox({ label, value, options, onChange }: {
+  label: string
+  value: string
+  options: string[]
+  onChange: (value: string) => void
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return options
+    return options.filter((branch) => branch.toLowerCase().includes(needle))
+  }, [options, query])
+
+  function selectBranch(branch: string) {
+    onChange(branch)
+    setQuery('')
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    if (!open) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative min-w-0">
+      <span className="block text-[0.625rem] font-semibold uppercase tracking-wider text-fg-muted mb-1.5">
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={() => setOpen((next) => !next)}
+        className={[
+          'w-full h-9 rounded border px-2.5 text-left flex items-center justify-between gap-2 transition-colors',
+          open
+            ? 'border-[#2563eb]/70 bg-[#2563eb]/10'
+            : 'border-border bg-bg hover:border-fg-subtle',
+        ].join(' ')}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="min-w-0 flex items-center gap-2">
+          <span className={['shrink-0 h-2 w-2 rounded-full border', branchTone(value)].join(' ')} />
+          <span className="truncate text-xs text-fg">{value || 'Select branch'}</span>
+        </span>
+        <span className="shrink-0 text-[0.625rem] text-fg-subtle">{open ? '^' : 'v'}</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-md border border-border bg-popover shadow-2xl shadow-black/40">
+          <div className="border-b border-border p-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+              placeholder="Search branches"
+              className="w-full h-8 rounded border border-border bg-bg px-2 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-[#2563eb]/70"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setOpen(false)
+                }
+              }}
+            />
+          </div>
+          <div role="listbox" className="max-h-56 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-fg-subtle">No branches found</div>
+            ) : (
+              filtered.map((branch) => (
+                <button
+                  key={branch}
+                  type="button"
+                  role="option"
+                  aria-selected={branch === value}
+                  onClick={() => selectBranch(branch)}
+                  className={[
+                    'w-full min-w-0 rounded px-2 py-2 text-left flex items-center gap-2 transition-colors',
+                    branch === value ? 'bg-[#2563eb]/18 text-fg' : 'hover:bg-white/[0.06] text-fg-muted',
+                  ].join(' ')}
+                >
+                  <span className={['shrink-0 h-2 w-2 rounded-full border', branchTone(branch)].join(' ')} />
+                  <span className="min-w-0 flex-1 truncate text-xs">{branch}</span>
+                  {branch === value && (
+                    <span className="shrink-0 text-[0.625rem] text-[#93c5fd]">selected</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CommitRow({ commit, index, total }: {
+  commit: GitCommit
+  index: number
+  total: number
+}) {
+  const refs = commit.refs.slice(0, 3)
+  const isFirst = index === 0
+  const isLast = index === total - 1
+
+  return (
+    <button
+      type="button"
+      className="w-full grid grid-cols-[minmax(100px,0.75fr)_160px_minmax(180px,1.2fr)] items-center text-left group hover:bg-white/[0.04] focus:outline-none focus-visible:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#2563eb]/70"
+      style={{ minHeight: ROW_H }}
+    >
+      <div className="min-w-0 px-4 justify-self-end">
+        {refs.length > 0 && (
+          <div className="flex justify-end flex-wrap gap-1">
+            {refs.map((ref) => (
+              <span
+                key={ref}
+                className="max-w-36 truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border border-[#facc15]/80 bg-[#facc15]/20 text-[#fef08a] leading-none"
+              >
+                {normalizeRef(ref)}
+              </span>
+            ))}
+            {commit.refs.length > refs.length && (
+              <span className="text-[0.5625rem] px-1.5 py-0.5 rounded border border-border text-fg-muted leading-none">
+                +{commit.refs.length - refs.length}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="relative h-full flex items-center justify-center">
+        {!isFirst && (
+          <span className="absolute top-0 h-1/2 w-1 rounded-b bg-[#2563eb]" />
+        )}
+        {!isLast && (
+          <span className="absolute bottom-0 h-1/2 w-1 rounded-t bg-[#2563eb]" />
+        )}
+        <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#1e293b] ring-2 ring-[#60a5fa] shadow-[0_0_0_8px_rgba(37,99,235,0.18)]">
+          <span className="h-3.5 w-3.5 rounded-full bg-[#2563eb] ring-2 ring-white/80" />
+        </span>
+      </div>
+
+      <div className="min-w-0 px-4 py-2">
+        <div className="text-xs text-fg truncate">{commit.subject}</div>
+        <div className="mt-1 text-[0.625rem] text-fg-subtle truncate">
+          {commit.hash.slice(0, 7)} | {commit.author} | {formatExactDate(commit.date)}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+export function GitBranchDiffPage() {
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const currentBranch = useGitStore((s) => s.branch)
+  const [branches, setBranches] = useState<string[]>([])
+  const [source, setSource] = useState('')
+  const [target, setTarget] = useState('')
+  const [commits, setCommits] = useState<GitCommit[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
+  const [loadingCommits, setLoadingCommits] = useState(false)
+
+  useEffect(() => {
+    if (!projectRoot) return
+
+    let cancelled = false
+    setLoadingBranches(true)
+
+    Promise.all([
+      window.api.gitBranches(projectRoot),
+      currentBranch ? Promise.resolve(currentBranch) : window.api.gitBranch(projectRoot),
+    ]).then(([loadedBranches, branch]) => {
+      if (cancelled) return
+      const selectedSource = branch ?? loadedBranches[0] ?? ''
+      const uniqueBranches = Array.from(
+        new Set(selectedSource ? [selectedSource, ...loadedBranches] : loadedBranches)
+      )
+      setBranches(uniqueBranches)
+      setSource((existing) => existing || selectedSource)
+      setTarget((existing) => existing || chooseTarget(uniqueBranches, selectedSource))
+      setLoadingBranches(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectRoot, currentBranch])
+
+  useEffect(() => {
+    if (!projectRoot || !source || !target || source === target) {
+      setCommits([])
+      return
+    }
+
+    let cancelled = false
+    setLoadingCommits(true)
+    window.api.gitBranchDiff(projectRoot, source, target).then((result) => {
+      if (cancelled) return
+      setCommits(result.commits)
+      setLoadingCommits(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectRoot, source, target])
+
+  const targetOptions = useMemo(
+    () => branches.filter((branch) => branch !== source),
+    [branches, source]
+  )
+
+  function handleSourceChange(nextSource: string) {
+    setSource(nextSource)
+    if (!target || target === nextSource) {
+      setTarget(chooseTarget(branches, nextSource))
+    }
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden bg-panel">
+      <div className="h-11 px-4 border-b border-border shrink-0 flex items-center justify-between">
+        <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
+          Branch Diff
+        </span>
+        <span className="text-[0.625rem] text-fg-subtle">
+          {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
+        </span>
+      </div>
+
+      <div className="border-b border-border px-4 py-3 shrink-0">
+        <div className="grid grid-cols-[minmax(160px,1fr)_48px_minmax(160px,1fr)] items-end gap-3 max-w-3xl mx-auto">
+          <BranchCombobox
+            label="Source branch"
+            value={source}
+            options={branches}
+            onChange={handleSourceChange}
+          />
+
+          <div className="h-8 flex items-center justify-center text-[#60a5fa] text-xs font-bold">
+            vs
+          </div>
+
+          <BranchCombobox
+            label="Target branch"
+            value={target}
+            options={targetOptions}
+            onChange={setTarget}
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {loadingBranches || loadingCommits ? (
+          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+            Loading branch diff...
+          </div>
+        ) : !source || !target ? (
+          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+            Select two branches
+          </div>
+        ) : commits.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+            No commits between selected branches
+          </div>
+        ) : (
+          <div>
+            {commits.map((commit, index) => (
+              <CommitRow
+                key={commit.hash}
+                commit={commit}
+                index={index}
+                total={commits.length}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

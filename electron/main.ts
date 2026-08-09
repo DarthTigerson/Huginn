@@ -1,0 +1,506 @@
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents } from 'electron'
+import { basename, join } from 'path'
+import { is } from '@electron-toolkit/utils'
+import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
+import { PtyManager } from './pty'
+import { ClaudeManager } from './claude'
+import { GitRunner } from './gitRunner'
+import { GitWatcher } from './gitWatcher'
+import { MobileServer } from './mobile'
+import { UsageManager } from './usageManager'
+import { CosmosManager } from './cosmos'
+import { AutocompleteManager } from './autocomplete'
+import { InlineEditManager } from './inlineEdit'
+import { BrowserViewManager } from './browserViews'
+import { listAllFiles, searchText, buildTree } from './fsOps'
+import { registerSessionHandlers } from './session'
+import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
+
+function registerFsHandlers(): void {
+  ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
+  ipcMain.handle('fs:readFile', (_e, path: string) => readFile(path, 'utf-8'))
+  ipcMain.handle('fs:exists', async (_e, path: string) => {
+    try {
+      await access(path)
+      return true
+    } catch {
+      return false
+    }
+  })
+  ipcMain.handle('fs:writeFile', (_e, path: string, content: string) =>
+    writeFile(path, content, 'utf-8')
+  )
+  ipcMain.handle('fs:mkdir', (_e, path: string) => mkdir(path, { recursive: false }))
+  ipcMain.handle('fs:rename', (_e, from: string, to: string) => rename(from, to))
+  ipcMain.handle('fs:trash', (_e, path: string) => shell.trashItem(path))
+  ipcMain.handle('fs:listAllFiles', (_e, root: string) => listAllFiles(root))
+  ipcMain.handle('fs:searchText', (_e, root: string, query: string, caseSensitive: boolean) =>
+    searchText(root, query, caseSensitive)
+  )
+  ipcMain.handle('dialog:openFolder', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    return result.canceled ? null : result.filePaths[0]
+  })
+}
+
+function registerDevtoolsHandlers(): void {
+  ipcMain.handle('devtools:attach', (_e, targetId: number, hostId: number) => {
+    const target = webContents.fromId(targetId)
+    const host = webContents.fromId(hostId)
+    if (!target || !host) return
+    target.setDevToolsWebContents(host)
+    target.openDevTools()
+  })
+
+  ipcMain.handle('devtools:detach', (_e, targetId: number) => {
+    webContents.fromId(targetId)?.closeDevTools()
+  })
+}
+
+function registerWindowHandlers(): void {
+  // Renderer notifies main whenever its projectRoot changes (either "Open
+  // Project…" replacing the current window's project, or the initial
+  // project set via window:getInitialProject) so the Window menu's
+  // w.getTitle() reflects the current project rather than staying frozen at
+  // whatever createWindow() set at construction time.
+  ipcMain.on('window:setTitle', (event, root: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && !win.isDestroyed()) win.setTitle(basename(root))
+  })
+
+  // Renderer pulls its initial project once, on startup, instead of main
+  // pushing it via 'did-finish-load' — pushing raced against the renderer's
+  // own bootstrap effect (JS is single-threaded, so the IPC message could
+  // never arrive in time to be observed by the very next synchronous line)
+  // and never re-fired on reload. Pulling is deterministic and one-shot: the
+  // entry is deleted on first read, so a later reload correctly falls back
+  // to restoreRoot(), matching how a reloaded window should behave.
+  ipcMain.handle('window:getInitialProject', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return null
+    const project = pendingInitialProject.get(win.id) ?? null
+    pendingInitialProject.delete(win.id)
+    return project
+  })
+}
+
+const windows = new Map<number, BrowserWindow>()
+// Keyed by window id, populated in createWindow() when a projectRoot is
+// passed. Consumed exactly once by the 'window:getInitialProject' handler
+// above — see registerWindowHandlers() for why this replaced the old
+// push-based 'menu:openInitialProject' message.
+const pendingInitialProject = new Map<number, string>()
+
+function createWindow(projectRoot?: string): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    show: false,
+    title: projectRoot ? basename(projectRoot) : 'Huginn',
+    titleBarStyle: 'hiddenInset',
+    vibrancy: 'sidebar',
+    backgroundColor: '#1e1e1e',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      sandbox: false,
+    },
+  })
+
+  windows.set(win.id, win)
+  win.once('ready-to-show', () => win.show())
+  win.on('focus', () => buildMenu())
+  // index.html declares <title>Huginn</title>, and Electron lets the loaded
+  // page's title win over the constructor's `title:` option (and over any
+  // later win.setTitle(...) call) once that tag is parsed — without this,
+  // the project-name title set above would be silently clobbered back to
+  // "Huginn" right after load. Preventing the default keeps our title.
+  win.on('page-title-updated', (e) => e.preventDefault())
+  win.on('closed', () => {
+    windows.delete(win.id)
+    ptyMgr.disposeWindow(win.id)
+    claudeMgr.disposeWindow(win.id)
+    gitWatcher.disposeWindow(win.id)
+    cosmosMgr.disposeWindow(win.id)
+    browserViewMgr.disposeWindow(win.id)
+    autocompleteMgr.disposeWindow(win.id)
+    inlineEditMgr.disposeWindow(win.id)
+    buildMenu()
+  })
+
+  // Chromium persists page zoom per-origin across restarts. If it ever gets
+  // stuck at some large factor (e.g. a stray native zoom accelerator firing
+  // repeatedly), that would otherwise survive indefinitely — force it back to
+  // 100% on every load so the window can never get stuck zoomed.
+  win.webContents.on('dom-ready', () => {
+    win.webContents.setZoomFactor(1)
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    win.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    win.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+
+  if (projectRoot) {
+    pendingInitialProject.set(win.id, projectRoot)
+  }
+
+  return win
+}
+
+app.name = 'Huginn'
+
+function registerCosmosSettingsHandlers(): void {
+  const settingsPath = join(app.getPath('userData'), 'cosmos-settings.json')
+
+  ipcMain.handle('cosmos:getSettings', async () => {
+    try {
+      const data = await readFile(settingsPath, 'utf-8')
+      return JSON.parse(data)
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('cosmos:setSettings', async (_e, settings: { endpoint: string; apiKey: string; modelId: string }) => {
+    try {
+      await writeFile(settingsPath, JSON.stringify(settings), 'utf-8')
+    } catch {}
+  })
+}
+
+async function buildMenu(): Promise<void> {
+  try {
+  const recents = await readRecents()
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Huginn',
+      submenu: [
+        { role: 'about' },
+        {
+          label: 'Preferences…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:openSettings')
+          },
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New File',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newFile')
+          },
+        },
+        {
+          label: 'New Folder',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newFolder')
+          },
+        },
+        {
+          label: 'New Terminal',
+          accelerator: 'CmdOrCtrl+T',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:newTerminal')
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Open Project…',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:openProject')
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: async () => {
+            const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+            if (result.canceled || !result.filePaths[0]) return
+            const path = result.filePaths[0]
+            await addRecentProject(path)
+            createWindow(path)
+            buildMenu()
+          },
+        },
+        {
+          label: 'Recent Projects',
+          submenu: recents.length === 0
+            ? [{ label: 'No Recent Projects', enabled: false }]
+            : [
+                ...recents.map((r) => ({
+                  label: r.path,
+                  click: async () => {
+                    await addRecentProject(r.path)
+                    createWindow(r.path)
+                    buildMenu()
+                  },
+                })),
+                { type: 'separator' as const },
+                {
+                  label: 'Clear Recent Projects',
+                  click: async () => {
+                    await clearRecentProjects()
+                    buildMenu()
+                  },
+                },
+              ],
+        },
+        { type: 'separator' },
+        {
+          label: 'Reopen Closed Tab',
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:reopenClosedTab')
+          },
+        },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:save')
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Close Tab',
+          accelerator: 'CmdOrCtrl+W',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:closeActiveTab')
+          },
+        },
+        { role: 'close', label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Find',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:find')
+          },
+        },
+        {
+          label: 'Find in Files',
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:findInFiles')
+          },
+        },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        {
+          label: 'Toggle Sidebar',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:toggleSidebar')
+          },
+        },
+        {
+          label: 'Command Palette…',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:commandPalette')
+          },
+        },
+        {
+          label: 'Action Palette…',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:actionPalette')
+          },
+        },
+        {
+          label: 'Show Claude Chat',
+          accelerator: 'CmdOrCtrl+L',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:toggleClaudeChat')
+          },
+        },
+        { type: 'separator' },
+        {
+          // Unshifted CmdOrCtrl+Plus/Minus/0 are intentionally NOT registered here —
+          // they're left free so the renderer can handle them per-focused-editor/terminal.
+          // Shifted variants control the global app font size instead.
+          label: 'Reset Zoom (Global)',
+          accelerator: 'CmdOrCtrl+Shift+0',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:resetZoom')
+          },
+        },
+        {
+          label: 'Zoom In (Global)',
+          accelerator: 'CmdOrCtrl+Shift+=',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:zoomIn')
+          },
+        },
+        {
+          label: 'Zoom Out (Global)',
+          accelerator: 'CmdOrCtrl+Shift+-',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('menu:zoomOut')
+          },
+        },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        ...Array.from(windows.values())
+          .filter((w) => !w.isDestroyed())
+          .map((w) => ({
+            label: w.getTitle(),
+            type: 'radio' as const,
+            checked: w === BrowserWindow.getFocusedWindow(),
+            click: () => {
+              if (!w.isDestroyed()) w.focus()
+            },
+          })),
+        { type: 'separator' },
+        { role: 'front' },
+      ],
+    },
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+  } catch (err) {
+    console.error('buildMenu failed:', err)
+  }
+}
+
+let ptyMgr: PtyManager
+let claudeMgr: ClaudeManager
+let gitWatcher: GitWatcher
+let cosmosMgr: CosmosManager
+let browserViewMgr: BrowserViewManager
+let autocompleteMgr: AutocompleteManager
+let inlineEditMgr: InlineEditManager
+
+app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    try {
+      app.dock?.setIcon(join(__dirname, '../../icon.png'))
+    } catch (err) {
+      console.warn('Failed to set Dock icon:', err)
+    }
+  }
+
+  registerFsHandlers()
+  registerCosmosSettingsHandlers()
+  registerDevtoolsHandlers()
+  registerSessionHandlers()
+  registerRecentProjectsHandlers()
+  registerWindowHandlers()
+
+  ptyMgr = new PtyManager()
+  ptyMgr.registerHandlers()
+  claudeMgr = new ClaudeManager()
+  claudeMgr.registerHandlers()
+  const gitRunner = new GitRunner()
+  gitRunner.registerHandlers()
+  gitWatcher = new GitWatcher()
+  gitWatcher.registerHandlers()
+  cosmosMgr = new CosmosManager()
+  cosmosMgr.registerHandlers()
+  browserViewMgr = new BrowserViewManager()
+  browserViewMgr.registerHandlers()
+  autocompleteMgr = new AutocompleteManager()
+  autocompleteMgr.registerHandlers()
+  inlineEditMgr = new InlineEditManager()
+  inlineEditMgr.registerHandlers()
+
+  buildMenu()
+  createWindow()
+
+  // MobileServer and UsageManager (deliberately left untouched — app-wide
+  // singletons per the spec, not per-window) push events to whatever `win`
+  // they were constructed with. With multiple real windows there's no single
+  // correct target — their state is account-level (pairing PIN, usage stats),
+  // not tied to any one project — so give them a fake win-shaped object whose
+  // webContents.send() broadcasts to every currently-open window instead.
+  const broadcastWin = {
+    webContents: {
+      send: (...args: unknown[]) => {
+        for (const w of windows.values()) {
+          if (!w.isDestroyed()) (w.webContents.send as (...a: unknown[]) => void)(...args)
+        }
+      },
+    },
+  } as unknown as BrowserWindow
+
+  const usageMgr = new UsageManager(
+    join(app.getPath('userData'), 'usage-history.jsonl'),
+    join(app.getPath('userData'), 'usage-settings.json'),
+    join(app.getPath('userData'), 'usage-passive-settings.json'),
+    broadcastWin
+  )
+  usageMgr.registerHandlers()
+
+  const mobileSrv = new MobileServer(broadcastWin, usageMgr)
+  mobileSrv.registerHandlers()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})

@@ -1,0 +1,263 @@
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { readFile } from 'fs/promises'
+import { join } from 'path'
+
+const execFileAsync = promisify(execFile)
+
+export interface GitFileEntry {
+  path: string
+  status: 'M' | 'A' | 'D' | 'R' | '?'
+}
+
+export interface GitStatus {
+  staged: GitFileEntry[]
+  unstaged: GitFileEntry[]
+}
+
+export interface GitAheadBehind {
+  ahead: number
+  behind: number
+}
+
+export async function getGitBranch(cwd: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd })
+    const branch = stdout.trim()
+    if (branch !== 'HEAD') return branch
+    const { stdout: sha } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd })
+    return sha.trim()
+  } catch {
+    return null
+  }
+}
+
+export async function getGitBranches(cwd: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes'],
+      { cwd }
+    )
+    return Array.from(
+      new Set(
+        stdout
+          .split('\n')
+          .map((branch) => branch.trim())
+          .filter((branch) => branch && !branch.endsWith('/HEAD'))
+      )
+    )
+  } catch {
+    return []
+  }
+}
+
+export async function getAheadBehind(cwd: string): Promise<GitAheadBehind | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-list', '--left-right', '--count', '@{upstream}...HEAD'],
+      { cwd }
+    )
+    const [behind, ahead] = stdout.trim().split(/\s+/).map(Number)
+    return { ahead, behind }
+  } catch {
+    return null
+  }
+}
+
+function toStatus(code: string): GitFileEntry['status'] {
+  return code === 'A' || code === 'D' || code === 'R' ? code : 'M'
+}
+
+export function parsePorcelainStatus(raw: string): GitStatus {
+  const staged: GitFileEntry[] = []
+  const unstaged: GitFileEntry[] = []
+  if (!raw) return { staged, unstaged }
+
+  const entries = raw.split('\0').filter(Boolean)
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    const x = entry[0]
+    const y = entry[1]
+    const path = entry.slice(3)
+
+    if (x === 'R') {
+      // porcelain -z emits the old path as a separate NUL-terminated
+      // field right after a rename entry — skip over it
+      i++
+    }
+
+    if (x === '?' && y === '?') {
+      unstaged.push({ path, status: '?' })
+      continue
+    }
+
+    if (x !== ' ' && x !== '?') {
+      staged.push({ path, status: toStatus(x) })
+    }
+    if (y !== ' ' && y !== '?') {
+      unstaged.push({ path, status: toStatus(y) })
+    }
+  }
+
+  return { staged, unstaged }
+}
+
+export async function getGitStatus(cwd: string): Promise<GitStatus> {
+  try {
+    const { stdout } = await execFileAsync('git', ['status', '--porcelain=v1', '-z'], { cwd })
+    return parsePorcelainStatus(stdout)
+  } catch {
+    return { staged: [], unstaged: [] }
+  }
+}
+
+export async function stageFiles(cwd: string, paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+  await execFileAsync('git', ['add', '--', ...paths], { cwd })
+}
+
+export async function discardFileChanges(cwd: string, path: string): Promise<void> {
+  await execFileAsync('git', ['checkout', '--', path], { cwd })
+}
+
+export async function unstageFiles(cwd: string, paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+  await execFileAsync('git', ['reset', '--', ...paths], { cwd })
+}
+
+export async function stageAll(cwd: string): Promise<void> {
+  await execFileAsync('git', ['add', '-A'], { cwd })
+}
+
+export async function unstageAll(cwd: string): Promise<void> {
+  await execFileAsync('git', ['reset'], { cwd })
+}
+
+export async function commit(
+  cwd: string,
+  message: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await execFileAsync('git', ['commit', '-m', message], { cwd })
+    return { ok: true }
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr
+    return { ok: false, error: stderr?.trim() || 'Commit failed' }
+  }
+}
+
+async function showRef(cwd: string, ref: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['show', ref], { cwd })
+    return stdout
+  } catch {
+    return ''
+  }
+}
+
+export async function getGitGraph(cwd: string): Promise<import('../src/types/index').GitCommit[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['log', '--all', '-n', '100', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      { cwd }
+    )
+    return stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const pipeIdx = line.indexOf('|')
+        const hash = line.slice(0, pipeIdx)
+        const rest = line.slice(pipeIdx + 1)
+        const parts = rest.split('|')
+        const parentsRaw = parts[0] ?? ''
+        const subject = parts[1] ?? ''
+        const author = parts[2] ?? ''
+        const date = parts[3] ?? ''
+        const refsRaw = parts[4] ?? ''
+        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
+        const refs = refsRaw.trim()
+          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
+          : []
+        return { hash, parents, subject, author, date, refs }
+      })
+  } catch {
+    return []
+  }
+}
+
+export async function getGitBranchDiff(
+  cwd: string,
+  source: string,
+  target: string
+): Promise<import('../src/types/index').GitBranchDiff> {
+  if (!source || !target || source === target) {
+    return { source, target, commits: [] }
+  }
+
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['log', `${target}..${source}`, '-n', '200', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      { cwd }
+    )
+    const commits = stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const pipeIdx = line.indexOf('|')
+        const hash = line.slice(0, pipeIdx)
+        const rest = line.slice(pipeIdx + 1)
+        const parts = rest.split('|')
+        const parentsRaw = parts[0] ?? ''
+        const subject = parts[1] ?? ''
+        const author = parts[2] ?? ''
+        const date = parts[3] ?? ''
+        const refsRaw = parts[4] ?? ''
+        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
+        const refs = refsRaw.trim()
+          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
+          : []
+        return { hash, parents, subject, author, date, refs }
+      })
+    return { source, target, commits }
+  } catch {
+    return { source, target, commits: [] }
+  }
+}
+
+export async function getGitShowStat(cwd: string, hash: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['show', '--name-only', '--format=', hash],
+      { cwd }
+    )
+    return stdout.split('\n').map((l) => l.trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+export async function getDiffContent(
+  cwd: string,
+  path: string,
+  staged: boolean
+): Promise<{ original: string; modified: string }> {
+  if (staged) {
+    const original = await showRef(cwd, `HEAD:${path}`)
+    const modified = await showRef(cwd, `:${path}`)
+    return { original, modified }
+  }
+
+  const original = await showRef(cwd, `:${path}`)
+  let modified = ''
+  try {
+    modified = await readFile(join(cwd, path), 'utf-8')
+  } catch {
+    modified = ''
+  }
+  return { original, modified }
+}

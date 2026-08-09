@@ -1,0 +1,78 @@
+{
+  "name": "huginn",
+  "version": "0.1.0",
+  "description": "A Claude-native IDE",
+  "author": "Thomas Bonnici",
+  "license": "MIT",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "vitest run",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "node scripts/rebrand-electron.mjs",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:linux": "electron-vite build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "@monaco-editor/react": "^4.6.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "chokidar": "^3.6.0",
+    "minimatch": "^10.2.6",
+    "node-pty": "^1.0.0",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^2.1.7",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^20.17.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "electron": "^32.3.3",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^2.3.0",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
+  },
+  "build": {
+    "appId": "com.thomasbonnici.huginn",
+    "productName": "Huginn",
+    "icon": "icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "electron/mobileWeb/**/*",
+      "icon.png"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": "deb",
+      "category": "Development"
+    }
+  }
+}
