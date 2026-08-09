@@ -35,23 +35,21 @@ function Gauge({ pct, label }: { pct: number | null; label: string }) {
   )
 }
 
-function ResetRow({ label, resetAt, ratePerHour, now }: {
-  label: string
-  resetAt: number | null
-  ratePerHour: number | null
-  now: number
-}) {
+function ResetInfo({ label, resetAt, now }: { label: string; resetAt: number | null; now: number }) {
   return (
-    <div className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-      <div>
-        <div className="text-xs text-fg-muted">{label}</div>
-        <div className="text-sm text-fg font-medium">{formatResetTime(resetAt)}</div>
-        <div className="text-xs text-accent font-mono">{formatCountdown(resetAt, now)}</div>
-      </div>
-      <div className="text-right">
-        <div className="text-sm text-fg font-mono">{formatBurnRate(ratePerHour)}</div>
-        <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider">burn rate</div>
-      </div>
+    <div>
+      <div className="text-xs text-fg-muted">{label}</div>
+      <div className="text-sm text-fg font-medium">{formatResetTime(resetAt)}</div>
+      <div className="text-xs text-accent font-mono">{formatCountdown(resetAt, now)}</div>
+    </div>
+  )
+}
+
+function BurnRateStat({ label, ratePerHour }: { label: string; ratePerHour: number | null }) {
+  return (
+    <div>
+      <div className="text-sm text-fg font-mono">{formatBurnRate(ratePerHour)}</div>
+      <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider">{label}</div>
     </div>
   )
 }
@@ -81,16 +79,21 @@ export function UsagePanel() {
   return (
     <div className="shrink-0 border-t border-border bg-sidebar px-4 py-3">
       {latest ? (
-        <>
-          <div className="flex items-center justify-around">
+        <div className="flex items-start gap-10">
+          <div className="flex flex-col items-center gap-3">
             <Gauge pct={latest.sessionPct} label="SESSION" />
+            <ResetInfo label="Session resets" resetAt={latest.sessionResetAt} now={now} />
+          </div>
+          <div className="flex flex-col items-center gap-3">
             <Gauge pct={latest.weeklyPct} label="THIS WEEK" />
+            <ResetInfo label="Week resets" resetAt={latest.weeklyResetAt} now={now} />
           </div>
-          <div className="mt-3 divide-y divide-border">
-            <ResetRow label="Session resets" resetAt={latest.sessionResetAt} ratePerHour={latest.sessionAvgRatePerHour} now={now} />
-            <ResetRow label="Week resets" resetAt={latest.weeklyResetAt} ratePerHour={latest.weeklyAvgRatePerHour} now={now} />
+          <div className="flex flex-col gap-3 pt-1">
+            <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider font-semibold">Burn rate</div>
+            <BurnRateStat label="session" ratePerHour={latest.sessionAvgRatePerHour} />
+            <BurnRateStat label="week" ratePerHour={latest.weeklyAvgRatePerHour} />
           </div>
-        </>
+        </div>
       ) : (
         <p className="text-xs text-fg-muted text-center py-4">No usage data yet</p>
       )}
