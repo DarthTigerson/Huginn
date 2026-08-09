@@ -91,14 +91,18 @@ export function StatusBar() {
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
             className={[
               'w-5 h-5 flex items-center justify-center transition-colors',
-              autocompleteActive ? 'text-fg-muted hover:text-fg' : 'text-fg-subtle hover:text-fg-muted',
+              autocompleteActive && autocompleteBusy
+                ? 'text-accent'
+                : autocompleteActive
+                  ? 'text-fg-muted hover:text-fg'
+                  : 'text-fg-subtle hover:text-fg-muted',
             ].join(' ')}
             aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
             title={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
           >
             <AutocompleteIcon
               crossedOut={!autocompleteActive}
-              className={autocompleteActive && autocompleteBusy ? 'animate-pulse' : ''}
+              busy={autocompleteActive && autocompleteBusy}
             />
           </button>
           {autocompleteMenuOpen && (

@@ -17,4 +17,14 @@ describe('AutocompleteIcon', () => {
     const { container } = render(<AutocompleteIcon crossedOut={false} />)
     expect(container.querySelectorAll('svg path').length).toBe(2)
   })
+
+  it('applies the spin animation class to the arc when busy', () => {
+    const { container } = render(<AutocompleteIcon crossedOut={false} busy={true} />)
+    expect(container.querySelector('.autocomplete-busy-arc')).toBeTruthy()
+  })
+
+  it('omits the spin animation class when not busy', () => {
+    const { container } = render(<AutocompleteIcon crossedOut={false} busy={false} />)
+    expect(container.querySelector('.autocomplete-busy-arc')).toBeFalsy()
+  })
 })
