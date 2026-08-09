@@ -18,8 +18,10 @@ describe('modelSettingsStore', () => {
     useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
   })
 
-  it('defaults to every model enabled', () => {
-    expect(useModelSettingsStore.getState().enabled).toEqual({ claude: true, codex: true, cosmos: true })
+  it('defaults to only claude enabled on first launch (no stored preference)', async () => {
+    vi.resetModules()
+    const { useModelSettingsStore: freshStore } = await import('../modelSettingsStore')
+    expect(freshStore.getState().enabled).toEqual({ claude: true, codex: false, cosmos: false })
   })
 
   it('disables a model', () => {
