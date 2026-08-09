@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, act } from '@testing-library/react'
 import { Chat } from '../Chat'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { SHIFT_ENTER_SEQUENCE } from '../shiftEnterSequence'
+import { BRACKETED_PASTE_START, BRACKETED_PASTE_END } from '@/lib/sendSelectionToAssistant'
 
 beforeEach(() => {
   ;(global as any).window.api = {
@@ -14,7 +15,7 @@ beforeEach(() => {
     onAssistantData: vi.fn(() => () => {}),
   }
   useFileStore.setState({ projectRoot: '/project' })
-  useClaudeStore.setState({ assistant: 'claude', restartToken: 0 })
+  useClaudeStore.setState({ assistant: 'claude', restartToken: 0, pendingInjection: null, focusToken: 0 })
 })
 
 afterEach(() => {
@@ -65,5 +66,37 @@ describe('Chat (claude terminal)', () => {
     expect(event.defaultPrevented).toBe(false)
     const writeMock = (window.api as any).assistantWrite as ReturnType<typeof vi.fn>
     expect(writeMock).not.toHaveBeenCalledWith('claude', SHIFT_ENTER_SEQUENCE)
+  })
+
+  it('writes a bracketed-paste-wrapped injection to the active assistant and focuses the terminal', async () => {
+    const { container } = render(<Chat />)
+    await waitFor(() => {
+      if (!container.querySelector('.xterm-helper-textarea')) throw new Error('xterm helper textarea not mounted yet')
+    })
+
+    act(() => {
+      useClaudeStore.getState().sendSelection('In src/foo.ts (line 1):\n```ts\ncode\n```')
+    })
+
+    const writeMock = (window.api as any).assistantWrite as ReturnType<typeof vi.fn>
+    expect(writeMock).toHaveBeenCalledWith(
+      'claude',
+      `${BRACKETED_PASTE_START}In src/foo.ts (line 1):\n\`\`\`ts\ncode\n\`\`\`${BRACKETED_PASTE_END}`
+    )
+    expect(useClaudeStore.getState().pendingInjection).toBeNull()
+  })
+
+  it('does not write anything for a bare focusChat() with no pending injection', async () => {
+    const { container } = render(<Chat />)
+    await waitFor(() => {
+      if (!container.querySelector('.xterm-helper-textarea')) throw new Error('xterm helper textarea not mounted yet')
+    })
+
+    act(() => {
+      useClaudeStore.getState().focusChat()
+    })
+
+    const writeMock = (window.api as any).assistantWrite as ReturnType<typeof vi.fn>
+    expect(writeMock).not.toHaveBeenCalled()
   })
 })

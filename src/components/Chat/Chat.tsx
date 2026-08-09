@@ -9,6 +9,7 @@ import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { CosmosChat } from './CosmosChat'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
+import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -38,6 +39,7 @@ function createXTerm(themeId: ThemeId): XTerm {
 export function Chat() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const assistant = useClaudeStore((s) => s.assistant)
+  const focusToken = useClaudeStore((s) => s.focusToken)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
   const fontSize = useFontSizeStore((s) => s.fontSize)
@@ -46,6 +48,7 @@ export function Chat() {
   const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
   const activeAssistantRef = useRef<AssistantKind>(assistant)
   const isFirstRestart = useRef(true)
+  const seenFocusTokenRef = useRef(focusToken)
 
   useEffect(() => {
     activeAssistantRef.current = assistant
@@ -116,6 +119,24 @@ export function Chat() {
       }
     })
   }, [projectRoot, assistant])
+
+  useEffect(() => {
+    if (assistant === 'cosmos') return
+    const terminal = terminalsRef.current[assistant]
+    if (!terminal) return
+
+    const injection = useClaudeStore.getState().pendingInjection
+    if (injection) {
+      window.api.assistantWrite(assistant, wrapBracketedPaste(injection))
+      useClaudeStore.getState().consumeInjection()
+      seenFocusTokenRef.current = focusToken
+      terminal.xterm.focus()
+      return
+    }
+    if (focusToken === seenFocusTokenRef.current) return
+    seenFocusTokenRef.current = focusToken
+    terminal.xterm.focus()
+  }, [focusToken, assistant])
 
   useEffect(() => {
     Object.values(terminalsRef.current).forEach((terminal) => {
