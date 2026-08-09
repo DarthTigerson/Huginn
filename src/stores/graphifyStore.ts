@@ -25,8 +25,12 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
 
   checkAvailable: async () => {
     set({ checking: true })
-    const available = await window.api.graphifyIsAvailable()
-    set({ available, checking: false })
+    try {
+      const available = await window.api.graphifyIsAvailable()
+      set({ available, checking: false })
+    } catch {
+      set({ checking: false })
+    }
   },
 
   run: async (cwd) => {
@@ -50,7 +54,13 @@ export const useGraphifyStore = create<GraphifyStore>((set, get) => ({
       }
     })
 
-    await window.api.graphifyRun(id, cwd)
+    try {
+      await window.api.graphifyRun(id, cwd)
+    } catch (err) {
+      cleanupData()
+      cleanupExit()
+      set({ running: false, error: err instanceof Error ? err.message : String(err) })
+    }
   },
 
   loadGraph: async (cwd) => {

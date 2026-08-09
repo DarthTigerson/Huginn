@@ -17,14 +17,22 @@ const sampleGraph: GraphifyGraph = {
 
 let dataHandler: ((id: string, data: string) => void) | null = null
 let exitHandler: ((id: string, code: number) => void) | null = null
+let onGraphifyDataCleanup: ReturnType<typeof vi.fn>
+let onGraphifyExitCleanup: ReturnType<typeof vi.fn>
 
 vi.stubGlobal('window', {
   api: {
     graphifyIsAvailable: vi.fn().mockResolvedValue(true),
     graphifyRun: vi.fn().mockResolvedValue(undefined),
     graphifyReadGraph: vi.fn().mockResolvedValue(sampleGraph),
-    onGraphifyData: vi.fn((cb) => { dataHandler = cb; return () => { dataHandler = null } }),
-    onGraphifyExit: vi.fn((cb) => { exitHandler = cb; return () => { exitHandler = null } }),
+    onGraphifyData: vi.fn((cb) => {
+      dataHandler = cb
+      return onGraphifyDataCleanup
+    }),
+    onGraphifyExit: vi.fn((cb) => {
+      exitHandler = cb
+      return onGraphifyExitCleanup
+    }),
   },
 })
 vi.stubGlobal('crypto', { randomUUID: () => 'fixed-id' })
@@ -34,6 +42,8 @@ describe('graphifyStore', () => {
     vi.clearAllMocks()
     dataHandler = null
     exitHandler = null
+    onGraphifyDataCleanup = vi.fn()
+    onGraphifyExitCleanup = vi.fn()
     useGraphifyStore.setState({
       available: null, checking: false, running: false, progress: '', error: null,
       graph: null, loadingGraph: false,
@@ -72,10 +82,38 @@ describe('graphifyStore', () => {
   })
 
   it('a second run while one is in flight is a no-op', async () => {
+    const runPromise1 = useGraphifyStore.getState().run('/project')
+    const stateAfterFirst = useGraphifyStore.getState()
+
     void useGraphifyStore.getState().run('/project')
-    void useGraphifyStore.getState().run('/project')
+    const stateAfterSecond = useGraphifyStore.getState()
 
     expect(window.api.graphifyRun).toHaveBeenCalledTimes(1)
+    // Verify second call didn't reset progress, error, or double-subscribe
+    expect(stateAfterSecond.progress).toBe(stateAfterFirst.progress)
+    expect(stateAfterSecond.error).toBe(stateAfterFirst.error)
+    expect(window.api.onGraphifyData).toHaveBeenCalledTimes(1)
+    expect(window.api.onGraphifyExit).toHaveBeenCalledTimes(1)
+  })
+
+  it('run cleans up and sets error on graphifyRun rejection', async () => {
+    ;(window.api.graphifyRun as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('process failed'))
+    const runPromise = useGraphifyStore.getState().run('/project')
+
+    await runPromise
+
+    expect(useGraphifyStore.getState().running).toBe(false)
+    expect(useGraphifyStore.getState().error).toContain('process failed')
+    expect(onGraphifyDataCleanup).toHaveBeenCalled()
+    expect(onGraphifyExitCleanup).toHaveBeenCalled()
+    expect(window.api.graphifyReadGraph).not.toHaveBeenCalled()
+  })
+
+  it('checkAvailable sets checking to false on error', async () => {
+    ;(window.api.graphifyIsAvailable as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('unavailable'))
+    await useGraphifyStore.getState().checkAvailable()
+
+    expect(useGraphifyStore.getState().checking).toBe(false)
   })
 
   it('loadGraph clears graph to null on failure', async () => {
