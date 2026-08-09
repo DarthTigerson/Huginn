@@ -223,11 +223,18 @@ export function GitIcon({ className }: { className?: string } = {}) {
   )
 }
 
-export function AutocompleteIcon({ crossedOut, className }: { crossedOut: boolean; className?: string }) {
+export function AutocompleteIcon({ crossedOut, busy, className }: { crossedOut: boolean; busy?: boolean; className?: string }) {
   return (
     <svg className={className} width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M11 4h2v16h-2z" fill="currentColor" />
-      <path d="M15 9c2 0 3.5 1.3 3.5 3s-1.5 3-3.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="1 3" />
+      <path
+        d="M15 9c2 0 3.5 1.3 3.5 3s-1.5 3-3.5 3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeDasharray="1 3"
+        className={busy ? 'autocomplete-busy-arc' : undefined}
+      />
       {crossedOut && <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />}
     </svg>
   )

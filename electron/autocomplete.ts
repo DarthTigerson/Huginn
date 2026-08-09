@@ -46,7 +46,7 @@ export function postProcessCompletion(raw: string): string | null {
 
 import { BrowserWindow, ipcMain } from 'electron'
 import { execFile, spawn, type ChildProcessByStdio } from 'child_process'
-import type { Readable } from 'stream'
+import type { Readable, Writable } from 'stream'
 
 const TIMEOUT_MS = 15000
 
@@ -120,7 +120,7 @@ export function _resetClaudePathCacheForTesting(): void {
 }
 
 export class AutocompleteManager {
-  private currentByWindow = new Map<number, ChildProcessByStdio<null, Readable, Readable>>()
+  private currentByWindow = new Map<number, ChildProcessByStdio<Writable, Readable, Readable>>()
 
   registerHandlers(): void {
     resolveClaudePath()
@@ -171,8 +171,14 @@ export class AutocompleteManager {
             '--setting-sources', '',
             '--system-prompt', buildSystemPrompt(),
           ],
-          { stdio: ['ignore', 'pipe', 'pipe'] }
+          // stdin must be a real pipe that's explicitly closed, not 'ignore'.
+          // The CLI blocks waiting to see whether stdin has data; 'ignore'
+          // never delivers the EOF it's watching for, so the process hangs
+          // past the 15s timeout above on every single request instead of
+          // ever completing.
+          { stdio: ['pipe', 'pipe', 'pipe'] }
         )
+        proc.stdin.end()
 
         this.currentByWindow.set(windowId, proc)
 
