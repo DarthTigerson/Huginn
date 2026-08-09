@@ -22,3 +22,6 @@ ToDo.md
 
 # graphify writes its build output straight into the analyzed project root
 graphify-out/
+
+.box/mounts.json
+.box/deps/

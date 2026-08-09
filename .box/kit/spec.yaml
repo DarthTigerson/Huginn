@@ -1,0 +1,13 @@
+# A starting point rather than a finished policy: the agent's own API calls,
+# and nothing else. Add a host for every dependency the project's checks fetch, or mount a warmed
+# cache and keep them offline. Whatever is missing here is a 403 in the sandbox, not a bug.
+schemaVersion: "2"
+kind: mixin
+name: huginn-network-policy
+displayName: huginn network policy
+description: The agent's own API calls and nothing else
+
+caps:
+  network:
+    allow:
+      - api.anthropic.com:443

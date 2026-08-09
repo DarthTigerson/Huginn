@@ -1,0 +1,18 @@
+{
+  "name": "huginn",
+  "memory": "4g",
+  "cpus": "4",
+  "root_size": "10g",
+  "docker_size": "10g",
+  "model": "claude-opus-5",
+  "prompt_file": "docs/sandbox.md",
+  "kit": ".box/kit",
+  "required_mounts": {
+    "node_toolchain": "a Linux Node install for this machine's architecture, at the version in .nvmrc -- a macOS build will not run in the sandbox",
+    "npm_cache": "the npm cache directory, what `npm config get cache` prints",
+    "electron_cache": "the Electron download cache electron's postinstall reads from, what `~/.cache/electron` holds once `npm ci` has fetched Electron on the host",
+    "node_gyp_cache": "node-gyp's Node headers cache, what `~/.cache/node-gyp` holds once a native module has built against this Node version on the host",
+    "electron_gyp_cache": "node-gyp's Electron headers cache used by `@electron/rebuild`, what `~/.electron-gyp` holds once `npm run rebuild` has run on the host",
+    "gcc_toolchain": "a portable x86_64 glibc GCC toolchain for building node-pty's native addon -- the sandbox image ships no compiler and no apt mirror is reachable; see docs/sandbox.md for how it was fetched into .box/deps/"
+  }
+}
