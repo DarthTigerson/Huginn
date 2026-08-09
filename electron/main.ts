@@ -358,7 +358,7 @@ async function buildMenu(): Promise<void> {
           },
         },
         {
-          label: 'Toggle Claude Chat',
+          label: 'Show Claude Chat',
           accelerator: 'CmdOrCtrl+L',
           click: () => {
             const win = BrowserWindow.getFocusedWindow()

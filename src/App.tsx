@@ -321,7 +321,7 @@ export default function App() {
 
   useEffect(() => {
     return window.api.onMenuToggleClaudeChat(() => {
-      useClaudeStore.getState().toggleChatVisible()
+      useClaudeStore.getState().focusChat()
     })
   }, [])
 
