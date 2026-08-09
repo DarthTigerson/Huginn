@@ -82,6 +82,7 @@ describe('postProcessCompletion', () => {
 function fakeProc() {
   const proc: any = new EventEmitter()
   proc.stdout = new EventEmitter()
+  proc.stdin = { end: vi.fn() }
   proc.kill = vi.fn(() => proc.emit('close', 1))
   return proc
 }
@@ -215,6 +216,25 @@ describe('AutocompleteManager autocomplete:complete', () => {
     // Guards the single most consequence-heavy constraint in this feature:
     // passing --bare would silently break the user's subscription OAuth.
     expect(args).not.toContain('--bare')
+  })
+
+  it('opens stdin as a real pipe and closes it immediately, rather than ignoring it', async () => {
+    const { handler } = setup()
+    const proc = fakeProc()
+    spawnMock.mockReturnValueOnce(proc)
+
+    const promise = handler({ sender: fakeWin(1) }, 'a', '', 'typescript', 'claude-haiku-4-5-20251001')
+    await flushMicrotasks()
+    proc.emit('close', 0)
+    await promise
+
+    // Regression guard: stdio[0] === 'ignore' leaves the CLI waiting forever
+    // for stdin to either produce data or signal EOF, so every request hangs
+    // until the 15s timeout kills it instead of ever completing. A real pipe
+    // that we close ourselves gives it the EOF it's watching for.
+    const options = spawnMock.mock.calls[0][2]
+    expect(options.stdio[0]).toBe('pipe')
+    expect(proc.stdin.end).toHaveBeenCalled()
   })
 
   it('resolves null on non-zero exit', async () => {
