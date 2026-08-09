@@ -7,6 +7,7 @@ import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { GitWatcher } from './gitWatcher'
 import { MobileServer } from './mobile'
+import { UsageManager } from './usageManager'
 import { CosmosManager } from './cosmos'
 import { AutocompleteManager } from './autocomplete'
 import { InlineEditManager } from './inlineEdit'
@@ -468,13 +469,13 @@ app.whenReady().then(() => {
   buildMenu()
   createWindow()
 
-  // MobileServer (deliberately left untouched — an app-wide singleton per the
-  // spec, not per-window) pushes 'mobile:state' events to whatever `win` it
-  // was constructed with. With multiple real windows there's no single
-  // correct target — its state is account-level (pairing PIN, usage stats),
-  // not tied to any one project — so give it a fake win-shaped object whose
+  // MobileServer and UsageManager (deliberately left untouched — app-wide
+  // singletons per the spec, not per-window) push events to whatever `win`
+  // they were constructed with. With multiple real windows there's no single
+  // correct target — their state is account-level (pairing PIN, usage stats),
+  // not tied to any one project — so give them a fake win-shaped object whose
   // webContents.send() broadcasts to every currently-open window instead.
-  const mobileSrv = new MobileServer({
+  const broadcastWin = {
     webContents: {
       send: (...args: unknown[]) => {
         for (const w of windows.values()) {
@@ -482,7 +483,17 @@ app.whenReady().then(() => {
         }
       },
     },
-  } as unknown as BrowserWindow)
+  } as unknown as BrowserWindow
+
+  const usageMgr = new UsageManager(
+    join(app.getPath('userData'), 'usage-history.jsonl'),
+    join(app.getPath('userData'), 'usage-settings.json'),
+    join(app.getPath('userData'), 'usage-passive-settings.json'),
+    broadcastWin
+  )
+  usageMgr.registerHandlers()
+
+  const mobileSrv = new MobileServer(broadcastWin, usageMgr)
   mobileSrv.registerHandlers()
 
   app.on('activate', () => {

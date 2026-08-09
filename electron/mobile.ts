@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import QRCode from 'qrcode'
-import { UsagePoller } from './usagePoller'
+import { UsageManager } from './usageManager'
 
 export interface MobileState {
   running: boolean
@@ -83,10 +83,6 @@ const BASE_PORT = 7842
 export class MobileServer {
   private win: BrowserWindow
   private server: Server | null = null
-  private poller = new UsagePoller(
-    join(app.getPath('userData'), 'usage-history.jsonl'),
-    join(app.getPath('userData'), 'usage-settings.json')
-  )
   private port = BASE_PORT
   private pin = ''
   private prevPin = ''
@@ -104,7 +100,7 @@ export class MobileServer {
     allowingNewDevice: true,
   }
 
-  constructor(win: BrowserWindow) {
+  constructor(win: BrowserWindow, private readonly usageManager: UsageManager) {
     this.win = win
   }
 
@@ -206,9 +202,9 @@ export class MobileServer {
     if (req.method === 'GET' && path === '/api/usage') {
       const range = url.searchParams.get('range') ?? '24h'
       const rangeMs = USAGE_RANGE_MS[range] ?? USAGE_RANGE_MS['24h']
-      const snapshots = this.poller.getRange(Date.now() - rangeMs, Date.now())
+      const snapshots = this.usageManager.poller.getRange(Date.now() - rangeMs, Date.now())
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ snapshots, latest: this.poller.getLatest() }))
+      res.end(JSON.stringify({ snapshots, latest: this.usageManager.poller.getLatest() }))
       return
     }
 
@@ -218,9 +214,9 @@ export class MobileServer {
       req.on('end', () => {
         let ms: number | undefined
         try { ms = JSON.parse(body).ms } catch { /* invalid body — ms stays undefined */ }
-        const ok = typeof ms === 'number' && this.poller.setIntervalMs(ms)
+        const ok = typeof ms === 'number' && this.usageManager.poller.setIntervalMs(ms)
         res.writeHead(ok ? 200 : 400, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ ok, intervalMs: this.poller.getIntervalMs() }))
+        res.end(JSON.stringify({ ok, intervalMs: this.usageManager.poller.getIntervalMs() }))
       })
       return
     }
@@ -231,7 +227,7 @@ export class MobileServer {
         connectedCount: this.sessions.size,
         theme: this.currentTheme,
         font: this.currentFont,
-        pollIntervalMs: this.poller.getIntervalMs(),
+        pollIntervalMs: this.usageManager.poller.getIntervalMs(),
       }))
       return
     }
@@ -280,7 +276,7 @@ export class MobileServer {
     })
 
     this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
-    this.poller.start()
+    this.usageManager.acquire('mobile')
 
     this.state = { running: true, port: this.port, localIp, pin: this.pin, qrSvg, connectedCount: 0, allowingNewDevice: true }
     this.pushState()
@@ -288,7 +284,7 @@ export class MobileServer {
 
   stop(): void {
     if (this.rotateInterval) { clearInterval(this.rotateInterval); this.rotateInterval = null }
-    this.poller.stop()
+    this.usageManager.release('mobile')
     this.server?.close()
     this.server = null
     this.sessions.clear()

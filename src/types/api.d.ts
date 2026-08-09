@@ -1,6 +1,9 @@
 import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
+import type { LatestUsage } from '../../electron/usagePoller'
+
+export type { LatestUsage }
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -131,6 +134,13 @@ declare global {
       mobileAddDevice: () => Promise<void>
       mobileSetDisplay: (theme: string, font: string) => void
       onMobileState: (cb: (state: MobileState) => void) => () => void
+
+      usageAcquire: () => Promise<void>
+      usageRelease: () => Promise<void>
+      usageGetLatest: () => Promise<LatestUsage | null>
+      usageGetPassiveEnabled: () => Promise<boolean>
+      usageSetPassiveEnabled: (enabled: boolean) => Promise<void>
+      onUsageUpdate: (cb: (latest: LatestUsage | null) => void) => () => void
 
       cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void
       cosmosApprove: (toolCallId: string) => void

@@ -1,11 +1,23 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { ModelsSettingsPage } from '../ModelsSettingsPage'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
+import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
+
+function baseWindowApi() {
+  return {
+    usageGetPassiveEnabled: vi.fn().mockResolvedValue(false),
+    usageSetPassiveEnabled: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
+beforeEach(() => {
+  ;(global as any).window.api = baseWindowApi()
+})
 
 afterEach(() => {
   cleanup()
@@ -13,6 +25,7 @@ afterEach(() => {
   useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
   useCosmosSettingsStore.setState({ endpoint: '', apiKey: '', modelId: '' })
   useInlineEditSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5' })
+  useUsagePassiveSettingsStore.setState({ enabled: false, initialized: false })
 })
 
 describe('ModelsSettingsPage assistants section', () => {
@@ -58,7 +71,7 @@ describe('ModelsSettingsPage cosmos section', () => {
   })
 
   it('shows a success message when the test connection succeeds', async () => {
-    ;(global as any).window.api = { cosmosTestConnection: vi.fn().mockResolvedValue({ ok: true }) }
+    ;(global as any).window.api = { ...baseWindowApi(), cosmosTestConnection: vi.fn().mockResolvedValue({ ok: true }) }
     render(<ModelsSettingsPage />)
 
     fireEvent.click(screen.getByText('Test Connection'))
@@ -67,7 +80,7 @@ describe('ModelsSettingsPage cosmos section', () => {
   })
 
   it('shows an error message when the test connection fails', async () => {
-    ;(global as any).window.api = { cosmosTestConnection: vi.fn().mockResolvedValue({ ok: false, error: 'HTTP 401' }) }
+    ;(global as any).window.api = { ...baseWindowApi(), cosmosTestConnection: vi.fn().mockResolvedValue({ ok: false, error: 'HTTP 401' }) }
     render(<ModelsSettingsPage />)
 
     fireEvent.click(screen.getByText('Test Connection'))
@@ -125,5 +138,25 @@ describe('ModelsSettingsPage inline edit section', () => {
     render(<ModelsSettingsPage />)
     fireEvent.change(screen.getByLabelText('Inline Edit Model'), { target: { value: 'claude-haiku-4-5-20251001' } })
     expect(useInlineEditSettingsStore.getState().model).toBe('claude-haiku-4-5-20251001')
+  })
+})
+
+describe('ModelsSettingsPage usage monitoring section', () => {
+  it('reflects the persisted passive-monitoring setting on load', async () => {
+    ;(global as any).window.api = { ...baseWindowApi(), usageGetPassiveEnabled: vi.fn().mockResolvedValue(true) }
+    render(<ModelsSettingsPage />)
+    await waitFor(() =>
+      expect(screen.getByRole('switch', { name: 'Passive usage monitoring' })).toHaveAttribute('aria-checked', 'true')
+    )
+  })
+
+  it('toggles passive monitoring on click and persists it via IPC', async () => {
+    render(<ModelsSettingsPage />)
+    await waitFor(() => expect(window.api.usageGetPassiveEnabled).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Passive usage monitoring' }))
+
+    expect(useUsagePassiveSettingsStore.getState().enabled).toBe(true)
+    expect(window.api.usageSetPassiveEnabled).toHaveBeenCalledWith(true)
   })
 })

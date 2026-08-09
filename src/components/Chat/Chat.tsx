@@ -8,6 +8,7 @@ import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { CosmosChat } from './CosmosChat'
+import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
 import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
 import type { AssistantKind } from '@/types/api'
@@ -39,6 +40,7 @@ function createXTerm(themeId: ThemeId): XTerm {
 export function Chat() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const assistant = useClaudeStore((s) => s.assistant)
+  const usageOpen = useClaudeStore((s) => s.usageOpen)
   const focusToken = useClaudeStore((s) => s.focusToken)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
@@ -233,6 +235,7 @@ export function Chat() {
           </p>
         </div>
       )}
+      {assistant === 'claude' && usageOpen && <UsagePanel />}
     </div>
   )
 }

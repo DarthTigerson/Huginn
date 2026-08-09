@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useAutocompleteSettingsStore, AUTOCOMPLETE_MODELS } from '@/stores/autocompleteSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
+import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
 import type { AssistantKind } from '@/types/api'
 
@@ -81,6 +82,12 @@ export function ModelsSettingsPage() {
   const setInlineEditEnabled = useInlineEditSettingsStore((s) => s.setEnabled)
   const inlineEditModel = useInlineEditSettingsStore((s) => s.model)
   const setInlineEditModel = useInlineEditSettingsStore((s) => s.setModel)
+  const passiveUsageEnabled = useUsagePassiveSettingsStore((s) => s.enabled)
+  const setPassiveUsageEnabled = useUsagePassiveSettingsStore((s) => s.setEnabled)
+
+  useEffect(() => {
+    useUsagePassiveSettingsStore.getState().init()
+  }, [])
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -168,6 +175,19 @@ export function ModelsSettingsPage() {
               </span>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+            Usage Monitoring
+          </h2>
+
+          <Toggle
+            label="Passive usage monitoring"
+            description="Track Claude Code usage continuously in the background, even when the usage panel and mobile display are closed. Off by default — usage is otherwise only tracked while one of those is open."
+            checked={passiveUsageEnabled}
+            onChange={setPassiveUsageEnabled}
+          />
         </section>
       </div>
     </div>

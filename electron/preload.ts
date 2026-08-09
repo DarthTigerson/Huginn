@@ -88,6 +88,17 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('mobile:state', handler)
   },
 
+  usageAcquire: () => ipcRenderer.invoke('usage:acquire'),
+  usageRelease: () => ipcRenderer.invoke('usage:release'),
+  usageGetLatest: () => ipcRenderer.invoke('usage:getLatest'),
+  usageGetPassiveEnabled: () => ipcRenderer.invoke('usage:getPassiveEnabled'),
+  usageSetPassiveEnabled: (enabled: boolean) => ipcRenderer.invoke('usage:setPassiveEnabled', enabled),
+  onUsageUpdate: (cb: (latest: import('./usagePoller').LatestUsage | null) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, latest: import('./usagePoller').LatestUsage | null) => cb(latest)
+    ipcRenderer.on('usage:update', handler)
+    return () => ipcRenderer.removeListener('usage:update', handler)
+  },
+
   cosmosSend: (cwd: string, messages: unknown[], agentMode: boolean, settings: unknown) =>
     ipcRenderer.send('cosmos:send', { cwd, messages, agentMode, settings }),
   cosmosApprove: (toolCallId: string) => ipcRenderer.send('cosmos:approve', toolCallId),

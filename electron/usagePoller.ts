@@ -131,7 +131,11 @@ export class UsagePoller {
   private intervalMs = DEFAULT_INTERVAL_MS
   private readonly shell = process.env.SHELL ?? '/bin/zsh'
 
-  constructor(private readonly historyFile: string, private readonly settingsFile: string) {
+  constructor(
+    private readonly historyFile: string,
+    private readonly settingsFile: string,
+    private readonly onSnapshot?: (snapshot: UsageSnapshot) => void
+  ) {
     this.loadSettings()
   }
 
@@ -182,6 +186,7 @@ export class UsagePoller {
       } catch (e) {
         console.error('UsagePoller history write failed:', e)
       }
+      this.onSnapshot?.(snapshot)
     } catch (e) {
       console.error('UsagePoller poll failed:', e)
     }

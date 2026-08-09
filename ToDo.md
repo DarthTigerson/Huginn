@@ -1,11 +1,8 @@
 Next changes
-- in mobile panel we need a drop down to select which network we are pairing with (sometimes at work we have ethernet and wifi)
-- in mobile panel we should add copy feature to make it easier to transfer between apple devices
-- add disconect mobile device to mobile panel
-- by default have only claude enabled
-- add command + K function to open quick question panel (ensure that this only works with highlited lines)
-- add command + L function to send highlighted code to claude or to jump to claude's panel
-- settings page alignment
+- implement new usage monitoring to calude
+- increase default side panel width (on first load)
+- update "help modal" to include new shortcuts
+- open source and launch v0.1.0 (inludes readme)
 
 
 Future
@@ -16,3 +13,7 @@ Future
 - update electron with proper name and icon and toolbar options (like recent repos, open terminal zooming, display reset. settings and preferences and so on)
 - add passive sessions and weekly in claude panel
 - add switch branch option
+- in mobile panel we need a drop down to select which network we are pairing with (sometimes at work we have ethernet and wifi)
+- in mobile panel we should add copy feature to make it easier to transfer between apple devices
+- add disconect mobile device to mobile panel
+- add control + r functionality to add the ability to swap or open new repos on the fly

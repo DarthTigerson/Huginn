@@ -77,13 +77,7 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   },
   usage: () => {
     if (get().assistant !== 'claude') return
-    if (get().usageOpen) {
-      window.api.assistantWrite('claude', '\x1b')
-      set({ usageOpen: false })
-    } else {
-      window.api.assistantWrite('claude', '/usage\r')
-      set({ usageOpen: true })
-    }
+    set((s) => ({ usageOpen: !s.usageOpen }))
   },
   model: () => window.api.assistantWrite('codex', '/model\r'),
   fast: () => window.api.assistantWrite('codex', '/fast\r'),

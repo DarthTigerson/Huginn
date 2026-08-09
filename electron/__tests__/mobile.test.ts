@@ -20,9 +20,21 @@ vi.mock('electron', () => ({
 }))
 
 import { MobileServer } from '../mobile'
+import { UsageManager } from '../usageManager'
+import { join } from 'path'
 
 function fakeWin() {
   return { webContents: { send: vi.fn() } } as any
+}
+
+function newServer(): MobileServer {
+  const usageManager = new UsageManager(
+    join(userDataDir, 'usage-history.jsonl'),
+    join(userDataDir, 'usage-settings.json'),
+    join(userDataDir, 'usage-passive-settings.json'),
+    fakeWin()
+  )
+  return new MobileServer(fakeWin(), usageManager)
 }
 
 function authenticate(port: number, pin: string): Promise<string> {
@@ -80,7 +92,7 @@ describe('MobileServer display sync', () => {
   })
 
   async function startAndAuth(): Promise<string> {
-    server = new MobileServer(fakeWin())
+    server = newServer()
     await server.start()
     return authenticate(server['port'], server['pin'])
   }
@@ -101,7 +113,7 @@ describe('MobileServer display sync', () => {
   })
 
   it('wires mobile:setDisplay through ipcMain.on', async () => {
-    server = new MobileServer(fakeWin())
+    server = newServer()
     server.registerHandlers()
     await server.start()
     const cookie = await authenticate(server['port'], server['pin'])
@@ -112,7 +124,7 @@ describe('MobileServer display sync', () => {
   })
 
   it('renders pages with the theme substituted and no leftover placeholders', async () => {
-    server = new MobileServer(fakeWin())
+    server = newServer()
     await server.start()
     server.setDisplay('thomas-dark', 'Menlo, monospace')
 
@@ -131,7 +143,7 @@ describe('MobileServer display sync', () => {
   })
 
   it('serves mobile-assets with correct content types', async () => {
-    server = new MobileServer(fakeWin())
+    server = newServer()
     await server.start()
     const css = await fetchText(server['port'], '/mobile-assets/style.css')
     expect(css).toContain('[data-theme="claude-dark"]')
