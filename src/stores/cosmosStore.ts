@@ -79,6 +79,7 @@ interface CosmosStore {
   showSessionPicker: boolean
   agentMode: boolean
   streaming: boolean
+  draftInput: string
   sendMessage: (cwd: string, text: string) => void
   regenerate: (cwd: string, messageIndex: number) => void
   newSession: () => void
@@ -90,6 +91,8 @@ interface CosmosStore {
   rejectToolCall: (id: string) => void
   cancel: () => void
   initEventListener: () => () => void
+  setDraftInput: (text: string) => void
+  appendDraftInput: (text: string) => void
 }
 
 const _saved = loadCurrentSession()
@@ -102,6 +105,7 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
   showSessionPicker: false,
   agentMode: getAgentMode(),
   streaming: false,
+  draftInput: '',
 
   sendMessage: (cwd, text) => {
     const userMessage: CosmosChatMessage = { role: 'user', content: text }
@@ -176,6 +180,10 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
       handleEvent(event, set, get)
     })
   },
+
+  setDraftInput: (text) => set({ draftInput: text }),
+  appendDraftInput: (text) =>
+    set((s) => ({ draftInput: s.draftInput ? `${s.draftInput}\n${text}` : text })),
 }))
 
 function ensureAssistantMessage(messages: CosmosChatMessage[]): CosmosChatMessage[] {

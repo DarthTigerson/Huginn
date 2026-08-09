@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useCosmosStore, type CosmosToolCallBlock } from '@/stores/cosmosStore'
+import { useClaudeStore } from '@/stores/claudeStore'
 import { useCosmosAgentModeShortcut } from './useCosmosAgentModeShortcut'
 
 function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
@@ -106,12 +107,26 @@ export function CosmosChat({ cwd }: { cwd: string }) {
   const regenerate = useCosmosStore((s) => s.regenerate)
   const toggleAgentMode = useCosmosStore((s) => s.toggleAgentMode)
   const cancel = useCosmosStore((s) => s.cancel)
-  const [input, setInput] = useState('')
+  const input = useCosmosStore((s) => s.draftInput)
+  const setInput = useCosmosStore((s) => s.setDraftInput)
+  const appendDraftInput = useCosmosStore((s) => s.appendDraftInput)
+  const focusToken = useClaudeStore((s) => s.focusToken)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
   }, [messages])
+
+  useEffect(() => {
+    if (focusToken === 0) return
+    const injection = useClaudeStore.getState().pendingInjection
+    if (injection) {
+      appendDraftInput(injection)
+      useClaudeStore.getState().consumeInjection()
+    }
+    textareaRef.current?.focus()
+  }, [focusToken, appendDraftInput])
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -167,6 +182,7 @@ export function CosmosChat({ cwd }: { cwd: string }) {
 
       <form onSubmit={onSubmit} className="border-t border-border/60 p-2 flex flex-col gap-1.5">
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

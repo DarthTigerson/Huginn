@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { CosmosChat } from '../CosmosChat'
 import { useCosmosStore } from '@/stores/cosmosStore'
+import { useClaudeStore } from '@/stores/claudeStore'
 
 beforeEach(() => {
   ;(global as any).window.api = {
@@ -12,7 +13,8 @@ beforeEach(() => {
     cosmosReject: vi.fn(),
     cosmosCancel: vi.fn(),
   }
-  useCosmosStore.setState({ messages: [], previousMessages: [], streaming: false, agentMode: false })
+  useCosmosStore.setState({ messages: [], previousMessages: [], streaming: false, agentMode: false, draftInput: '' })
+  useClaudeStore.setState({ pendingInjection: null, focusToken: 0 })
 })
 
 afterEach(() => cleanup())
@@ -143,5 +145,27 @@ describe('CosmosChat', () => {
     render(<CosmosChat cwd="/project" />)
 
     expect(screen.queryByText(/hello world/)).toBeNull()
+  })
+
+  it('injects a pendingInjection into the draft input and focuses the textarea', () => {
+    useCosmosStore.setState({ draftInput: 'existing question' })
+    useClaudeStore.setState({
+      pendingInjection: 'In src/foo.ts (line 1):\n```ts\ncode\n```',
+      focusToken: 1,
+    })
+
+    render(<CosmosChat cwd="/project" />)
+
+    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    expect(textarea.value).toBe('existing question\nIn src/foo.ts (line 1):\n```ts\ncode\n```')
+    expect(useClaudeStore.getState().pendingInjection).toBeNull()
+    expect(document.activeElement).toBe(textarea)
+  })
+
+  it('does not inject anything when focusToken is still at its initial value', () => {
+    render(<CosmosChat cwd="/project" />)
+
+    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    expect(textarea.value).toBe('')
   })
 })

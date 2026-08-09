@@ -116,4 +116,26 @@ describe('cosmosStore', () => {
     const assistantMsg = messages[messages.length - 1]
     expect(assistantMsg.toolCalls?.[0]).toMatchObject({ id: 'call_1', status: 'done', result: 'Wrote 2 bytes' })
   })
+
+  describe('draft input', () => {
+    beforeEach(() => {
+      useCosmosStore.setState({ draftInput: '' })
+    })
+
+    it('setDraftInput replaces the draft', () => {
+      useCosmosStore.getState().setDraftInput('hello')
+      expect(useCosmosStore.getState().draftInput).toBe('hello')
+    })
+
+    it('appendDraftInput appends onto existing text with a newline separator', () => {
+      useCosmosStore.getState().setDraftInput('question?')
+      useCosmosStore.getState().appendDraftInput('```ts\ncode\n```')
+      expect(useCosmosStore.getState().draftInput).toBe('question?\n```ts\ncode\n```')
+    })
+
+    it('appendDraftInput on an empty draft does not add a leading newline', () => {
+      useCosmosStore.getState().appendDraftInput('```ts\ncode\n```')
+      expect(useCosmosStore.getState().draftInput).toBe('```ts\ncode\n```')
+    })
+  })
 })
