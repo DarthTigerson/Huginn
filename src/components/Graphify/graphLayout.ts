@@ -15,6 +15,18 @@ export interface PositionedLink {
 
 const SIMULATION_TICKS = 300
 
+// Distance a link's endpoints settle at, in px (forceLink).
+const LINK_DISTANCE = 70
+// Repulsion strength between all node pairs, in px (forceManyBody); negative
+// repels. Keeps dense clusters from collapsing into an unreadable blob.
+const CHARGE_STRENGTH = -200
+// Minimum center-to-center spacing forceCollide enforces between nodes, in px.
+const COLLIDE_RADIUS = 18
+// Divisor applied to min(width, height) to get the deterministic seed
+// circle's radius — keeps the initial layout comfortably inside the canvas
+// before the simulation relaxes it.
+const SEED_RADIUS_DIVISOR = 3
+
 export function computeGraphLayout(
   nodes: GraphifyNode[],
   links: GraphifyLink[],
@@ -25,7 +37,7 @@ export function computeGraphLayout(
 
   const simNodes: PositionedNode[] = nodes.map((node, i) => {
     const angle = (2 * Math.PI * i) / nodes.length
-    const radius = Math.min(width, height) / 3
+    const radius = Math.min(width, height) / SEED_RADIUS_DIVISOR
     return {
       ...node,
       x: width / 2 + radius * Math.cos(angle),
@@ -39,10 +51,10 @@ export function computeGraphLayout(
   }))
 
   const simulation = forceSimulation(simNodes)
-    .force('link', forceLink<PositionedNode, SimulationLinkDatum<PositionedNode>>(simLinks).id((d) => d.id).distance(70))
-    .force('charge', forceManyBody().strength(-200))
+    .force('link', forceLink<PositionedNode, SimulationLinkDatum<PositionedNode>>(simLinks).id((d) => d.id).distance(LINK_DISTANCE))
+    .force('charge', forceManyBody().strength(CHARGE_STRENGTH))
     .force('center', forceCenter(width / 2, height / 2))
-    .force('collide', forceCollide(18))
+    .force('collide', forceCollide(COLLIDE_RADIUS))
     .stop()
 
   for (let i = 0; i < SIMULATION_TICKS; i++) simulation.tick()

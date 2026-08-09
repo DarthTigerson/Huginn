@@ -59,8 +59,67 @@ describe('GraphView', () => {
     expect(openTabMock).toHaveBeenCalledWith({ path: '/project/src/main.py', content: 'print("hi")', dirty: false })
   })
 
+  it('clicking a node whose file was moved/deleted does not throw an unhandled rejection', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    ;(window.api.readFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('ENOENT: no such file'))
+
+    render(<GraphView graph={graph} />)
+    fireEvent.click(screen.getByText('main.py'))
+
+    await waitFor(() => expect(consoleWarnSpy).toHaveBeenCalled())
+    expect(openTabMock).not.toHaveBeenCalled()
+
+    consoleWarnSpy.mockRestore()
+  })
+
   it('renders an empty state for a graph with no nodes', () => {
     render(<GraphView graph={{ ...graph, nodes: [], links: [] }} />)
     expect(screen.getByText(/no nodes/i)).toBeInTheDocument()
+  })
+
+  it('sets a finite, non-degenerate viewBox that fits every rendered node, with preserveAspectRatio', () => {
+    const { container } = render(<GraphView graph={graph} />)
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet')
+
+    const viewBox = svg?.getAttribute('viewBox')
+    expect(viewBox).toBeTruthy()
+    const [minX, minY, width, height] = viewBox!.split(' ').map(Number)
+    expect([minX, minY, width, height].every(Number.isFinite)).toBe(true)
+    expect(width).toBeGreaterThan(0)
+    expect(height).toBeGreaterThan(0)
+
+    // Every rendered <g transform="translate(x, y)"> node position must fall
+    // within the viewBox — this is the actual regression check for the bug
+    // (nodes rendered outside a fixed-size, non-scaling SVG canvas).
+    const groups = Array.from(container.querySelectorAll('g'))
+    expect(groups.length).toBeGreaterThan(0)
+    for (const g of groups) {
+      const match = g.getAttribute('transform')?.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/)
+      expect(match).not.toBeNull()
+      const [, xStr, yStr] = match!
+      const x = Number(xStr)
+      const y = Number(yStr)
+      expect(x).toBeGreaterThanOrEqual(minX)
+      expect(x).toBeLessThanOrEqual(minX + width)
+      expect(y).toBeGreaterThanOrEqual(minY)
+      expect(y).toBeLessThanOrEqual(minY + height)
+    }
+  })
+
+  it('gives a single-node graph a non-degenerate (non-zero-size) viewBox', () => {
+    const singleNodeGraph = {
+      ...graph,
+      nodes: [graph.nodes[0]],
+      links: [],
+    }
+    const { container } = render(<GraphView graph={singleNodeGraph} />)
+    const svg = container.querySelector('svg')
+    const viewBox = svg?.getAttribute('viewBox')
+    expect(viewBox).toBeTruthy()
+    const [, , width, height] = viewBox!.split(' ').map(Number)
+    expect(width).toBeGreaterThan(0)
+    expect(height).toBeGreaterThan(0)
   })
 })
