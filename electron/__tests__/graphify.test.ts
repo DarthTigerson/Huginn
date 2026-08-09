@@ -2,10 +2,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventEmitter } from 'events'
 
-const { ipcHandlers, spawnMock, readFileMock } = vi.hoisted(() => ({
+const { ipcHandlers, spawnMock, execFileMock, readFileMock, existsSyncMock } = vi.hoisted(() => ({
   ipcHandlers: {} as Record<string, (...args: any[]) => unknown>,
   spawnMock: vi.fn(),
+  execFileMock: vi.fn(),
   readFileMock: vi.fn(),
+  existsSyncMock: vi.fn(),
 }))
 
 vi.mock('electron', () => ({
@@ -21,14 +23,23 @@ vi.mock('electron', () => ({
 
 vi.mock('child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('child_process')>()
-  return { ...actual, spawn: (...a: unknown[]) => spawnMock(...a) }
+  return {
+    ...actual,
+    spawn: (...a: unknown[]) => spawnMock(...a),
+    execFile: (...a: unknown[]) => execFileMock(...a),
+  }
 })
 
 vi.mock('fs/promises', () => ({
   readFile: (...a: unknown[]) => readFileMock(...a),
 }))
 
-import { GraphifyManager } from '../graphify'
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  return { ...actual, existsSync: (...a: unknown[]) => existsSyncMock(...a) }
+})
+
+import { GraphifyManager, resolveGraphifyPath, _resetGraphifyPathCacheForTesting } from '../graphify'
 
 class FakeChildProcess extends EventEmitter {
   stdout = new EventEmitter()
@@ -39,10 +50,29 @@ function fakeWin(id: number) {
   return { id, isDestroyed: () => false, webContents: { send: vi.fn() } }
 }
 
+// Escapes past the microtask chain created by resolveGraphifyPath's
+// `new Promise` + `.finally()` wrapping, so tests that grab a pending
+// promise without awaiting it (to fire process events afterward) see the
+// path-resolution await inside checkAvailable()/run() actually settle first.
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 describe('GraphifyManager', () => {
   beforeEach(() => {
     spawnMock.mockReset()
+    execFileMock.mockReset()
     readFileMock.mockReset()
+    existsSyncMock.mockReset()
+    _resetGraphifyPathCacheForTesting()
+    // Default: login-shell resolution fails, so callers fall back to the
+    // bare 'graphify' command name — matches this suite's original
+    // expectations for spawnMock's first argument.
+    execFileMock.mockImplementation((_shell: string, _args: string[], cb: (err: Error | null, stdout: string) => void) => {
+      cb(new Error('not found'), '')
+    })
+    // Default: project directory exists.
+    existsSyncMock.mockReturnValue(true)
   })
 
   it('isAvailable resolves true when the process spawns successfully', async () => {
@@ -52,6 +82,7 @@ describe('GraphifyManager', () => {
     spawnMock.mockReturnValue(proc)
 
     const promise = ipcHandlers['graphify:isAvailable']({})
+    await flushMicrotasks()
     proc.emit('spawn')
     await expect(promise).resolves.toBe(true)
     expect(spawnMock).toHaveBeenCalledWith('graphify', ['--help'], expect.any(Object))
@@ -64,8 +95,25 @@ describe('GraphifyManager', () => {
     spawnMock.mockReturnValue(proc)
 
     const promise = ipcHandlers['graphify:isAvailable']({})
+    await flushMicrotasks()
     proc.emit('error', Object.assign(new Error('not found'), { code: 'ENOENT' }))
     await expect(promise).resolves.toBe(false)
+  })
+
+  it('isAvailable spawns the resolved absolute path when login-shell resolution succeeds', async () => {
+    execFileMock.mockImplementation((_shell: string, _args: string[], cb: (err: Error | null, stdout: string) => void) => {
+      cb(null, '/opt/homebrew/bin/graphify\n')
+    })
+    const manager = new GraphifyManager()
+    manager.registerHandlers()
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValue(proc)
+
+    const promise = ipcHandlers['graphify:isAvailable']({})
+    await flushMicrotasks()
+    proc.emit('spawn')
+    await expect(promise).resolves.toBe(true)
+    expect(spawnMock).toHaveBeenCalledWith('/opt/homebrew/bin/graphify', ['--help'], expect.any(Object))
   })
 
   it('run spawns "graphify update <cwd>" and streams stdout as graphify:data', async () => {
@@ -84,6 +132,25 @@ describe('GraphifyManager', () => {
       expect.objectContaining({ cwd: '/project' })
     )
     expect(win.webContents.send).toHaveBeenCalledWith('graphify:data', 'run-1', 'working...')
+  })
+
+  it('run spawns the resolved absolute graphify path when login-shell resolution succeeds', async () => {
+    execFileMock.mockImplementation((_shell: string, _args: string[], cb: (err: Error | null, stdout: string) => void) => {
+      cb(null, '/opt/homebrew/bin/graphify\n')
+    })
+    const manager = new GraphifyManager()
+    manager.registerHandlers()
+    const win = fakeWin(1)
+    const proc = new FakeChildProcess()
+    spawnMock.mockReturnValue(proc)
+
+    await ipcHandlers['graphify:run']({ sender: win }, 'run-1', '/project')
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      '/opt/homebrew/bin/graphify',
+      ['update', '/project'],
+      expect.objectContaining({ cwd: '/project' })
+    )
   })
 
   it('run sends graphify:exit with the process exit code', async () => {
@@ -110,6 +177,28 @@ describe('GraphifyManager', () => {
     proc.emit('error', Object.assign(new Error('not found'), { code: 'ENOENT' }))
 
     expect(win.webContents.send).toHaveBeenCalledWith(
+      'graphify:data',
+      'run-1',
+      expect.stringContaining('uv tool install graphifyy')
+    )
+    expect(win.webContents.send).toHaveBeenCalledWith('graphify:exit', 'run-1', 1)
+  })
+
+  it('run reports a distinct error when cwd does not exist, without spawning or blaming a missing binary', async () => {
+    existsSyncMock.mockReturnValue(false)
+    const manager = new GraphifyManager()
+    manager.registerHandlers()
+    const win = fakeWin(1)
+
+    await ipcHandlers['graphify:run']({ sender: win }, 'run-1', '/deleted-project')
+
+    expect(spawnMock).not.toHaveBeenCalled()
+    expect(win.webContents.send).toHaveBeenCalledWith(
+      'graphify:data',
+      'run-1',
+      expect.stringContaining('/deleted-project')
+    )
+    expect(win.webContents.send).not.toHaveBeenCalledWith(
       'graphify:data',
       'run-1',
       expect.stringContaining('uv tool install graphifyy')
@@ -144,5 +233,41 @@ describe('GraphifyManager', () => {
 
     expect(readFileMock).toHaveBeenCalledWith('/project/graphify-out/graph.json', 'utf-8')
     expect(result).toEqual({ directed: false, multigraph: false, nodes: [], links: [], hyperedges: [] })
+  })
+
+  it('readGraph rejects when the parsed JSON has the wrong shape (nodes/links not arrays)', async () => {
+    const manager = new GraphifyManager()
+    manager.registerHandlers()
+    readFileMock.mockResolvedValue(JSON.stringify({ foo: 'bar' }))
+
+    await expect(ipcHandlers['graphify:readGraph']({}, '/project')).rejects.toThrow()
+  })
+
+  it('readGraph rejects when nodes/links are present but not arrays', async () => {
+    const manager = new GraphifyManager()
+    manager.registerHandlers()
+    readFileMock.mockResolvedValue(JSON.stringify({ nodes: {}, links: {} }))
+
+    await expect(ipcHandlers['graphify:readGraph']({}, '/project')).rejects.toThrow()
+  })
+
+  describe('resolveGraphifyPath', () => {
+    it('caches a successful resolution across calls (only resolves via the login shell once)', async () => {
+      execFileMock.mockImplementation((_shell: string, _args: string[], cb: (err: Error | null, stdout: string) => void) => {
+        cb(null, '/usr/local/bin/graphify\n')
+      })
+
+      const first = await resolveGraphifyPath()
+      const second = await resolveGraphifyPath()
+
+      expect(first).toBe('/usr/local/bin/graphify')
+      expect(second).toBe('/usr/local/bin/graphify')
+      expect(execFileMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('resolves null when the login shell cannot find graphify', async () => {
+      const resolved = await resolveGraphifyPath()
+      expect(resolved).toBeNull()
+    })
   })
 })
