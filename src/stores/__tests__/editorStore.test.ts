@@ -32,6 +32,28 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().activeTabPath).toBe('/a.ts')
   })
 
+  it('openTab focuses the pane already containing the tab, instead of adding it to the active pane too', () => {
+    const store = useEditorStore.getState()
+    store.openTab({ path: '/a.ts', content: '', dirty: false })
+    store.openTab({ path: '/git-log', content: '', dirty: false })
+    store.splitActivePane('vertical')
+    // splitActivePane moved the active tab ('/git-log') into a new pane, which is now active.
+    const newPaneId = useEditorStore.getState().activePaneId
+    expect(newPaneId).not.toBe('pane-1')
+
+    // Simulate the user moving focus back to the original pane, then a git
+    // action (e.g. a second push) re-opening the same tab from there.
+    store.setActivePane('pane-1')
+    store.openTab({ path: '/git-log', content: '', dirty: false })
+
+    const state = useEditorStore.getState()
+    expect(state.paneTabLists['pane-1']).toEqual(['/a.ts'])
+    expect(state.paneTabLists[newPaneId]).toEqual(['/git-log'])
+    expect(state.activePaneId).toBe(newPaneId)
+    expect(state.activeTabPath).toBe('/git-log')
+    expect(state.tabs.filter((t) => t.path === '/git-log')).toHaveLength(1)
+  })
+
   it('closeTab removes the tab and activates the adjacent tab', () => {
     const store = useEditorStore.getState()
     store.openTab({ path: '/a.ts', content: '', dirty: false })
