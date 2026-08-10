@@ -4,6 +4,8 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { GitIcon, AutocompleteIcon } from '@/components/ActivityBar/ActivityBar'
 import { GitActionsMenu } from '@/components/Git/GitActionsMenu'
+import { ConfirmForcePushModal } from '@/components/Git/ConfirmForcePushModal'
+import { useForcePushConfirm } from '@/components/Git/useForcePushConfirm'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
 import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
@@ -18,6 +20,7 @@ export function StatusBar() {
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
   const [gitMenuOpen, setGitMenuOpen] = useState(false)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
   const menuRef = useRef<HTMLDivElement>(null)
   const autocompleteEnabled = useAutocompleteSettingsStore((s) => s.enabled)
   const autocompletePaused = useAutocompleteSessionStore((s) => s.paused)
@@ -77,11 +80,14 @@ export function StatusBar() {
             )}
           </span>
           {gitMenuOpen && (
-            <GitActionsMenu onClose={() => setGitMenuOpen(false)} />
+            <GitActionsMenu onClose={() => setGitMenuOpen(false)} onRequestForce={requestForce} />
           )}
         </div>
       ) : (
         <span />
+      )}
+      {forceAction && projectRoot && (
+        <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
         <div className="relative">

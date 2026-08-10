@@ -34,7 +34,19 @@ export interface GitAheadBehind {
   behind: number
 }
 
-export type GitCommandAction = 'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease'
+export type GitCommandAction = 'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease' | 'checkout'
+
+export interface GitCheckoutPayload {
+  ref: string
+  create: boolean
+  track?: string
+}
+
+export interface GitBranchList {
+  current: string | null
+  local: string[]
+  remote: string[]
+}
 
 export interface GitCommit {
   hash: string

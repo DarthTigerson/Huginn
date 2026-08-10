@@ -7,6 +7,7 @@ const editorStoreMock = vi.hoisted(() => ({
   openTab: vi.fn(),
 }))
 const gitGraphLoadMock = vi.hoisted(() => vi.fn())
+const gitBranchLoadMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/stores/editorStore', () => ({
   useEditorStore: {
@@ -19,6 +20,9 @@ vi.mock('@/stores/editorStore', () => ({
 vi.mock('@/stores/gitLogStore', () => ({ useGitLogStore: { getState: () => ({ append: vi.fn() }) } }))
 vi.mock('@/stores/gitGraphStore', () => ({
   useGitGraphStore: { getState: () => ({ load: gitGraphLoadMock }) },
+}))
+vi.mock('@/stores/gitBranchStore', () => ({
+  useGitBranchStore: { getState: () => ({ load: gitBranchLoadMock }) },
 }))
 
 const emptyStatus: GitStatus = { staged: [], unstaged: [] }
@@ -204,6 +208,7 @@ describe('gitStore — command actions', () => {
       commandStatus: 'idle',
     })
     vi.mocked(window.api.gitRunCommand).mockClear()
+    gitBranchLoadMock.mockClear()
     vi.mocked(window.api.onGitLogData).mockClear()
     vi.mocked(window.api.onGitLogExit).mockClear()
     vi.mocked(window.api.gitBranch).mockClear()
@@ -264,5 +269,45 @@ describe('gitStore — command actions', () => {
     exitCb!('test-uuid', 1)
     expect(useGitStore.getState().commandStatus).toBe('idle')
     expect(window.api.gitBranch).not.toHaveBeenCalled()
+  })
+
+  it('checkout calls gitRunCommand with the checkout action and payload', async () => {
+    const payload = { ref: 'feature-x', create: false }
+    await useGitStore.getState().checkout('/proj', payload)
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'checkout', payload
+    )
+  })
+
+  it('checkout with create+track passes the full payload through', async () => {
+    const payload = { ref: 'feat/x', create: true, track: 'origin/feat/x' }
+    await useGitStore.getState().checkout('/proj', payload)
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'checkout', payload
+    )
+  })
+
+  it('checkout reloads the branch list on successful exit', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
+    await checkoutPromise
+    exitCb!('test-uuid', 0)
+    expect(gitBranchLoadMock).toHaveBeenCalledWith('/proj')
+  })
+
+  it('checkout does NOT reload the branch list on failed exit', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
+    await checkoutPromise
+    exitCb!('test-uuid', 1)
+    expect(gitBranchLoadMock).not.toHaveBeenCalled()
   })
 })
