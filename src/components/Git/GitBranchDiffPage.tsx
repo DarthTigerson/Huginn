@@ -1,28 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import type { GitCommit } from '@/types/index'
+import { normalizeRef, formatExactDate } from './commitFormat'
+import { CommitContextMenu } from './CommitContextMenu'
 
 const ROW_H = 70
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function formatExactDate(iso: string): string {
-  const date = new Date(iso)
-  const yyyy = date.getFullYear()
-  const mm = padDatePart(date.getMonth() + 1)
-  const dd = padDatePart(date.getDate())
-  const hh = padDatePart(date.getHours())
-  const min = padDatePart(date.getMinutes())
-  const ss = padDatePart(date.getSeconds())
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`
-}
-
-function normalizeRef(ref: string): string {
-  return ref.replace('HEAD -> ', '').replace('tag: ', '')
-}
 
 function chooseTarget(branches: string[], source: string): string {
   const preferred = [
@@ -151,10 +135,11 @@ function BranchCombobox({ label, value, options, onChange }: {
   )
 }
 
-function CommitRow({ commit, index, total }: {
+function CommitRow({ commit, index, total, onContextMenu }: {
   commit: GitCommit
   index: number
   total: number
+  onContextMenu: (event: MouseEvent) => void
 }) {
   const refs = commit.refs.slice(0, 3)
   const isFirst = index === 0
@@ -165,6 +150,7 @@ function CommitRow({ commit, index, total }: {
       type="button"
       className="w-full grid grid-cols-[minmax(100px,0.75fr)_160px_minmax(180px,1.2fr)] items-center text-left group hover:bg-white/[0.04] focus:outline-none focus-visible:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#2563eb]/70"
       style={{ minHeight: ROW_H }}
+      onContextMenu={onContextMenu}
     >
       <div className="min-w-0 px-4 justify-self-end">
         {refs.length > 0 && (
@@ -208,6 +194,13 @@ function CommitRow({ commit, index, total }: {
   )
 }
 
+interface RowMenuState {
+  x: number
+  y: number
+  message: string
+  hash: string
+}
+
 export function GitBranchDiffPage() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const currentBranch = useGitStore((s) => s.branch)
@@ -217,6 +210,7 @@ export function GitBranchDiffPage() {
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loadingBranches, setLoadingBranches] = useState(false)
   const [loadingCommits, setLoadingCommits] = useState(false)
+  const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
     if (!projectRoot) return
@@ -329,11 +323,25 @@ export function GitBranchDiffPage() {
                 commit={commit}
                 index={index}
                 total={commits.length}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                }}
               />
             ))}
           </div>
         )}
       </div>
+
+      {rowMenu && (
+        <CommitContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          message={rowMenu.message}
+          hash={rowMenu.hash}
+          onClose={() => setRowMenu(null)}
+        />
+      )}
     </div>
   )
 }

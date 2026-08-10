@@ -1,8 +1,11 @@
-import { useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
+import { normalizeRef, formatExactDate } from './commitFormat'
+import { CommitContextMenu } from './CommitContextMenu'
 
 const ROW_H = 72
 const LANE_W = 40
@@ -43,25 +46,6 @@ function formatRelDate(iso: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}d ago`
   return new Date(iso).toLocaleDateString()
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function formatExactDate(iso: string): string {
-  const date = new Date(iso)
-  const yyyy = date.getFullYear()
-  const mm = padDatePart(date.getMonth() + 1)
-  const dd = padDatePart(date.getDate())
-  const hh = padDatePart(date.getHours())
-  const min = padDatePart(date.getMinutes())
-  const ss = padDatePart(date.getSeconds())
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`
-}
-
-function normalizeRef(ref: string): string {
-  return ref.replace('HEAD -> ', '').replace('tag: ', '')
 }
 
 function refTone(ref: string): string {
@@ -109,13 +93,14 @@ function nodeMeta(
   return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
 }
 
-function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick }: {
+function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick, onContextMenu }: {
   layout: CommitLayout
   rowIndex: number
   selected: boolean
   graphRailWidth: number
   graphLaneCount: number
   onClick: () => void
+  onContextMenu: (event: MouseEvent) => void
 }) {
   const { commit, lane, color, edges } = layout
   const svgW = graphRailWidth
@@ -141,6 +126,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
           : 'border-l-transparent hover:bg-white/[0.04]',
       ].join(' ')}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       aria-pressed={selected}
     >
       <div className="min-w-0 px-4 justify-self-end">
@@ -353,6 +339,13 @@ function DetailPanel({ cwd, hash, onClose }: {
   )
 }
 
+interface RowMenuState {
+  x: number
+  y: number
+  message: string
+  hash: string
+}
+
 export function GitGraphPage() {
   const commits = useGitGraphStore((s) => s.commits)
   const selectedHash = useGitGraphStore((s) => s.selectedHash)
@@ -360,6 +353,7 @@ export function GitGraphPage() {
   const load = useGitGraphStore((s) => s.load)
   const select = useGitGraphStore((s) => s.select)
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
     if (projectRoot) load(projectRoot)
@@ -375,6 +369,11 @@ export function GitGraphPage() {
   const handleSelect = useCallback((hash: string) => {
     select(selectedHash === hash ? null : hash)
   }, [selectedHash, select])
+
+  function handleRowContextMenu(event: MouseEvent, message: string, hash: string) {
+    event.preventDefault()
+    setRowMenu({ x: event.clientX, y: event.clientY, message, hash })
+  }
 
   return (
     <div className="h-full flex overflow-hidden bg-panel">
@@ -415,6 +414,7 @@ export function GitGraphPage() {
                 graphLaneCount={graphLaneCount}
                 selected={layout.commit.hash === selectedHash}
                 onClick={() => handleSelect(layout.commit.hash)}
+                onContextMenu={(e) => handleRowContextMenu(e, layout.commit.subject, layout.commit.hash)}
               />
             ))
           )}
@@ -426,6 +426,16 @@ export function GitGraphPage() {
           cwd={projectRoot}
           hash={selectedHash}
           onClose={() => select(null)}
+        />
+      )}
+
+      {rowMenu && (
+        <CommitContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          message={rowMenu.message}
+          hash={rowMenu.hash}
+          onClose={() => setRowMenu(null)}
         />
       )}
     </div>
