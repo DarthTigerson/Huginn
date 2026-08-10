@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import type { GitCommit } from '@/types/index'
-import { normalizeRef, formatExactDate } from './commitFormat'
+import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 
 const ROW_H = 70
@@ -21,11 +21,11 @@ function chooseTarget(branches: string[], source: string): string {
 }
 
 function branchTone(branch: string): string {
-  if (branch.startsWith('origin/')) return 'border-[#dc2626]/50 bg-[#dc2626]/10 text-[#fecaca]'
+  if (branch.startsWith('origin/')) return 'border-[#dc2626]/50 bg-[#dc2626]/10 text-[var(--ref-red-text)]'
   if (branch === 'main' || branch === 'master') {
-    return 'border-[#2563eb]/60 bg-[#2563eb]/15 text-[#bfdbfe]'
+    return 'border-[#2563eb]/60 bg-[#2563eb]/15 text-[var(--ref-blue-text)]'
   }
-  return 'border-[#16a34a]/50 bg-[#16a34a]/10 text-[#bbf7d0]'
+  return 'border-[#16a34a]/50 bg-[#16a34a]/10 text-[var(--ref-green-text)]'
 }
 
 function BranchCombobox({ label, value, options, onChange }: {
@@ -123,7 +123,7 @@ function BranchCombobox({ label, value, options, onChange }: {
                   <span className={['shrink-0 h-2 w-2 rounded-full border', branchTone(branch)].join(' ')} />
                   <span className="min-w-0 flex-1 truncate text-xs">{branch}</span>
                   {branch === value && (
-                    <span className="shrink-0 text-[0.625rem] text-[#93c5fd]">selected</span>
+                    <span className="shrink-0 text-[0.625rem] text-[var(--ref-blue-text)]">selected</span>
                   )}
                 </button>
               ))
@@ -158,7 +158,7 @@ function CommitRow({ commit, index, total, onContextMenu }: {
             {refs.map((ref) => (
               <span
                 key={ref}
-                className="max-w-36 truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border border-[#facc15]/80 bg-[#facc15]/20 text-[#fef08a] leading-none"
+                className={`max-w-36 truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
               >
                 {normalizeRef(ref)}
               </span>
@@ -289,7 +289,7 @@ export function GitBranchDiffPage() {
             onChange={handleSourceChange}
           />
 
-          <div className="h-8 flex items-center justify-center text-[#60a5fa] text-xs font-bold">
+          <div className="h-8 flex items-center justify-center text-[var(--ref-blue-text)] text-xs font-bold">
             vs
           </div>
 

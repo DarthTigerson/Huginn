@@ -4,7 +4,7 @@ import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
-import { normalizeRef, formatExactDate } from './commitFormat'
+import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 
 const ROW_H = 72
@@ -46,19 +46,6 @@ function formatRelDate(iso: string): string {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}d ago`
   return new Date(iso).toLocaleDateString()
-}
-
-function refTone(ref: string): string {
-  if (ref.includes('HEAD') || ref === 'main' || ref === 'master') {
-    return 'border-[#2563eb]/80 bg-[#2563eb]/20 text-[#bfdbfe]'
-  }
-  if (ref.startsWith('origin/')) {
-    return 'border-[#dc2626]/70 bg-[#dc2626]/20 text-[#fecaca]'
-  }
-  if (ref.startsWith('tag: ')) {
-    return 'border-[#facc15]/90 bg-[#facc15]/25 text-[#fef08a]'
-  }
-  return 'border-[#16a34a]/70 bg-[#16a34a]/20 text-[#bbf7d0]'
 }
 
 function graphWidth(laneCount: number): number {
@@ -218,7 +205,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs text-fg truncate flex-1">{commit.subject}</span>
           {isMerge && (
-            <span className="shrink-0 text-[0.5625rem] leading-none px-1.5 py-1 rounded border border-[#fb923c]/70 bg-[#fb923c]/20 text-[#fed7aa]">
+            <span className="shrink-0 text-[0.5625rem] leading-none px-1.5 py-1 rounded border border-[#fb923c]/70 bg-[#fb923c]/20 text-[var(--ref-orange-text)]">
               merge
             </span>
           )}

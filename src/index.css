@@ -88,6 +88,26 @@
   --color-fg-subtle: #a89876;
 }
 
+/* Ref/branch badge text — the -200/-300-ish pastel shades read fine on a
+   dark panel but wash out to near-invisible against a light one, so each
+   hue needs a darker, more saturated variant for light themes. Borders/
+   backgrounds stay theme-agnostic since low-opacity tints don't have this
+   problem — only solid text does. */
+[data-theme$="-dark"] {
+  --ref-blue-text:   #bfdbfe;
+  --ref-red-text:    #fecaca;
+  --ref-yellow-text: #fef08a;
+  --ref-green-text:  #bbf7d0;
+  --ref-orange-text: #fed7aa;
+}
+[data-theme$="-light"] {
+  --ref-blue-text:   #1d4ed8;
+  --ref-red-text:    #b91c1c;
+  --ref-yellow-text: #854d0e;
+  --ref-green-text:  #15803d;
+  --ref-orange-text: #9a3412;
+}
+
 body {
   overflow: hidden;
   background: var(--color-bg);
