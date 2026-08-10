@@ -4,6 +4,7 @@ import { clampSize, loadPanelSize } from '@/lib/panelSize'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
+import { UpdateChangelogModal } from './components/UpdateChangelogModal'
 import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
 import { useHoldToShowShortcuts } from './components/Shortcuts/useHoldToShowShortcuts'
 import { Chat } from './components/Chat/Chat'
@@ -52,6 +53,7 @@ import { useFontSizeStore } from './stores/fontSizeStore'
 import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
 import { useSidebarUiStore } from './stores/sidebarUiStore'
 import { useUpdateStore } from './stores/updateStore'
+import { useChangelogStore } from './stores/changelogStore'
 import { buildTerminalPath, buildBrowserPath } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
@@ -237,6 +239,10 @@ export default function App() {
   useEffect(() => {
     window.api.updateGetLatest().then((info) => useUpdateStore.getState().setAvailable(info))
     return window.api.onUpdateAvailable((info) => useUpdateStore.getState().setAvailable(info))
+  }, [])
+
+  useEffect(() => {
+    useChangelogStore.getState().checkPending()
   }, [])
 
   useEffect(() => {
@@ -625,6 +631,7 @@ export default function App() {
       {recentProjectsPaletteOpen && (
         <RecentProjectsPalette onClose={() => useSearchStore.getState().closeRecentProjectsPalette()} />
       )}
+      <UpdateChangelogModal />
     </div>
   )
 }

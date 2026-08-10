@@ -154,6 +154,7 @@ declare global {
       updateGetLatest: () => Promise<UpdateInfo | null>
       updateRestart: () => void
       onUpdateAvailable: (cb: (info: UpdateInfo | null) => void) => () => void
+      getChangelogForVersion: (version: string) => Promise<string | null>
 
       cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void
       cosmosApprove: (toolCallId: string) => void

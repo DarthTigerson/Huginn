@@ -66,7 +66,8 @@
     "files": [
       "out/**/*",
       "electron/mobileWeb/**/*",
-      "icon.png"
+      "icon.png",
+      "CHANGELOG.md"
     ],
     "artifactName": "Huginn-${arch}.${ext}",
     "mac": {

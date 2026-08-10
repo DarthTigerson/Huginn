@@ -1,10 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useUpdateStore } from '../updateStore'
+import { PENDING_CHANGELOG_KEY } from '../changelogStore'
 
-const { openTabMock, pendingTerminalCommands } = vi.hoisted(() => ({
-  openTabMock: vi.fn(),
-  pendingTerminalCommands: new Map<string, string>(),
-}))
+const { openTabMock, pendingTerminalCommands, localStorageStore } = vi.hoisted(() => {
+  const localStorageStore: Record<string, string> = {}
+  ;(global as any).localStorage = {
+    getItem: (k: string) => localStorageStore[k] ?? null,
+    setItem: (k: string, v: string) => { localStorageStore[k] = v },
+    removeItem: (k: string) => { delete localStorageStore[k] },
+  }
+  return {
+    openTabMock: vi.fn(),
+    pendingTerminalCommands: new Map<string, string>(),
+    localStorageStore,
+  }
+})
 
 vi.mock('@/stores/editorStore', () => ({
   useEditorStore: { getState: () => ({ openTab: openTabMock }) },
@@ -28,6 +38,7 @@ describe('updateStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     pendingTerminalCommands.clear()
+    Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
     termDataHandler = null
     useUpdateStore.setState({ available: null, status: 'idle' })
   })
@@ -85,5 +96,16 @@ describe('updateStore', () => {
   it('restart calls window.api.updateRestart', () => {
     useUpdateStore.getState().restart()
     expect(window.api.updateRestart).toHaveBeenCalled()
+  })
+
+  it('restart stashes the available version for the changelog modal to pick up after relaunch', () => {
+    useUpdateStore.getState().setAvailable({ version: '0.2.0', url: 'https://example.com' })
+    useUpdateStore.getState().restart()
+    expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBe('0.2.0')
+  })
+
+  it('restart does not stash a version when none is available', () => {
+    useUpdateStore.getState().restart()
+    expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBeNull()
   })
 })
