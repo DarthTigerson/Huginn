@@ -220,12 +220,16 @@ export default function App() {
 
   useEffect(() => {
     // Catches file changes made outside the app's own UI — Finder, an
-    // external editor, a build script, `mkdir`/`touch` in a terminal — which
-    // the app's own create/rename/delete actions already refresh for, but
-    // nothing else does.
+    // external editor, a build script, `mkdir`/`touch` in a terminal, an
+    // agent (Claude/Codex/Cosmos) editing files directly — which the app's
+    // own create/rename/delete actions already refresh for, but nothing else
+    // does. Also refreshes the Git Panel's staged/unstaged list: a content
+    // edit only touches the working tree, never `.git/*`, so GitWatcher's
+    // metadata-only watch never sees it — this is the only path that does.
     return window.api.onFsChanged((cwd) => {
       if (cwd === useFileStore.getState().projectRoot) {
         useFileStore.getState().refreshTree()
+        useGitStore.getState().refreshStatus(cwd)
       }
     })
   }, [])
