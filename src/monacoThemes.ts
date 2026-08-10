@@ -20,6 +20,10 @@ const THEME_PALETTES: Record<ThemeId, ThemePalette> = {
   'codex-light':  { base: 'vs',      background: '#ffffff', foreground: '#24292f', accent: '#0969da', border: '#d0d7de', fgMuted: '#6e7781', fgSubtle: '#aaaaaa' },
   'thomas-dark':  { base: 'vs-dark', background: '#221c15', foreground: '#e8e0d0', accent: '#f5c242', border: '#4a3d29', fgMuted: '#9c9080', fgSubtle: '#665c4a' },
   'thomas-light': { base: 'vs',      background: '#fffcf2', foreground: '#2a2013', accent: '#ad7b00', border: '#d8c89a', fgMuted: '#74684f', fgSubtle: '#a89876' },
+  // Both "dark" — Luuk hates light mode, so "Luuk Light" is a gag entry
+  // identical to "Luuk Dark", base 'vs-dark' included.
+  'luuk-dark':    { base: 'vs-dark', background: '#141414', foreground: '#d4d4d4', accent: '#9e9e9e', border: '#2e2e2e', fgMuted: '#8a8a8a', fgSubtle: '#525252' },
+  'luuk-light':   { base: 'vs-dark', background: '#141414', foreground: '#d4d4d4', accent: '#9e9e9e', border: '#2e2e2e', fgMuted: '#8a8a8a', fgSubtle: '#525252' },
 }
 
 let defined = false
