@@ -4,7 +4,7 @@ import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
-import { normalizeRef, formatExactDate, refTone } from './commitFormat'
+import { normalizeRef, formatExactDate, refTone, copyToClipboard } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 
 const ROW_H = 72
@@ -78,6 +78,38 @@ function nodeMeta(
     return { fill: color, ring: '#86efac', glyph: 'B', text: '#ffffff', glow: 0.22 }
   }
   return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy(e: MouseEvent) {
+    e.stopPropagation()
+    copyToClipboard(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1200)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      aria-label={`Copy ${label}`}
+      title={`Copy ${label}`}
+      className="shrink-0 text-fg-subtle hover:text-fg transition-colors"
+    >
+      {copied ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <rect x="9" y="9" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+          <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
+  )
 }
 
 function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick, onContextMenu }: {
@@ -257,10 +289,16 @@ function DetailPanel({ cwd, hash, onClose }: {
           <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider mb-2">
             Selected node
           </div>
-          <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
+            <CopyButton value={commit.subject} label="message" />
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[0.625rem]">
             <div className="border border-border rounded px-2 py-1.5">
-              <div className="text-fg-subtle uppercase tracking-wider">Hash</div>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-fg-subtle uppercase tracking-wider">Hash</span>
+                <CopyButton value={commit.hash} label="hash" />
+              </div>
               <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
             </div>
             <div className="border border-border rounded px-2 py-1.5">
@@ -271,13 +309,19 @@ function DetailPanel({ cwd, hash, onClose }: {
         </div>
 
         <div className="text-xs text-fg-muted flex flex-col gap-2">
-          <div className="flex justify-between gap-3">
+          <div className="flex justify-between gap-3 items-center">
             <span className="text-fg-subtle">Author</span>
-            <span className="text-fg truncate text-right">{commit.author}</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="text-fg truncate text-right">{commit.author}</span>
+              <CopyButton value={commit.author} label="author" />
+            </span>
           </div>
-          <div className="flex justify-between gap-3">
+          <div className="flex justify-between gap-3 items-center">
             <span className="text-fg-subtle">Date</span>
-            <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
+              <CopyButton value={formatExactDate(commit.date)} label="date" />
+            </span>
           </div>
           <div className="flex justify-between gap-3">
             <span className="text-fg-subtle">Relative</span>
@@ -314,8 +358,9 @@ function DetailPanel({ cwd, hash, onClose }: {
           ) : (
             <div className="flex flex-col gap-0.5">
               {selectedFiles.map((f) => (
-                <div key={f} className="text-[0.6875rem] font-mono text-fg truncate py-0.5 opacity-80">
-                  {f}
+                <div key={f} className="flex items-center justify-between gap-2 py-0.5">
+                  <span className="text-[0.6875rem] font-mono text-fg truncate opacity-80">{f}</span>
+                  <CopyButton value={f} label="file path" />
                 </div>
               ))}
             </div>
