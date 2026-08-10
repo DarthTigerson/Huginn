@@ -86,29 +86,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearRevealRequest: () => set({ revealRequest: null }),
 
   openTab: (tab: Tab) => {
-    const { tabs, activePaneId, paneTabLists } = get()
-    const currentList = paneTabLists[activePaneId] ?? []
-    const alreadyInPane = currentList.includes(tab.path)
+    const { tabs, activePaneId, paneTabLists, layout } = get()
+    const paneIds = collectPaneIds(layout)
+    // If the tab is already open in some pane, focus that pane rather than
+    // also adding it to the active pane's list — otherwise the same tab ends
+    // up open in two panes at once (e.g. reopening the Git Log tab from a
+    // different pane than the one the user moved it to).
+    const existingPaneId = paneIds.find((pid) => (paneTabLists[pid] ?? []).includes(tab.path))
 
-    if (tabs.some((t) => t.path === tab.path)) {
+    if (existingPaneId) {
       set((state) => ({
         tabs: state.tabs.map((t) =>
           t.path === tab.path ? { ...t, missing: tab.missing ?? false } : t
         ),
+        activePaneId: existingPaneId,
         activeTabPath: tab.path,
-        paneTabs: { ...state.paneTabs, [activePaneId]: tab.path },
-        paneTabLists: alreadyInPane
-          ? state.paneTabLists
-          : { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
+        paneTabs: { ...state.paneTabs, [existingPaneId]: tab.path },
       }))
-    } else {
-      set((state) => ({
-        tabs: [...state.tabs, tab],
-        activeTabPath: tab.path,
-        paneTabs: { ...state.paneTabs, [activePaneId]: tab.path },
-        paneTabLists: { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
-      }))
+      return
     }
+
+    const currentList = paneTabLists[activePaneId] ?? []
+    set((state) => ({
+      tabs: tabs.some((t) => t.path === tab.path) ? state.tabs : [...state.tabs, tab],
+      activeTabPath: tab.path,
+      paneTabs: { ...state.paneTabs, [activePaneId]: tab.path },
+      paneTabLists: { ...state.paneTabLists, [activePaneId]: [...currentList, tab.path] },
+    }))
   },
 
   // Like openTab, but inserts right after a given path within whichever pane
