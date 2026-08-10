@@ -52,6 +52,35 @@ export async function getGitBranches(cwd: string): Promise<string[]> {
   }
 }
 
+export interface GitBranchList {
+  current: string | null
+  local: string[]
+  remote: string[]
+}
+
+// Remote branches whose short name (after stripping the "origin/" prefix)
+// already has a local branch are omitted — they'd just be checkout-noise
+// duplicating an entry the Local section already lists.
+export async function getBranchList(cwd: string): Promise<GitBranchList> {
+  try {
+    const [{ stdout: localOut }, { stdout: remoteOut }, current] = await Promise.all([
+      execFileAsync('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { cwd }),
+      execFileAsync('git', ['for-each-ref', '--format=%(refname:short)', 'refs/remotes'], { cwd }),
+      getGitBranch(cwd),
+    ])
+    const local = localOut.split('\n').map((b) => b.trim()).filter(Boolean)
+    const localSet = new Set(local)
+    const remote = remoteOut
+      .split('\n')
+      .map((b) => b.trim())
+      .filter((ref) => ref && !ref.endsWith('/HEAD'))
+      .filter((ref) => !localSet.has(ref.slice(ref.indexOf('/') + 1)))
+    return { current, local, remote }
+  } catch {
+    return { current: null, local: [], remote: [] }
+  }
+}
+
 export async function getAheadBehind(cwd: string): Promise<GitAheadBehind | null> {
   try {
     const { stdout } = await execFileAsync(

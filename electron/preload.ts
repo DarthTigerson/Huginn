@@ -33,8 +33,8 @@ contextBridge.exposeInMainWorld('api', {
   gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
-  gitRunCommand: (id: string, cwd: string, action: string) =>
-    ipcRenderer.invoke('git:runCommand', id, cwd, action),
+  gitRunCommand: (id: string, cwd: string, action: string, payload?: unknown) =>
+    ipcRenderer.invoke('git:runCommand', id, cwd, action, payload),
   onGitLogData: (cb: (id: string, data: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, id: string, data: string) => cb(id, data)
     ipcRenderer.on('git:log:data', handler)
@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
+  gitBranchList: (cwd: string) => ipcRenderer.invoke('git:branchList', cwd),
   gitBranchDiff: (cwd: string, source: string, target: string) =>
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),

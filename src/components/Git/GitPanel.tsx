@@ -10,9 +10,15 @@ import { GIT_BRANCH_DIFF_TAB_PATH, GIT_GRAPH_TAB_PATH } from '@/components/Setti
 import { Modal } from '@/components/ui/Modal'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { FileRow } from './FileRow'
+import { BranchPalette } from './BranchPalette'
+import { ConfirmForcePushModal } from './ConfirmForcePushModal'
+import { useForcePushConfirm } from './useForcePushConfirm'
 
 const pillButtonClass =
   'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 hover:scale-105 active:scale-95'
+
+const dangerPillButtonClass =
+  'w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-red-500/25 to-red-500/5 text-red-400 ring-1 ring-red-500/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-red-500/60 hover:from-red-500/35 hover:to-red-500/10 hover:scale-105 active:scale-95'
 
 interface ContextMenuState {
   x: number
@@ -24,6 +30,7 @@ interface ContextMenuState {
 export function GitPanel() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const {
+    branch,
     status,
     commitMessage,
     commitError,
@@ -42,10 +49,12 @@ export function GitPanel() {
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
+  const [branchPaletteOpen, setBranchPaletteOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(projectRoot)
@@ -192,43 +201,75 @@ export function GitPanel() {
           type="button"
           className={pillButtonClass}
           disabled={remoteActionDisabled}
-          onClick={() => projectRoot && gitFetch(projectRoot)}
+          onClick={() => setBranchPaletteOpen(true)}
         >
-          Fetch
+          Branch: {branch ?? '—'}
         </button>
-        <button
-          type="button"
-          className={pillButtonClass}
-          disabled={remoteActionDisabled}
-          onClick={() => projectRoot && pull(projectRoot)}
-        >
-          Pull
-        </button>
-        <button
-          type="button"
-          className={pillButtonClass}
-          disabled={remoteActionDisabled}
-          onClick={() => projectRoot && push(projectRoot)}
-        >
-          Push
-        </button>
-        <button
-          type="button"
-          className={pillButtonClass}
-          onClick={() => {
-            openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
-            if (projectRoot) loadGraph(projectRoot)
-          }}
-        >
-          Graph
-        </button>
-        <button
-          type="button"
-          className={pillButtonClass}
-          onClick={() => openTab({ path: GIT_BRANCH_DIFF_TAB_PATH, content: '', dirty: false })}
-        >
-          List Diff
-        </button>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            className={pillButtonClass}
+            disabled={remoteActionDisabled}
+            onClick={() => projectRoot && gitFetch(projectRoot)}
+          >
+            Fetch
+          </button>
+          <button
+            type="button"
+            className={pillButtonClass}
+            disabled={remoteActionDisabled}
+            onClick={() => projectRoot && pull(projectRoot)}
+          >
+            Pull
+          </button>
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            className={pillButtonClass}
+            disabled={remoteActionDisabled}
+            onClick={() => projectRoot && push(projectRoot)}
+          >
+            Push
+          </button>
+          <button
+            type="button"
+            title="Force Push"
+            className={dangerPillButtonClass}
+            disabled={remoteActionDisabled}
+            onClick={() => requestForce('forcePush')}
+          >
+            F
+          </button>
+          <button
+            type="button"
+            title="Force Push with Lease"
+            className={dangerPillButtonClass}
+            disabled={remoteActionDisabled}
+            onClick={() => requestForce('forcePushLease')}
+          >
+            L
+          </button>
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            className={pillButtonClass}
+            onClick={() => {
+              openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
+              if (projectRoot) loadGraph(projectRoot)
+            }}
+          >
+            Graph
+          </button>
+          <button
+            type="button"
+            className={pillButtonClass}
+            onClick={() => openTab({ path: GIT_BRANCH_DIFF_TAB_PATH, content: '', dirty: false })}
+          >
+            List Diff
+          </button>
+        </div>
       </div>
 
       {menu && (
@@ -305,6 +346,14 @@ export function GitPanel() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {branchPaletteOpen && projectRoot && (
+        <BranchPalette projectRoot={projectRoot} onClose={() => setBranchPaletteOpen(false)} />
+      )}
+
+      {forceAction && projectRoot && (
+        <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
       )}
     </div>
   )

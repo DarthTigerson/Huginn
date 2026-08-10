@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import type { GitStatus, GitAheadBehind, GitCommandAction } from '@/types/index'
+import type { GitStatus, GitAheadBehind, GitCommandAction, GitCheckoutPayload } from '@/types/index'
 import { useEditorStore } from './editorStore'
 import { useGitLogStore } from './gitLogStore'
 import { useGitGraphStore } from './gitGraphStore'
+import { useGitBranchStore } from './gitBranchStore'
 import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 
 interface GitStore {
@@ -27,6 +28,18 @@ interface GitStore {
   push: (cwd: string) => Promise<void>
   forcePush: (cwd: string) => Promise<void>
   forcePushLease: (cwd: string) => Promise<void>
+  checkout: (cwd: string, payload: GitCheckoutPayload) => Promise<void>
+}
+
+function describeCommand(action: GitCommandAction, payload?: GitCheckoutPayload): string {
+  if (action === 'forcePush') return 'push --force'
+  if (action === 'forcePushLease') return 'push --force-with-lease'
+  if (action === 'checkout' && payload) {
+    if (payload.track) return `checkout -b ${payload.ref} --track ${payload.track}`
+    if (payload.create) return `checkout -b ${payload.ref}`
+    return `checkout ${payload.ref}`
+  }
+  return action
 }
 
 export const useGitStore = create<GitStore>((set, get) => {
@@ -35,12 +48,12 @@ export const useGitStore = create<GitStore>((set, get) => {
     if (graphOpen) await useGitGraphStore.getState().load(cwd)
   }
 
-  const runCommand = async (cwd: string, action: GitCommandAction) => {
+  const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
     if (get().commandStatus === 'running') return
     const id = crypto.randomUUID()
 
     useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
-    useGitLogStore.getState().append(`\n> git ${action === 'forcePush' ? 'push --force' : action === 'forcePushLease' ? 'push --force-with-lease' : action}\n`)
+    useGitLogStore.getState().append(`\n> git ${describeCommand(action, payload)}\n`)
 
     set({ commandStatus: 'running' })
 
@@ -53,11 +66,18 @@ export const useGitStore = create<GitStore>((set, get) => {
       cleanupData()
       cleanupExit()
       set({ commandStatus: 'idle' })
-      if (code === 0) get().refresh(cwd)
+      if (code === 0) {
+        get().refresh(cwd)
+        if (action === 'checkout') useGitBranchStore.getState().load(cwd)
+      }
     })
 
     try {
-      await window.api.gitRunCommand(id, cwd, action)
+      if (payload !== undefined) {
+        await window.api.gitRunCommand(id, cwd, action, payload)
+      } else {
+        await window.api.gitRunCommand(id, cwd, action)
+      }
     } catch (err) {
       cleanupData()
       cleanupExit()
@@ -169,5 +189,6 @@ export const useGitStore = create<GitStore>((set, get) => {
   push:           (cwd) => runCommand(cwd, 'push'),
   forcePush:      (cwd) => runCommand(cwd, 'forcePush'),
   forcePushLease: (cwd) => runCommand(cwd, 'forcePushLease'),
+  checkout:       (cwd, payload) => runCommand(cwd, 'checkout', payload),
   }
 })

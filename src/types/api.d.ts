@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommit, GitBranchDiff, SearchMatch } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCheckoutPayload, GitBranchList, GitCommit, GitBranchDiff, SearchMatch } from './index'
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 import type { LatestUsage } from '../../electron/usagePoller'
@@ -93,11 +93,12 @@ declare global {
       gitDiscard: (cwd: string, path: string) => Promise<void>
       gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
-      gitRunCommand: (id: string, cwd: string, action: GitCommandAction) => Promise<void>
+      gitRunCommand: (id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => Promise<void>
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
       gitGraph: (cwd: string) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
+      gitBranchList: (cwd: string) => Promise<GitBranchList>
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitWatchRoot: (cwd: string | null) => void

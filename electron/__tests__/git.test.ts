@@ -185,4 +185,36 @@ describe('GitRunner', () => {
     expect(exitEvents).toContainEqual({ channel: 'git:log:exit', args: ['second', 1] })
     expect(spawnMock).toHaveBeenCalledTimes(1)
   })
+
+  it('spawns git checkout with just the branch name when switching to an existing local branch', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand'](
+      { sender: win }, 'run-4', '/proj', 'checkout' as GitCommandAction,
+      { ref: 'feature-x', create: false }
+    )
+    expect(spawnMock).toHaveBeenCalledWith('git', ['checkout', 'feature-x'], expect.objectContaining({ cwd: '/proj' }))
+  })
+
+  it('spawns git checkout -b when creating a new branch', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand'](
+      { sender: win }, 'run-5', '/proj', 'checkout' as GitCommandAction,
+      { ref: 'new-feature', create: true }
+    )
+    expect(spawnMock).toHaveBeenCalledWith('git', ['checkout', '-b', 'new-feature'], expect.objectContaining({ cwd: '/proj' }))
+  })
+
+  it('spawns git checkout -b with --track when checking out a remote branch', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand'](
+      { sender: win }, 'run-6', '/proj', 'checkout' as GitCommandAction,
+      { ref: 'feat/x', create: true, track: 'origin/feat/x' }
+    )
+    expect(spawnMock).toHaveBeenCalledWith(
+      'git', ['checkout', '-b', 'feat/x', '--track', 'origin/feat/x'], expect.objectContaining({ cwd: '/proj' })
+    )
+  })
 })

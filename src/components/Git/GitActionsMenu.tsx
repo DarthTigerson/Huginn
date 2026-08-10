@@ -1,8 +1,7 @@
-import { useState } from 'react'
 import { useGitStore } from '@/stores/gitStore'
-import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
+import { useForcePushConfirm } from './useForcePushConfirm'
 import type { GitCommandAction } from '@/types/index'
 
 interface Props {
@@ -17,8 +16,7 @@ export function GitActionsMenu({ onClose }: Props) {
   const fetch = useGitStore((s) => s.fetch)
   const pull = useGitStore((s) => s.pull)
   const push = useGitStore((s) => s.push)
-  const forceSafetyEnabled = useGitSettingsStore((s) => s.forceSafetyEnabled)
-  const [forceAction, setForceAction] = useState<ForceAction | null>(null)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
 
   const disabled = commandStatus === 'running' || !projectRoot
 
@@ -29,12 +27,7 @@ export function GitActionsMenu({ onClose }: Props) {
 
   function handleForce(action: ForceAction) {
     onClose()
-    if (!forceSafetyEnabled) {
-      const fn = useGitStore.getState()[action]
-      if (projectRoot) fn(projectRoot)
-    } else {
-      setForceAction(action)
-    }
+    requestForce(action)
   }
 
   const itemClass =
@@ -69,7 +62,7 @@ export function GitActionsMenu({ onClose }: Props) {
         <ConfirmForcePushModal
           action={forceAction}
           cwd={projectRoot}
-          onClose={() => setForceAction(null)}
+          onClose={closeForce}
         />
       )}
     </>
