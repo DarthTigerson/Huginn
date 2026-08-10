@@ -5,6 +5,7 @@ export type ThemeId =
   | 'claude-dark' | 'claude-light'
   | 'codex-dark'  | 'codex-light'
   | 'thomas-dark' | 'thomas-light'
+  | 'luuk-dark'   | 'luuk-light'
 
 interface ThemeStore {
   theme: ThemeId
@@ -76,6 +77,8 @@ export const MONACO_THEMES: Record<ThemeId, string> = {
   'codex-light':  'codex-light',
   'thomas-dark':  'thomas-dark',
   'thomas-light': 'thomas-light',
+  'luuk-dark':    'luuk-dark',
+  'luuk-light':   'luuk-light',
 }
 
 // background/foreground/cursor alone aren't enough for a terminal to feel
@@ -214,5 +217,52 @@ export const XTERM_THEMES: Record<ThemeId, ITheme> = {
     brightMagenta:       '#a866a8',
     brightCyan:          '#3f9d8f',
     brightWhite:         '#1a140c',
+  },
+  // Luuk hates light mode, so "Luuk Light" is a gag — identical to "Luuk
+  // Dark" down to every value. A true-black/graphite palette, distinct from
+  // the other themes' warmer or off-black backgrounds.
+  'luuk-dark': {
+    background:          '#0d0d0d',
+    foreground:          '#d4d4d4',
+    cursor:              '#9e9e9e',
+    selectionBackground: '#9e9e9e30',
+    black:               '#2a2a2a',
+    red:                 '#e06c75',
+    green:               '#98c379',
+    yellow:              '#e5c07b',
+    blue:                '#61afef',
+    magenta:             '#c678dd',
+    cyan:                '#56b6c2',
+    white:               '#d4d4d4',
+    brightBlack:         '#5c6370',
+    brightRed:           '#f07178',
+    brightGreen:         '#a8e0a0',
+    brightYellow:        '#f0d090',
+    brightBlue:          '#82c0ff',
+    brightMagenta:       '#d8a0f0',
+    brightCyan:          '#7cd0dc',
+    brightWhite:         '#ffffff',
+  },
+  'luuk-light': {
+    background:          '#0d0d0d',
+    foreground:          '#d4d4d4',
+    cursor:              '#9e9e9e',
+    selectionBackground: '#9e9e9e30',
+    black:               '#2a2a2a',
+    red:                 '#e06c75',
+    green:               '#98c379',
+    yellow:              '#e5c07b',
+    blue:                '#61afef',
+    magenta:             '#c678dd',
+    cyan:                '#56b6c2',
+    white:               '#d4d4d4',
+    brightBlack:         '#5c6370',
+    brightRed:           '#f07178',
+    brightGreen:         '#a8e0a0',
+    brightYellow:        '#f0d090',
+    brightBlue:          '#82c0ff',
+    brightMagenta:       '#d8a0f0',
+    brightCyan:          '#7cd0dc',
+    brightWhite:         '#ffffff',
   },
 }

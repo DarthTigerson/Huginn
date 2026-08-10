@@ -15,10 +15,10 @@ import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 
 const pillButtonClass =
-  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 hover:scale-105 active:scale-95'
+  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
 
 const dangerPillButtonClass =
-  'w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-red-500/25 to-red-500/5 text-red-400 ring-1 ring-red-500/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-red-500/60 hover:from-red-500/35 hover:to-red-500/10 hover:scale-105 active:scale-95'
+  'w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-red-500/25 to-red-500/5 text-red-400 ring-1 ring-red-500/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-red-500/60 hover:from-red-500/35 hover:to-red-500/10 active:scale-95'
 
 interface ContextMenuState {
   x: number

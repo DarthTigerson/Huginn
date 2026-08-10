@@ -88,6 +88,34 @@
   --color-fg-subtle: #a89876;
 }
 
+/* Luuk hates light mode — "Luuk Light" is a gag theme, identical to
+   "Luuk Dark" in every value. True-black/graphite, no warm tint. */
+[data-theme="luuk-dark"] {
+  --color-bg:        #0d0d0d;
+  --color-panel:     #141414;
+  --color-sidebar:   #111111;
+  --color-popover:   #1a1a1a;
+  --color-tab-bar:   #181818;
+  --color-border:    #2e2e2e;
+  --color-accent:    158 158 158;  /* #9e9e9e */
+  --color-fg:        #d4d4d4;
+  --color-fg-muted:  #8a8a8a;
+  --color-fg-subtle: #525252;
+}
+
+[data-theme="luuk-light"] {
+  --color-bg:        #0d0d0d;
+  --color-panel:     #141414;
+  --color-sidebar:   #111111;
+  --color-popover:   #1a1a1a;
+  --color-tab-bar:   #181818;
+  --color-border:    #2e2e2e;
+  --color-accent:    158 158 158;  /* #9e9e9e */
+  --color-fg:        #d4d4d4;
+  --color-fg-muted:  #8a8a8a;
+  --color-fg-subtle: #525252;
+}
+
 /* Ref/branch badge text — the -200/-300-ish pastel shades read fine on a
    dark panel but wash out to near-invisible against a light one, so each
    hue needs a darker, more saturated variant for light themes. Borders/
@@ -108,6 +136,17 @@
   --ref-orange-text: #9a3412;
 }
 
+/* luuk-light's background is black (the joke), so despite the "-light"
+   suffix it needs the dark-theme ref-badge text — override the generic
+   suffix rule above (same specificity, wins on source order). */
+[data-theme="luuk-light"] {
+  --ref-blue-text:   #bfdbfe;
+  --ref-red-text:    #fecaca;
+  --ref-yellow-text: #fef08a;
+  --ref-green-text:  #bbf7d0;
+  --ref-orange-text: #fed7aa;
+}
+
 body {
   overflow: hidden;
   background: var(--color-bg);
@@ -115,6 +154,30 @@ body {
   font-family: var(--font-mono);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+/* Chromium's default scrollbar is a plain light-gray control that ignores
+   the page's own theme entirely — jarring against every dark theme. Themed
+   via the same CSS vars as everything else so it tracks whatever theme
+   (including future ones) is active without needing its own overrides. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-fg-subtle);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Glossy panel opacity — rgba overrides let native vibrancy show through */
@@ -153,6 +216,13 @@ body {
   --color-panel:   rgba(255, 252, 242, 0.7);
   --color-sidebar: rgba(239, 230, 205, 0.6);
   --color-tab-bar: rgba(233, 223, 192, 0.65);
+}
+[data-theme="luuk-dark"][data-panel-style="glossy"],
+[data-theme="luuk-light"][data-panel-style="glossy"] {
+  --color-bg:      rgba(13,  13,  13,  0.5);
+  --color-panel:   rgba(20,  20,  20,  0.6);
+  --color-sidebar: rgba(17,  17,  17,  0.5);
+  --color-tab-bar: rgba(24,  24,  24,  0.65);
 }
 
 [data-panel-style="glossy"] .bg-bg,
