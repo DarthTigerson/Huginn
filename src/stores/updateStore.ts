@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { useEditorStore } from './editorStore'
 import { buildTerminalPath } from '@/components/Settings/paths'
 import { pendingTerminalCommands } from '@/components/Terminal/TerminalTab'
+import { PENDING_CHANGELOG_KEY } from './changelogStore'
 import type { UpdateInfo } from '@/types/api'
 
 const SENTINEL_PREFIX = '__HUGINN_UPDATE_EXIT_'
@@ -46,6 +47,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   },
 
   restart: () => {
+    const version = get().available?.version
+    if (version) localStorage.setItem(PENDING_CHANGELOG_KEY, version)
     window.api.updateRestart()
   },
 }))

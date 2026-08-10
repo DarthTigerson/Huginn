@@ -18,6 +18,7 @@ import { listAllFiles, searchText, buildTree, readImageDataUrl } from './fsOps'
 import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
 import { UpdateChecker } from './updateChecker'
+import { getChangelogForVersion } from './changelog'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -530,9 +531,15 @@ app.whenReady().then(() => {
   updateChecker.start()
 
   ipcMain.on('update:restart', () => {
+    // quit() (not exit()) — exit() doesn't wait for pending operations, and
+    // the renderer's localStorage write (the flag that tells the next
+    // launch to show the changelog modal) needs to actually flush to disk
+    // first.
     app.relaunch()
-    app.exit(0)
+    app.quit()
   })
+
+  ipcMain.handle('changelog:getForVersion', (_e, version: string) => getChangelogForVersion(version))
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -110,6 +110,7 @@ contextBridge.exposeInMainWorld('api', {
 
   updateGetLatest: () => ipcRenderer.invoke('update:getLatest'),
   updateRestart: () => ipcRenderer.send('update:restart'),
+  getChangelogForVersion: (version: string) => ipcRenderer.invoke('changelog:getForVersion', version),
   onUpdateAvailable: (cb: (info: import('./updateChecker').UpdateInfo | null) => void) => {
     const handler = (_: Electron.IpcRendererEvent, info: import('./updateChecker').UpdateInfo | null) => cb(info)
     ipcRenderer.on('update:available', handler)
