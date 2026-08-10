@@ -69,6 +69,7 @@ export function TerminalTab({ terminalId }: Props) {
       container.innerHTML = ''
       xterm.open(container)
       fit.fit()
+      xterm.focus()
 
       instance = { xterm, fit }
       liveTerminals.set(terminalId, instance)
