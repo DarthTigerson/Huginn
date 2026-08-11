@@ -15,3 +15,19 @@ export function parseGitDiffPath(tabPath: string): { path: string; staged: boole
   }
   return { path: tabPath.slice(UNSTAGED_PREFIX.length), staged: false }
 }
+
+const COMMIT_DIFF_PREFIX = 'git-commit-diff://'
+
+export function isGitCommitDiffTab(path: string): boolean {
+  return path.startsWith(COMMIT_DIFF_PREFIX)
+}
+
+export function buildGitCommitDiffPath(hash: string, filePath: string): string {
+  return `${COMMIT_DIFF_PREFIX}${hash}/${filePath}`
+}
+
+export function parseGitCommitDiffPath(tabPath: string): { hash: string; path: string } {
+  const rest = tabPath.slice(COMMIT_DIFF_PREFIX.length)
+  const slashIndex = rest.indexOf('/')
+  return { hash: rest.slice(0, slashIndex), path: rest.slice(slashIndex + 1) }
+}

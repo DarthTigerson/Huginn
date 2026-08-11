@@ -306,3 +306,19 @@ export async function getDiffContent(
   }
   return { original, modified }
 }
+
+// Same shape as getDiffContent above, but for a specific historical commit
+// rather than the working tree: compares the file against its first parent.
+// showRef already resolves to '' on any git error, so this needs no extra
+// handling for the initial commit (no `^`) or a file the commit added.
+export async function getCommitDiffContent(
+  cwd: string,
+  hash: string,
+  path: string
+): Promise<{ original: string; modified: string }> {
+  const [original, modified] = await Promise.all([
+    showRef(cwd, `${hash}^:${path}`),
+    showRef(cwd, `${hash}:${path}`),
+  ])
+  return { original, modified }
+}

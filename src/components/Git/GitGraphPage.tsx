@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useEditorStore } from '@/stores/editorStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
 import { normalizeRef, formatExactDate, refTone, copyToClipboard } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
+import { CommitFileContextMenu } from './CommitFileContextMenu'
+import { buildGitCommitDiffPath } from './paths'
 
 const ROW_H = 72
 const LANE_W = 40
@@ -250,6 +253,12 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
   )
 }
 
+interface FileMenuState {
+  x: number
+  y: number
+  path: string
+}
+
 function DetailPanel({ cwd, hash, onClose }: {
   cwd: string
   hash: string
@@ -259,6 +268,7 @@ function DetailPanel({ cwd, hash, onClose }: {
   const selectedFiles = useGitGraphStore((s) => s.selectedFiles)
   const filesLoading = useGitGraphStore((s) => s.filesLoading)
   const loadFiles = useGitGraphStore((s) => s.loadFiles)
+  const [fileMenu, setFileMenu] = useState<FileMenuState | null>(null)
 
   const commit = commits.find((c) => c.hash === hash)
 
@@ -266,108 +276,141 @@ function DetailPanel({ cwd, hash, onClose }: {
     loadFiles(cwd, hash)
   }, [hash, cwd, loadFiles])
 
+  function openFileDiff(path: string) {
+    useEditorStore.getState().openTab({ path: buildGitCommitDiffPath(hash, path), content: '', dirty: false })
+  }
+
+  async function openCurrentFile(path: string) {
+    const fullPath = `${cwd}/${path}`
+    const content = await window.api.readFile(fullPath)
+    useEditorStore.getState().openTab({ path: fullPath, content, dirty: false })
+  }
+
+  function handleFileContextMenu(e: MouseEvent, path: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    setFileMenu({ x: e.clientX, y: e.clientY, path })
+  }
+
   if (!commit) return null
 
   return (
-    <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
-      <div className="h-11 flex items-center justify-between px-4 border-b border-border shrink-0">
-        <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
-          Commit Details
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-fg-subtle hover:text-fg transition-colors text-xs leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-white/10"
-          aria-label="Close commit details"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
-        <div className="border border-border bg-panel rounded-md p-3">
-          <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider mb-2">
-            Selected node
-          </div>
-          <div className="flex items-start justify-between gap-2">
-            <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
-            <CopyButton value={commit.subject} label="message" />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[0.625rem]">
-            <div className="border border-border rounded px-2 py-1.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-fg-subtle uppercase tracking-wider">Hash</span>
-                <CopyButton value={commit.hash} label="hash" />
-              </div>
-              <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
-            </div>
-            <div className="border border-border rounded px-2 py-1.5">
-              <div className="text-fg-subtle uppercase tracking-wider">Parents</div>
-              <div className="font-mono text-fg mt-1">{commit.parents.length || 'root'}</div>
-            </div>
-          </div>
+    <>
+      <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
+        <div className="h-11 flex items-center justify-between px-4 border-b border-border shrink-0">
+          <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
+            Commit Details
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-fg-subtle hover:text-fg transition-colors text-xs leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-white/10"
+            aria-label="Close commit details"
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="text-xs text-fg-muted flex flex-col gap-2">
-          <div className="flex justify-between gap-3 items-center">
-            <span className="text-fg-subtle">Author</span>
-            <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-fg truncate text-right">{commit.author}</span>
-              <CopyButton value={commit.author} label="author" />
-            </span>
-          </div>
-          <div className="flex justify-between gap-3 items-center">
-            <span className="text-fg-subtle">Date</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
-              <CopyButton value={formatExactDate(commit.date)} label="date" />
-            </span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-fg-subtle">Relative</span>
-            <span className="text-fg text-right">{formatRelDate(commit.date)}</span>
-          </div>
-        </div>
-
-        {commit.refs.length > 0 && (
-          <div>
-            <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
-              References
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
+          <div className="border border-border bg-panel rounded-md p-3">
+            <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider mb-2">
+              Selected node
             </div>
-            <div className="flex flex-wrap gap-1">
-              {commit.refs.map((ref) => (
-                <span
-                  key={ref}
-                  className={`max-w-full truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
-                >
-                  {ref}
-                </span>
-              ))}
+            <div className="flex items-start justify-between gap-2">
+              <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
+              <CopyButton value={commit.subject} label="message" />
             </div>
-          </div>
-        )}
-
-        <div>
-          <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
-            Changed Files
-          </div>
-          {filesLoading ? (
-            <div className="text-xs text-fg-subtle">Loading…</div>
-          ) : selectedFiles.length === 0 ? (
-            <div className="text-xs text-fg-subtle">No files</div>
-          ) : (
-            <div className="flex flex-col gap-0.5">
-              {selectedFiles.map((f) => (
-                <div key={f} className="flex items-center justify-between gap-2 py-0.5">
-                  <span className="text-[0.6875rem] font-mono text-fg truncate opacity-80">{f}</span>
-                  <CopyButton value={f} label="file path" />
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[0.625rem]">
+              <div className="border border-border rounded px-2 py-1.5">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-fg-subtle uppercase tracking-wider">Hash</span>
+                  <CopyButton value={commit.hash} label="hash" />
                 </div>
-              ))}
+                <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
+              </div>
+              <div className="border border-border rounded px-2 py-1.5">
+                <div className="text-fg-subtle uppercase tracking-wider">Parents</div>
+                <div className="font-mono text-fg mt-1">{commit.parents.length || 'root'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-xs text-fg-muted flex flex-col gap-2">
+            <div className="flex justify-between gap-3 items-center">
+              <span className="text-fg-subtle">Author</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="text-fg truncate text-right">{commit.author}</span>
+                <CopyButton value={commit.author} label="author" />
+              </span>
+            </div>
+            <div className="flex justify-between gap-3 items-center">
+              <span className="text-fg-subtle">Date</span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
+                <CopyButton value={formatExactDate(commit.date)} label="date" />
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-fg-subtle">Relative</span>
+              <span className="text-fg text-right">{formatRelDate(commit.date)}</span>
+            </div>
+          </div>
+
+          {commit.refs.length > 0 && (
+            <div>
+              <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
+                References
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {commit.refs.map((ref) => (
+                  <span
+                    key={ref}
+                    className={`max-w-full truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
+                  >
+                    {ref}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
+
+          <div>
+            <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
+              Changed Files
+            </div>
+            {filesLoading ? (
+              <div className="text-xs text-fg-subtle">Loading…</div>
+            ) : selectedFiles.length === 0 ? (
+              <div className="text-xs text-fg-subtle">No files</div>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {selectedFiles.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => openFileDiff(f)}
+                    onContextMenu={(e) => handleFileContextMenu(e, f)}
+                    className="w-full flex items-center gap-2 py-0.5 text-left rounded hover:bg-white/5 transition-colors"
+                  >
+                    <span className="text-[0.6875rem] font-mono text-fg truncate opacity-80">{f}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      {fileMenu && (
+        <CommitFileContextMenu
+          x={fileMenu.x}
+          y={fileMenu.y}
+          onCopyPath={() => copyToClipboard(fileMenu.path)}
+          onOpenFile={() => openCurrentFile(fileMenu.path)}
+          onOpenDiff={() => openFileDiff(fileMenu.path)}
+          onClose={() => setFileMenu(null)}
+        />
+      )}
+    </>
   )
 }
 

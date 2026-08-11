@@ -45,7 +45,7 @@ import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { TodoSettingsPage } from '@/components/Settings/TodoSettingsPage'
-import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
@@ -196,6 +196,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isTerminal = !!activeTab && isTerminalTab(activeTab.path)
   const isBrowser = !!activeTab && isBrowserTab(activeTab.path)
   const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
+  const isCommitDiff = !!activeTab && isGitCommitDiffTab(activeTab.path)
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
@@ -208,21 +209,29 @@ function EditorPane({ paneId }: { paneId: string }) {
   }
 
   useEffect(() => {
-    if (!activeTab || !isDiff || !projectRoot) {
+    if (!activeTab || !projectRoot || (!isDiff && !isCommitDiff)) {
       setDiffContent(null)
       return
     }
 
-    const { path, staged } = parseGitDiffPath(activeTab.path)
     let cancelled = false
-    window.api.gitDiff(projectRoot, path, staged).then((content) => {
+    const request = isCommitDiff
+      ? (() => {
+          const { hash, path } = parseGitCommitDiffPath(activeTab.path)
+          return window.api.gitCommitDiff(projectRoot, hash, path)
+        })()
+      : (() => {
+          const { path, staged } = parseGitDiffPath(activeTab.path)
+          return window.api.gitDiff(projectRoot, path, staged)
+        })()
+    request.then((content) => {
       if (!cancelled) setDiffContent(content)
     })
 
     return () => {
       cancelled = true
     }
-  }, [activeTab?.path, isDiff, projectRoot])
+  }, [activeTab?.path, isDiff, isCommitDiff, projectRoot])
 
   useEffect(() => {
     if (!activeTab || isReadOnlyTab(activeTab)) return
@@ -311,7 +320,7 @@ function EditorPane({ paneId }: { paneId: string }) {
           <ImageViewer key={activeTab.path} path={parseImagePreviewPath(activeTab.path)} />
         ) : isMarkdownPreview ? (
           <MarkdownViewer key={activeTab.path} path={parseMarkdownPreviewPath(activeTab.path)} />
-        ) : isDiff ? (
+        ) : (isDiff || isCommitDiff) ? (
           <div className="h-full overflow-hidden">
             {diffContent && (
               <DiffEditor
