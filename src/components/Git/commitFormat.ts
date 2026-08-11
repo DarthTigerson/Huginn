@@ -40,6 +40,17 @@ export function formatExactDate(iso: string): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`
 }
 
+export function formatRelDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(iso).toLocaleDateString()
+}
+
 export function refTone(ref: string): string {
   if (ref.includes('HEAD') || ref === 'main' || ref === 'master') {
     return 'border-[#2563eb]/80 bg-[#2563eb]/20 text-[var(--ref-blue-text)]'

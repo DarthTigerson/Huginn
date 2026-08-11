@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
+  gitDefaultBranch: (cwd: string) => ipcRenderer.invoke('git:defaultBranch', cwd),
   gitBranchList: (cwd: string) => ipcRenderer.invoke('git:branchList', cwd),
   gitBranchDiff: (cwd: string, source: string, target: string) =>
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),

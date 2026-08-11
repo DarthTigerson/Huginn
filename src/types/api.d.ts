@@ -99,6 +99,7 @@ declare global {
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
       gitGraph: (cwd: string) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
+      gitDefaultBranch: (cwd: string) => Promise<string | null>
       gitBranchList: (cwd: string) => Promise<GitBranchList>
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
