@@ -83,4 +83,36 @@ describe('computeLayout', () => {
     // Lane 0 should have no edges (no parents, no pass-throughs)
     expect(result[0].edges).toHaveLength(0)
   })
+
+  it('draws both the merge-in and branch-out edges when a merge\'s extra parent reuses a lane freed by an incoming convergence on the same row', () => {
+    // Regression test: 'x' and 'f' both converge into 'm' on the same row
+    // (lanes 0 and 1 are both waiting for 'm'). 'm' is itself a merge, and
+    // its second parent 's' lands in lane 1 — the very lane that just
+    // converged in. Both the merge-in (1->0) and the branch-out (0->1) must
+    // be drawn, or nothing visually connects 'm' down to 's' in the row
+    // below (previously the merge-in silently swallowed the branch-out).
+    const commits = [
+      makeCommit('x', ['m']),
+      makeCommit('f', ['m']),
+      makeCommit('m', ['p', 's']),
+      makeCommit('p', []),
+      makeCommit('s', []),
+    ]
+    const result = computeLayout(commits)
+    const mergeRow = result[2]
+    expect(mergeRow.commit.hash).toBe('m')
+    expect(mergeRow.lane).toBe(0)
+
+    const mergeIn = mergeRow.edges.find((e) => e.fromLane === 1 && e.toLane === 0)
+    const branchOut = mergeRow.edges.find((e) => e.fromLane === 0 && e.toLane === 1)
+    expect(mergeIn).toBeDefined()
+    expect(branchOut).toBeDefined()
+
+    // The row for 's' (the reused parent) should start in lane 1, matching
+    // the branch-out edge's target — otherwise it's a lane with no edge
+    // connecting it to anything above.
+    const secondParentRow = result[4]
+    expect(secondParentRow.commit.hash).toBe('s')
+    expect(secondParentRow.lane).toBe(1)
+  })
 })
