@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { MouseEvent, ReactNode } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
@@ -251,7 +252,7 @@ export function Sidebar() {
             />
           </div>
 
-          {menu && (
+          {menu && createPortal(
             <div
               ref={menuRef}
               className="fixed z-[200] w-44 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
@@ -309,7 +310,8 @@ export function Sidebar() {
                   </ContextMenuButton>
                 </>
               )}
-            </div>
+            </div>,
+            document.body
           )}
 
           {deleteTarget && (

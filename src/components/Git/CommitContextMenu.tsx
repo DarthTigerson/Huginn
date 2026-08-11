@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { copyToClipboard } from './commitFormat'
 
@@ -39,7 +40,7 @@ export function CommitContextMenu({ x, y, message, hash, onClose }: Props) {
     onClose()
   }
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       className="fixed z-[200] w-40 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
@@ -60,6 +61,7 @@ export function CommitContextMenu({ x, y, message, hash, onClose }: Props) {
       >
         Copy Hash
       </button>
-    </div>
+    </div>,
+    document.body
   )
 }
