@@ -279,6 +279,28 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('inlineEdit:event', handler)
   },
 
+  lspDetectAll: () => ipcRenderer.invoke('lsp:detectAll'),
+  lspInstall: (id: string) => ipcRenderer.invoke('lsp:install', id),
+  lspSetEnabled: (id: string, enabled: boolean) => ipcRenderer.send('lsp:setEnabled', id, enabled),
+  lspGetDefinition: (params: {
+    language: string
+    projectRoot: string
+    filePath: string
+    content: string
+    line: number
+    column: number
+  }) => ipcRenderer.invoke('lsp:getDefinition', params),
+  onLspInstallData: (cb: (id: string, chunk: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, chunk: string) => cb(id, chunk)
+    ipcRenderer.on('lsp:install:data', handler)
+    return () => ipcRenderer.removeListener('lsp:install:data', handler)
+  },
+  onLspInstallExit: (cb: (id: string, code: number) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, id: string, code: number) => cb(id, code)
+    ipcRenderer.on('lsp:install:exit', handler)
+    return () => ipcRenderer.removeListener('lsp:install:exit', handler)
+  },
+
   graphifyIsAvailable: () => ipcRenderer.invoke('graphify:isAvailable'),
   graphifyRun: (id: string, cwd: string) => ipcRenderer.invoke('graphify:run', id, cwd),
   graphifyReadGraph: (cwd: string) => ipcRenderer.invoke('graphify:readGraph', cwd),

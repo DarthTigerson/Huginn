@@ -4,6 +4,7 @@ import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inl
 import type { LatestUsage } from '../../electron/usagePoller'
 import type { UpdateInfo } from '../../electron/updateChecker'
 import type { GraphifyGraph } from './graphify'
+import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
 
 export type { LatestUsage, UpdateInfo }
 
@@ -205,6 +206,20 @@ declare global {
       graphifyInstallClaudeSkill: (cwd: string) => Promise<{ ok: boolean; output: string }>
       onGraphifyData: (cb: (id: string, data: string) => void) => () => void
       onGraphifyExit: (cb: (id: string, code: number) => void) => () => void
+
+      lspDetectAll: () => Promise<Record<LspServerId, DetectResult & { label: string; ramEstimate: string }>>
+      lspInstall: (id: string) => Promise<void>
+      lspSetEnabled: (id: string, enabled: boolean) => void
+      lspGetDefinition: (params: {
+        language: string
+        projectRoot: string
+        filePath: string
+        content: string
+        line: number
+        column: number
+      }) => Promise<DefinitionLocation[]>
+      onLspInstallData: (cb: (id: string, chunk: string) => void) => () => void
+      onLspInstallExit: (cb: (id: string, code: number) => void) => () => void
     }
   }
 }

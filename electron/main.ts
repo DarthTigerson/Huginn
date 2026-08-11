@@ -14,6 +14,7 @@ import { CosmosManager } from './cosmos'
 import { AutocompleteManager } from './autocomplete'
 import { InlineEditManager } from './inlineEdit'
 import { BrowserViewManager } from './browserViews'
+import { LanguageServerManager } from './lsp/manager'
 import { listAllFiles, searchText, buildTree, readImageDataUrl } from './fsOps'
 import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
@@ -135,6 +136,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     browserViewMgr.disposeWindow(win.id)
     autocompleteMgr.disposeWindow(win.id)
     inlineEditMgr.disposeWindow(win.id)
+    lspMgr.disposeWindow(win.id)
     buildMenu()
   })
 
@@ -479,6 +481,7 @@ let cosmosMgr: CosmosManager
 let browserViewMgr: BrowserViewManager
 let autocompleteMgr: AutocompleteManager
 let inlineEditMgr: InlineEditManager
+let lspMgr: LanguageServerManager
 let updateChecker: UpdateChecker | null = null
 
 app.whenReady().then(() => {
@@ -518,6 +521,8 @@ app.whenReady().then(() => {
   autocompleteMgr.registerHandlers()
   inlineEditMgr = new InlineEditManager()
   inlineEditMgr.registerHandlers()
+  lspMgr = new LanguageServerManager()
+  lspMgr.registerHandlers()
 
   buildMenu()
   createWindow()
