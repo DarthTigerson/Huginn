@@ -198,11 +198,11 @@ export function GitPanel() {
       <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
         <button
           type="button"
-          className={pillButtonClass}
+          className={`${pillButtonClass} px-2 overflow-hidden`}
           disabled={remoteActionDisabled}
           onClick={() => useSearchStore.getState().openBranchPalette()}
         >
-          Branch: {branch ?? '—'}
+          <span className="truncate min-w-0">Branch: {branch ?? '—'}</span>
         </button>
         <div className="flex gap-1.5">
           <button
