@@ -12,10 +12,14 @@ const UPDATE_COMMAND =
 
 export type UpdateStatus = 'idle' | 'updating' | 'ready' | 'failed'
 
+const UP_TO_DATE_DISPLAY_MS = 4000
+
 interface UpdateState {
   available: UpdateInfo | null
   status: UpdateStatus
+  upToDateVersion: string | null
   setAvailable: (info: UpdateInfo | null) => void
+  showUpToDate: (version: string) => void
   startUpdate: () => void
   restart: () => void
 }
@@ -23,8 +27,16 @@ interface UpdateState {
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   available: null,
   status: 'idle',
+  upToDateVersion: null,
 
   setAvailable: (info) => set({ available: info }),
+
+  showUpToDate: (version) => {
+    set({ upToDateVersion: version })
+    setTimeout(() => {
+      if (get().upToDateVersion === version) set({ upToDateVersion: null })
+    }, UP_TO_DATE_DISPLAY_MS)
+  },
 
   startUpdate: () => {
     if (get().status === 'updating') return

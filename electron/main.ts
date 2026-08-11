@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents, nativeImage } from 'electron'
 import { basename, join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
@@ -186,6 +186,19 @@ function registerCosmosSettingsHandlers(): void {
   })
 }
 
+// nativeImage.createFromPath/createFromDataURL silently drop the alpha
+// channel on this Electron version (confirmed: decoded RGBA PNGs re-encode
+// as opaque RGB), so any custom PNG/SVG-sourced icon renders as a solid
+// block once marked as a template image. createFromNamedImage wraps a
+// native AppKit resource directly instead, bypassing that decode path, so
+// it's the only icon source that actually renders correctly here.
+function darwinMenuIcon(imageName: string): Electron.NativeImage | undefined {
+  if (process.platform !== 'darwin') return undefined
+  const icon = nativeImage.createFromNamedImage(imageName).resize({ width: 16, height: 16 })
+  icon.setTemplateImage(true)
+  return icon
+}
+
 async function buildMenu(): Promise<void> {
   try {
   const recents = await readRecents()
@@ -194,6 +207,17 @@ async function buildMenu(): Promise<void> {
       label: 'Huginn',
       submenu: [
         { role: 'about' },
+        {
+          label: 'Check for Updates…',
+          icon: darwinMenuIcon('NSImageNameRefreshTemplate'),
+          click: async () => {
+            const info = await updateChecker?.check()
+            if (info) return
+            const win = BrowserWindow.getFocusedWindow()
+            if (win) win.webContents.send('update:upToDate', app.getVersion())
+          },
+        },
+        { type: 'separator' },
         {
           label: 'Preferences…',
           accelerator: 'CmdOrCtrl+,',
@@ -455,6 +479,7 @@ let cosmosMgr: CosmosManager
 let browserViewMgr: BrowserViewManager
 let autocompleteMgr: AutocompleteManager
 let inlineEditMgr: InlineEditManager
+let updateChecker: UpdateChecker | null = null
 
 app.whenReady().then(() => {
   if (process.platform === 'darwin') {
@@ -524,7 +549,7 @@ app.whenReady().then(() => {
   const mobileSrv = new MobileServer(broadcastWin, usageMgr)
   mobileSrv.registerHandlers()
 
-  const updateChecker = new UpdateChecker(app.getVersion(), (info) => {
+  updateChecker = new UpdateChecker(app.getVersion(), (info) => {
     broadcastWin.webContents.send('update:available', info)
   })
   updateChecker.registerHandlers()

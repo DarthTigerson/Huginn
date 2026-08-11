@@ -289,6 +289,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    return window.api.onUpdateUpToDate((version) => useUpdateStore.getState().showUpToDate(version))
+  }, [])
+
+  useEffect(() => {
     useChangelogStore.getState().checkPending()
   }, [])
 

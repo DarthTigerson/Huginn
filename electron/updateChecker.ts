@@ -37,14 +37,14 @@ export class UpdateChecker {
     private readonly onUpdate?: (info: UpdateInfo | null) => void
   ) {}
 
-  async check(): Promise<void> {
+  async check(): Promise<UpdateInfo | null> {
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json' },
       })
-      if (!res.ok) return
+      if (!res.ok) return this.latest
       const release: GithubRelease = await res.json()
-      if (release.draft || release.prerelease) return
+      if (release.draft || release.prerelease) return this.latest
 
       const version = release.tag_name.replace(/^v/, '')
       const next = compareVersions(version, this.currentVersion) > 0
@@ -55,8 +55,10 @@ export class UpdateChecker {
         this.latest = next
         this.onUpdate?.(this.latest)
       }
+      return this.latest
     } catch (e) {
       console.error('UpdateChecker check failed:', e)
+      return this.latest
     }
   }
 

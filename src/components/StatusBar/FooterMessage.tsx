@@ -15,6 +15,7 @@ function randomTipIndex(exclude?: number): number {
 export function FooterMessage() {
   const available = useUpdateStore((s) => s.available)
   const status = useUpdateStore((s) => s.status)
+  const upToDateVersion = useUpdateStore((s) => s.upToDateVersion)
   const startUpdate = useUpdateStore((s) => s.startUpdate)
   const restart = useUpdateStore((s) => s.restart)
 
@@ -60,6 +61,14 @@ export function FooterMessage() {
       >
         {label}
       </button>
+    )
+  }
+
+  if (upToDateVersion) {
+    return (
+      <span className={[positionClasses, 'text-accent select-none pointer-events-none'].join(' ')}>
+        {`You're on the latest version — v${upToDateVersion}`}
+      </span>
     )
   }
 
