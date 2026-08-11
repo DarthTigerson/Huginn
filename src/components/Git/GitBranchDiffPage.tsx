@@ -5,17 +5,24 @@ import { useGitStore } from '@/stores/gitStore'
 import type { GitCommit } from '@/types/index'
 import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
+import { CommitDetailsPanel } from './CommitDetailsPanel'
 
 const ROW_H = 70
 
-function chooseTarget(branches: string[], source: string): string {
+function chooseTarget(branches: string[], source: string, defaultBranch: string | null): string {
+  // The repo's actual default branch (resolved via origin/HEAD) comes
+  // first — it's the correct answer, not a guess. `main`/`master` stay as
+  // a fallback for repos with no origin remote or an unset origin/HEAD.
   const preferred = [
+    defaultBranch,
     `origin/${source}`,
     'origin/main',
     'origin/master',
     'main',
     'master',
-  ].find((branch) => branch !== source && branches.includes(branch))
+  ]
+    .filter((branch): branch is string => !!branch)
+    .find((branch) => branch !== source && branches.includes(branch))
 
   return preferred ?? branches.find((branch) => branch !== source) ?? ''
 }
@@ -135,10 +142,12 @@ function BranchCombobox({ label, value, options, onChange }: {
   )
 }
 
-function CommitRow({ commit, index, total, onContextMenu }: {
+function CommitRow({ commit, index, total, selected, onClick, onContextMenu }: {
   commit: GitCommit
   index: number
   total: number
+  selected: boolean
+  onClick: () => void
   onContextMenu: (event: MouseEvent) => void
 }) {
   const refs = commit.refs.slice(0, 3)
@@ -148,9 +157,20 @@ function CommitRow({ commit, index, total, onContextMenu }: {
   return (
     <button
       type="button"
-      className="w-full grid grid-cols-[minmax(100px,0.75fr)_160px_minmax(180px,1.2fr)] items-center text-left group hover:bg-white/[0.04] focus:outline-none focus-visible:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#2563eb]/70"
-      style={{ minHeight: ROW_H }}
+      style={{
+        gridTemplateColumns: 'minmax(82px, 0.35fr) 90px minmax(180px, 1.5fr)',
+        background: selected
+          ? 'linear-gradient(90deg, transparent 0%, #2563eb22 35%, #2563eb1c 65%, transparent 100%)'
+          : undefined,
+        minHeight: ROW_H,
+      }}
+      className={[
+        'w-full grid items-center text-left group transition-colors border-l-2 focus:outline-none focus-visible:bg-white/[0.08] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#2563eb]/70',
+        selected ? 'border-l-[#2563eb]' : 'border-l-transparent hover:bg-white/[0.04]',
+      ].join(' ')}
+      onClick={onClick}
       onContextMenu={onContextMenu}
+      aria-pressed={selected}
     >
       <div className="min-w-0 px-4 justify-self-end">
         {refs.length > 0 && (
@@ -205,12 +225,14 @@ export function GitBranchDiffPage() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const currentBranch = useGitStore((s) => s.branch)
   const [branches, setBranches] = useState<string[]>([])
+  const [defaultBranch, setDefaultBranch] = useState<string | null>(null)
   const [source, setSource] = useState('')
   const [target, setTarget] = useState('')
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [loadingBranches, setLoadingBranches] = useState(false)
   const [loadingCommits, setLoadingCommits] = useState(false)
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
+  const [selectedHash, setSelectedHash] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectRoot) return
@@ -221,15 +243,17 @@ export function GitBranchDiffPage() {
     Promise.all([
       window.api.gitBranches(projectRoot),
       currentBranch ? Promise.resolve(currentBranch) : window.api.gitBranch(projectRoot),
-    ]).then(([loadedBranches, branch]) => {
+      window.api.gitDefaultBranch(projectRoot),
+    ]).then(([loadedBranches, branch, loadedDefaultBranch]) => {
       if (cancelled) return
       const selectedSource = branch ?? loadedBranches[0] ?? ''
       const uniqueBranches = Array.from(
         new Set(selectedSource ? [selectedSource, ...loadedBranches] : loadedBranches)
       )
       setBranches(uniqueBranches)
+      setDefaultBranch(loadedDefaultBranch)
       setSource((existing) => existing || selectedSource)
-      setTarget((existing) => existing || chooseTarget(uniqueBranches, selectedSource))
+      setTarget((existing) => existing || chooseTarget(uniqueBranches, selectedSource, loadedDefaultBranch))
       setLoadingBranches(false)
     })
 
@@ -239,6 +263,8 @@ export function GitBranchDiffPage() {
   }, [projectRoot, currentBranch])
 
   useEffect(() => {
+    setSelectedHash(null)
+
     if (!projectRoot || !source || !target || source === target) {
       setCommits([])
       return
@@ -257,6 +283,8 @@ export function GitBranchDiffPage() {
     }
   }, [projectRoot, source, target])
 
+  const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
+
   const targetOptions = useMemo(
     () => branches.filter((branch) => branch !== source),
     [branches, source]
@@ -265,7 +293,7 @@ export function GitBranchDiffPage() {
   function handleSourceChange(nextSource: string) {
     setSource(nextSource)
     if (!target || target === nextSource) {
-      setTarget(chooseTarget(branches, nextSource))
+      setTarget(chooseTarget(branches, nextSource, defaultBranch))
     }
   }
 
@@ -302,34 +330,46 @@ export function GitBranchDiffPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {loadingBranches || loadingCommits ? (
-          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-            Loading branch diff...
-          </div>
-        ) : !source || !target ? (
-          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-            Select two branches
-          </div>
-        ) : commits.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-            No commits between selected branches
-          </div>
-        ) : (
-          <div>
-            {commits.map((commit, index) => (
-              <CommitRow
-                key={commit.hash}
-                commit={commit}
-                index={index}
-                total={commits.length}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
-                }}
-              />
-            ))}
-          </div>
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          {loadingBranches || loadingCommits ? (
+            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+              Loading branch diff...
+            </div>
+          ) : !source || !target ? (
+            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+              Select two branches
+            </div>
+          ) : commits.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+              No commits between selected branches
+            </div>
+          ) : (
+            <div>
+              {commits.map((commit, index) => (
+                <CommitRow
+                  key={commit.hash}
+                  commit={commit}
+                  index={index}
+                  total={commits.length}
+                  selected={commit.hash === selectedHash}
+                  onClick={() => setSelectedHash((h) => (h === commit.hash ? null : commit.hash))}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selectedCommit && projectRoot && (
+          <CommitDetailsPanel
+            cwd={projectRoot}
+            commit={selectedCommit}
+            onClose={() => setSelectedHash(null)}
+          />
         )}
       </div>
 

@@ -95,14 +95,30 @@ export function computeLayout(commits: GitCommit[]): CommitLayout[] {
         continue
       }
 
+      const isIncoming = incomingIndices.includes(i)
+
+      // A commit is never its own parent, so an incoming lane's before.hash
+      // (== this commit's hash) can never match a freshly-assigned parent
+      // hash in after — isIncoming and this pass-through case are mutually
+      // exclusive already, no extra guard needed.
       if (before !== null && after !== null && before.hash === after.hash) {
         // Pass-through: lane unchanged
         edges.push({ fromLane: i, toLane: i, color: before.color })
-      } else if (incomingIndices.includes(i)) {
+        continue
+      }
+
+      if (isIncoming) {
         // Merge-in: this lane was waiting for this commit, curves to commitLane
         edges.push({ fromLane: i, toLane: commitLane, color: before!.color })
-      } else if (before === null && after !== null) {
-        // Branch-out: new lane created for an additional parent
+      }
+
+      // Branch-out: an additional parent now occupies this lane. Checked
+      // independently of (not else-if'd against) the merge-in case above,
+      // since the freed lane from an incoming merge is frequently the same
+      // lane index an extra parent gets assigned to on this very row — both
+      // edges are real and need to be drawn, or the second parent's line
+      // has nothing connecting it to this commit in the row below.
+      if (after !== null && (before === null || isIncoming)) {
         edges.push({ fromLane: commitLane, toLane: i, color: after.color })
       }
     }

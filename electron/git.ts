@@ -32,6 +32,25 @@ export async function getGitBranch(cwd: string): Promise<string | null> {
   }
 }
 
+// Resolves the repo's actual default branch (e.g. "origin/main") via the
+// locally-cached refs/remotes/origin/HEAD symbolic ref — set whenever the
+// repo was cloned or `git remote set-head origin -a` was run — rather than
+// guessing between "main"/"master". No network call. Returns null if there's
+// no origin remote, or its HEAD ref was never set (e.g. some shallow/CI
+// clones), so callers should keep a heuristic fallback.
+export async function getDefaultBranch(cwd: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
+      { cwd }
+    )
+    return stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
 export async function getGitBranches(cwd: string): Promise<string[]> {
   try {
     const { stdout } = await execFileAsync(
@@ -304,5 +323,21 @@ export async function getDiffContent(
   } catch {
     modified = ''
   }
+  return { original, modified }
+}
+
+// Same shape as getDiffContent above, but for a specific historical commit
+// rather than the working tree: compares the file against its first parent.
+// showRef already resolves to '' on any git error, so this needs no extra
+// handling for the initial commit (no `^`) or a file the commit added.
+export async function getCommitDiffContent(
+  cwd: string,
+  hash: string,
+  path: string
+): Promise<{ original: string; modified: string }> {
+  const [original, modified] = await Promise.all([
+    showRef(cwd, `${hash}^:${path}`),
+    showRef(cwd, `${hash}:${path}`),
+  ])
   return { original, modified }
 }

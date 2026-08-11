@@ -7,6 +7,7 @@ interface SearchState {
   actionPaletteOpen: boolean
   shortcutsOverlayOpen: boolean
   recentProjectsPaletteOpen: boolean
+  branchPaletteOpen: boolean
   openCommandPalette: () => void
   closeCommandPalette: () => void
   openSearch: (caseSensitive: boolean) => void
@@ -17,6 +18,8 @@ interface SearchState {
   closeShortcutsOverlay: () => void
   openRecentProjectsPalette: () => void
   closeRecentProjectsPalette: () => void
+  openBranchPalette: () => void
+  closeBranchPalette: () => void
 }
 
 export const useSearchStore = create<SearchState>((set) => ({
@@ -26,6 +29,7 @@ export const useSearchStore = create<SearchState>((set) => ({
   actionPaletteOpen: false,
   shortcutsOverlayOpen: false,
   recentProjectsPaletteOpen: false,
+  branchPaletteOpen: false,
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
   openSearch: (caseSensitive) => set({ searchOpen: true, searchCaseSensitive: caseSensitive }),
@@ -36,4 +40,6 @@ export const useSearchStore = create<SearchState>((set) => ({
   closeShortcutsOverlay: () => set({ shortcutsOverlayOpen: false }),
   openRecentProjectsPalette: () => set({ recentProjectsPaletteOpen: true }),
   closeRecentProjectsPalette: () => set({ recentProjectsPaletteOpen: false }),
+  openBranchPalette: () => set({ branchPaletteOpen: true }),
+  closeBranchPalette: () => set({ branchPaletteOpen: false }),
 }))

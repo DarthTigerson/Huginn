@@ -4,14 +4,20 @@ import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
-import { normalizeRef, formatExactDate, refTone, copyToClipboard } from './commitFormat'
+import { normalizeRef, formatExactDate, formatRelDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
+import { CommitDetailsPanel } from './CommitDetailsPanel'
 
 const ROW_H = 72
 const LANE_W = 40
 const LANE_PAD = 24
 const DOT_R = 11
-const MIN_GRAPH_W = 320
+// A floor just above what a single lane already needs (LANE_W + LANE_PAD*2
+// = 88) — the dot is centered in this column, so any width beyond what the
+// lanes actually need becomes dead space on both sides of it. Previously
+// 320, which reserved room for ~6 lanes' worth of width even on a plain
+// linear (1-lane) history.
+const MIN_GRAPH_W = 90
 
 function laneX(lane: number, railWidth: number, laneCount: number): number {
   const visibleLanes = Math.max(1, laneCount)
@@ -35,17 +41,6 @@ function edgePath(
   return `M ${x1} ${y1} C ${x1} ${ROW_H * 0.35}, ${x2} ${ROW_H * 0.65}, ${x2} ${
     ROW_H
   }`
-}
-
-function formatRelDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  return new Date(iso).toLocaleDateString()
 }
 
 function graphWidth(laneCount: number): number {
@@ -80,38 +75,6 @@ function nodeMeta(
   return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy(e: MouseEvent) {
-    e.stopPropagation()
-    copyToClipboard(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1200)
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      aria-label={`Copy ${label}`}
-      title={`Copy ${label}`}
-      className="shrink-0 text-fg-subtle hover:text-fg transition-colors"
-    >
-      {copied ? (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <rect x="9" y="9" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
-          <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      )}
-    </button>
-  )
-}
-
 function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick, onContextMenu }: {
   layout: CommitLayout
   rowIndex: number
@@ -133,7 +96,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
     <button
       type="button"
       style={{
-        gridTemplateColumns: `minmax(82px, 0.7fr) ${svgW}px minmax(140px, 1.15fr)`,
+        gridTemplateColumns: `minmax(82px, 0.35fr) ${svgW}px minmax(140px, 1.5fr)`,
         background: selected
           ? `linear-gradient(90deg, transparent 0%, ${color}22 35%, ${color}1c 65%, transparent 100%)`
           : undefined,
@@ -250,127 +213,6 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
   )
 }
 
-function DetailPanel({ cwd, hash, onClose }: {
-  cwd: string
-  hash: string
-  onClose: () => void
-}) {
-  const commits = useGitGraphStore((s) => s.commits)
-  const selectedFiles = useGitGraphStore((s) => s.selectedFiles)
-  const filesLoading = useGitGraphStore((s) => s.filesLoading)
-  const loadFiles = useGitGraphStore((s) => s.loadFiles)
-
-  const commit = commits.find((c) => c.hash === hash)
-
-  useEffect(() => {
-    loadFiles(cwd, hash)
-  }, [hash, cwd, loadFiles])
-
-  if (!commit) return null
-
-  return (
-    <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
-      <div className="h-11 flex items-center justify-between px-4 border-b border-border shrink-0">
-        <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
-          Commit Details
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-fg-subtle hover:text-fg transition-colors text-xs leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-white/10"
-          aria-label="Close commit details"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
-        <div className="border border-border bg-panel rounded-md p-3">
-          <div className="text-[0.625rem] text-fg-muted uppercase tracking-wider mb-2">
-            Selected node
-          </div>
-          <div className="flex items-start justify-between gap-2">
-            <div className="text-sm text-fg font-medium leading-snug">{commit.subject}</div>
-            <CopyButton value={commit.subject} label="message" />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[0.625rem]">
-            <div className="border border-border rounded px-2 py-1.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-fg-subtle uppercase tracking-wider">Hash</span>
-                <CopyButton value={commit.hash} label="hash" />
-              </div>
-              <div className="font-mono text-fg mt-1 truncate">{commit.hash.slice(0, 12)}</div>
-            </div>
-            <div className="border border-border rounded px-2 py-1.5">
-              <div className="text-fg-subtle uppercase tracking-wider">Parents</div>
-              <div className="font-mono text-fg mt-1">{commit.parents.length || 'root'}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-xs text-fg-muted flex flex-col gap-2">
-          <div className="flex justify-between gap-3 items-center">
-            <span className="text-fg-subtle">Author</span>
-            <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-fg truncate text-right">{commit.author}</span>
-              <CopyButton value={commit.author} label="author" />
-            </span>
-          </div>
-          <div className="flex justify-between gap-3 items-center">
-            <span className="text-fg-subtle">Date</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-fg text-right">{formatExactDate(commit.date)}</span>
-              <CopyButton value={formatExactDate(commit.date)} label="date" />
-            </span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-fg-subtle">Relative</span>
-            <span className="text-fg text-right">{formatRelDate(commit.date)}</span>
-          </div>
-        </div>
-
-        {commit.refs.length > 0 && (
-          <div>
-            <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
-              References
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {commit.refs.map((ref) => (
-                <span
-                  key={ref}
-                  className={`max-w-full truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
-                >
-                  {ref}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <div className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider mb-2">
-            Changed Files
-          </div>
-          {filesLoading ? (
-            <div className="text-xs text-fg-subtle">Loading…</div>
-          ) : selectedFiles.length === 0 ? (
-            <div className="text-xs text-fg-subtle">No files</div>
-          ) : (
-            <div className="flex flex-col gap-0.5">
-              {selectedFiles.map((f) => (
-                <div key={f} className="flex items-center justify-between gap-2 py-0.5">
-                  <span className="text-[0.6875rem] font-mono text-fg truncate opacity-80">{f}</span>
-                  <CopyButton value={f} label="file path" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 interface RowMenuState {
   x: number
   y: number
@@ -390,6 +232,8 @@ export function GitGraphPage() {
   useEffect(() => {
     if (projectRoot) load(projectRoot)
   }, [projectRoot, load])
+
+  const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
   const layouts = computeLayout(commits)
   const graphLaneCount = layouts.reduce(
@@ -453,10 +297,10 @@ export function GitGraphPage() {
         </div>
       </div>
 
-      {selectedHash && projectRoot && (
-        <DetailPanel
+      {selectedCommit && projectRoot && (
+        <CommitDetailsPanel
           cwd={projectRoot}
-          hash={selectedHash}
+          commit={selectedCommit}
           onClose={() => select(null)}
         />
       )}

@@ -38,3 +38,22 @@ describe('searchStore recent projects palette', () => {
     expect(useSearchStore.getState().recentProjectsPaletteOpen).toBe(false)
   })
 })
+
+describe('searchStore branch palette', () => {
+  beforeEach(() => useSearchStore.setState({ branchPaletteOpen: false }))
+
+  it('starts closed', () => {
+    expect(useSearchStore.getState().branchPaletteOpen).toBe(false)
+  })
+
+  it('openBranchPalette sets it true', () => {
+    useSearchStore.getState().openBranchPalette()
+    expect(useSearchStore.getState().branchPaletteOpen).toBe(true)
+  })
+
+  it('closeBranchPalette sets it false', () => {
+    useSearchStore.setState({ branchPaletteOpen: true })
+    useSearchStore.getState().closeBranchPalette()
+    expect(useSearchStore.getState().branchPaletteOpen).toBe(false)
+  })
+})

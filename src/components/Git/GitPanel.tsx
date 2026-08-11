@@ -9,8 +9,8 @@ import { buildGitDiffPath } from './paths'
 import { GIT_BRANCH_DIFF_TAB_PATH, GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { Modal } from '@/components/ui/Modal'
 import { clampToViewport } from '@/components/ui/clampToViewport'
+import { useSearchStore } from '@/stores/searchStore'
 import { FileRow } from './FileRow'
-import { BranchPalette } from './BranchPalette'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 
@@ -54,7 +54,6 @@ export function GitPanel() {
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
-  const [branchPaletteOpen, setBranchPaletteOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(projectRoot)
@@ -199,11 +198,11 @@ export function GitPanel() {
       <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
         <button
           type="button"
-          className={pillButtonClass}
+          className={`${pillButtonClass} px-2 overflow-hidden`}
           disabled={remoteActionDisabled}
-          onClick={() => setBranchPaletteOpen(true)}
+          onClick={() => useSearchStore.getState().openBranchPalette()}
         >
-          Branch: {branch ?? '—'}
+          <span className="truncate min-w-0">Branch: {branch ?? '—'}</span>
         </button>
         <div className="flex gap-1.5">
           <button
@@ -346,10 +345,6 @@ export function GitPanel() {
             </button>
           </div>
         </Modal>
-      )}
-
-      {branchPaletteOpen && projectRoot && (
-        <BranchPalette projectRoot={projectRoot} onClose={() => setBranchPaletteOpen(false)} />
       )}
 
       {forceAction && projectRoot && (

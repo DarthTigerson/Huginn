@@ -61,18 +61,18 @@ export function StatusBar() {
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <FooterMessage />
       {branch ? (
-        <div className="relative">
+        <div className="relative min-w-0">
           <span
-            className="flex items-center gap-1 text-fg-muted text-xs truncate cursor-default select-none"
+            className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none"
             onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
           >
             <GitIcon className="w-3 h-3 shrink-0" />
-            {branch}
+            <span className="truncate">{branch}</span>
             {commandStatus === 'running' ? (
-              <span className="ml-1.5 text-fg-subtle animate-pulse">●</span>
+              <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>
             ) : (
               aheadBehind && (
-                <span className="flex items-center gap-1.5 tabular-nums ml-1.5">
+                <span className="flex items-center gap-1.5 tabular-nums ml-1.5 shrink-0">
                   <span>↓{aheadBehind.behind}</span>
                   <span>↑{aheadBehind.ahead}</span>
                 </span>

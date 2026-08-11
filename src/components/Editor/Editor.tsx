@@ -45,7 +45,7 @@ import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { TodoSettingsPage } from '@/components/Settings/TodoSettingsPage'
-import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
@@ -196,6 +196,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isTerminal = !!activeTab && isTerminalTab(activeTab.path)
   const isBrowser = !!activeTab && isBrowserTab(activeTab.path)
   const isDiff = !!activeTab && isGitDiffTab(activeTab.path)
+  const isCommitDiff = !!activeTab && isGitCommitDiffTab(activeTab.path)
   const isGitLog = !!activeTab && isGitLogTab(activeTab.path)
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
@@ -207,22 +208,55 @@ function EditorPane({ paneId }: { paneId: string }) {
     setActivePane(paneId)
   }
 
+  // A working-tree diff (isDiff — staged/unstaged) can go stale the same
+  // way a regular file tab can: edited from outside the app, or staged/
+  // unstaged via the terminal. Regular tabs get resynced by
+  // syncOpenTabsFromDisk on fs:changed, but that only touches
+  // editorStore's tab.content — diff content lives in this component's own
+  // state, fetched imperatively, so it needs its own live-refresh trigger.
+  // A commit diff (isCommitDiff) is comparing two fixed, immutable
+  // commits, so it doesn't need this — but re-running the fetch for it
+  // when the tick changes is harmless, just an extra no-op-ish IPC call.
+  const [diffRefreshTick, setDiffRefreshTick] = useState(0)
+
   useEffect(() => {
-    if (!activeTab || !isDiff || !projectRoot) {
+    if (!projectRoot) return
+    const offFs = window.api.onFsChanged((cwd) => {
+      if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
+    })
+    const offGit = window.api.onGitChanged((cwd) => {
+      if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
+    })
+    return () => {
+      offFs()
+      offGit()
+    }
+  }, [projectRoot])
+
+  useEffect(() => {
+    if (!activeTab || !projectRoot || (!isDiff && !isCommitDiff)) {
       setDiffContent(null)
       return
     }
 
-    const { path, staged } = parseGitDiffPath(activeTab.path)
     let cancelled = false
-    window.api.gitDiff(projectRoot, path, staged).then((content) => {
+    const request = isCommitDiff
+      ? (() => {
+          const { hash, path } = parseGitCommitDiffPath(activeTab.path)
+          return window.api.gitCommitDiff(projectRoot, hash, path)
+        })()
+      : (() => {
+          const { path, staged } = parseGitDiffPath(activeTab.path)
+          return window.api.gitDiff(projectRoot, path, staged)
+        })()
+    request.then((content) => {
       if (!cancelled) setDiffContent(content)
     })
 
     return () => {
       cancelled = true
     }
-  }, [activeTab?.path, isDiff, projectRoot])
+  }, [activeTab?.path, isDiff, isCommitDiff, projectRoot, diffRefreshTick])
 
   useEffect(() => {
     if (!activeTab || isReadOnlyTab(activeTab)) return
@@ -311,7 +345,7 @@ function EditorPane({ paneId }: { paneId: string }) {
           <ImageViewer key={activeTab.path} path={parseImagePreviewPath(activeTab.path)} />
         ) : isMarkdownPreview ? (
           <MarkdownViewer key={activeTab.path} path={parseMarkdownPreviewPath(activeTab.path)} />
-        ) : isDiff ? (
+        ) : (isDiff || isCommitDiff) ? (
           <div className="h-full overflow-hidden">
             {diffContent && (
               <DiffEditor
