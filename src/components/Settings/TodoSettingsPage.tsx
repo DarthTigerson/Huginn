@@ -21,6 +21,8 @@ function Field({ id, label, value, onChange, placeholder }: {
 }
 
 export function TodoSettingsPage() {
+  const enabled = useTodoSettingsStore((s) => s.enabled)
+  const setEnabled = useTodoSettingsStore((s) => s.setEnabled)
   const externalUrl = useTodoSettingsStore((s) => s.externalUrl)
   const setExternalUrl = useTodoSettingsStore((s) => s.setExternalUrl)
   const closeSidePanelOnOpen = useTodoSettingsStore((s) => s.closeSidePanelOnOpen)
@@ -36,6 +38,19 @@ export function TodoSettingsPage() {
       </p>
 
       <div className="grid grid-cols-1 gap-6 max-w-lg">
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+            General
+          </h2>
+
+          <Toggle
+            label="Enable To Do"
+            description="Show the To Do icon in the activity bar. Turning this off hides it entirely; this page stays reachable so you can turn it back on."
+            checked={enabled}
+            onChange={setEnabled}
+          />
+        </section>
+
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
             External Todos

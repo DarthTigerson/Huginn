@@ -124,6 +124,7 @@ export default function App() {
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
+  const todoEnabled = useTodoSettingsStore((s) => s.enabled)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -478,7 +479,7 @@ export default function App() {
               active: leftPanel === 'graphify',
               onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
             },
-          ], [
+          ], ...(todoEnabled ? [[
             {
               id: 'todos',
               icon: <TodoIcon />,
@@ -486,7 +487,7 @@ export default function App() {
               active: activeTabPath === buildBrowserPath(TODO_BROWSER_ID),
               onClick: openTodo,
             },
-          ]]}
+          ]] : [])]}
           bottomGroups={[[
             {
               id: 'browser',

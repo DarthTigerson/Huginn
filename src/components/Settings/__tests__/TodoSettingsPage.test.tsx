@@ -6,7 +6,7 @@ import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
 
 afterEach(() => {
   cleanup()
-  useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false })
+  useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false, enabled: true })
 })
 
 describe('TodoSettingsPage', () => {
@@ -32,5 +32,17 @@ describe('TodoSettingsPage', () => {
     render(<TodoSettingsPage />)
     fireEvent.click(screen.getByRole('switch', { name: 'Close side panel when opening' }))
     expect(useTodoSettingsStore.getState().closeSidePanelOnOpen).toBe(true)
+  })
+
+  it('reflects the current enabled state', () => {
+    useTodoSettingsStore.setState({ enabled: false })
+    render(<TodoSettingsPage />)
+    expect(screen.getByRole('switch', { name: 'Enable To Do' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('toggles enabled on click', () => {
+    render(<TodoSettingsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable To Do' }))
+    expect(useTodoSettingsStore.getState().enabled).toBe(false)
   })
 })
