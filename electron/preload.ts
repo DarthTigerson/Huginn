@@ -232,6 +232,7 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   openProjectInNewWindow: (path: string) => ipcRenderer.invoke('window:openInNewWindow', path),
+  focusProjectIfOpen: (path: string) => ipcRenderer.invoke('window:focusProjectIfOpen', path),
 
   devtoolsAttach: (targetId: number, hostId: number) =>
     ipcRenderer.invoke('devtools:attach', targetId, hostId),

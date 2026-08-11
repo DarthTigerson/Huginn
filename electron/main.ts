@@ -71,7 +71,9 @@ function registerWindowHandlers(): void {
   // whatever createWindow() set at construction time.
   ipcMain.on('window:setTitle', (event, root: string) => {
     const win = BrowserWindow.fromWebContents(event.sender)
-    if (win && !win.isDestroyed()) win.setTitle(basename(root))
+    if (!win || win.isDestroyed()) return
+    win.setTitle(basename(root))
+    windowProjectRoots.set(win.id, root)
   })
 
   // Renderer pulls its initial project once, on startup, instead of main
@@ -90,9 +92,30 @@ function registerWindowHandlers(): void {
   })
 
   ipcMain.handle('window:openInNewWindow', (_e, path: string) => openProjectInNewWindow(path))
+
+  // Lets the "Switch Project…" (Ctrl+R) palette jump to an already-open
+  // window instead of reloading the project into the current window or
+  // spawning a duplicate one.
+  ipcMain.handle('window:focusProjectIfOpen', (_e, path: string) => {
+    for (const [id, root] of windowProjectRoots) {
+      if (root !== path) continue
+      const win = windows.get(id)
+      if (!win || win.isDestroyed()) continue
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+      return true
+    }
+    return false
+  })
 }
 
 const windows = new Map<number, BrowserWindow>()
+// Keyed by window id, kept in sync with each window's current project root
+// via the 'window:setTitle' message the renderer already sends on every
+// project switch — reused here rather than adding a second channel just to
+// track the same value. Consulted by 'window:focusProjectIfOpen' above.
+const windowProjectRoots = new Map<number, string>()
 // Keyed by window id, populated in createWindow() when a projectRoot is
 // passed. Consumed exactly once by the 'window:getInitialProject' handler
 // above — see registerWindowHandlers() for why this replaced the old
@@ -128,6 +151,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
   win.on('page-title-updated', (e) => e.preventDefault())
   win.on('closed', () => {
     windows.delete(win.id)
+    windowProjectRoots.delete(win.id)
     ptyMgr.disposeWindow(win.id)
     claudeMgr.disposeWindow(win.id)
     gitWatcher.disposeWindow(win.id)
@@ -156,6 +180,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
 
   if (projectRoot) {
     pendingInitialProject.set(win.id, projectRoot)
+    windowProjectRoots.set(win.id, projectRoot)
   }
 
   return win

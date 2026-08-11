@@ -139,6 +139,7 @@ declare global {
       onMenuToggleClaudeChat: (cb: () => void) => () => void
       onMenuRecentProjectsPalette: (cb: () => void) => () => void
       openProjectInNewWindow: (path: string) => Promise<void>
+      focusProjectIfOpen: (path: string) => Promise<boolean>
 
       mobileStart: () => Promise<void>
       mobileStop: () => Promise<void>

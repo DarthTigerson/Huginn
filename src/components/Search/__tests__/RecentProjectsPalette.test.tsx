@@ -16,6 +16,7 @@ beforeEach(() => {
   (global as any).window.api = {
     recentProjectsList: vi.fn().mockResolvedValue(RECENTS),
     openProjectInNewWindow: vi.fn().mockResolvedValue(undefined),
+    focusProjectIfOpen: vi.fn().mockResolvedValue(false),
   }
   useFileStore.setState({ openRecentProject: vi.fn().mockResolvedValue(undefined) })
 })
@@ -52,9 +53,9 @@ describe('RecentProjectsPalette', () => {
     render(<RecentProjectsPalette onClose={onClose} />)
     await screen.findByText('huginn')
     fireEvent.keyDown(screen.getByPlaceholderText('Switch project…'), { key: 'Enter' })
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(useFileStore.getState().openRecentProject).toHaveBeenCalledWith('/Users/thomas/huginn')
     expect(window.api.openProjectInNewWindow).not.toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalled()
   })
 
   it('Cmd+Enter opens the selected project in a new window and closes', async () => {
@@ -62,15 +63,16 @@ describe('RecentProjectsPalette', () => {
     render(<RecentProjectsPalette onClose={onClose} />)
     await screen.findByText('huginn')
     fireEvent.keyDown(screen.getByPlaceholderText('Switch project…'), { key: 'Enter', metaKey: true })
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(window.api.openProjectInNewWindow).toHaveBeenCalledWith('/Users/thomas/huginn')
     expect(useFileStore.getState().openRecentProject).not.toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalled()
   })
 
   it('Ctrl+Enter alone does not trigger new-window opening on mac', async () => {
     render(<RecentProjectsPalette onClose={() => {}} />)
     await screen.findByText('huginn')
     fireEvent.keyDown(screen.getByPlaceholderText('Switch project…'), { key: 'Enter', ctrlKey: true })
+    await vi.waitFor(() => expect(useFileStore.getState().openRecentProject).toHaveBeenCalled())
     expect(window.api.openProjectInNewWindow).not.toHaveBeenCalled()
     expect(useFileStore.getState().openRecentProject).toHaveBeenCalledWith('/Users/thomas/huginn')
   })
@@ -81,7 +83,31 @@ describe('RecentProjectsPalette', () => {
     const input = screen.getByPlaceholderText('Switch project…')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
+    await vi.waitFor(() => expect(useFileStore.getState().openRecentProject).toHaveBeenCalled())
     expect(useFileStore.getState().openRecentProject).toHaveBeenCalledWith('/Users/thomas/other-project')
+  })
+
+  it('Enter focuses an already-open window instead of loading it here', async () => {
+    vi.mocked(window.api.focusProjectIfOpen).mockResolvedValueOnce(true)
+    const onClose = vi.fn()
+    render(<RecentProjectsPalette onClose={onClose} />)
+    await screen.findByText('huginn')
+    fireEvent.keyDown(screen.getByPlaceholderText('Switch project…'), { key: 'Enter' })
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(window.api.focusProjectIfOpen).toHaveBeenCalledWith('/Users/thomas/huginn')
+    expect(useFileStore.getState().openRecentProject).not.toHaveBeenCalled()
+    expect(window.api.openProjectInNewWindow).not.toHaveBeenCalled()
+  })
+
+  it('Cmd+Enter also focuses an already-open window instead of spawning a new one', async () => {
+    vi.mocked(window.api.focusProjectIfOpen).mockResolvedValueOnce(true)
+    const onClose = vi.fn()
+    render(<RecentProjectsPalette onClose={onClose} />)
+    await screen.findByText('huginn')
+    fireEvent.keyDown(screen.getByPlaceholderText('Switch project…'), { key: 'Enter', metaKey: true })
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(window.api.openProjectInNewWindow).not.toHaveBeenCalled()
+    expect(useFileStore.getState().openRecentProject).not.toHaveBeenCalled()
   })
 
   it('Escape closes without opening anything', async () => {

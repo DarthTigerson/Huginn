@@ -58,7 +58,11 @@ export function RecentProjectsPalette({ onClose }: Props) {
     onClose()
   }
 
-  function open(path: string, newWindow: boolean) {
+  async function open(path: string, newWindow: boolean) {
+    if (await window.api.focusProjectIfOpen(path)) {
+      onClose()
+      return
+    }
     if (newWindow) openInNewWindow(path)
     else openInCurrentWindow(path)
   }
