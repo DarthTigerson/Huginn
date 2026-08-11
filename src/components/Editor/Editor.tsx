@@ -56,26 +56,8 @@ import {
 } from '@/components/Viewer/paths'
 import { ImageViewer } from '@/components/Viewer/ImageViewer'
 import { MarkdownViewer } from '@/components/Viewer/MarkdownViewer'
-import type { GitDiffContent, Tab } from '@/types/index'
-
-function isVirtualTab(tab: Tab | null): boolean {
-  return !!tab && (isSettingsTab(tab.path) || isTerminalTab(tab.path))
-}
-
-function isReadOnlyTab(tab: Tab | null): boolean {
-  return !!tab && (
-    isSettingsTab(tab.path) ||
-    isGitDiffTab(tab.path) ||
-    isGitLogTab(tab.path) ||
-    isGitGraphTab(tab.path) ||
-    isGitBranchDiffTab(tab.path) ||
-    isGraphifyGraphTab(tab.path) ||
-    isTerminalTab(tab.path) ||
-    isBrowserTab(tab.path) ||
-    isImagePreviewTab(tab.path) ||
-    isMarkdownPreviewTab(tab.path)
-  )
-}
+import type { GitDiffContent } from '@/types/index'
+import { isVirtualTab, isReadOnlyTab } from '@/lib/tabKinds'
 
 async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boolean }) {
   const { tabs, activeTabPath, markSaved, setTabMissing } = useEditorStore.getState()

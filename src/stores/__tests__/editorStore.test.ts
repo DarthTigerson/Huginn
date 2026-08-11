@@ -297,6 +297,23 @@ describe('editorStore', () => {
     expect(useEditorStore.getState().tabs[0].dirty).toBe(true)
   })
 
+  it('syncFromDisk updates content for a clean tab', () => {
+    useEditorStore.getState().openTab({ path: '/a.ts', content: 'old', dirty: false })
+    useEditorStore.getState().syncFromDisk('/a.ts', 'new from disk')
+    const tab = useEditorStore.getState().tabs[0]
+    expect(tab.content).toBe('new from disk')
+    expect(tab.dirty).toBe(false)
+  })
+
+  it('syncFromDisk does not clobber a dirty tab', () => {
+    useEditorStore.getState().openTab({ path: '/a.ts', content: 'old', dirty: false })
+    useEditorStore.getState().updateContent('/a.ts', 'unsaved user edit')
+    useEditorStore.getState().syncFromDisk('/a.ts', 'new from disk')
+    const tab = useEditorStore.getState().tabs[0]
+    expect(tab.content).toBe('unsaved user edit')
+    expect(tab.dirty).toBe(true)
+  })
+
   it('setTabMissing marks a tab as missing', () => {
     useEditorStore.getState().openTab({ path: '/a.ts', content: '', dirty: false })
     useEditorStore.getState().setTabMissing('/a.ts', true)

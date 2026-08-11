@@ -66,6 +66,7 @@ interface EditorState {
   splitActivePane: (direction: EditorSplitDirection) => void
   updateContent: (path: string, content: string) => void
   markSaved: (path: string, content?: string) => void
+  syncFromDisk: (path: string, content: string) => void
   setTabMissing: (path: string, missing: boolean) => void
   markTabsMissingForDeletedPath: (path: string) => void
   revealRequest: { path: string; line: number; col: number; searchTerm: string } | null
@@ -399,6 +400,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       tabs: state.tabs.map((t) =>
         t.path === path && (content === undefined || t.content === content)
           ? { ...t, dirty: false, missing: false }
+          : t
+      ),
+    })),
+
+  // Pulls in a change made outside the app (an agent, another editor, a
+  // terminal command) once the file watcher notices. Only applies to tabs
+  // with no unsaved edits — checked here, not just by the caller, since the
+  // user could start typing in the gap between the disk read and this call
+  // resolving, and we must never clobber that with the on-disk version.
+  syncFromDisk: (path: string, content: string) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) =>
+        t.path === path && !t.dirty && t.content !== content
+          ? { ...t, content, dirty: false, missing: false }
           : t
       ),
     })),
