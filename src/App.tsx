@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { clampSize, loadPanelSize } from '@/lib/panelSize'
+import { syncOpenTabsFromDisk } from '@/lib/syncOpenTabsFromDisk'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
@@ -228,10 +229,14 @@ export default function App() {
     // does. Also refreshes the Git Panel's staged/unstaged list: a content
     // edit only touches the working tree, never `.git/*`, so GitWatcher's
     // metadata-only watch never sees it — this is the only path that does.
+    // Same reasoning applies to any open editor tab for that file: without
+    // this, the tab shows stale content until closed and reopened, and
+    // autosave will happily write that stale content back over the change.
     return window.api.onFsChanged((cwd) => {
       if (cwd === useFileStore.getState().projectRoot) {
         useFileStore.getState().refreshTree()
         useGitStore.getState().refreshStatus(cwd)
+        syncOpenTabsFromDisk()
       }
     })
   }, [])
