@@ -208,6 +208,31 @@ function EditorPane({ paneId }: { paneId: string }) {
     setActivePane(paneId)
   }
 
+  // A working-tree diff (isDiff — staged/unstaged) can go stale the same
+  // way a regular file tab can: edited from outside the app, or staged/
+  // unstaged via the terminal. Regular tabs get resynced by
+  // syncOpenTabsFromDisk on fs:changed, but that only touches
+  // editorStore's tab.content — diff content lives in this component's own
+  // state, fetched imperatively, so it needs its own live-refresh trigger.
+  // A commit diff (isCommitDiff) is comparing two fixed, immutable
+  // commits, so it doesn't need this — but re-running the fetch for it
+  // when the tick changes is harmless, just an extra no-op-ish IPC call.
+  const [diffRefreshTick, setDiffRefreshTick] = useState(0)
+
+  useEffect(() => {
+    if (!projectRoot) return
+    const offFs = window.api.onFsChanged((cwd) => {
+      if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
+    })
+    const offGit = window.api.onGitChanged((cwd) => {
+      if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
+    })
+    return () => {
+      offFs()
+      offGit()
+    }
+  }, [projectRoot])
+
   useEffect(() => {
     if (!activeTab || !projectRoot || (!isDiff && !isCommitDiff)) {
       setDiffContent(null)
@@ -231,7 +256,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     return () => {
       cancelled = true
     }
-  }, [activeTab?.path, isDiff, isCommitDiff, projectRoot])
+  }, [activeTab?.path, isDiff, isCommitDiff, projectRoot, diffRefreshTick])
 
   useEffect(() => {
     if (!activeTab || isReadOnlyTab(activeTab)) return
