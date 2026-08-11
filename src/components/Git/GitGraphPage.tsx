@@ -28,7 +28,12 @@ const ROW_H = 72
 const LANE_W = 40
 const LANE_PAD = 24
 const DOT_R = 11
-const MIN_GRAPH_W = 320
+// A floor just above what a single lane already needs (LANE_W + LANE_PAD*2
+// = 88) — the dot is centered in this column, so any width beyond what the
+// lanes actually need becomes dead space on both sides of it. Previously
+// 320, which reserved room for ~6 lanes' worth of width even on a plain
+// linear (1-lane) history.
+const MIN_GRAPH_W = 90
 
 function laneX(lane: number, railWidth: number, laneCount: number): number {
   const visibleLanes = Math.max(1, laneCount)
@@ -150,7 +155,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
     <button
       type="button"
       style={{
-        gridTemplateColumns: `minmax(82px, 0.7fr) ${svgW}px minmax(140px, 1.15fr)`,
+        gridTemplateColumns: `minmax(82px, 0.35fr) ${svgW}px minmax(140px, 1.5fr)`,
         background: selected
           ? `linear-gradient(90deg, transparent 0%, ${color}22 35%, ${color}1c 65%, transparent 100%)`
           : undefined,
