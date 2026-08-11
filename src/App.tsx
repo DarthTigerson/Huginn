@@ -71,6 +71,7 @@ function assistantIcon(kind: AssistantKind) {
 }
 
 const TODO_BROWSER_ID = 'todo-external'
+const GIT_POLL_INTERVAL_MS = 3000
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 26
@@ -263,6 +264,24 @@ export default function App() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    // Belt-and-suspenders for the two watchers above: GitWatcher/FileWatcher
+    // rely on native fs events (chokidar/fsevents), which — like most native
+    // file watchers — occasionally miss or delay changes in real-world,
+    // long-running sessions (this showed up as the Git panel's staged/
+    // unstaged counts going stale after teammates or an external terminal
+    // changed the repo, only correcting once some unrelated action, e.g.
+    // "Stage All", happened to trigger a refresh as a side effect). Polling
+    // puts a hard upper bound on that staleness regardless of why a given
+    // fs event was missed.
+    if (!projectRoot) return
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      useGitStore.getState().refresh(projectRoot)
+    }, GIT_POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [projectRoot])
 
   useEffect(() => {
     window.api.updateGetLatest().then((info) => useUpdateStore.getState().setAvailable(info))
