@@ -283,6 +283,42 @@ describe('GraphifyManager', () => {
       expect(result).toEqual({ ok: true, output: 'skill installed  ->  .claude/skills/graphify/SKILL.md' })
     })
 
+    it('stages .claude/skills/graphify and .claude/CLAUDE.md via git add after a successful install', async () => {
+      stubExecFile({ stdout: 'skill installed' })
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+
+      await ipcHandlers['graphify:installClaudeSkill']({}, '/project')
+
+      expect(execFileMock).toHaveBeenCalledWith(
+        'git',
+        ['add', '.claude/skills/graphify', '.claude/CLAUDE.md'],
+        { cwd: '/project' },
+        expect.any(Function)
+      )
+    })
+
+    it('does not run git add when the install succeeds but neither expected path exists', async () => {
+      stubExecFile({ stdout: 'skill installed' })
+      existsSyncMock.mockImplementation((p: string) => p === '/project')
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+
+      await ipcHandlers['graphify:installClaudeSkill']({}, '/project')
+
+      expect(execFileMock).not.toHaveBeenCalledWith('git', expect.anything(), expect.anything(), expect.anything())
+    })
+
+    it('does not run git add when the install command fails', async () => {
+      stubExecFile({ err: new Error('exit code 1'), stderr: 'error: not a git repository' })
+      const manager = new GraphifyManager()
+      manager.registerHandlers()
+
+      await ipcHandlers['graphify:installClaudeSkill']({}, '/project')
+
+      expect(execFileMock).not.toHaveBeenCalledWith('git', expect.anything(), expect.anything(), expect.anything())
+    })
+
     it('resolves ok:false with the captured output when the install command fails', async () => {
       stubExecFile({ err: new Error('exit code 1'), stderr: 'error: not a git repository' })
       const manager = new GraphifyManager()

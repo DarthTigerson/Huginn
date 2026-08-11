@@ -41,7 +41,7 @@ export function GraphifySettingsPage() {
               }`}
             >
               {skillInstallResult.ok
-                ? 'Claude Code can now use graphify on this project (skill + CLAUDE.md added under .claude/ — commit it to share with your team).'
+                ? 'Claude Code can now use graphify on this project (skill + CLAUDE.md added under .claude/ and staged — review and commit to share with your team).'
                 : `Failed to enable graphify for Claude Code:\n${skillInstallResult.output}`}
             </div>
           )}
