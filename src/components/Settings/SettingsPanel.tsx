@@ -1,5 +1,5 @@
 import { useEditorStore } from '@/stores/editorStore'
-import { DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, BROWSER_SETTINGS_TAB_PATH, MODELS_SETTINGS_TAB_PATH, GRAPHIFY_SETTINGS_TAB_PATH } from './paths'
+import { DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, BROWSER_SETTINGS_TAB_PATH, MODELS_SETTINGS_TAB_PATH, GRAPHIFY_SETTINGS_TAB_PATH, TODO_SETTINGS_TAB_PATH } from './paths'
 
 const NAV_ITEMS = [
   { path: BROWSER_SETTINGS_TAB_PATH, label: 'Browser' },
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { path: GIT_SETTINGS_TAB_PATH, label: 'Git' },
   { path: GRAPHIFY_SETTINGS_TAB_PATH, label: 'Graphify' },
   { path: MODELS_SETTINGS_TAB_PATH, label: 'Models' },
+  { path: TODO_SETTINGS_TAB_PATH, label: 'To Do' },
 ]
 
 export function SettingsPanel() {

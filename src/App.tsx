@@ -31,7 +31,6 @@ import {
   FastIcon,
 } from './components/ActivityBar/ActivityBar'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
-import { TodoPanel } from './components/Todos/TodoPanel'
 import { GitPanel } from './components/Git/GitPanel'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { GraphifyPanel } from './components/Graphify/GraphifyPanel'
@@ -55,7 +54,9 @@ import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
 import { useSidebarUiStore } from './stores/sidebarUiStore'
 import { useUpdateStore } from './stores/updateStore'
 import { useChangelogStore } from './stores/changelogStore'
-import { buildTerminalPath, buildBrowserPath } from './components/Settings/paths'
+import { useBrowserStore } from './stores/browserStore'
+import { useTodoSettingsStore } from './stores/todoSettingsStore'
+import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -67,6 +68,8 @@ const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
 function assistantIcon(kind: AssistantKind) {
   return kind === 'claude' ? <ClaudeIcon /> : kind === 'codex' ? <CodexIcon /> : <CosmosIcon />
 }
+
+const TODO_BROWSER_ID = 'todo-external'
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 26
@@ -96,8 +99,8 @@ export default function App() {
   const enabledModels = useModelSettingsStore((s) => s.enabled)
   const visibleAssistantOptions = ASSISTANT_OPTIONS.filter((option) => enabledModels[option.id])
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'todos' | 'mobile' | 'graphify' | 'settings' | null>('files')
-  const lastLeftPanelRef = useRef<'files' | 'git' | 'todos' | 'mobile' | 'graphify' | 'settings'>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'mobile' | 'graphify' | 'settings' | null>('files')
+  const lastLeftPanelRef = useRef<'files' | 'git' | 'mobile' | 'graphify' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
@@ -120,6 +123,7 @@ export default function App() {
   const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
+  const activeTabPath = useEditorStore((s) => s.activeTabPath)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -129,6 +133,21 @@ export default function App() {
   function openNewBrowser() {
     const id = Date.now().toString(36)
     useEditorStore.getState().openTab({ path: buildBrowserPath(id), content: '', dirty: false })
+  }
+
+  // Uses a fixed browser-tab id (rather than one generated per click, like
+  // openNewBrowser above) so that clicking the To Do icon again while it's
+  // already open just focuses the existing tab — openTab already does this
+  // for any tab path that's open in some pane — instead of piling up
+  // duplicate tabs pointed at the same tracker.
+  function openTodo() {
+    const url = useTodoSettingsStore.getState().externalUrl
+    if (!url) {
+      useEditorStore.getState().openTab({ path: TODO_SETTINGS_TAB_PATH, content: '', dirty: false })
+      return
+    }
+    useBrowserStore.getState().ensureTab(TODO_BROWSER_ID, url)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(TODO_BROWSER_ID), content: '', dirty: false })
   }
 
   function saveSidebarSize(size: number) {
@@ -444,13 +463,6 @@ export default function App() {
               onClick: () => setLeftPanel((p) => (p === 'git' ? null : 'git')),
             },
             {
-              id: 'todos',
-              icon: <TodoIcon />,
-              title: 'To Do (Coming Soon)',
-              active: leftPanel === 'todos',
-              onClick: () => setLeftPanel((p) => (p === 'todos' ? null : 'todos')),
-            },
-            {
               id: 'mobile',
               icon: <PhoneIcon />,
               title: 'Mobile Display',
@@ -464,6 +476,14 @@ export default function App() {
               title: 'Graphify',
               active: leftPanel === 'graphify',
               onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
+            },
+          ], [
+            {
+              id: 'todos',
+              icon: <TodoIcon />,
+              title: 'To Do',
+              active: activeTabPath === buildBrowserPath(TODO_BROWSER_ID),
+              onClick: openTodo,
             },
           ]]}
           bottomGroups={[[
@@ -506,7 +526,7 @@ export default function App() {
                 order={1}
                 onResize={saveSidebarSize}
               >
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'todos' ? <TodoPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : leftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />}
+                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : leftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />}
               </Panel>
               <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
             </>
