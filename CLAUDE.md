@@ -40,7 +40,8 @@ plain `node`, per the `environmentMatchGlobs` split in `vitest.config.ts`.
 1. **Electron main process** (`electron/*.ts`) — one file per domain (e.g.
    `git.ts`/`gitRunner.ts`/`gitWatcher.ts`, `claude.ts`, `cosmos.ts`,
    `pty.ts`, `mobile.ts`, `fsOps.ts`, `autocomplete.ts`, `inlineEdit.ts`,
-   `usageManager.ts`/`usagePoller.ts`). Each registers its own
+   `usageManager.ts`/`usagePoller.ts`, `lsp/manager.ts`+`lsp/servers/*.ts`).
+   Each registers its own
    `ipcMain.handle`/`ipcMain.on` calls, generally via a `register*Handlers()`
    function wired up in `electron/main.ts`. Long-lived per-domain state
    (running PTYs, watchers, servers) lives in manager classes here, not in
@@ -69,6 +70,19 @@ served web assets live in `electron/mobileWeb/` and are included verbatim
 in packaged builds (see `build.files` in `package.json`), not bundled by
 Vite.
 
+**Go-to-definition (Cmd+click)**: `electron/lsp/manager.ts` owns one real
+language-server child process per `(window, language)` pair — TypeScript/
+JavaScript, Python, Go, and Rust — spawned lazily only once a language is
+toggled on in Settings > Editor *and* a file of that language is actually
+open (`electron/lsp/servers/*.ts` hold each language's detect/spawn/install
+commands; `electron/lsp/protocol.ts` is a minimal LSP JSON-RPC client).
+`src/lib/lspClient.ts` registers Monaco's `DefinitionProvider` on the
+renderer side; the Cmd+click gesture itself is a Monaco/VS Code built-in
+that needs no custom wiring. Cross-file jumps are handled manually via
+`editorStore`'s `openTab`/`setRevealRequest` (the same path Search-in-files
+uses) rather than Monaco's own cross-model handling, which is unreliable
+outside the full VS Code workbench.
+
 **Design-doc workflow**: nontrivial features go through a brainstorm →
 spec → plan cycle before implementation, with artifacts committed to
 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and
@@ -84,6 +98,7 @@ This project has a knowledge graph at graphify-out/ with god nodes, community st
 
 Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Prefer this over spawning an Explore/general-purpose subagent, or a manual grep/Read sweep, for "where does X live" / "how does A relate to B" discovery questions. `graphify query` returns a token-bounded scoped subgraph (roughly a 2,000-token budget, explicitly truncated with guidance on narrowing further) — an agent doing equivalent research by reading files directly can cost tens of thousands of tokens for the same question. Still fall back to an agent/grep when the graph comes back too thin, when verbatim source is needed to copy exact patterns/line numbers for editing, or for runtime/git state the static graph can't capture.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
