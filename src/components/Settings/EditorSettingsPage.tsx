@@ -1,9 +1,19 @@
+import { useEffect } from 'react'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { LSP_SERVER_IDS } from '@/stores/lspSettingsStore'
+import { useLspStatusStore, subscribeLspInstallEvents } from '@/stores/lspStatusStore'
+import { LspServerRow } from './LspServerRow'
 
 export function EditorSettingsPage() {
   const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
   const setAutoSaveEnabled = useEditorSettingsStore((s) => s.setAutoSaveEnabled)
+  const refreshLspStatus = useLspStatusStore((s) => s.refresh)
+
+  useEffect(() => {
+    subscribeLspInstallEvents()
+    refreshLspStatus()
+  }, [refreshLspStatus])
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -22,6 +32,23 @@ export function EditorSettingsPage() {
             checked={autoSaveEnabled}
             onChange={setAutoSaveEnabled}
           />
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <div>
+            <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+              Language Intelligence
+            </h2>
+            <p className="text-xs text-fg-muted mt-1">
+              Cmd+click go-to-definition, backed by each language's own language server. Off by
+              default since a running server has a real memory cost — enable only the languages
+              you use.
+            </p>
+          </div>
+
+          {LSP_SERVER_IDS.map((id) => (
+            <LspServerRow key={id} id={id} />
+          ))}
         </section>
       </div>
     </div>

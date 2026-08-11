@@ -64,6 +64,22 @@ export function _resetGraphifyPathCacheForTesting(): void {
   pendingGraphifyPathResolution = undefined
 }
 
+// Stages exactly the artifacts `graphify install --platform claude --project`
+// itself documents that it writes — not the whole .claude/ directory, which
+// also holds machine-local files (settings.json's hook-guard config embeds
+// an absolute path specific to this machine, settings.local.json,
+// scheduled_tasks.lock) that shouldn't be silently staged for a team-shared
+// commit. Best-effort: a failure here (cwd isn't a git repo, git isn't on
+// PATH, ...) shouldn't turn a successful skill install into a reported
+// failure, so errors are swallowed rather than surfaced to the caller.
+function stageInstalledSkillFiles(cwd: string): Promise<void> {
+  const candidates = ['.claude/skills/graphify', '.claude/CLAUDE.md'].filter((p) => existsSync(join(cwd, p)))
+  if (candidates.length === 0) return Promise.resolve()
+  return new Promise((resolve) => {
+    execFile('git', ['add', ...candidates], { cwd }, () => resolve())
+  })
+}
+
 export class GraphifyManager {
   private runningByWindow = new Map<number, boolean>()
 
@@ -128,7 +144,9 @@ export class GraphifyManager {
     // `cwd` (`.claude/skills/graphify/`, a CLAUDE.md section, project-scoped
     // — no --strict, so it doesn't start blocking Claude's tool calls) so
     // Claude can invoke graphify's own query/path/explain commands on this
-    // project instead of only being usable from this panel.
+    // project instead of only being usable from this panel. Stages the
+    // resulting files afterward (see stageInstalledSkillFiles) so they're
+    // ready to commit and share with the team without an extra manual step.
     ipcMain.handle('graphify:installClaudeSkill', async (_e, cwd: string): Promise<{ ok: boolean; output: string }> => {
       if (!existsSync(cwd)) {
         return { ok: false, output: `Error: project directory not found: ${cwd}` }
@@ -137,7 +155,11 @@ export class GraphifyManager {
       return new Promise((resolve) => {
         execFile(bin, ['install', '--platform', 'claude', '--project'], { cwd }, (err, stdout, stderr) => {
           const output = [stdout, stderr].filter((s) => s && s.trim().length > 0).join('\n').trim()
-          resolve(err ? { ok: false, output: output || err.message } : { ok: true, output })
+          if (err) {
+            resolve({ ok: false, output: output || err.message })
+            return
+          }
+          stageInstalledSkillFiles(cwd).finally(() => resolve({ ok: true, output }))
         })
       })
     })

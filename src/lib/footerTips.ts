@@ -21,4 +21,11 @@ export const FOOTER_TIPS: string[] = [
   '⌘⇧N opens a new window on a different project',
   '⌘O opens a project folder',
   '⌃R opens the Switch Project palette — hold ⌘ (or Ctrl on Linux) at Enter to open it in a new window',
+  '⌃R jumps to an already-open project\'s window instead of reopening it',
+  '⌘-click a symbol to jump to its definition — enable a language under Settings > Editor > Language Intelligence',
+  'The Graphify panel turns your codebase into a queryable knowledge graph — ask it questions instead of grepping',
+  'Pair your phone from the Mobile Display panel — scan the QR code and enter the PIN',
+  'Enable To Do in Settings to pin a task-tracking page as a browser tab in the sidebar',
+  'Open an in-app browser tab from the activity bar to preview your app next to the code',
+  'The Usage button on the Claude panel shows live token usage and cost',
 ]

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import type { RefTarget } from './commitFormat'
 
@@ -35,7 +36,7 @@ export function RefContextMenu({ x, y, name, kind, onCheckout, onClose }: Props)
     menuRef.current.style.top = `${clamped.y}px`
   }, [x, y])
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       className="fixed z-[200] w-52 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
@@ -49,6 +50,7 @@ export function RefContextMenu({ x, y, name, kind, onCheckout, onClose }: Props)
       >
         Checkout {kind === 'tag' ? 'tag' : 'branch'} {name}
       </button>
-    </div>
+    </div>,
+    document.body
   )
 }
