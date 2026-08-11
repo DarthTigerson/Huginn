@@ -15,7 +15,7 @@ import { useTodoSettingsStore } from '../todoSettingsStore'
 describe('todoSettingsStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useTodoSettingsStore.setState({ externalUrl: '' })
+    useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false })
   })
 
   it('defaults to an empty URL', () => {
@@ -26,5 +26,15 @@ describe('todoSettingsStore', () => {
     useTodoSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
     expect(useTodoSettingsStore.getState().externalUrl).toBe('https://team.atlassian.net/jira/board')
     expect(localStorageStore['huginn:todo:externalUrl']).toBe('https://team.atlassian.net/jira/board')
+  })
+
+  it('defaults closeSidePanelOnOpen to false', () => {
+    expect(useTodoSettingsStore.getState().closeSidePanelOnOpen).toBe(false)
+  })
+
+  it('setCloseSidePanelOnOpen updates state and persists to localStorage', () => {
+    useTodoSettingsStore.getState().setCloseSidePanelOnOpen(true)
+    expect(useTodoSettingsStore.getState().closeSidePanelOnOpen).toBe(true)
+    expect(localStorageStore['huginn:todo:closeSidePanel']).toBe('true')
   })
 })

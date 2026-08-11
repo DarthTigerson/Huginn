@@ -1,4 +1,5 @@
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
+import { Toggle } from '@/components/ui/Toggle'
 
 function Field({ id, label, value, onChange, placeholder }: {
   id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string
@@ -22,6 +23,8 @@ function Field({ id, label, value, onChange, placeholder }: {
 export function TodoSettingsPage() {
   const externalUrl = useTodoSettingsStore((s) => s.externalUrl)
   const setExternalUrl = useTodoSettingsStore((s) => s.setExternalUrl)
+  const closeSidePanelOnOpen = useTodoSettingsStore((s) => s.closeSidePanelOnOpen)
+  const setCloseSidePanelOnOpen = useTodoSettingsStore((s) => s.setCloseSidePanelOnOpen)
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -44,6 +47,13 @@ export function TodoSettingsPage() {
             value={externalUrl}
             onChange={setExternalUrl}
             placeholder="https://your-team.atlassian.net/jira/..."
+          />
+
+          <Toggle
+            label="Close side panel when opening"
+            description="Collapse the currently open sidebar (Files, Git, etc.) when jumping to the To Do browser tab, to give it the full width."
+            checked={closeSidePanelOnOpen}
+            onChange={setCloseSidePanelOnOpen}
           />
         </section>
       </div>

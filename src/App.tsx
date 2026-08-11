@@ -148,6 +148,7 @@ export default function App() {
     }
     useBrowserStore.getState().ensureTab(TODO_BROWSER_ID, url)
     useEditorStore.getState().openTab({ path: buildBrowserPath(TODO_BROWSER_ID), content: '', dirty: false })
+    if (useTodoSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
   function saveSidebarSize(size: number) {

@@ -6,7 +6,7 @@ import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
 
 afterEach(() => {
   cleanup()
-  useTodoSettingsStore.setState({ externalUrl: '' })
+  useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false })
 })
 
 describe('TodoSettingsPage', () => {
@@ -20,5 +20,17 @@ describe('TodoSettingsPage', () => {
     render(<TodoSettingsPage />)
     fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://linear.app/team/board' } })
     expect(useTodoSettingsStore.getState().externalUrl).toBe('https://linear.app/team/board')
+  })
+
+  it('reflects the current closeSidePanelOnOpen state', () => {
+    useTodoSettingsStore.setState({ closeSidePanelOnOpen: true })
+    render(<TodoSettingsPage />)
+    expect(screen.getByRole('switch', { name: 'Close side panel when opening' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('toggles closeSidePanelOnOpen on click', () => {
+    render(<TodoSettingsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Close side panel when opening' }))
+    expect(useTodoSettingsStore.getState().closeSidePanelOnOpen).toBe(true)
   })
 })
