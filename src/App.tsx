@@ -32,6 +32,7 @@ import {
 } from './components/ActivityBar/ActivityBar'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { GitPanel } from './components/Git/GitPanel'
+import { BranchPalette } from './components/Git/BranchPalette'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { GraphifyPanel } from './components/Graphify/GraphifyPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
@@ -110,6 +111,7 @@ export default function App() {
   const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
   const shortcutsOverlayOpen = useSearchStore((s) => s.shortcutsOverlayOpen)
   const recentProjectsPaletteOpen = useSearchStore((s) => s.recentProjectsPaletteOpen)
+  const branchPaletteOpen = useSearchStore((s) => s.branchPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
@@ -657,6 +659,9 @@ export default function App() {
       {shortcutsOverlayOpen && <ShortcutsOverlay />}
       {recentProjectsPaletteOpen && (
         <RecentProjectsPalette onClose={() => useSearchStore.getState().closeRecentProjectsPalette()} />
+      )}
+      {branchPaletteOpen && projectRoot && (
+        <BranchPalette projectRoot={projectRoot} onClose={() => useSearchStore.getState().closeBranchPalette()} />
       )}
       <UpdateChangelogModal />
     </div>
