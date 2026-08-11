@@ -1,14 +1,28 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useGitStore } from '@/stores/gitStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
-import { normalizeRef, formatExactDate, refTone, copyToClipboard } from './commitFormat'
+import { normalizeRef, formatExactDate, refTone, copyToClipboard, parseRefTarget, type RefTarget } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitFileContextMenu } from './CommitFileContextMenu'
+import { RefContextMenu } from './RefContextMenu'
 import { buildGitCommitDiffPath } from './paths'
+import { clampSize, loadPanelSize } from '@/lib/panelSize'
+
+const DETAIL_WIDTH_KEY = 'huginn:git:commitDetailsWidth'
+const MIN_DETAIL_WIDTH = 320 // matches the panel's previous fixed w-80
+const MAX_DETAIL_WIDTH = 720
+
+function clampDetailWidth(width: number): number {
+  // Extra safety clamp on top of MAX_DETAIL_WIDTH so a narrow window can't
+  // get the commit list squeezed down to nothing.
+  const viewportMax = typeof window !== 'undefined' ? window.innerWidth - 200 : MAX_DETAIL_WIDTH
+  return clampSize(width, MIN_DETAIL_WIDTH, Math.min(MAX_DETAIL_WIDTH, viewportMax))
+}
 
 const ROW_H = 72
 const LANE_W = 40
@@ -259,6 +273,11 @@ interface FileMenuState {
   path: string
 }
 
+interface RefMenuState extends RefTarget {
+  x: number
+  y: number
+}
+
 function DetailPanel({ cwd, hash, onClose }: {
   cwd: string
   hash: string
@@ -269,6 +288,11 @@ function DetailPanel({ cwd, hash, onClose }: {
   const filesLoading = useGitGraphStore((s) => s.filesLoading)
   const loadFiles = useGitGraphStore((s) => s.loadFiles)
   const [fileMenu, setFileMenu] = useState<FileMenuState | null>(null)
+  const [refMenu, setRefMenu] = useState<RefMenuState | null>(null)
+  const [width, setWidth] = useState(() =>
+    loadPanelSize(DETAIL_WIDTH_KEY, MIN_DETAIL_WIDTH, MIN_DETAIL_WIDTH, MAX_DETAIL_WIDTH)
+  )
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const commit = commits.find((c) => c.hash === hash)
 
@@ -292,11 +316,67 @@ function DetailPanel({ cwd, hash, onClose }: {
     setFileMenu({ x: e.clientX, y: e.clientY, path })
   }
 
+  function handleRefContextMenu(e: MouseEvent, ref: string) {
+    const target = parseRefTarget(ref)
+    if (!target) return
+    e.preventDefault()
+    e.stopPropagation()
+    setRefMenu({ x: e.clientX, y: e.clientY, ...target })
+  }
+
+  function checkoutRef(target: RefTarget) {
+    useGitStore.getState().checkout(
+      cwd,
+      target.kind === 'remote'
+        ? { ref: target.name, create: true, track: `origin/${target.name}` }
+        : { ref: target.name, create: false }
+    )
+  }
+
+  // The panel sits on the right edge of the layout, so dragging the handle
+  // left (mouse moving toward smaller clientX) grows it. Width is applied
+  // directly to the DOM node during the drag for smooth 60fps feedback
+  // without re-rendering on every mousemove; React state (and localStorage)
+  // only gets the final value on mouseup.
+  function handleResizeStart(e: MouseEvent) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = panelRef.current?.getBoundingClientRect().width ?? width
+
+    function onMove(moveEvent: globalThis.MouseEvent) {
+      const next = clampDetailWidth(startWidth + (startX - moveEvent.clientX))
+      if (panelRef.current) panelRef.current.style.width = `${next}px`
+    }
+
+    function onUp(upEvent: globalThis.MouseEvent) {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      const next = clampDetailWidth(startWidth + (startX - upEvent.clientX))
+      setWidth(next)
+      localStorage.setItem(DETAIL_WIDTH_KEY, String(next))
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   if (!commit) return null
 
   return (
     <>
-      <div className="w-80 shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden">
+      <div
+        ref={panelRef}
+        style={{ width }}
+        className="relative shrink-0 border-l border-border flex flex-col bg-sidebar overflow-hidden"
+      >
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute -left-0.5 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/60 transition-colors z-10"
+        />
         <div className="h-11 flex items-center justify-between px-4 border-b border-border shrink-0">
           <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
             Commit Details
@@ -365,9 +445,10 @@ function DetailPanel({ cwd, hash, onClose }: {
                 {commit.refs.map((ref) => (
                   <span
                     key={ref}
+                    onContextMenu={(e) => handleRefContextMenu(e, ref)}
                     className={`max-w-full truncate text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded border leading-none ${refTone(ref)}`}
                   >
-                    {ref}
+                    {normalizeRef(ref)}
                   </span>
                 ))}
               </div>
@@ -408,6 +489,16 @@ function DetailPanel({ cwd, hash, onClose }: {
           onOpenFile={() => openCurrentFile(fileMenu.path)}
           onOpenDiff={() => openFileDiff(fileMenu.path)}
           onClose={() => setFileMenu(null)}
+        />
+      )}
+      {refMenu && (
+        <RefContextMenu
+          x={refMenu.x}
+          y={refMenu.y}
+          name={refMenu.name}
+          kind={refMenu.kind}
+          onCheckout={() => checkoutRef(refMenu)}
+          onClose={() => setRefMenu(null)}
         />
       )}
     </>
