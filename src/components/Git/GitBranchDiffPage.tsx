@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import { useGitBranchDiffStore } from '@/stores/gitBranchDiffStore'
 import type { GitCommit } from '@/types/index'
 import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
@@ -234,15 +235,27 @@ export function GitBranchDiffPage() {
   const currentBranch = useGitStore((s) => s.branch)
   const getListDiffTargetBranch = useGitSettingsStore((s) => s.getListDiffTargetBranch)
   const configuredTarget = projectRoot ? getListDiffTargetBranch(projectRoot) : ''
-  const [branches, setBranches] = useState<string[]>([])
-  const [defaultBranch, setDefaultBranch] = useState<string | null>(null)
-  const [source, setSource] = useState('')
-  const [target, setTarget] = useState('')
-  const [commits, setCommits] = useState<GitCommit[]>([])
-  const [loadingBranches, setLoadingBranches] = useState(false)
-  const [loadingCommits, setLoadingCommits] = useState(false)
+  const {
+    branches,
+    defaultBranch,
+    source,
+    target,
+    commits,
+    loadingBranches,
+    loadingCommits,
+    selectedHash,
+    setBranches,
+    setDefaultBranch,
+    setSourceIfEmpty,
+    setSource,
+    setTargetIfEmpty,
+    setTarget,
+    setLoadingBranches,
+    setCommits,
+    setLoadingCommits,
+    select,
+  } = useGitBranchDiffStore()
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
-  const [selectedHash, setSelectedHash] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectRoot) return
@@ -262,8 +275,8 @@ export function GitBranchDiffPage() {
       )
       setBranches(uniqueBranches)
       setDefaultBranch(loadedDefaultBranch)
-      setSource((existing) => existing || selectedSource)
-      setTarget((existing) => existing || chooseTarget(uniqueBranches, selectedSource, loadedDefaultBranch, configuredTarget))
+      setSourceIfEmpty(selectedSource)
+      setTargetIfEmpty(chooseTarget(uniqueBranches, selectedSource, loadedDefaultBranch, configuredTarget))
       setLoadingBranches(false)
     })
 
@@ -273,8 +286,6 @@ export function GitBranchDiffPage() {
   }, [projectRoot, currentBranch])
 
   useEffect(() => {
-    setSelectedHash(null)
-
     if (!projectRoot || !source || !target || source === target) {
       setCommits([])
       return
@@ -363,7 +374,7 @@ export function GitBranchDiffPage() {
                   index={index}
                   total={commits.length}
                   selected={commit.hash === selectedHash}
-                  onClick={() => setSelectedHash((h) => (h === commit.hash ? null : commit.hash))}
+                  onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
@@ -378,7 +389,7 @@ export function GitBranchDiffPage() {
           <CommitDetailsPanel
             cwd={projectRoot}
             commit={selectedCommit}
-            onClose={() => setSelectedHash(null)}
+            onClose={() => select(null)}
           />
         )}
       </div>
