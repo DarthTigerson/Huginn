@@ -5,6 +5,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitStore } from '@/stores/gitStore'
+import { buildGitDiffPath, buildGitCommitDiffPath } from '@/components/Git/paths'
 import type { FileNode } from '@/types/index'
 
 const rootTree: FileNode[] = [
@@ -87,5 +88,46 @@ describe('Sidebar — Reveal in File Tree', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(useFileStore.getState().revealedPath).toBeNull()
     expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/other-proj/App.tsx' })
+  })
+})
+
+describe('Sidebar — auto-expand for the active diff tab', () => {
+  // GitPanel.tsx builds working-tree diff tabs from git-status output,
+  // which is always repo-relative — buildGitDiffPath here mirrors that
+  // real call site rather than an absolute path, since that relative-path
+  // case is exactly what was silently failing to expand before.
+
+  it('expands ancestors for a working-tree diff tab already active when the Files panel mounts', async () => {
+    useEditorStore.setState({ activeTabPath: buildGitDiffPath('src/components/App.tsx', false) } as any)
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(true)
+      expect(useFileStore.getState().expandedPaths.has('/proj/src/components')).toBe(true)
+    })
+  })
+
+  it('expands ancestors when switching to a commit diff tab while already mounted', async () => {
+    render(<Sidebar />)
+
+    act(() => {
+      useEditorStore.setState({
+        activeTabPath: buildGitCommitDiffPath('abc123', 'src/components/App.tsx'),
+      } as any)
+    })
+
+    await waitFor(() => {
+      expect(useFileStore.getState().expandedPaths.has('/proj/src/components')).toBe(true)
+    })
+  })
+
+  it('expands ancestors for a plain file tab too, without touching revealedPath', async () => {
+    useEditorStore.setState({ activeTabPath: '/proj/src/components/App.tsx' } as any)
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(useFileStore.getState().expandedPaths.has('/proj/src/components')).toBe(true)
+    })
+    expect(useFileStore.getState().revealedPath).toBeNull()
   })
 })

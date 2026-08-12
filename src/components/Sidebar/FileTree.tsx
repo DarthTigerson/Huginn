@@ -3,7 +3,7 @@ import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitStore } from '@/stores/gitStore'
-import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import {
   buildImagePreviewPath,
   isImagePreviewTab,
@@ -87,17 +87,23 @@ export function FileTree({
   const revealedPath = useFileStore((s) => s.revealedPath)
   const ignoredPaths = useGitStore((s) => s.ignoredPaths)
   const { activeTabPath, openTab } = useEditorStore()
+  // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path (that's
+  // what git status/git show hand back, and what getDiffContent's own
+  // HEAD:<path> git refs require) — has to be re-joined to projectRoot
+  // before it can match node.path, which is always absolute.
   const activeFilePath = !activeTabPath
     ? null
     : isGitDiffTab(activeTabPath)
-      ? parseGitDiffPath(activeTabPath).path
-      : isImagePreviewTab(activeTabPath)
-        ? parseImagePreviewPath(activeTabPath)
-        : isMarkdownPreviewTab(activeTabPath)
-          ? parseMarkdownPreviewPath(activeTabPath)
-          : activeTabPath.includes('://')
-            ? null
-            : activeTabPath
+      ? (projectRoot ? `${projectRoot}/${parseGitDiffPath(activeTabPath).path}` : null)
+      : isGitCommitDiffTab(activeTabPath)
+        ? (projectRoot ? `${projectRoot}/${parseGitCommitDiffPath(activeTabPath).path}` : null)
+        : isImagePreviewTab(activeTabPath)
+          ? parseImagePreviewPath(activeTabPath)
+          : isMarkdownPreviewTab(activeTabPath)
+            ? parseMarkdownPreviewPath(activeTabPath)
+            : activeTabPath.includes('://')
+              ? null
+              : activeTabPath
   const createPromptHere = prompt && !prompt.node && prompt.directory === directoryPath
 
   async function handleClick(node: FileNode) {

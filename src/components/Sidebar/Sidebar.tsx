@@ -5,7 +5,7 @@ import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
-import { isGitDiffTab, parseGitDiffPath } from '@/components/Git/paths'
+import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { buildImagePreviewPath, buildMarkdownPreviewPath } from '@/components/Viewer/paths'
 import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
 import { FileTree, type TreePromptState } from './FileTree'
@@ -82,11 +82,16 @@ export function Sidebar() {
   useEffect(() => {
     if (!projectRoot || !activeTabPath) return
 
+    // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path
+    // (what git status/git show hand back) — needs projectRoot re-joined
+    // before it's a real absolute path this tree deals in.
     const realPath = isGitDiffTab(activeTabPath)
-      ? parseGitDiffPath(activeTabPath).path
-      : activeTabPath.includes('://')
-        ? null
-        : activeTabPath
+      ? `${projectRoot}/${parseGitDiffPath(activeTabPath).path}`
+      : isGitCommitDiffTab(activeTabPath)
+        ? `${projectRoot}/${parseGitCommitDiffPath(activeTabPath).path}`
+        : activeTabPath.includes('://')
+          ? null
+          : activeTabPath
 
     if (!realPath || !realPath.startsWith(projectRoot + '/')) return
 
