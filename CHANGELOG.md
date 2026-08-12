@@ -1,5 +1,18 @@
 # Huginn 
 
+## v0.1.5 (2026-08-12)
+- **Discard all changes**: clear every uncommitted change from the Git panel in one action
+- **Reveal in site tree**: jump to a file in the sidebar from the Git commit details panel, and diff editors now auto-reveal their file in the tree
+- Added a user preference for which branch the Git list view defaults to
+- Git log terminal now respects your configured font size
+- Improved reliability of the Git panel's periodic fetches
+- The install script now requests admin rights (with a safe rollback if the update fails partway) when updating Huginn in /Applications, instead of failing silently
+
+**Bug fixes**
+- Fixed the commit details panel resetting when it lost focus
+- Fixed the wrong default branch loading in the Git panel
+
+
 ## v0.1.4 (2026-08-12)
 - **Go to Definition**: ⌘-click a symbol to jump to it, backed by real language servers for TypeScript/JavaScript, Python, Go, and Rust (opt-in per language in Settings > Editor)
 - **Git Graph**: right-click a commit's file to open it or its diff, right-click a branch/tag to check it out, and List Diff now shares the same commit details panel as Git Graph
