@@ -35,6 +35,29 @@ function shellQuote(path: string): string {
   return `'${path.replace(/'/g, `'\\''`)}'`
 }
 
+// Collects a path's ancestor directories (shallowest first, stopping at
+// projectRoot) and expands each in turn — a directory's children aren't
+// fetched until expandDir runs for it, so a deep target needs every level
+// expanded in order before its own tree node exists to expand further.
+async function expandAncestors(
+  path: string,
+  projectRoot: string,
+  expandDir: (dir: string) => Promise<void>
+): Promise<void> {
+  const ancestors: string[] = []
+  let dir = path
+  while (true) {
+    const lastSlash = dir.lastIndexOf('/')
+    if (lastSlash < 0) break
+    dir = dir.slice(0, lastSlash)
+    if (dir.length <= projectRoot.length) break
+    ancestors.unshift(dir)
+  }
+  for (const ancestor of ancestors) {
+    await expandDir(ancestor)
+  }
+}
+
 function copyText(text: string): void {
   navigator.clipboard?.writeText(text).catch(() => {
     const textarea = document.createElement('textarea')
@@ -67,23 +90,12 @@ export function Sidebar() {
 
     if (!realPath || !realPath.startsWith(projectRoot + '/')) return
 
-    // Collect ancestor directories from shallowest to deepest
-    const ancestors: string[] = []
-    let dir = realPath
-    while (true) {
-      const lastSlash = dir.lastIndexOf('/')
-      if (lastSlash < 0) break
-      dir = dir.slice(0, lastSlash)
-      if (dir.length <= projectRoot.length) break
-      ancestors.unshift(dir)
-    }
-
     let cancelled = false
     ;(async () => {
-      for (const ancestor of ancestors) {
-        if (cancelled) return
-        await expandDir(ancestor)
-      }
+      await expandAncestors(realPath, projectRoot, (dir) => {
+        if (cancelled) return Promise.resolve()
+        return expandDir(dir)
+      })
     })()
 
     return () => { cancelled = true }
@@ -96,6 +108,33 @@ export function Sidebar() {
     useSidebarUiStore.getState().clearPendingCreate()
     startCreate(pendingCreate, null)
   }, [pendingCreate, projectRoot])
+
+  const revealRequest = useSidebarUiStore((s) => s.revealRequest)
+
+  useEffect(() => {
+    if (!revealRequest || !projectRoot) return
+    if (!revealRequest.path.startsWith(projectRoot + '/')) return
+
+    let cancelled = false
+    ;(async () => {
+      await expandAncestors(revealRequest.path, projectRoot, (dir) => {
+        if (cancelled) return Promise.resolve()
+        return expandDir(dir)
+      })
+      if (cancelled) return
+      useFileStore.getState().setRevealedPath(revealRequest.path)
+      useSidebarUiStore.getState().clearRevealRequest()
+      // Wait a frame so the newly-expanded nodes have actually committed to
+      // the DOM before we try to scroll to one of them.
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`file-tree-node:${revealRequest.path}`)
+          ?.scrollIntoView({ block: 'center' })
+      })
+    })()
+
+    return () => { cancelled = true }
+  }, [revealRequest, projectRoot])
 
   useEffect(() => {
     if (!menu) return

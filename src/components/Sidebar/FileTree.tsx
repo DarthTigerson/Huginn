@@ -84,6 +84,7 @@ export function FileTree({
   const { select, expandDir, collapseDir } = useFileStore()
   const expandedPaths = useFileStore((s) => s.expandedPaths)
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const revealedPath = useFileStore((s) => s.revealedPath)
   const ignoredPaths = useGitStore((s) => s.ignoredPaths)
   const { activeTabPath, openTab } = useEditorStore()
   const activeFilePath = !activeTabPath
@@ -100,6 +101,7 @@ export function FileTree({
   const createPromptHere = prompt && !prompt.node && prompt.directory === directoryPath
 
   async function handleClick(node: FileNode) {
+    useFileStore.getState().clearRevealedPath()
     if (node.isDirectory) {
       if (expandedPaths.has(node.path)) {
         collapseDir(node.path)
@@ -143,9 +145,12 @@ export function FileTree({
               />
             ) : (
               <button
+                id={`file-tree-node:${node.path}`}
                 className={`flex items-center gap-1 w-full text-left py-0.5 text-sm hover:bg-white/5 rounded truncate ${
                   activeFilePath === node.path ? 'bg-accent/20 text-fg' : 'text-fg'
-                } ${ignored ? 'opacity-45' : ''}`}
+                } ${ignored ? 'opacity-45' : ''} ${
+                  revealedPath === node.path ? 'ring-1 ring-inset ring-accent/70' : ''
+                }`}
                 style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '8px' }}
                 onClick={() => handleClick(node)}
                 onContextMenu={(event) => onContextMenu(event, node)}

@@ -203,6 +203,14 @@ export default function App() {
     if (leftPanel !== null) lastLeftPanelRef.current = leftPanel
   }, [leftPanel])
 
+  // "Reveal in File Tree" (from a commit's changed-files list, etc.) needs
+  // the files panel actually visible for the reveal to be seen — Sidebar
+  // owns consuming/clearing the request itself, this just switches to it.
+  const revealRequest = useSidebarUiStore((s) => s.revealRequest)
+  useEffect(() => {
+    if (revealRequest) setLeftPanel('files')
+  }, [revealRequest])
+
   useEffect(() => {
     if (enabledModels[assistant]) return
     const fallback = ASSISTANT_OPTIONS.find((option) => enabledModels[option.id])

@@ -1,0 +1,91 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, cleanup, waitFor, act } from '@testing-library/react'
+import { Sidebar } from '../Sidebar'
+import { useFileStore } from '@/stores/fileStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { useGitStore } from '@/stores/gitStore'
+import type { FileNode } from '@/types/index'
+
+const rootTree: FileNode[] = [
+  { name: 'src', path: '/proj/src', isDirectory: true },
+]
+const srcChildren: FileNode[] = [
+  { name: 'components', path: '/proj/src/components', isDirectory: true },
+]
+const componentsChildren: FileNode[] = [
+  { name: 'App.tsx', path: '/proj/src/components/App.tsx', isDirectory: false },
+]
+
+beforeEach(() => {
+  ;(global as any).window.api = {
+    readDir: vi.fn((dir: string) => {
+      if (dir === '/proj/src') return Promise.resolve(srcChildren)
+      if (dir === '/proj/src/components') return Promise.resolve(componentsChildren)
+      return Promise.resolve([])
+    }),
+    gitWatchRoot: vi.fn(),
+    fsWatchRoot: vi.fn(),
+  }
+  useFileStore.setState({
+    projectRoot: '/proj',
+    tree: rootTree,
+    expandedPaths: new Set(),
+    selectedPath: null,
+    revealedPath: null,
+  })
+  useEditorStore.setState({ activeTabPath: null } as any)
+  useGitStore.setState({ ignoredPaths: [] } as any)
+  useSidebarUiStore.setState({ pendingCreate: null, revealRequest: null })
+})
+
+afterEach(() => {
+  cleanup()
+})
+
+describe('Sidebar — Reveal in File Tree', () => {
+  it('expands every ancestor directory and marks the target as revealed', async () => {
+    render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/proj/src/components/App.tsx') })
+
+    await waitFor(() => {
+      expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(true)
+      expect(useFileStore.getState().expandedPaths.has('/proj/src/components')).toBe(true)
+    })
+    await waitFor(() => {
+      expect(useFileStore.getState().revealedPath).toBe('/proj/src/components/App.tsx')
+    })
+  })
+
+  it('clears the reveal request once consumed', async () => {
+    render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/proj/src/components/App.tsx') })
+
+    await waitFor(() => {
+      expect(useSidebarUiStore.getState().revealRequest).toBeNull()
+    })
+  })
+
+  it('renders the target node with an id the reveal effect can scroll to', async () => {
+    const { container } = render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/proj/src/components/App.tsx') })
+
+    await waitFor(() => {
+      expect(container.querySelector('#file-tree-node\\:\\/proj\\/src\\/components\\/App\\.tsx')).toBeTruthy()
+    })
+  })
+
+  it('ignores a reveal request for a path outside the current project root', async () => {
+    render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/other-proj/App.tsx') })
+
+    // Give any (incorrect) async expansion a tick to happen before asserting nothing changed.
+    await new Promise((r) => setTimeout(r, 20))
+    expect(useFileStore.getState().revealedPath).toBeNull()
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/other-proj/App.tsx' })
+  })
+})

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitStore } from '@/stores/gitStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import type { GitCommit } from '@/types/index'
 import {
   normalizeRef,
@@ -110,6 +111,10 @@ export function CommitDetailsPanel({ cwd, commit, onClose }: {
     const fullPath = `${cwd}/${path}`
     const content = await window.api.readFile(fullPath)
     useEditorStore.getState().openTab({ path: fullPath, content, dirty: false })
+  }
+
+  function revealInFileTree(path: string) {
+    useSidebarUiStore.getState().requestReveal(`${cwd}/${path}`)
   }
 
   function handleFileContextMenu(e: MouseEvent, path: string) {
@@ -288,6 +293,7 @@ export function CommitDetailsPanel({ cwd, commit, onClose }: {
           onCopyPath={() => copyToClipboard(fileMenu.path)}
           onOpenFile={() => openCurrentFile(fileMenu.path)}
           onOpenDiff={() => openFileDiff(fileMenu.path)}
+          onRevealInFileTree={() => revealInFileTree(fileMenu.path)}
           onClose={() => setFileMenu(null)}
         />
       )}

@@ -32,7 +32,7 @@ vi.stubGlobal('window', {
 describe('fileStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null, expandedPaths: new Set() })
+    useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null, expandedPaths: new Set(), revealedPath: null })
     useEditorStore.getState().resetForNewProject()
   })
 
@@ -162,6 +162,17 @@ describe('fileStore', () => {
   it('select sets selectedPath', () => {
     useFileStore.getState().select('/proj/package.json')
     expect(useFileStore.getState().selectedPath).toBe('/proj/package.json')
+  })
+
+  it('setRevealedPath sets revealedPath', () => {
+    useFileStore.getState().setRevealedPath('/proj/package.json')
+    expect(useFileStore.getState().revealedPath).toBe('/proj/package.json')
+  })
+
+  it('clearRevealedPath resets revealedPath to null', () => {
+    useFileStore.getState().setRevealedPath('/proj/package.json')
+    useFileStore.getState().clearRevealedPath()
+    expect(useFileStore.getState().revealedPath).toBeNull()
   })
 
   it('openProjectAt sets root and tree from the given path without opening a picker dialog', async () => {
