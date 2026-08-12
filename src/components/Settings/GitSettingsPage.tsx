@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
 
 export function GitSettingsPage() {
@@ -7,12 +9,35 @@ export function GitSettingsPage() {
     countdownEnabled, setCountdownEnabled,
     countdownSeconds, setCountdownSeconds,
     autoContinueOnCountdownEnd, setAutoContinueOnCountdownEnd,
+    getListDiffTargetBranch, setListDiffTargetBranch,
   } = useGitSettingsStore()
+
+  const projectRoot = useFileStore((s) => s.projectRoot)
+  const [branches, setBranches] = useState<string[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
+  const listDiffTarget = projectRoot ? getListDiffTargetBranch(projectRoot) : ''
+
+  useEffect(() => {
+    if (!projectRoot) {
+      setBranches([])
+      return
+    }
+    let cancelled = false
+    setLoadingBranches(true)
+    window.api.gitBranches(projectRoot).then((result) => {
+      if (cancelled) return
+      setBranches(result)
+      setLoadingBranches(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectRoot])
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
       <h1 className="text-base font-semibold text-fg mb-1">Git</h1>
-      <p className="text-sm text-fg-muted mb-8">Safety settings for destructive git operations.</p>
+      <p className="text-sm text-fg-muted mb-8">Safety settings and defaults for git operations.</p>
 
       <div className="grid grid-cols-1 gap-6 max-w-lg">
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
@@ -57,6 +82,40 @@ export function GitSettingsPage() {
                 checked={autoContinueOnCountdownEnd}
                 onChange={setAutoContinueOnCountdownEnd}
               />
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">List Diff</h2>
+
+          {!projectRoot ? (
+            <p className="text-sm text-fg-muted">Open a repo to set its default target branch.</p>
+          ) : (
+            <div>
+              <label htmlFor="list-diff-target-branch" className="text-xs text-fg-muted mb-1.5 block">
+                Default target branch
+              </label>
+              <div className="relative">
+                <select
+                  id="list-diff-target-branch"
+                  value={listDiffTarget}
+                  disabled={loadingBranches}
+                  onChange={(e) => setListDiffTargetBranch(projectRoot, e.target.value)}
+                  className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <option value="">Use repo default</option>
+                  {branches.map((branch) => (
+                    <option key={branch} value={branch}>{branch}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                  ▾
+                </span>
+              </div>
+              <p className="text-xs text-fg-subtle mt-1.5">
+                Used to compare against the current branch when opening List Diff. Leave as "Use repo default" to fall back to git's own default branch.
+              </p>
             </div>
           )}
         </section>
