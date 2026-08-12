@@ -8,6 +8,10 @@ if (typeof window !== 'undefined' && !(window as any).ResizeObserver) {
   }
 }
 
+if (typeof window !== 'undefined' && !window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {}
+}
+
 if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = ((query: string) =>
     ({
