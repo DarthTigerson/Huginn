@@ -23,12 +23,54 @@ case "$os" in
 
     echo "Installing to /Applications..."
     unzip -q "$tmp/Huginn.zip" -d "$tmp"
-    rm -rf "/Applications/Huginn.app"
-    mv "$tmp/Huginn.app" /Applications/
 
-    # Belt and suspenders: curl downloads aren't quarantined by Gatekeeper the
-    # way browser downloads are, but strip any quarantine flag just in case.
-    xattr -cr /Applications/Huginn.app
+    # Swap the new app into place without ever leaving /Applications without
+    # a working Huginn.app: the old bundle is renamed aside first and only
+    # deleted once the new one is successfully in place, restoring it if the
+    # move fails partway through (e.g. disk full).
+    cat > "$tmp/swap.sh" <<'SWAP'
+#!/usr/bin/env bash
+set -euo pipefail
+new_app="$1"
+backup="/Applications/.Huginn.app.bak"
+rm -rf "$backup"
+if [ -e /Applications/Huginn.app ]; then
+  mv /Applications/Huginn.app "$backup"
+fi
+if mv "$new_app" /Applications/Huginn.app; then
+  xattr -cr /Applications/Huginn.app
+  rm -rf "$backup"
+else
+  rm -rf /Applications/Huginn.app
+  if [ -e "$backup" ]; then
+    mv "$backup" /Applications/Huginn.app
+  fi
+  exit 1
+fi
+SWAP
+    chmod +x "$tmp/swap.sh"
+
+    # /Applications is root:admin 775 — only writable by admins. Try
+    # unprivileged first (covers standing admins); if that's not possible,
+    # ask macOS for a one-off admin authorization (password/Touch ID) rather
+    # than deleting the existing install and hoping. If the user has no
+    # admin rights available (e.g. their temporary-admin grant has expired),
+    # this fails and exits before anything is touched, so the existing
+    # install is left intact and they can retry after re-requesting admin.
+    if [ -w /Applications ]; then
+      "$tmp/swap.sh" "$tmp/Huginn.app"
+    else
+      echo "Administrator rights are required to update Huginn in /Applications."
+      shell_cmd="$(printf '%q %q' "$tmp/swap.sh" "$tmp/Huginn.app")"
+      # Escape for embedding in an AppleScript double-quoted string literal.
+      osa_cmd="${shell_cmd//\\/\\\\}"
+      osa_cmd="${osa_cmd//\"/\\\"}"
+      if ! osascript -e "do shell script \"$osa_cmd\" with administrator privileges" >/dev/null; then
+        echo "Update cancelled: administrator rights are required." >&2
+        echo "Request admin access and re-run the update." >&2
+        exit 1
+      fi
+    fi
 
     if [ -z "${HUGINN_NO_LAUNCH:-}" ]; then
       echo "Huginn installed. Launching..."
