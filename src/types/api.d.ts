@@ -92,6 +92,7 @@ declare global {
       gitStageAll: (cwd: string) => Promise<void>
       gitUnstageAll: (cwd: string) => Promise<void>
       gitDiscard: (cwd: string, path: string) => Promise<void>
+      gitDiscardAll: (cwd: string) => Promise<void>
       gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
       gitCommitDiff: (cwd: string, hash: string, path: string) => Promise<GitDiffContent>
@@ -104,6 +105,7 @@ declare global {
       gitBranchList: (cwd: string) => Promise<GitBranchList>
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
+      gitFetchSilent: (cwd: string) => Promise<boolean>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
 

@@ -21,6 +21,9 @@ describe('gitSettingsStore', () => {
       countdownEnabled: false,
       countdownSeconds: 5,
       autoContinueOnCountdownEnd: false,
+      listDiffTargetBranches: {},
+      periodicFetchEnabled: true,
+      periodicFetchIntervalMinutes: 5,
     })
   })
 
@@ -54,5 +57,57 @@ describe('gitSettingsStore', () => {
     useGitSettingsStore.getState().setAutoContinueOnCountdownEnd(true)
     expect(useGitSettingsStore.getState().autoContinueOnCountdownEnd).toBe(true)
     expect(store['huginn:git:autoContinueOnCountdownEnd']).toBe('true')
+  })
+
+  it('getListDiffTargetBranch defaults to empty string for an unconfigured repo', () => {
+    expect(useGitSettingsStore.getState().getListDiffTargetBranch('/repo/a')).toBe('')
+  })
+
+  it('setListDiffTargetBranch persists per-repo and to localStorage', () => {
+    const { setListDiffTargetBranch, getListDiffTargetBranch } = useGitSettingsStore.getState()
+    setListDiffTargetBranch('/repo/a', 'develop')
+    setListDiffTargetBranch('/repo/b', 'main')
+
+    expect(getListDiffTargetBranch('/repo/a')).toBe('develop')
+    expect(getListDiffTargetBranch('/repo/b')).toBe('main')
+    expect(JSON.parse(store['huginn:git:listDiffTargetBranches'])).toEqual({
+      '/repo/a': 'develop',
+      '/repo/b': 'main',
+    })
+  })
+
+  it('setListDiffTargetBranch with an empty string clears the repo entry', () => {
+    const { setListDiffTargetBranch, getListDiffTargetBranch } = useGitSettingsStore.getState()
+    setListDiffTargetBranch('/repo/a', 'develop')
+    setListDiffTargetBranch('/repo/a', '')
+
+    expect(getListDiffTargetBranch('/repo/a')).toBe('')
+    expect(JSON.parse(store['huginn:git:listDiffTargetBranches'])).toEqual({})
+  })
+
+  it('periodic fetch defaults to enabled at 5 minutes', () => {
+    const s = useGitSettingsStore.getState()
+    expect(s.periodicFetchEnabled).toBe(true)
+    expect(s.periodicFetchIntervalMinutes).toBe(5)
+  })
+
+  it('setPeriodicFetchEnabled persists to localStorage', () => {
+    useGitSettingsStore.getState().setPeriodicFetchEnabled(false)
+    expect(useGitSettingsStore.getState().periodicFetchEnabled).toBe(false)
+    expect(store['huginn:git:periodicFetchEnabled']).toBe('false')
+  })
+
+  it('setPeriodicFetchIntervalMinutes persists to localStorage', () => {
+    useGitSettingsStore.getState().setPeriodicFetchIntervalMinutes(15)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(15)
+    expect(store['huginn:git:periodicFetchIntervalMinutes']).toBe('15')
+  })
+
+  it('setPeriodicFetchIntervalMinutes clamps to [1, 120]', () => {
+    const { setPeriodicFetchIntervalMinutes } = useGitSettingsStore.getState()
+    setPeriodicFetchIntervalMinutes(0)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(1)
+    setPeriodicFetchIntervalMinutes(500)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(120)
   })
 })

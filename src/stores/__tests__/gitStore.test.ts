@@ -42,10 +42,13 @@ vi.stubGlobal('window', {
     gitUnstage: vi.fn().mockResolvedValue(undefined),
     gitStageAll: vi.fn().mockResolvedValue(undefined),
     gitUnstageAll: vi.fn().mockResolvedValue(undefined),
+    gitDiscard: vi.fn().mockResolvedValue(undefined),
+    gitDiscardAll: vi.fn().mockResolvedValue(undefined),
     gitCommit: vi.fn().mockResolvedValue({ ok: true }),
     gitRunCommand: vi.fn().mockResolvedValue(undefined),
     onGitLogData: vi.fn().mockReturnValue(() => {}),
     onGitLogExit: vi.fn().mockReturnValue(() => {}),
+    gitFetchSilent: vi.fn().mockResolvedValue(true),
   },
 })
 
@@ -61,6 +64,7 @@ describe('gitStore', () => {
       commitMessage: '',
       commitError: null,
       commandStatus: 'idle',
+      silentFetchInFlight: false,
     })
   })
 
@@ -121,6 +125,19 @@ describe('gitStore', () => {
   it('unstageAll calls gitUnstageAll and refreshes status', async () => {
     await useGitStore.getState().unstageAll('/proj')
     expect(window.api.gitUnstageAll).toHaveBeenCalledWith('/proj')
+  })
+
+  it('discardAll calls gitDiscardAll and refreshes status', async () => {
+    await useGitStore.getState().discardAll('/proj')
+    expect(window.api.gitDiscardAll).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
+  it('discardAll does not throw and still refreshes status when gitDiscardAll rejects', async () => {
+    vi.mocked(window.api.gitDiscardAll).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().discardAll('/proj')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
   })
 
   it('stage does not throw and still refreshes status when gitStage rejects', async () => {
@@ -212,6 +229,7 @@ describe('gitStore — command actions', () => {
     vi.mocked(window.api.onGitLogData).mockClear()
     vi.mocked(window.api.onGitLogExit).mockClear()
     vi.mocked(window.api.gitBranch).mockClear()
+    vi.mocked(window.api.gitFetchSilent).mockClear()
     // Stub crypto.randomUUID so we know the id used internally
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('test-uuid' as `${string}-${string}-${string}-${string}-${string}`)
   })
@@ -309,5 +327,78 @@ describe('gitStore — command actions', () => {
     await checkoutPromise
     exitCb!('test-uuid', 1)
     expect(gitBranchLoadMock).not.toHaveBeenCalled()
+  })
+
+  it('checkout triggers a silent fetch on successful exit', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
+    await checkoutPromise
+    exitCb!('test-uuid', 0)
+    expect(window.api.gitFetchSilent).toHaveBeenCalledWith('/proj')
+  })
+
+  it('checkout does NOT trigger a silent fetch on failed exit', async () => {
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
+    await checkoutPromise
+    exitCb!('test-uuid', 1)
+    expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
+  })
+})
+
+describe('gitStore — fetchSilent', () => {
+  beforeEach(() => {
+    useGitStore.setState({
+      branch: 'main',
+      aheadBehind: null,
+      status: emptyStatus,
+      commandStatus: 'idle',
+      silentFetchInFlight: false,
+    })
+    vi.mocked(window.api.gitFetchSilent).mockClear().mockResolvedValue(true)
+    vi.mocked(window.api.gitBranch).mockClear()
+  })
+
+  it('sets silentFetchInFlight while running and clears it after', async () => {
+    let resolveFetch: (v: boolean) => void = () => {}
+    vi.mocked(window.api.gitFetchSilent).mockReturnValueOnce(
+      new Promise((resolve) => { resolveFetch = resolve })
+    )
+    const fetchPromise = useGitStore.getState().fetchSilent('/proj')
+    expect(useGitStore.getState().silentFetchInFlight).toBe(true)
+    resolveFetch(true)
+    await fetchPromise
+    expect(useGitStore.getState().silentFetchInFlight).toBe(false)
+  })
+
+  it('refreshes branch/status when the fetch succeeds', async () => {
+    await useGitStore.getState().fetchSilent('/proj')
+    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj')
+  })
+
+  it('does not refresh when the fetch fails', async () => {
+    vi.mocked(window.api.gitFetchSilent).mockResolvedValueOnce(false)
+    await useGitStore.getState().fetchSilent('/proj')
+    expect(window.api.gitBranch).not.toHaveBeenCalled()
+  })
+
+  it('does nothing if a visible git command is already running', async () => {
+    useGitStore.setState({ commandStatus: 'running' })
+    await useGitStore.getState().fetchSilent('/proj')
+    expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
+  })
+
+  it('does nothing if a silent fetch is already in flight', async () => {
+    useGitStore.setState({ silentFetchInFlight: true })
+    await useGitStore.getState().fetchSilent('/proj')
+    expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
   })
 })

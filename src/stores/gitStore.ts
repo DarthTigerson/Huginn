@@ -14,6 +14,8 @@ interface GitStore {
   commitMessage: string
   commitError: string | null
   commandStatus: 'idle' | 'running'
+  silentFetchInFlight: boolean
+  fetchSilent: (cwd: string) => Promise<void>
   refresh: (cwd: string | null) => Promise<void>
   refreshStatus: (cwd: string | null) => Promise<void>
   stage: (cwd: string, path: string) => Promise<void>
@@ -21,6 +23,7 @@ interface GitStore {
   stageAll: (cwd: string) => Promise<void>
   unstageAll: (cwd: string) => Promise<void>
   discard: (cwd: string, path: string) => Promise<void>
+  discardAll: (cwd: string) => Promise<void>
   setCommitMessage: (message: string) => void
   commit: (cwd: string) => Promise<void>
   fetch: (cwd: string) => Promise<void>
@@ -68,7 +71,10 @@ export const useGitStore = create<GitStore>((set, get) => {
       set({ commandStatus: 'idle' })
       if (code === 0) {
         get().refresh(cwd)
-        if (action === 'checkout') useGitBranchStore.getState().load(cwd)
+        if (action === 'checkout') {
+          useGitBranchStore.getState().load(cwd)
+          get().fetchSilent(cwd)
+        }
       }
     })
 
@@ -94,6 +100,24 @@ export const useGitStore = create<GitStore>((set, get) => {
   commitMessage: '',
   commitError: null,
   commandStatus: 'idle' as const,
+  silentFetchInFlight: false,
+
+  // Best-effort background fetch — periodic timer, repo open, post-checkout.
+  // Deliberately bypasses runCommand: it must not open/spam the Git Log tab
+  // the way the manual Fetch button does, and must not flip commandStatus
+  // (which disables the Fetch/Pull/Push menu and shows its own "running"
+  // dot next to the branch name). silentFetchInFlight exists purely so the
+  // footer git icon can flash for this too, same as any visible command.
+  fetchSilent: async (cwd) => {
+    if (get().commandStatus === 'running' || get().silentFetchInFlight) return
+    set({ silentFetchInFlight: true })
+    try {
+      const ok = await window.api.gitFetchSilent(cwd)
+      if (ok) await get().refresh(cwd)
+    } finally {
+      set({ silentFetchInFlight: false })
+    }
+  },
 
   refresh: async (cwd) => {
     if (!cwd) {
@@ -165,6 +189,16 @@ export const useGitStore = create<GitStore>((set, get) => {
       await window.api.gitDiscard(cwd, path)
     } catch (err) {
       console.error('git discard failed', err)
+    } finally {
+      await get().refreshStatus(cwd)
+    }
+  },
+
+  discardAll: async (cwd) => {
+    try {
+      await window.api.gitDiscardAll(cwd)
+    } catch (err) {
+      console.error('git discardAll failed', err)
     } finally {
       await get().refreshStatus(cwd)
     }

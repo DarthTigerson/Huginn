@@ -23,6 +23,9 @@ interface FileState {
   tree: FileNode[]
   selectedPath: string | null
   expandedPaths: Set<string>
+  revealedPath: string | null
+  setRevealedPath: (path: string) => void
+  clearRevealedPath: () => void
   restoreRoot: () => Promise<void>
   openFolder: () => Promise<void>
   openProjectAt: (root: string) => Promise<void>
@@ -57,6 +60,7 @@ export const useFileStore = create<FileState>((set, get) => {
   tree: [],
   selectedPath: null,
   expandedPaths: new Set(),
+  revealedPath: null,
 
   restoreRoot: async () => {
     const lastRoot = localStorage.getItem(LAST_ROOT_KEY)
@@ -132,5 +136,13 @@ export const useFileStore = create<FileState>((set, get) => {
   collapseAll: () => set({ expandedPaths: new Set() }),
 
   select: (path: string) => set({ selectedPath: path }),
+
+  // Purpose-built for "Reveal in File Tree" — deliberately separate from
+  // selectedPath (dead state, never read) and from FileTree's activeFilePath
+  // highlight (tracks the open editor tab): this just marks a location to
+  // flash a ring around once its ancestor directories are expanded, cleared
+  // the moment the user next interacts with the tree.
+  setRevealedPath: (path: string) => set({ revealedPath: path }),
+  clearRevealedPath: () => set({ revealedPath: null }),
   }
 })

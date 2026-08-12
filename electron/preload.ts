@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   gitStageAll: (cwd: string) => ipcRenderer.invoke('git:stageAll', cwd),
   gitUnstageAll: (cwd: string) => ipcRenderer.invoke('git:unstageAll', cwd),
   gitDiscard: (cwd: string, path: string) => ipcRenderer.invoke('git:discard', cwd, path),
+  gitDiscardAll: (cwd: string) => ipcRenderer.invoke('git:discardAll', cwd),
   gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
@@ -54,6 +55,7 @@ contextBridge.exposeInMainWorld('api', {
   gitBranchDiff: (cwd: string, source: string, target: string) =>
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
+  gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
   gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
   onGitChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)

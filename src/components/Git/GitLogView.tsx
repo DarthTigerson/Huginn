@@ -1,15 +1,39 @@
 import { useEffect, useRef } from 'react'
+import type { KeyboardEvent } from 'react'
 import { useGitLogStore } from '@/stores/gitLogStore'
 import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
+import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
 
 export function GitLogView() {
   const text = useGitLogStore((s) => s.text)
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const fontSizeOverride = useInstanceFontSizeStore((s) => s.overrides[GIT_LOG_TAB_PATH])
+  const effectiveFontSize = fontSizeOverride ?? fontSize
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Unshifted CmdOrCtrl+=/-/0 zoom just this panel, mirroring TerminalTab.tsx
+  // and the Monaco editor commands — shifted variants are left unhandled so
+  // they pass through to the app-level global zoom shortcut.
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const isMod = event.metaKey || event.ctrlKey
+    if (!isMod || event.shiftKey || event.altKey) return
+
+    if (event.key === '=' || event.key === '+') {
+      event.preventDefault()
+      useInstanceFontSizeStore.getState().increase(GIT_LOG_TAB_PATH)
+    } else if (event.key === '-' || event.key === '_') {
+      event.preventDefault()
+      useInstanceFontSizeStore.getState().decrease(GIT_LOG_TAB_PATH)
+    } else if (event.key === '0') {
+      event.preventDefault()
+      useInstanceFontSizeStore.getState().reset(GIT_LOG_TAB_PATH)
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView()
@@ -23,15 +47,24 @@ export function GitLogView() {
 
   return (
     <div
-      className="h-full overflow-auto p-4"
+      className="h-full overflow-auto p-4 focus:outline-none"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
       style={{
         background: xtermTheme.background,
         color: xtermTheme.foreground,
         fontFamily: font,
-        fontSize,
+        fontSize: effectiveFontSize,
       }}
     >
-      <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed m-0">
+      {/* fontSize can't just live on the wrapping div — Tailwind's `text-sm`
+          hardcodes a font-size on <pre> itself, which shadows inheritance
+          from any ancestor, so the zoom state changed but nothing visible
+          moved. Setting it inline here bypasses that. */}
+      <pre
+        className="whitespace-pre-wrap break-words leading-relaxed m-0"
+        style={{ fontSize: effectiveFontSize }}
+      >
         {text || 'No git commands run yet.'}
       </pre>
       <div ref={bottomRef} />

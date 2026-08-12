@@ -8,10 +8,11 @@ interface Props {
   onCopyPath: () => void
   onOpenFile: () => void
   onOpenDiff: () => void
+  onRevealInFileTree: () => void
   onClose: () => void
 }
 
-export function CommitFileContextMenu({ x, y, onCopyPath, onOpenFile, onOpenDiff, onClose }: Props) {
+export function CommitFileContextMenu({ x, y, onCopyPath, onOpenFile, onOpenDiff, onRevealInFileTree, onClose }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,6 +61,13 @@ export function CommitFileContextMenu({ x, y, onCopyPath, onOpenFile, onOpenDiff
         className="w-full rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
       >
         Open File
+      </button>
+      <button
+        type="button"
+        onClick={() => run(onRevealInFileTree)}
+        className="w-full rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
+      >
+        Reveal in File Tree
       </button>
       <button
         type="button"

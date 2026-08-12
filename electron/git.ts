@@ -32,13 +32,33 @@ export async function getGitBranch(cwd: string): Promise<string | null> {
   }
 }
 
-// Resolves the repo's actual default branch (e.g. "origin/main") via the
-// locally-cached refs/remotes/origin/HEAD symbolic ref — set whenever the
-// repo was cloned or `git remote set-head origin -a` was run — rather than
-// guessing between "main"/"master". No network call. Returns null if there's
-// no origin remote, or its HEAD ref was never set (e.g. some shallow/CI
-// clones), so callers should keep a heuristic fallback.
+// Resolves the repo's actual default branch (e.g. "origin/main") by asking
+// the remote directly via `ls-remote --symref` — a single lightweight ref
+// lookup, no object transfer. This is deliberately NOT read from the
+// locally-cached refs/remotes/origin/HEAD symbolic ref: that ref is only
+// written at clone time (or by an explicit `git remote set-head origin -a`)
+// and is never refreshed by fetch/pull, so if the default branch is changed
+// on the host after the clone (e.g. a master->main rename), every existing
+// clone's cached copy goes silently stale and keeps pointing at the old
+// branch — confidently wrong, rather than falling through to the heuristic
+// fallback in chooseTarget(). Bounded by a short timeout so an unreachable
+// remote (offline, VPN, slow network) can't stall the branch-list load;
+// on any failure we fall back to the local cache, then to null so callers
+// keep their own heuristic fallback (origin/main, origin/master, ...).
 export async function getDefaultBranch(cwd: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['ls-remote', '--symref', 'origin', 'HEAD'],
+      { cwd, timeout: 3000 }
+    )
+    const match = stdout.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD/m)
+    if (match) return `origin/${match[1]}`
+  } catch {
+    // Unreachable remote, no origin, or timed out — fall through to the
+    // local cache below.
+  }
+
   try {
     const { stdout } = await execFileAsync(
       'git',
@@ -48,6 +68,22 @@ export async function getDefaultBranch(cwd: string): Promise<string | null> {
     return stdout.trim() || null
   } catch {
     return null
+  }
+}
+
+// Runs a plain `git fetch` and reports only success/failure — used for
+// automatic background fetches (periodic, on repo open, on branch switch)
+// that must never surface output the way the user-triggered Fetch button
+// does (which streams through GitRunner into the Git Log tab). Bounded by a
+// timeout so a slow/unreachable remote can't hang the caller indefinitely;
+// any failure (offline, auth prompt, timeout) is swallowed since callers
+// treat this as best-effort.
+export async function fetchRemote(cwd: string): Promise<boolean> {
+  try {
+    await execFileAsync('git', ['fetch'], { cwd, timeout: 15000 })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -184,6 +220,14 @@ export async function stageFiles(cwd: string, paths: string[]): Promise<void> {
 
 export async function discardFileChanges(cwd: string, path: string): Promise<void> {
   await execFileAsync('git', ['checkout', '--', path], { cwd })
+}
+
+// Reverts every tracked file's staged and unstaged modifications back to
+// HEAD in one shot — same scope as discardFileChanges, just for everything
+// at once. `reset --hard` never touches untracked files (they aren't in
+// HEAD), so new/untracked entries in the status list are left alone.
+export async function discardAllChanges(cwd: string): Promise<void> {
+  await execFileAsync('git', ['reset', '--hard', 'HEAD'], { cwd })
 }
 
 export async function unstageFiles(cwd: string, paths: string[]): Promise<void> {
