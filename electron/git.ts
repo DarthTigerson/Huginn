@@ -71,6 +71,22 @@ export async function getDefaultBranch(cwd: string): Promise<string | null> {
   }
 }
 
+// Runs a plain `git fetch` and reports only success/failure — used for
+// automatic background fetches (periodic, on repo open, on branch switch)
+// that must never surface output the way the user-triggered Fetch button
+// does (which streams through GitRunner into the Git Log tab). Bounded by a
+// timeout so a slow/unreachable remote can't hang the caller indefinitely;
+// any failure (offline, auth prompt, timeout) is swallowed since callers
+// treat this as best-effort.
+export async function fetchRemote(cwd: string): Promise<boolean> {
+  try {
+    await execFileAsync('git', ['fetch'], { cwd, timeout: 15000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function getGitBranches(cwd: string): Promise<string[]> {
   try {
     const { stdout } = await execFileAsync(

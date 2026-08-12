@@ -45,6 +45,7 @@ import { useCosmosStore } from './stores/cosmosStore'
 import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useModelSettingsStore } from './stores/modelSettingsStore'
 import { useGitStore } from './stores/gitStore'
+import { useGitSettingsStore } from './stores/gitSettingsStore'
 import { useMobileStore } from './stores/mobileStore'
 import { useThemeStore } from './stores/themeStore'
 import { useDisplayStore } from './stores/displayStore'
@@ -126,6 +127,8 @@ export default function App() {
   const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
+  const periodicFetchEnabled = useGitSettingsStore((s) => s.periodicFetchEnabled)
+  const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
   const todoEnabled = useTodoSettingsStore((s) => s.enabled)
 
@@ -282,6 +285,23 @@ export default function App() {
     }, GIT_POLL_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [projectRoot])
+
+  useEffect(() => {
+    // Refresh from the remote once whenever a repo is opened, so ahead/
+    // behind and remote branches reflect reality from the start rather than
+    // whatever was last fetched (possibly in a previous session).
+    if (!projectRoot) return
+    useGitStore.getState().fetchSilent(projectRoot)
+  }, [projectRoot])
+
+  useEffect(() => {
+    if (!projectRoot || !periodicFetchEnabled) return
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      useGitStore.getState().fetchSilent(projectRoot)
+    }, periodicFetchIntervalMinutes * 60_000)
+    return () => clearInterval(interval)
+  }, [projectRoot, periodicFetchEnabled, periodicFetchIntervalMinutes])
 
   useEffect(() => {
     window.api.updateGetLatest().then((info) => useUpdateStore.getState().setAvailable(info))

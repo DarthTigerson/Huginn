@@ -10,6 +10,8 @@ export function GitSettingsPage() {
     countdownSeconds, setCountdownSeconds,
     autoContinueOnCountdownEnd, setAutoContinueOnCountdownEnd,
     getListDiffTargetBranch, setListDiffTargetBranch,
+    periodicFetchEnabled, setPeriodicFetchEnabled,
+    periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
   } = useGitSettingsStore()
 
   const projectRoot = useFileStore((s) => s.projectRoot)
@@ -82,6 +84,32 @@ export function GitSettingsPage() {
                 checked={autoContinueOnCountdownEnd}
                 onChange={setAutoContinueOnCountdownEnd}
               />
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Fetch</h2>
+
+          <Toggle
+            label="Periodic background fetch"
+            description="Silently fetch from the remote on an interval, on top of automatic fetches on repo open and branch switch. Keeps the ahead/behind counts in the footer accurate without a manual Fetch."
+            checked={periodicFetchEnabled}
+            onChange={setPeriodicFetchEnabled}
+          />
+
+          {periodicFetchEnabled && (
+            <div className="flex items-center gap-3 pl-1">
+              <label className="text-sm text-fg-muted shrink-0">Fetch every</label>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={periodicFetchIntervalMinutes}
+                onChange={(e) => setPeriodicFetchIntervalMinutes(parseInt(e.target.value, 10) || 1)}
+                className="w-16 px-2 py-1 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
+              />
+              <span className="text-sm text-fg-muted">minutes</span>
             </div>
           )}
         </section>

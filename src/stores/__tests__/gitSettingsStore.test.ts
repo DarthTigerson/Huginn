@@ -22,6 +22,8 @@ describe('gitSettingsStore', () => {
       countdownSeconds: 5,
       autoContinueOnCountdownEnd: false,
       listDiffTargetBranches: {},
+      periodicFetchEnabled: true,
+      periodicFetchIntervalMinutes: 5,
     })
   })
 
@@ -81,5 +83,31 @@ describe('gitSettingsStore', () => {
 
     expect(getListDiffTargetBranch('/repo/a')).toBe('')
     expect(JSON.parse(store['huginn:git:listDiffTargetBranches'])).toEqual({})
+  })
+
+  it('periodic fetch defaults to enabled at 5 minutes', () => {
+    const s = useGitSettingsStore.getState()
+    expect(s.periodicFetchEnabled).toBe(true)
+    expect(s.periodicFetchIntervalMinutes).toBe(5)
+  })
+
+  it('setPeriodicFetchEnabled persists to localStorage', () => {
+    useGitSettingsStore.getState().setPeriodicFetchEnabled(false)
+    expect(useGitSettingsStore.getState().periodicFetchEnabled).toBe(false)
+    expect(store['huginn:git:periodicFetchEnabled']).toBe('false')
+  })
+
+  it('setPeriodicFetchIntervalMinutes persists to localStorage', () => {
+    useGitSettingsStore.getState().setPeriodicFetchIntervalMinutes(15)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(15)
+    expect(store['huginn:git:periodicFetchIntervalMinutes']).toBe('15')
+  })
+
+  it('setPeriodicFetchIntervalMinutes clamps to [1, 120]', () => {
+    const { setPeriodicFetchIntervalMinutes } = useGitSettingsStore.getState()
+    setPeriodicFetchIntervalMinutes(0)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(1)
+    setPeriodicFetchIntervalMinutes(500)
+    expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(120)
   })
 })

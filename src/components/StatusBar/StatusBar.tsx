@@ -17,6 +17,8 @@ export function StatusBar() {
   const branch = useGitStore((s) => s.branch)
   const aheadBehind = useGitStore((s) => s.aheadBehind)
   const commandStatus = useGitStore((s) => s.commandStatus)
+  const silentFetchInFlight = useGitStore((s) => s.silentFetchInFlight)
+  const gitBusy = commandStatus === 'running' || silentFetchInFlight
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
   const [gitMenuOpen, setGitMenuOpen] = useState(false)
@@ -66,7 +68,12 @@ export function StatusBar() {
             className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none"
             onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
           >
-            <GitIcon className="w-3 h-3 shrink-0" />
+            <GitIcon
+              className={[
+                'w-3 h-3 shrink-0 transition-colors',
+                gitBusy ? 'text-accent animate-pulse' : '',
+              ].join(' ')}
+            />
             <span className="truncate">{branch}</span>
             {commandStatus === 'running' ? (
               <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>

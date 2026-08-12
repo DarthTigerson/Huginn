@@ -104,6 +104,7 @@ declare global {
       gitBranchList: (cwd: string) => Promise<GitBranchList>
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
+      gitFetchSilent: (cwd: string) => Promise<boolean>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
 

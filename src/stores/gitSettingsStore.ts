@@ -6,6 +6,8 @@ const KEYS = {
   countdownSeconds:          'huginn:git:countdownSeconds',
   autoContinueOnCountdownEnd:'huginn:git:autoContinueOnCountdownEnd',
   listDiffTargetBranches:    'huginn:git:listDiffTargetBranches',
+  periodicFetchEnabled:      'huginn:git:periodicFetchEnabled',
+  periodicFetchIntervalMinutes: 'huginn:git:periodicFetchIntervalMinutes',
 }
 
 function getBool(key: string, def: boolean): boolean {
@@ -35,12 +37,16 @@ interface GitSettingsStore {
   countdownSeconds: number
   autoContinueOnCountdownEnd: boolean
   listDiffTargetBranches: Record<string, string>
+  periodicFetchEnabled: boolean
+  periodicFetchIntervalMinutes: number
   setForceSafetyEnabled: (v: boolean) => void
   setCountdownEnabled: (v: boolean) => void
   setCountdownSeconds: (v: number) => void
   setAutoContinueOnCountdownEnd: (v: boolean) => void
   getListDiffTargetBranch: (repoPath: string) => string
   setListDiffTargetBranch: (repoPath: string, branch: string) => void
+  setPeriodicFetchEnabled: (v: boolean) => void
+  setPeriodicFetchIntervalMinutes: (v: number) => void
 }
 
 export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
@@ -49,6 +55,8 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
   countdownSeconds:           getInt(KEYS.countdownSeconds, 5),
   autoContinueOnCountdownEnd: getBool(KEYS.autoContinueOnCountdownEnd, false),
   listDiffTargetBranches:     getBranchMap(KEYS.listDiffTargetBranches),
+  periodicFetchEnabled:       getBool(KEYS.periodicFetchEnabled, true),
+  periodicFetchIntervalMinutes: getInt(KEYS.periodicFetchIntervalMinutes, 5),
 
   setForceSafetyEnabled: (v) => {
     localStorage.setItem(KEYS.forceSafetyEnabled, String(v))
@@ -76,5 +84,14 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
     }
     localStorage.setItem(KEYS.listDiffTargetBranches, JSON.stringify(next))
     set({ listDiffTargetBranches: next })
+  },
+  setPeriodicFetchEnabled: (v) => {
+    localStorage.setItem(KEYS.periodicFetchEnabled, String(v))
+    set({ periodicFetchEnabled: v })
+  },
+  setPeriodicFetchIntervalMinutes: (v) => {
+    const clamped = Math.max(1, Math.min(120, v))
+    localStorage.setItem(KEYS.periodicFetchIntervalMinutes, String(clamped))
+    set({ periodicFetchIntervalMinutes: clamped })
   },
 }))

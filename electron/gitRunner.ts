@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import type { GitCommandAction, GitCheckoutPayload } from '../src/types/index'
-import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, getDiffContent, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths } from './git'
+import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, getDiffContent, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote } from './git'
 
 const ARGS: Record<Exclude<GitCommandAction, 'checkout'>, string[]> = {
   fetch:           ['fetch'],
@@ -69,5 +69,6 @@ export class GitRunner {
     ipcMain.handle('git:branchList', (_e, cwd: string) => getBranchList(cwd))
     ipcMain.handle('git:branchDiff', (_e, cwd: string, source: string, target: string) => getGitBranchDiff(cwd, source, target))
     ipcMain.handle('git:showStat', (_e, cwd: string, hash: string) => getGitShowStat(cwd, hash))
+    ipcMain.handle('git:fetchSilent', (_e, cwd: string) => fetchRemote(cwd))
   }
 }
