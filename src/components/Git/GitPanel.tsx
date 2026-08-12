@@ -28,6 +28,17 @@ interface ContextMenuState {
   staged: boolean
 }
 
+function DiscardAllIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function GitPanel() {
   const projectRoot = useFileStore((s) => s.projectRoot)
   const {
@@ -42,6 +53,7 @@ export function GitPanel() {
     stageAll,
     unstageAll,
     discard,
+    discardAll,
     setCommitMessage,
     commit,
     fetch: gitFetch,
@@ -55,6 +67,7 @@ export function GitPanel() {
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
+  const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(projectRoot)
@@ -117,6 +130,13 @@ export function GitPanel() {
   const isUntracked = menu?.file.status === '?'
   const isTrackedChange = menu && !menu.staged && menu.file.status !== '?'
   const remoteActionDisabled = commandStatus === 'running' || !projectRoot
+  // Matches discardAllChanges' scope (git reset --hard HEAD): staged changes
+  // plus unstaged changes to already-tracked files. Untracked ('?') entries
+  // aren't affected by that command, so they don't count toward "has
+  // anything to discard" — the button would otherwise look enabled but do
+  // nothing when only new/untracked files are present.
+  const hasDiscardableChanges =
+    status.staged.length > 0 || status.unstaged.some((file) => file.status !== '?')
 
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-border overflow-hidden">
@@ -175,13 +195,25 @@ export function GitPanel() {
             <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
               Changes ({status.unstaged.length})
             </span>
-            <button
-              type="button"
-              onClick={() => projectRoot && stageAll(projectRoot)}
-              className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
-            >
-              +
-            </button>
+            <span className="flex items-center gap-2">
+              <button
+                type="button"
+                title="Discard All Changes"
+                aria-label="Discard All Changes"
+                disabled={!hasDiscardableChanges}
+                onClick={() => setDiscardAllConfirmOpen(true)}
+                className="text-fg-muted transition-colors hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-fg-muted"
+              >
+                <DiscardAllIcon />
+              </button>
+              <button
+                type="button"
+                onClick={() => projectRoot && stageAll(projectRoot)}
+                className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
+              >
+                +
+              </button>
+            </span>
           </div>
           {status.unstaged.map((file) => (
             <FileRow
@@ -344,6 +376,35 @@ export function GitPanel() {
               className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
             >
               Discard
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {discardAllConfirmOpen && (
+        <Modal onClose={() => setDiscardAllConfirmOpen(false)}>
+          <h2 className="text-sm font-semibold text-fg mb-1">Discard All Changes</h2>
+          <p className="text-sm text-fg-muted mb-5">
+            Discard all staged and unstaged changes to tracked files? Untracked files are left
+            alone. This cannot be undone.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setDiscardAllConfirmOpen(false)}
+              className="px-4 py-1.5 text-sm rounded-lg border border-border text-fg-muted hover:text-fg hover:border-fg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (projectRoot) discardAll(projectRoot)
+                setDiscardAllConfirmOpen(false)
+              }}
+              className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
+            >
+              Discard All
             </button>
           </div>
         </Modal>

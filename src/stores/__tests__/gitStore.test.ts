@@ -42,6 +42,8 @@ vi.stubGlobal('window', {
     gitUnstage: vi.fn().mockResolvedValue(undefined),
     gitStageAll: vi.fn().mockResolvedValue(undefined),
     gitUnstageAll: vi.fn().mockResolvedValue(undefined),
+    gitDiscard: vi.fn().mockResolvedValue(undefined),
+    gitDiscardAll: vi.fn().mockResolvedValue(undefined),
     gitCommit: vi.fn().mockResolvedValue({ ok: true }),
     gitRunCommand: vi.fn().mockResolvedValue(undefined),
     onGitLogData: vi.fn().mockReturnValue(() => {}),
@@ -123,6 +125,19 @@ describe('gitStore', () => {
   it('unstageAll calls gitUnstageAll and refreshes status', async () => {
     await useGitStore.getState().unstageAll('/proj')
     expect(window.api.gitUnstageAll).toHaveBeenCalledWith('/proj')
+  })
+
+  it('discardAll calls gitDiscardAll and refreshes status', async () => {
+    await useGitStore.getState().discardAll('/proj')
+    expect(window.api.gitDiscardAll).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
+  })
+
+  it('discardAll does not throw and still refreshes status when gitDiscardAll rejects', async () => {
+    vi.mocked(window.api.gitDiscardAll).mockRejectedValueOnce(new Error('boom'))
+    await expect(useGitStore.getState().discardAll('/proj')).resolves.toBeUndefined()
+    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
+    expect(useGitStore.getState().status).toEqual(mockStatus)
   })
 
   it('stage does not throw and still refreshes status when gitStage rejects', async () => {
