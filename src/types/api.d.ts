@@ -185,6 +185,11 @@ declare global {
       browserViewZoomIn: (id: string) => Promise<void>
       browserViewZoomOut: (id: string) => Promise<void>
       browserViewZoomReset: (id: string) => Promise<void>
+      browserViewSetMobileMode: (
+        id: string,
+        enabled: boolean,
+        device?: { width: number; height: number; pixelRatio: number }
+      ) => Promise<void>
       browserViewDestroy: (id: string) => Promise<void>
       onBrowserViewEvent: (cb: (id: string, event: BrowserViewEvent) => void) => () => void
 
