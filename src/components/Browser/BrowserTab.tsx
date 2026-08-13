@@ -7,6 +7,8 @@ import { normalizeUrlInput } from './urlBar'
 import { zoomLevelToPercent } from './zoomLevel'
 import { MOBILE_DEVICES, getMobileDevice } from './mobileDevices'
 import { useStatusMessageStore } from '@/stores/statusMessageStore'
+import { useSearchStore } from '@/stores/searchStore'
+import { useChangelogStore } from '@/stores/changelogStore'
 
 interface Props {
   browserId: string
@@ -167,14 +169,26 @@ export function BrowserTab({ browserId }: Props) {
 
   const loadError = tabState?.loadError ?? null
 
-  // The native view always draws on top of this component's own DOM, so the
-  // inline "page couldn't load" state has to explicitly hide it instead —
-  // otherwise it renders, but invisibly, behind the guest. The zoom panel
-  // below doesn't need this: it's laid out in normal flow, so it pushes the
-  // native view's bounds down via the rAF sync above rather than overlapping it.
+  // The native view always draws on top of this component's own DOM — and, for
+  // the same reason, above every other DOM-rendered surface in the window, palettes
+  // and modals included, no matter their z-index. So the inline "page couldn't load"
+  // state and any open palette/modal both have to explicitly hide it instead of
+  // just rendering over it. The zoom panel below doesn't need this: it's laid out
+  // in normal flow, so it pushes the native view's bounds down via the rAF sync
+  // above rather than overlapping it.
+  const anyOverlayOpen = useSearchStore(
+    (s) =>
+      s.commandPaletteOpen ||
+      s.searchOpen ||
+      s.actionPaletteOpen ||
+      s.shortcutsOverlayOpen ||
+      s.recentProjectsPaletteOpen ||
+      s.branchPaletteOpen
+  )
+  const changelogOpen = useChangelogStore((s) => s.content !== null)
   useEffect(() => {
-    window.api.browserViewSetVisible(browserId, !loadError)
-  }, [browserId, loadError])
+    window.api.browserViewSetVisible(browserId, !loadError && !anyOverlayOpen && !changelogOpen)
+  }, [browserId, loadError, anyOverlayOpen, changelogOpen])
 
   useEffect(() => {
     if (!menuOpen) return
