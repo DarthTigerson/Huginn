@@ -91,6 +91,13 @@ export class BrowserViewManager {
     ipcMain.handle('browserView:setMobileMode', (event, id: string, enabled: boolean, device?: DeviceSize) =>
       this.setMobileMode(this.winIdOf(event), id, enabled, device)
     )
+    ipcMain.handle('browserView:clearCache', async (event, id: string) => {
+      // The HTTP cache belongs to the shared 'persist:browser-tabs' session, not any
+      // one webContents, so this clears it for every browser tab — only the requesting
+      // tab gets reloaded to reflect it immediately.
+      await getBrowserSession().clearCache()
+      this.get(this.winIdOf(event), id)?.webContents.reload()
+    })
     ipcMain.handle('browserView:destroy', (event, id: string) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (win) this.destroy(win, id)

@@ -6,6 +6,7 @@ import { buildBrowserPath } from '@/components/Settings/paths'
 import { normalizeUrlInput } from './urlBar'
 import { zoomLevelToPercent } from './zoomLevel'
 import { MOBILE_DEVICES, getMobileDevice } from './mobileDevices'
+import { useStatusMessageStore } from '@/stores/statusMessageStore'
 
 interface Props {
   browserId: string
@@ -301,9 +302,22 @@ export function BrowserTab({ browserId }: Props) {
       {menuOpen && (
         <div
           ref={menuRef}
-          className="flex items-center justify-end gap-1.5 border-b border-border bg-tab-bar px-2 py-1.5 shrink-0"
+          className="flex items-center justify-between gap-1.5 border-b border-border bg-tab-bar px-2 py-1.5 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
+          <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
+            <button
+              type="button"
+              onClick={async () => {
+                await window.api.browserViewClearCache(browserId)
+                useStatusMessageStore.getState().show('Cache cleared')
+              }}
+              className="flex h-6 items-center justify-center whitespace-nowrap px-3 text-xs text-fg-muted hover:text-fg hover:bg-white/5"
+            >
+              Clear cache
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
           <div className="relative flex items-center">
             <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
               <button
@@ -379,6 +393,7 @@ export function BrowserTab({ browserId }: Props) {
             >
               <PlusIcon />
             </button>
+          </div>
           </div>
         </div>
       )}

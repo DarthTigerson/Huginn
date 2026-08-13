@@ -257,6 +257,7 @@ contextBridge.exposeInMainWorld('api', {
     enabled: boolean,
     device?: { width: number; height: number; pixelRatio: number }
   ) => ipcRenderer.invoke('browserView:setMobileMode', id, enabled, device),
+  browserViewClearCache: (id: string) => ipcRenderer.invoke('browserView:clearCache', id),
   browserViewDestroy: (id: string) => ipcRenderer.invoke('browserView:destroy', id),
   onBrowserViewEvent: (cb: (id: string, event: import('./browserViews').BrowserViewEvent) => void) => {
     const handler = (_: Electron.IpcRendererEvent, id: string, event: import('./browserViews').BrowserViewEvent) =>

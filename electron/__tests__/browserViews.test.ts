@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { handlers, winsById } = vi.hoisted(() => ({
+const { handlers, winsById, fakeSession } = vi.hoisted(() => ({
   handlers: {} as Record<string, (...args: any[]) => void>,
   // The given implementation resolves a bare winId back to a BrowserWindow via
   // BrowserWindow.fromId (needed by disposeWindow/setZoom, which only receive a
   // numeric id, not the ipc event). Real Electron provides this statically;
   // here it's backed by whatever fromWebContents has already seen.
   winsById: new Map<number, any>(),
+  fakeSession: { clearCache: vi.fn(() => Promise.resolve()) },
 }))
 
 function fakeWebContentsView() {
@@ -42,7 +43,7 @@ vi.mock('electron', () => ({
     fromId: (id: number) => winsById.get(id),
   },
   WebContentsView: vi.fn().mockImplementation(() => fakeWebContentsView()),
-  session: { fromPartition: vi.fn(() => ({})) },
+  session: { fromPartition: vi.fn(() => fakeSession) },
 }))
 
 import { BrowserViewManager } from '../browserViews'
@@ -145,5 +146,22 @@ describe('BrowserViewManager mobile mode', () => {
     expect(view.webContents.setUserAgent).toHaveBeenLastCalledWith('')
     expect(view.webContents.disableDeviceEmulation).toHaveBeenCalledTimes(1)
     expect(view.webContents.reload).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('BrowserViewManager clear cache', () => {
+  it('clears the shared session cache and reloads the requesting tab', async () => {
+    const manager = new BrowserViewManager()
+    manager.registerHandlers()
+    const win = fakeWin(12)
+
+    handlers['browserView:create']({ sender: win }, 'tab-1', 'https://example.com')
+    const created = (WebContentsView as unknown as ReturnType<typeof vi.fn>).mock.results
+    const view = created[created.length - 1].value
+
+    await handlers['browserView:clearCache']({ sender: win }, 'tab-1')
+
+    expect(fakeSession.clearCache).toHaveBeenCalledTimes(1)
+    expect(view.webContents.reload).toHaveBeenCalledTimes(1)
   })
 })

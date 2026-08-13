@@ -190,6 +190,7 @@ declare global {
         enabled: boolean,
         device?: { width: number; height: number; pixelRatio: number }
       ) => Promise<void>
+      browserViewClearCache: (id: string) => Promise<void>
       browserViewDestroy: (id: string) => Promise<void>
       onBrowserViewEvent: (cb: (id: string, event: BrowserViewEvent) => void) => () => void
 
