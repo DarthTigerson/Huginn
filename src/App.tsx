@@ -137,6 +137,7 @@ export default function App() {
   const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
+  const memoryUsageVisible = useDisplayStore((s) => s.memoryUsageVisible)
   const periodicFetchEnabled = useGitSettingsStore((s) => s.periodicFetchEnabled)
   const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
@@ -525,7 +526,7 @@ export default function App() {
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
-          {memoryUsage && <MemoryPill usage={memoryUsage} />}
+          {memoryUsageVisible && memoryUsage && <MemoryPill usage={memoryUsage} />}
           <button
             type="button"
             onClick={() => setAssistantMenuOpen((open) => !open)}
