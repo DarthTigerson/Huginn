@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
@@ -11,6 +12,7 @@ import { CosmosChat } from './CosmosChat'
 import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
 import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
+import { createFilePathLinkProvider, createFilePathActivateHandler, createUrlActivateHandler } from './terminalLinks'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -93,6 +95,18 @@ export function Chat() {
           window.api.assistantWrite(kind, SHIFT_ENTER_SEQUENCE)
           return false
         })
+
+        // Clickable file paths and URLs in Claude's own output. Registered in
+        // this order so a URL match wins over the file-path one for any
+        // overlapping range (a URL's own path segment, e.g. "/path.txt" in
+        // "https://example.com/path.txt", would otherwise also satisfy the
+        // file-path provider) — xterm de-dupes intersecting links across
+        // providers, first-registered wins. URLs go through the stock
+        // WebLinksAddon (real URLs parse fine as URL objects); file paths use
+        // a custom provider — see createFilePathLinkProvider's own comment
+        // for why WebLinksAddon can't be reused for those.
+        xterm.loadAddon(new WebLinksAddon(createUrlActivateHandler()))
+        xterm.registerLinkProvider(createFilePathLinkProvider(xterm, createFilePathActivateHandler()))
       }
 
       window.api.assistantSpawn(projectRoot, kind)

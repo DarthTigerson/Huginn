@@ -1,7 +1,7 @@
-import { useEditorStore } from '@/stores/editorStore'
 import { useFileStore } from '@/stores/fileStore'
 import { LSP_SERVER_IDS, useLspSettingsStore, type LspServerId } from '@/stores/lspSettingsStore'
 import { pathForModel } from './lspModelRegistry'
+import { openFileAtLocation } from './openFileLocation'
 
 const SUPPORTED_LANGUAGES: Record<string, LspServerId> = {
   typescript: 'typescript',
@@ -57,7 +57,7 @@ export function registerLspDefinitionProvider(monaco: typeof import('monaco-edit
       // machinery (the same one Search-in-files uses) and tell Monaco
       // there's nothing more for it to do.
       if (otherFile && sameFile.length === 0) {
-        await openDefinitionLocation(otherFile.path, otherFile.line, otherFile.col)
+        await openFileAtLocation(otherFile.path, otherFile.line, otherFile.col)
         return []
       }
 
@@ -67,16 +67,4 @@ export function registerLspDefinitionProvider(monaco: typeof import('monaco-edit
       }))
     },
   })
-}
-
-async function openDefinitionLocation(path: string, line: number, col: number): Promise<void> {
-  const { tabs, openTab, setRevealRequest } = useEditorStore.getState()
-  const existingTab = tabs.find((t) => t.path === path)
-  if (existingTab) {
-    openTab({ path: existingTab.path, content: existingTab.content, dirty: existingTab.dirty })
-  } else {
-    const content = await window.api.readFile(path)
-    openTab({ path, content, dirty: false })
-  }
-  setRevealRequest({ path, line, col, searchTerm: '' })
 }
