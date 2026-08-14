@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { handlers, winsById } = vi.hoisted(() => ({
+const { handlers, winsById, fakeSession } = vi.hoisted(() => ({
   handlers: {} as Record<string, (...args: any[]) => void>,
   // The given implementation resolves a bare winId back to a BrowserWindow via
   // BrowserWindow.fromId (needed by disposeWindow/setZoom, which only receive a
   // numeric id, not the ipc event). Real Electron provides this statically;
   // here it's backed by whatever fromWebContents has already seen.
   winsById: new Map<number, any>(),
+  fakeSession: { clearCache: vi.fn(() => Promise.resolve()) },
 }))
 
 function fakeWebContentsView() {
@@ -20,6 +21,10 @@ function fakeWebContentsView() {
       getZoomLevel: vi.fn(() => 0),
       isDestroyed: vi.fn(() => false),
       close: vi.fn(),
+      setUserAgent: vi.fn(),
+      reload: vi.fn(),
+      enableDeviceEmulation: vi.fn(),
+      disableDeviceEmulation: vi.fn(),
     },
   }
 }
@@ -38,7 +43,7 @@ vi.mock('electron', () => ({
     fromId: (id: number) => winsById.get(id),
   },
   WebContentsView: vi.fn().mockImplementation(() => fakeWebContentsView()),
-  session: { fromPartition: vi.fn(() => ({})) },
+  session: { fromPartition: vi.fn(() => fakeSession) },
 }))
 
 import { BrowserViewManager } from '../browserViews'
@@ -99,5 +104,64 @@ describe('BrowserViewManager multi-window isolation', () => {
     expect(view.webContents.close).toHaveBeenCalledWith({ waitForBeforeUnload: false })
     // win is unresolvable, so removeChildView (which needs the win object) can't be called
     expect(winC.contentView.removeChildView).not.toHaveBeenCalled()
+  })
+})
+
+describe('BrowserViewManager mobile mode', () => {
+  const device = { width: 390, height: 844, pixelRatio: 3 }
+
+  it('enabling mobile mode sets a mobile user agent, emulates the device viewport, and reloads', () => {
+    const manager = new BrowserViewManager()
+    manager.registerHandlers()
+    const win = fakeWin(10)
+
+    handlers['browserView:create']({ sender: win }, 'tab-1', 'https://example.com')
+    const created = (WebContentsView as unknown as ReturnType<typeof vi.fn>).mock.results
+    const view = created[created.length - 1].value
+
+    handlers['browserView:setMobileMode']({ sender: win }, 'tab-1', true, device)
+
+    expect(view.webContents.setUserAgent).toHaveBeenCalledWith(expect.stringContaining('Mobile'))
+    expect(view.webContents.enableDeviceEmulation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        viewSize: { width: 390, height: 844 },
+        deviceScaleFactor: 3,
+      })
+    )
+    expect(view.webContents.reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('disabling mobile mode resets the user agent, disables emulation, and reloads', () => {
+    const manager = new BrowserViewManager()
+    manager.registerHandlers()
+    const win = fakeWin(11)
+
+    handlers['browserView:create']({ sender: win }, 'tab-1', 'https://example.com')
+    const created = (WebContentsView as unknown as ReturnType<typeof vi.fn>).mock.results
+    const view = created[created.length - 1].value
+
+    handlers['browserView:setMobileMode']({ sender: win }, 'tab-1', true, device)
+    handlers['browserView:setMobileMode']({ sender: win }, 'tab-1', false)
+
+    expect(view.webContents.setUserAgent).toHaveBeenLastCalledWith('')
+    expect(view.webContents.disableDeviceEmulation).toHaveBeenCalledTimes(1)
+    expect(view.webContents.reload).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('BrowserViewManager clear cache', () => {
+  it('clears the shared session cache and reloads the requesting tab', async () => {
+    const manager = new BrowserViewManager()
+    manager.registerHandlers()
+    const win = fakeWin(12)
+
+    handlers['browserView:create']({ sender: win }, 'tab-1', 'https://example.com')
+    const created = (WebContentsView as unknown as ReturnType<typeof vi.fn>).mock.results
+    const view = created[created.length - 1].value
+
+    await handlers['browserView:clearCache']({ sender: win }, 'tab-1')
+
+    expect(fakeSession.clearCache).toHaveBeenCalledTimes(1)
+    expect(view.webContents.reload).toHaveBeenCalledTimes(1)
   })
 })

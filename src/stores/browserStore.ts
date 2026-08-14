@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { DEFAULT_MOBILE_DEVICE_ID } from '@/components/Browser/mobileDevices'
 
 export interface BrowserTabState {
   url: string
@@ -9,6 +10,8 @@ export interface BrowserTabState {
   webContentsId: number | null
   loadError: string | null
   zoomLevel: number
+  mobileMode: boolean
+  mobileDeviceId: string
 }
 
 interface BrowserStore {
@@ -27,6 +30,8 @@ const DEFAULT_STATE: BrowserTabState = {
   webContentsId: null,
   loadError: null,
   zoomLevel: 0,
+  mobileMode: false,
+  mobileDeviceId: DEFAULT_MOBILE_DEVICE_ID,
 }
 
 export const useBrowserStore = create<BrowserStore>((set, get) => ({

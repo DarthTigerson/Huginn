@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FOOTER_TIPS } from '@/lib/footerTips'
 import { useUpdateStore } from '@/stores/updateStore'
+import { useStatusMessageStore } from '@/stores/statusMessageStore'
 
 const ROTATE_INTERVAL_MS = 9000
 const FADE_MS = 200
@@ -13,6 +14,7 @@ function randomTipIndex(exclude?: number): number {
 }
 
 export function FooterMessage() {
+  const transientMessage = useStatusMessageStore((s) => s.message)
   const available = useUpdateStore((s) => s.available)
   const status = useUpdateStore((s) => s.status)
   const upToDateVersion = useUpdateStore((s) => s.upToDateVersion)
@@ -34,6 +36,14 @@ export function FooterMessage() {
   }, [])
 
   const positionClasses = 'absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate text-xs'
+
+  if (transientMessage) {
+    return (
+      <span className={[positionClasses, 'text-accent select-none pointer-events-none'].join(' ')}>
+        {transientMessage}
+      </span>
+    )
+  }
 
   if (available) {
     const label =

@@ -12,11 +12,20 @@ function getBrowserSession(): Electron.Session {
   return session.fromPartition('persist:browser-tabs')
 }
 
+const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1'
+
 interface Bounds {
   x: number
   y: number
   width: number
   height: number
+}
+
+interface DeviceSize {
+  width: number
+  height: number
+  pixelRatio: number
 }
 
 export type BrowserViewEvent =
@@ -33,6 +42,7 @@ export type BrowserViewEvent =
 interface Entry {
   view: WebContentsView
   attached: boolean
+  mobileMode: boolean
 }
 
 // <webview> was dropped in favor of WebContentsView because Electron's <webview>
@@ -78,6 +88,16 @@ export class BrowserViewManager {
       this.setZoom(winId, id, (this.get(winId, id)?.webContents.getZoomLevel() ?? 0) - 1)
     })
     ipcMain.handle('browserView:zoomReset', (event, id: string) => this.setZoom(this.winIdOf(event), id, 0))
+    ipcMain.handle('browserView:setMobileMode', (event, id: string, enabled: boolean, device?: DeviceSize) =>
+      this.setMobileMode(this.winIdOf(event), id, enabled, device)
+    )
+    ipcMain.handle('browserView:clearCache', async (event, id: string) => {
+      // The HTTP cache belongs to the shared 'persist:browser-tabs' session, not any
+      // one webContents, so this clears it for every browser tab — only the requesting
+      // tab gets reloaded to reflect it immediately.
+      await getBrowserSession().clearCache()
+      this.get(this.winIdOf(event), id)?.webContents.reload()
+    })
     ipcMain.handle('browserView:destroy', (event, id: string) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (win) this.destroy(win, id)
@@ -119,7 +139,7 @@ export class BrowserViewManager {
     this.wireEvents(win, id, view)
 
     win.contentView.addChildView(view)
-    entries.set(id, { view, attached: true })
+    entries.set(id, { view, attached: true, mobileMode: false })
     return view.webContents.id
   }
 
@@ -212,6 +232,32 @@ export class BrowserViewManager {
     wc.setZoomLevel(clamped)
     const win = BrowserWindow.fromId(winId)
     if (win) this.sendEvent(win, id, { type: 'zoom-changed', level: clamped })
+  }
+
+  private setMobileMode(winId: number, id: string, enabled: boolean, device?: DeviceSize): void {
+    const entry = this.viewsByWindow.get(winId)?.get(id)
+    if (!entry) return
+    entry.mobileMode = enabled
+    const wc = entry.view.webContents
+    wc.setUserAgent(enabled ? MOBILE_USER_AGENT : '')
+    if (enabled && device) {
+      // Overrides what the page's own layout/media-queries see (window.innerWidth,
+      // devicePixelRatio) to match a real device — independent of the WebContentsView's
+      // actual on-screen bounds, which the renderer sizes/centers separately via
+      // setBounds so the guest visually reads as a phone-sized frame, not a full-width
+      // desktop page pretending to be mobile.
+      wc.enableDeviceEmulation({
+        screenPosition: 'mobile',
+        screenSize: { width: device.width, height: device.height },
+        viewPosition: { x: 0, y: 0 },
+        deviceScaleFactor: device.pixelRatio,
+        viewSize: { width: device.width, height: device.height },
+        scale: 1,
+      })
+    } else {
+      wc.disableDeviceEmulation()
+    }
+    wc.reload()
   }
 
   private setBounds(winId: number, id: string, bounds: Bounds): void {

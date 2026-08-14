@@ -5,6 +5,10 @@ import { useEditorStore } from '@/stores/editorStore'
 import { buildBrowserPath } from '@/components/Settings/paths'
 import { normalizeUrlInput } from './urlBar'
 import { zoomLevelToPercent } from './zoomLevel'
+import { MOBILE_DEVICES, getMobileDevice } from './mobileDevices'
+import { useStatusMessageStore } from '@/stores/statusMessageStore'
+import { useSearchStore } from '@/stores/searchStore'
+import { useChangelogStore } from '@/stores/changelogStore'
 
 interface Props {
   browserId: string
@@ -29,6 +33,8 @@ export function BrowserTab({ browserId }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const toggleButtonRef = useRef<HTMLButtonElement>(null)
+  const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
+  const deviceButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -108,7 +114,25 @@ export function BrowserTab({ browserId }: Props) {
     let lastRect: DOMRect | null = null
     let rafId: number
     const syncBounds = () => {
-      const rect = container.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      const tab = useBrowserStore.getState().tabs[browserId]
+      let rect = containerRect
+      if (tab?.mobileMode) {
+        // Frame the guest at (up to) its real device size, centered in the pane, rather
+        // than stretching it to fill the container — the emulated CSS viewport set via
+        // browserViewSetMobileMode only matches a real device if the on-screen surface
+        // is actually that size. Clamped to the container so it never overlaps neighboring
+        // panes when the pane is narrower than the device.
+        const device = getMobileDevice(tab.mobileDeviceId)
+        const width = Math.min(device.width, containerRect.width)
+        const height = Math.min(device.height, containerRect.height)
+        rect = new DOMRect(
+          containerRect.x + (containerRect.width - width) / 2,
+          containerRect.y + (containerRect.height - height) / 2,
+          width,
+          height
+        )
+      }
       if (!boundsEqual(rect, lastRect)) {
         lastRect = rect
         if (rect.width > 0 && rect.height > 0) {
@@ -145,14 +169,26 @@ export function BrowserTab({ browserId }: Props) {
 
   const loadError = tabState?.loadError ?? null
 
-  // The native view always draws on top of this component's own DOM, so the
-  // inline "page couldn't load" state has to explicitly hide it instead —
-  // otherwise it renders, but invisibly, behind the guest. The zoom panel
-  // below doesn't need this: it's laid out in normal flow, so it pushes the
-  // native view's bounds down via the rAF sync above rather than overlapping it.
+  // The native view always draws on top of this component's own DOM — and, for
+  // the same reason, above every other DOM-rendered surface in the window, palettes
+  // and modals included, no matter their z-index. So the inline "page couldn't load"
+  // state and any open palette/modal both have to explicitly hide it instead of
+  // just rendering over it. The zoom panel below doesn't need this: it's laid out
+  // in normal flow, so it pushes the native view's bounds down via the rAF sync
+  // above rather than overlapping it.
+  const anyOverlayOpen = useSearchStore(
+    (s) =>
+      s.commandPaletteOpen ||
+      s.searchOpen ||
+      s.actionPaletteOpen ||
+      s.shortcutsOverlayOpen ||
+      s.recentProjectsPaletteOpen ||
+      s.branchPaletteOpen
+  )
+  const changelogOpen = useChangelogStore((s) => s.content !== null)
   useEffect(() => {
-    window.api.browserViewSetVisible(browserId, !loadError)
-  }, [browserId, loadError])
+    window.api.browserViewSetVisible(browserId, !loadError && !anyOverlayOpen && !changelogOpen)
+  }, [browserId, loadError, anyOverlayOpen, changelogOpen])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -177,6 +213,21 @@ export function BrowserTab({ browserId }: Props) {
     setMenuOpen((open) => !open)
   }
 
+  useEffect(() => {
+    if (!deviceMenuOpen) return
+    const close = (e: Event) => {
+      if (deviceButtonRef.current?.contains(e.target as Node)) return
+      setDeviceMenuOpen(false)
+    }
+    const closeOnEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setDeviceMenuOpen(false) }
+    window.addEventListener('click', close)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [deviceMenuOpen])
+
   function handleUrlSubmit(e: React.FormEvent) {
     e.preventDefault()
     const url = normalizeUrlInput(urlDraft)
@@ -191,6 +242,20 @@ export function BrowserTab({ browserId }: Props) {
   const canGoBack = tabState?.canGoBack ?? false
   const canGoForward = tabState?.canGoForward ?? false
   const zoomPercent = zoomLevelToPercent(tabState?.zoomLevel ?? 0)
+  const mobileMode = tabState?.mobileMode ?? false
+  const mobileDevice = getMobileDevice(tabState?.mobileDeviceId)
+
+  function toggleMobileMode() {
+    const next = !mobileMode
+    useBrowserStore.getState().updateTab(browserId, { mobileMode: next })
+    window.api.browserViewSetMobileMode(browserId, next, next ? mobileDevice : undefined)
+  }
+
+  function handleDeviceChange(deviceId: string) {
+    const device = getMobileDevice(deviceId)
+    useBrowserStore.getState().updateTab(browserId, { mobileDeviceId: deviceId })
+    if (mobileMode) window.api.browserViewSetMobileMode(browserId, true, device)
+  }
 
   useEffect(() => {
     if (!editingRef.current) setUrlDraft(url)
@@ -251,9 +316,71 @@ export function BrowserTab({ browserId }: Props) {
       {menuOpen && (
         <div
           ref={menuRef}
-          className="flex items-center justify-end border-b border-border bg-tab-bar px-2 py-1.5 shrink-0"
+          className="flex items-center justify-between gap-1.5 border-b border-border bg-tab-bar px-2 py-1.5 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
+          <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
+            <button
+              type="button"
+              onClick={async () => {
+                await window.api.browserViewClearCache(browserId)
+                useStatusMessageStore.getState().show('Cache cleared')
+              }}
+              className="flex h-6 items-center justify-center whitespace-nowrap px-3 text-xs text-fg-muted hover:text-fg hover:bg-white/5"
+            >
+              Clear cache
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+          <div className="relative flex items-center">
+            <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
+              <button
+                ref={deviceButtonRef}
+                type="button"
+                aria-label="Mobile device"
+                aria-expanded={deviceMenuOpen}
+                onClick={() => setDeviceMenuOpen((open) => !open)}
+                className={
+                  mobileMode
+                    ? 'h-6 whitespace-nowrap border-r border-border bg-bg px-2 text-xs text-fg-muted hover:text-fg'
+                    : 'h-6 whitespace-nowrap border-r border-border bg-bg px-2 text-xs text-fg-subtle hover:text-fg-muted'
+                }
+              >
+                {mobileDevice.label}
+              </button>
+              <button
+                type="button"
+                aria-label="Toggle mobile view"
+                aria-pressed={mobileMode}
+                title="Toggle mobile view"
+                onClick={toggleMobileMode}
+                className={
+                  mobileMode
+                    ? 'flex h-6 w-7 items-center justify-center bg-accent/15 text-accent'
+                    : 'flex h-6 w-7 items-center justify-center text-fg-muted hover:text-fg hover:bg-white/5'
+                }
+              >
+                <MobileIcon />
+              </button>
+            </div>
+            {deviceMenuOpen && (
+              <div className="absolute right-0 top-7 z-10 min-w-max overflow-hidden rounded border border-border bg-bg shadow-lg">
+                {MOBILE_DEVICES.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => {
+                      handleDeviceChange(d.id)
+                      setDeviceMenuOpen(false)
+                    }}
+                    className="block w-full whitespace-nowrap px-3 py-1.5 text-left text-xs text-fg-muted hover:bg-white/5 hover:text-fg"
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex items-center rounded-full border border-border bg-bg overflow-hidden">
             <button
               type="button"
@@ -280,6 +407,7 @@ export function BrowserTab({ browserId }: Props) {
             >
               <PlusIcon />
             </button>
+          </div>
           </div>
         </div>
       )}
@@ -327,6 +455,15 @@ function ReloadIcon({ spinning }: { spinning: boolean }) {
     >
       <path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
       <path d="M3 4v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function MobileIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" strokeWidth="2" />
+      <line x1="11" y1="18" x2="13" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
