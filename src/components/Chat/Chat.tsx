@@ -12,7 +12,7 @@ import { CosmosChat } from './CosmosChat'
 import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
 import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
-import { createFilePathLinkProvider, createFilePathActivateHandler, createUrlActivateHandler } from './terminalLinks'
+import { createFilePathLinkProvider, createFilePathActivateHandler, createUrlActivateHandler, openUrlInBrowserTab } from './terminalLinks'
 import type { AssistantKind } from '@/types/api'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -36,6 +36,12 @@ function createXTerm(themeId: ThemeId): XTerm {
     fontSize: useFontSizeStore.getState().fontSize,
     cursorBlink: true,
     convertEol: true,
+    // Without this, xterm's built-in OscLinkProvider handles OSC 8 terminal
+    // hyperlinks (real clickable links the CLI itself renders — e.g. an
+    // artifact-publish banner — distinct from WebLinksAddon's plain-URL-text
+    // regex matching below) by falling back to window.open(), which bypasses
+    // Huginn's in-app Browser tab entirely.
+    linkHandler: { activate: (_event, uri) => openUrlInBrowserTab(uri) },
   })
 }
 
