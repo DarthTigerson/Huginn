@@ -5,6 +5,7 @@ import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { useSearchStore } from '@/stores/searchStore'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { buildImagePreviewPath, buildMarkdownPreviewPath } from '@/components/Viewer/paths'
 import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
@@ -73,6 +74,7 @@ function copyText(text: string): void {
 
 export function Sidebar() {
   const { projectRoot, tree, openFolder, refreshTree, expandDir, collapseAll } = useFileStore()
+  const openRecentProjectsPalette = useSearchStore((s) => s.openRecentProjectsPalette)
   const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -389,12 +391,18 @@ export function Sidebar() {
         </>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
-          <p className="text-xs text-fg-muted text-center">No folder open</p>
+          <p className="text-xs text-fg-muted text-center">Select a project</p>
           <button
             onClick={openFolder}
-            className="px-3 py-1.5 text-sm bg-accent hover:bg-accent/80 text-panel rounded transition-colors"
+            className="w-40 px-3 py-1.5 text-sm bg-accent hover:bg-accent/80 text-panel rounded transition-colors"
           >
             Open Folder
+          </button>
+          <button
+            onClick={openRecentProjectsPalette}
+            className="w-40 px-3 py-1.5 text-sm text-fg-muted hover:text-fg border border-border rounded transition-colors"
+          >
+            Recent Projects
           </button>
         </div>
       )}
