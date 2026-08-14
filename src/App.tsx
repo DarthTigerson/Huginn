@@ -62,6 +62,7 @@ import { useTodoSettingsStore } from './stores/todoSettingsStore'
 import { useJiraSettingsStore } from './stores/jiraSettingsStore'
 import { useGitRemoteSettingsStore } from './stores/gitRemoteSettingsStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
+import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
 import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
@@ -391,9 +392,20 @@ export default function App() {
     })
   }, [])
 
+  const pendingPinnedCloseRef = useRef<PendingClose | null>(null)
   useEffect(() => {
     return window.api.onMenuCloseActiveTab(() => {
-      useEditorStore.getState().closeActiveTab()
+      const { activePaneId, paneTabs, pinnedPaths, closeActiveTab } = useEditorStore.getState()
+      const path = paneTabs[activePaneId]
+      if (!path) return
+      const { shouldClose, nextPending } = evaluateCmdWForPinnedTab(
+        path,
+        pinnedPaths.has(path),
+        pendingPinnedCloseRef.current,
+        Date.now()
+      )
+      pendingPinnedCloseRef.current = nextPending
+      if (shouldClose) closeActiveTab()
     })
   }, [])
 
