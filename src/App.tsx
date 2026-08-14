@@ -498,6 +498,29 @@ export default function App() {
     })
   }, [])
 
+  // Belt-and-suspenders for the handler above: the native Electron menu
+  // accelerator (CmdOrCtrl+B) is supposed to fire regardless of what's
+  // focused in the renderer, but in practice it's unreliable while Monaco
+  // has focus — its hidden textarea's own keydown handling can swallow the
+  // keystroke before Electron's native accelerator layer ever sees it,
+  // so toggling the sidebar back open (or closed) silently does nothing
+  // until focus moves elsewhere. A capture-phase listener on window fires
+  // before Monaco's own handler regardless (capture runs top-down before
+  // the event reaches the target/bubble phase), so it can't be swallowed
+  // the same way — this is the primary, reliable path; the IPC/menu path
+  // above still covers triggering it from the actual menu bar.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const isToggleSidebar = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b'
+      if (!isToggleSidebar) return
+      e.preventDefault()
+      e.stopPropagation()
+      setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [])
+
   useEffect(() => {
     return window.api.onMenuCommandPalette(() => {
       if (!useFileStore.getState().projectRoot) return
