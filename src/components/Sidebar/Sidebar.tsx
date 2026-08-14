@@ -2,10 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { MouseEvent, ReactNode } from 'react'
 import type { FileNode } from '@/types/index'
+import type { RecentProject } from '@/types/api'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
-import { useSearchStore } from '@/stores/searchStore'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { buildImagePreviewPath, buildMarkdownPreviewPath } from '@/components/Viewer/paths'
 import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
@@ -74,7 +74,6 @@ function copyText(text: string): void {
 
 export function Sidebar() {
   const { projectRoot, tree, openFolder, refreshTree, expandDir, collapseAll } = useFileStore()
-  const openRecentProjectsPalette = useSearchStore((s) => s.openRecentProjectsPalette)
   const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -390,22 +389,61 @@ export function Sidebar() {
           )}
         </>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
-          <p className="text-xs text-fg-muted text-center">Select a project</p>
-          <button
-            onClick={openFolder}
-            className="w-40 px-3 py-1.5 text-sm bg-accent hover:bg-accent/80 text-panel rounded transition-colors"
-          >
-            Open Folder
-          </button>
-          <button
-            onClick={openRecentProjectsPalette}
-            className="w-40 px-3 py-1.5 text-sm text-fg-muted hover:text-fg border border-border rounded transition-colors"
-          >
-            Recent Projects
-          </button>
+        <div className="flex-1 flex flex-col min-h-0 px-4 pb-4">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-end gap-3 pb-6">
+            <p className="text-xs text-fg-muted text-center">Select a project</p>
+            <button
+              onClick={openFolder}
+              className="w-40 px-3 py-1.5 text-sm bg-accent hover:bg-accent/80 text-panel rounded transition-colors"
+            >
+              Open Folder
+            </button>
+          </div>
+          <RecentProjectsList />
         </div>
       )}
+    </div>
+  )
+}
+
+function recentProjectName(path: string): string {
+  return path.split('/').pop() ?? path
+}
+
+// Inline replacement for what used to be a "Recent Projects" button that
+// opened the searchable RecentProjectsPalette (still available anywhere via
+// Ctrl+R) — when there's nothing open yet, showing the list itself right in
+// the empty state saves the extra click.
+function RecentProjectsList() {
+  const [recents, setRecents] = useState<RecentProject[]>([])
+
+  useEffect(() => {
+    window.api.recentProjectsList().then(setRecents)
+  }, [])
+
+  async function open(path: string) {
+    if (await window.api.focusProjectIfOpen(path)) return
+    useFileStore.getState().openRecentProject(path)
+  }
+
+  if (recents.length === 0) return null
+
+  return (
+    <div className="w-full flex-1 min-h-0 flex flex-col gap-1">
+      <ul className="flex-1 min-h-0 flex flex-col gap-0.5 overflow-y-auto">
+        {recents.map((recent) => (
+          <li key={recent.path}>
+            <button
+              type="button"
+              onClick={() => open(recent.path)}
+              className="w-full text-left px-2.5 py-1.5 rounded hover:bg-white/5 transition-colors"
+            >
+              <div className="text-sm text-fg truncate">{recentProjectName(recent.path)}</div>
+              <div className="text-xs text-fg-subtle truncate">{recent.path}</div>
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
