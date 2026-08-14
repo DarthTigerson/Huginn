@@ -37,7 +37,7 @@ export function isGitBranchDiffTab(path: string): boolean {
   return path === GIT_BRANCH_DIFF_TAB_PATH
 }
 
-export const GRAPHIFY_GRAPH_TAB_PATH = 'graphify-graph://Graph'
+export const GRAPHIFY_GRAPH_TAB_PATH = 'graphify-graph://Graphify'
 
 export function isGraphifyGraphTab(path: string): boolean {
   return path === GRAPHIFY_GRAPH_TAB_PATH
