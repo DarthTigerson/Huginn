@@ -73,6 +73,7 @@ declare global {
       readFile: (path: string) => Promise<string>
       readImageDataUrl: (path: string) => Promise<string>
       pathExists: (path: string) => Promise<boolean>
+      getHomeDir: () => Promise<string>
       writeFile: (path: string, content: string) => Promise<void>
       mkdir: (path: string) => Promise<void>
       renamePath: (from: string, to: string) => Promise<void>

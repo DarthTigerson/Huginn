@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, shell, webContents, nativeIm
 import { basename, join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { access, mkdir, readFile, rename, writeFile } from 'fs/promises'
+import { homedir } from 'os'
 import { PtyManager } from './pty'
 import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
@@ -33,6 +34,7 @@ function registerFsHandlers(): void {
       return false
     }
   })
+  ipcMain.handle('fs:homeDir', () => homedir())
   ipcMain.handle('fs:writeFile', (_e, path: string, content: string) =>
     writeFile(path, content, 'utf-8')
   )
