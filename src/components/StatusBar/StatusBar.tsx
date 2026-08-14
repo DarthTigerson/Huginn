@@ -65,7 +65,7 @@ export function StatusBar() {
       {branch ? (
         <div className="relative min-w-0">
           <span
-            className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none"
+            className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
             onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
           >
             <GitIcon
@@ -145,7 +145,7 @@ export function StatusBar() {
           </button>
           <div className="relative" ref={menuRef}>
             <span
-              className="tabular-nums w-6 text-center cursor-default block"
+              className="tabular-nums w-6 text-center cursor-default block hover:text-fg transition-colors"
               onContextMenu={(e) => { e.preventDefault(); setMenuOpen((o) => !o) }}
             >
               {fontSize}
