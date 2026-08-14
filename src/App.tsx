@@ -243,6 +243,22 @@ export default function App() {
     else chatPanelRef.current?.collapse()
   }, [chatVisible])
 
+  // No project open means no assistant terminal to show, so the chat panel
+  // is forced closed (and its toggle disabled, see the ActivityBar item
+  // below) rather than sitting open on an empty state. Auto-reopens the
+  // moment a project first resolves — on launch restore or a fresh Open
+  // Folder — but a later project SWITCH (already had one, picked another)
+  // doesn't re-force it open, respecting whatever the user set it to.
+  const hadProjectRef = useRef(false)
+  useEffect(() => {
+    if (!projectRoot) {
+      useClaudeStore.getState().setChatVisible(false)
+    } else if (!hadProjectRef.current) {
+      useClaudeStore.getState().setChatVisible(true)
+    }
+    hadProjectRef.current = !!projectRoot
+  }, [projectRoot])
+
   // Mirrors the chat panel above: driven imperatively rather than
   // conditionally unmounted (see the sidebar Panel's own comment for why —
   // unmounting it here would re-trigger the exact desync this pattern
@@ -695,6 +711,7 @@ export default function App() {
             <Chat />
           </Panel>
         </PanelGroup>
+        {projectRoot && (
         <ActivityBar
           side="right"
           showAccent={false}
@@ -705,6 +722,7 @@ export default function App() {
               icon: assistantIcon(assistant),
               title: assistantLabel,
               active: chatVisible,
+              disabled: !projectRoot,
               onClick: () => useClaudeStore.getState().toggleChatVisible(),
             }],
             [
@@ -782,6 +800,7 @@ export default function App() {
             ]]
             : []}
         />
+        )}
       </div>
       <StatusBar />
       {commandPaletteOpen && projectRoot && (
