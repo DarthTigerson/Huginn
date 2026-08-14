@@ -1,5 +1,27 @@
 # Huginn 
 
+## v0.1.6 (2026-08-15)
+- **Tab context menu**: right-click a tab to pin it, close all tabs, or split the view (with a directional submenu); tabs can also be dragged and dropped between panes
+- **Jira**: pin a Jira page as a browser tab, mirroring the existing To Do integration
+- **Git remote shortcut**: a sidebar icon jumps straight to your repo's GitHub/GitLab/Bitbucket page, configured from Git settings
+- **Recent projects**: the sidebar now shows a scrollable inline list of recent projects when no folder is open, instead of a separate button
+- Claude/Codex terminal output: click a file path to open it in the diff viewer or editor, or click a URL to open it in a browser tab
+- RAM usage now shown in the title bar
+- Browser tabs gained a mobile viewport toggle and a clear-cache option
+- Display settings: choose what the footer shows — rotating tips or a live clock
+- The chat panel now stays closed until a project is opened, then opens automatically
+- Settings sidebar icons are now visually separated from the top group
+- Footer items show a hover label, and the autocomplete icon hides when autocomplete is disabled
+- Git Graph pipes now render smoother curves through crossing commits
+
+**Bug fixes**
+- Fixed ⌘B (toggle sidebar) not responding reliably while the editor had focus
+- Fixed the AI panel opening unexpectedly when collapsing the sidebar
+- Fixed browser tabs rendering behind other panels
+- Fixed Git Graph pipe colors bleeding into crossing pipes
+- Fixed Graphify's PreToolUse hook pointing at a stale, machine-specific path
+
+
 ## v0.1.5 (2026-08-12)
 - **Discard all changes**: clear every uncommitted change from the Git panel in one action
 - **Reveal in site tree**: jump to a file in the sidebar from the Git commit details panel, and diff editors now auto-reveal their file in the tree
