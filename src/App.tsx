@@ -123,6 +123,7 @@ export default function App() {
   const recentProjectsPaletteOpen = useSearchStore((s) => s.recentProjectsPaletteOpen)
   const branchPaletteOpen = useSearchStore((s) => s.branchPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
+  const sidebarPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
   const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : assistant === 'codex' ? 'Resume Latest Codex Session' : 'Restore Previous Cosmos Session'
@@ -239,6 +240,15 @@ export default function App() {
     if (chatVisible) chatPanelRef.current?.expand()
     else chatPanelRef.current?.collapse()
   }, [chatVisible])
+
+  // Mirrors the chat panel above: driven imperatively rather than
+  // conditionally unmounted (see the sidebar Panel's own comment for why —
+  // unmounting it here would re-trigger the exact desync this pattern
+  // exists to avoid).
+  useEffect(() => {
+    if (leftPanel !== null) sidebarPanelRef.current?.expand()
+    else sidebarPanelRef.current?.collapse()
+  }, [leftPanel])
 
   useEffect(() => {
     if (leftPanel !== null) lastLeftPanelRef.current = leftPanel
@@ -634,24 +644,24 @@ export default function App() {
           ]]}
         />
         <PanelGroup direction="horizontal" className="flex-1">
-          {leftPanel && (
-            <>
-              <Panel
-                defaultSize={sidebarSize}
-                minSize={SIDEBAR_MIN_SIZE}
-                maxSize={SIDEBAR_MAX_SIZE}
-                collapsible
-                collapsedSize={0}
-                onCollapse={() => setLeftPanel(null)}
-                id="sidebar"
-                order={1}
-                onResize={saveSidebarSize}
-              >
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : leftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />}
-              </Panel>
-              <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
-            </>
-          )}
+          <Panel
+            ref={sidebarPanelRef}
+            defaultSize={sidebarSize}
+            minSize={SIDEBAR_MIN_SIZE}
+            maxSize={SIDEBAR_MAX_SIZE}
+            collapsible
+            collapsedSize={0}
+            onCollapse={() => setLeftPanel(null)}
+            id="sidebar"
+            order={1}
+            onResize={saveSidebarSize}
+          >
+            {(() => {
+              const activeLeftPanel = leftPanel ?? lastLeftPanelRef.current
+              return activeLeftPanel === 'files' ? <Sidebar /> : activeLeftPanel === 'git' ? <GitPanel /> : activeLeftPanel === 'mobile' ? <MobileDisplayPanel /> : activeLeftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />
+            })()}
+          </Panel>
+          <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
 
           <Panel id="center" order={2}>
             <Editor />
