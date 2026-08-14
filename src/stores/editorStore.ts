@@ -210,6 +210,13 @@ interface EditorState {
     direction: EditorSplitDirection,
     placement: SplitPlacement
   ) => void
+  splitPaneWithIncomingTab: (
+    targetPaneId: string,
+    sourcePaneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) => void
   updateContent: (path: string, content: string) => void
   markSaved: (path: string, content?: string) => void
   syncFromDisk: (path: string, content: string) => void
@@ -567,6 +574,68 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         },
       }
     }),
+
+  // Backs the drop-zone overlay: dropping a dragged tab on the edge of a
+  // pane's content area splits THAT pane in `direction`, landing the tab in
+  // the new sibling - regardless of which pane (including this one) it was
+  // dragged from. Same-pane drops just delegate to splitPaneForTab; cross-
+  // pane drops leave the target pane's own tabs untouched and remove the
+  // dragged tab from its source pane, collapsing that pane if it empties
+  // out (the same invariant closeTabInPane/moveTabBetweenPanes enforce).
+  splitPaneWithIncomingTab: (
+    targetPaneId: string,
+    sourcePaneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) => {
+    const { splitPaneForTab } = get()
+    if (sourcePaneId === targetPaneId) {
+      splitPaneForTab(targetPaneId, path, direction, placement)
+      return
+    }
+
+    set((state) => {
+      const sourceList = state.paneTabLists[sourcePaneId] ?? []
+      if (!sourceList.includes(path)) return state
+
+      const nextPaneNumber = collectPaneIds(state.layout).length + 1
+      const nextPaneId = `pane-${Date.now()}-${nextPaneNumber}`
+      const targetPaneNode: EditorLayoutNode = { type: 'pane', id: targetPaneId }
+      const newPaneNode: EditorLayoutNode = { type: 'pane', id: nextPaneId }
+      const replacement: EditorLayoutNode = {
+        type: 'split',
+        direction,
+        children: placement === 'after' ? [targetPaneNode, newPaneNode] : [newPaneNode, targetPaneNode],
+      }
+      let newLayout = replacePane(state.layout, targetPaneId, replacement)
+
+      const closedIndex = sourceList.indexOf(path)
+      const newSourceList = sourceList.filter((p) => p !== path)
+      const newPaneTabs = { ...state.paneTabs, [nextPaneId]: path }
+      const newPaneTabLists = { ...state.paneTabLists, [nextPaneId]: [path] }
+
+      if (newSourceList.length === 0) {
+        newLayout = removePane(newLayout, sourcePaneId) ?? createDefaultLayout()
+        delete newPaneTabs[sourcePaneId]
+        delete newPaneTabLists[sourcePaneId]
+      } else {
+        newPaneTabs[sourcePaneId] =
+          state.paneTabs[sourcePaneId] === path
+            ? (newSourceList[Math.min(closedIndex, newSourceList.length - 1)] ?? null)
+            : state.paneTabs[sourcePaneId]
+        newPaneTabLists[sourcePaneId] = newSourceList
+      }
+
+      return {
+        layout: newLayout,
+        activePaneId: nextPaneId,
+        activeTabPath: path,
+        paneTabs: newPaneTabs,
+        paneTabLists: newPaneTabLists,
+      }
+    })
+  },
 
   updateContent: (path: string, content: string) =>
     set((state) => ({

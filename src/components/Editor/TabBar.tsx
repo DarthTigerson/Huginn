@@ -6,6 +6,7 @@ import { isTerminalTab, isBrowserTab, getBrowserId } from '@/components/Settings
 import { orderTabsForDisplay, truncateTabLabel } from './tabDisplay'
 import { TabContextMenu } from './TabContextMenu'
 import { useTabContextMenuStore } from '@/stores/tabContextMenuStore'
+import { useTabDragStore } from '@/stores/tabDragStore'
 
 export function TabBar({ paneId }: { paneId: string }) {
   const tabs = useEditorStore((s) => s.tabs)
@@ -24,7 +25,10 @@ export function TabBar({ paneId }: { paneId: string }) {
     .map((path) => tabs.find((t) => t.path === path))
     .filter((t): t is (typeof tabs)[number] => t !== undefined)
 
-  const [draggedPath, setDraggedPath] = useState<string | null>(null)
+  const dragging = useTabDragStore((s) => s.dragging)
+  const startDrag = useTabDragStore((s) => s.startDrag)
+  const endDrag = useTabDragStore((s) => s.endDrag)
+  const draggedPath = dragging?.path ?? null
   const [dropTarget, setDropTarget] = useState<{
     path: string
     placement: 'before' | 'after'
@@ -45,7 +49,7 @@ export function TabBar({ paneId }: { paneId: string }) {
   }
 
   function clearDragState() {
-    setDraggedPath(null)
+    endDrag()
     setDropTarget(null)
   }
 
@@ -82,7 +86,7 @@ export function TabBar({ paneId }: { paneId: string }) {
               e.dataTransfer.effectAllowed = 'move'
               e.dataTransfer.setData('text/plain', tab.path)
               e.dataTransfer.setData('application/x-huginn-pane', paneId)
-              setDraggedPath(tab.path)
+              startDrag(tab.path, paneId)
             }}
             onDragOver={(e) => {
               if (!e.dataTransfer.types.includes('text/plain')) return

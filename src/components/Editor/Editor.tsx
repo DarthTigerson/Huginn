@@ -19,6 +19,7 @@ import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { TabBar } from './TabBar'
+import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
 import { detectLang } from './utils'
 import {
   isSettingsTab,
@@ -313,7 +314,8 @@ function EditorPane({ paneId }: { paneId: string }) {
       onMouseDown={activatePane}
     >
       <TabBar paneId={paneId} />
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <PaneDropZoneOverlay paneId={paneId} />
       {activeTab ? (
         isTerminal ? (
           <TerminalTab key={activeTab.path} terminalId={getTerminalId(activeTab.path)} />
