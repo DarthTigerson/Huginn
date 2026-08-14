@@ -8,7 +8,7 @@ import { normalizeRef, formatExactDate, formatRelDate, refTone } from './commitF
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
 
-const ROW_H = 72
+export const ROW_H = 72
 const LANE_W = 40
 const LANE_PAD = 24
 const DOT_R = 11
@@ -25,7 +25,26 @@ function laneX(lane: number, railWidth: number, laneCount: number): number {
   return (railWidth - laneSpan) / 2 + lane * LANE_W
 }
 
-function edgePath(
+// Standard cubic-bezier approximation of a circular quarter-turn: a control
+// point placed this fraction of the radius along the tangent direction from
+// each endpoint reproduces a true quarter circle to within ~0.03% — visually
+// exact. Used instead of SVG's native arc command (`A`) because getting an
+// S-shape's two opposite-curving arcs' sweep-flags right by hand is easy to
+// get subtly wrong (an earlier version of this code did) and produces a
+// visible kink where they meet instead of one smooth flow; specifying the
+// tangent DIRECTION at each join directly, as this does, can't have that bug.
+const CIRCLE_K = (4 / 3) * (Math.sqrt(2) - 1)
+
+// A lane change is drawn as a straight vertical lead-in, a quarter-circle
+// curving from vertical into horizontal, a straight horizontal jog (only
+// needed if the lanes are more than one apart), a mirrored quarter-circle
+// curving back from horizontal into vertical, then a straight vertical
+// trail-out. Two edges swapping lanes in the same row (a merge-in and a
+// branch-out sharing a row) are mirror images of each other and so meet
+// exactly at the same point, dead center between the two lanes both
+// vertically and horizontally, instead of crossing at some arbitrary
+// bezier-timing-dependent spot.
+export function edgePath(
   edge: RowEdge,
   railWidth: number,
   laneCount: number,
@@ -35,12 +54,40 @@ function edgePath(
   const x1 = laneX(edge.fromLane, railWidth, laneCount)
   const x2 = laneX(edge.toLane, railWidth, laneCount)
   const y1 = rowIndex === 0 && edge.fromLane === currentLane ? ROW_H / 2 : 0
+  const yEnd = ROW_H
   if (x1 === x2) {
-    return `M ${x1} ${y1} L ${x2} ${ROW_H}`
+    return `M ${x1} ${y1} L ${x2} ${yEnd}`
   }
-  return `M ${x1} ${y1} C ${x1} ${ROW_H * 0.35}, ${x2} ${ROW_H * 0.65}, ${x2} ${
-    ROW_H
-  }`
+
+  const dx = x2 - x1
+  const dir = dx > 0 ? 1 : -1
+  const totalDy = yEnd - y1
+  // Each arc needs equal radius vertically and horizontally to be a true
+  // quarter circle, so it's bounded by whichever of the two spans (the
+  // full lane gap, or the full row height) is smaller — if the lanes are
+  // far enough apart that the gap exceeds the row height, the arcs use all
+  // the available vertical space and a straight horizontal jog covers the
+  // remaining horizontal distance between them.
+  const r = Math.min(Math.abs(dx), totalDy) / 2
+  const k = CIRCLE_K * r
+  const midY = y1 + totalDy / 2
+  const arc1EndX = x1 + r * dir
+  const arc2StartX = x2 - r * dir
+  const leadInEndY = midY - r
+  const trailOutStartY = midY + r
+
+  const segments = [`M ${x1} ${y1}`]
+  if (leadInEndY > y1) segments.push(`L ${x1} ${leadInEndY}`)
+  // Arc 1: leaves (x1, leadInEndY) heading straight down, arrives at
+  // (arc1EndX, midY) heading horizontally in `dir`.
+  segments.push(`C ${x1} ${leadInEndY + k} ${arc1EndX - k * dir} ${midY} ${arc1EndX} ${midY}`)
+  if (arc2StartX !== arc1EndX) segments.push(`L ${arc2StartX} ${midY}`)
+  // Arc 2: leaves (arc2StartX, midY) heading horizontally in `dir` (matching
+  // arc 1's exit direction exactly, so the join has no kink), arrives at
+  // (x2, trailOutStartY) heading straight down again.
+  segments.push(`C ${arc2StartX + k * dir} ${midY} ${x2} ${trailOutStartY - k} ${x2} ${trailOutStartY}`)
+  if (trailOutStartY < yEnd) segments.push(`L ${x2} ${yEnd}`)
+  return segments.join(' ')
 }
 
 function graphWidth(laneCount: number): number {
@@ -75,6 +122,20 @@ function nodeMeta(
   return { fill: color, ring: 'var(--color-panel)', glyph: null, text: '#ffffff', glow: 0.12 }
 }
 
+// computeLayout pushes edges in lane-index order, not paint order — a
+// straight pass-through for a low-index lane (e.g. the leftmost, primary
+// pipe) can end up earlier in the array than a diagonal edge from a higher
+// lane whose curve happens to pass through that same x (a merge-in
+// targeting that lane is the common case). Since later SVG elements paint
+// over earlier ones, that diagonal edge would visibly interrupt the
+// straight pipe with its own color. Rendering all straight edges last keeps
+// every straight pipe visually unbroken; diagonals duck behind them.
+export function orderEdgesForPaint(edges: RowEdge[]): RowEdge[] {
+  return [...edges].sort(
+    (a, b) => Number(a.fromLane === a.toLane) - Number(b.fromLane === b.toLane)
+  )
+}
+
 function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick, onContextMenu }: {
   layout: CommitLayout
   rowIndex: number
@@ -85,6 +146,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
   onContextMenu: (event: MouseEvent) => void
 }) {
   const { commit, lane, color, edges } = layout
+  const orderedEdges = orderEdgesForPaint(edges)
   const svgW = graphRailWidth
   const laneCount = Math.max(graphLaneCount, layout.totalLanes, layout.lane + 1)
   const cx = laneX(lane, svgW, laneCount)
@@ -152,7 +214,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
               opacity={0.12}
             />
           ))}
-          {edges.map((edge, i) => (
+          {orderedEdges.map((edge, i) => (
             <path
               key={i}
               d={edgePath(edge, svgW, laneCount, lane, rowIndex)}
