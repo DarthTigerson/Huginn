@@ -60,7 +60,9 @@ import { useChangelogStore } from './stores/changelogStore'
 import { useBrowserStore } from './stores/browserStore'
 import { useTodoSettingsStore } from './stores/todoSettingsStore'
 import { useJiraSettingsStore } from './stores/jiraSettingsStore'
-import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH } from './components/Settings/paths'
+import { useGitRemoteSettingsStore } from './stores/gitRemoteSettingsStore'
+import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
+import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -75,6 +77,7 @@ function assistantIcon(kind: AssistantKind) {
 
 const TODO_BROWSER_ID = 'todo-external'
 const JIRA_BROWSER_ID = 'jira-external'
+const GIT_REMOTE_BROWSER_ID = 'git-remote-external'
 const GIT_POLL_INTERVAL_MS = 3000
 const MEMORY_POLL_INTERVAL_MS = 3000
 
@@ -139,6 +142,9 @@ export default function App() {
   const jiraEnabled = useJiraSettingsStore((s) => s.enabled)
   const jiraUrl = useJiraSettingsStore((s) => s.externalUrl)
   const jiraReady = jiraEnabled && jiraUrl.trim() !== ''
+  const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
+  const gitRemoteReady = gitRemoteUrl.trim() !== ''
+  const gitRemoteProvider = detectGitRemoteProvider(gitRemoteUrl)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -177,6 +183,20 @@ export default function App() {
     useBrowserStore.getState().ensureTab(JIRA_BROWSER_ID, url)
     useEditorStore.getState().openTab({ path: buildBrowserPath(JIRA_BROWSER_ID), content: '', dirty: false })
     if (useJiraSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
+  }
+
+  // Mirrors openTodo()/openJira() above. Its Settings config lives inside
+  // the Git settings page (a dedicated section) rather than its own tab, so
+  // the empty-URL fallback opens that instead of a page of its own.
+  function openGitRemote() {
+    const url = useGitRemoteSettingsStore.getState().externalUrl
+    if (!url) {
+      useEditorStore.getState().openTab({ path: GIT_SETTINGS_TAB_PATH, content: '', dirty: false })
+      return
+    }
+    useBrowserStore.getState().ensureTab(GIT_REMOTE_BROWSER_ID, url)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(GIT_REMOTE_BROWSER_ID), content: '', dirty: false })
+    if (useGitRemoteSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
   function saveSidebarSize(size: number) {
@@ -564,7 +584,14 @@ export default function App() {
               active: leftPanel === 'graphify',
               onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
             },
-          ], ...(todoEnabled || jiraReady ? [[
+          ], ...(gitRemoteReady || todoEnabled || jiraReady ? [[
+            ...(gitRemoteReady ? [{
+              id: 'git-remote',
+              icon: gitRemoteIcon(gitRemoteProvider),
+              title: gitRemoteLabel(gitRemoteProvider),
+              active: activeTabPath === buildBrowserPath(GIT_REMOTE_BROWSER_ID),
+              onClick: openGitRemote,
+            }] : []),
             ...(todoEnabled ? [{
               id: 'todos',
               icon: <TodoIcon />,
