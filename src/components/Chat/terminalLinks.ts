@@ -56,9 +56,31 @@ async function resolveDiffTabPath(absPath: string, projectRoot: string): Promise
   return null
 }
 
+// A single dot-separated label, e.g. "github" or "co" in "github.com" —
+// requires alnum/hyphen chars, no leading/trailing hyphen, and (critically)
+// no leading dot, so a dotfile directory like ".ssh" is never mistaken for a
+// domain label.
+const DOMAIN_LABEL = '[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?'
+const DOMAIN_LIKE_REGEX = new RegExp(`^${DOMAIN_LABEL}(?:\\.${DOMAIN_LABEL})+$`)
+
+// FILE_PATH_REGEX has no scheme requirement, so prose like "go to
+// github.com/settings/ssh/new" satisfies it just as much as a real relative
+// path does — there's no reliable way to tell those apart at detection time
+// without false-negativing real files. Instead, checked only once the
+// resolved path has already failed to exist on disk: does the text before
+// the first slash look like a hostname (contains a dot, valid label shape),
+// and isn't itself an absolute/home-relative/dotfile-style path (which are
+// never domains). If so, it almost certainly was meant as a URL.
+export function looksLikeBareDomain(rawPath: string): boolean {
+  if (rawPath.startsWith('/') || rawPath.startsWith('~') || rawPath.startsWith('.')) return false
+  return DOMAIN_LIKE_REGEX.test(rawPath.split('/')[0])
+}
+
 // Plain click opens the file in the editor (optionally jumping to a line/col
 // if the matched text included one); Cmd/Ctrl+click views its diff instead,
-// falling back to the editor if the file has no changes to diff.
+// falling back to the editor if the file has no changes to diff. If it isn't
+// a real file but reads as a bare domain (no http(s):// prefix, so it was
+// never going to be caught by the URL provider), opens it as a URL instead.
 export function createFilePathActivateHandler() {
   return async (event: MouseEvent, matchedText: string): Promise<void> => {
     const projectRoot = useFileStore.getState().projectRoot
@@ -67,7 +89,10 @@ export function createFilePathActivateHandler() {
     const { path: rawPath, line, col } = parseFileLink(matchedText)
     const homeDir = rawPath.startsWith('~/') ? await window.api.getHomeDir() : null
     const absPath = resolveFileLinkPath(rawPath, projectRoot, homeDir)
-    if (!(await window.api.pathExists(absPath))) return
+    if (!(await window.api.pathExists(absPath))) {
+      if (looksLikeBareDomain(rawPath)) openUrlInBrowserTab(`https://${rawPath}`)
+      return
+    }
 
     if (event.metaKey || event.ctrlKey) {
       const diffPath = await resolveDiffTabPath(absPath, projectRoot)
@@ -83,12 +108,14 @@ export function createFilePathActivateHandler() {
 // Opens the URL in a new tab of Huginn's own Browser panel — never an
 // external/OS browser — mirroring how App.tsx's openTodo() seeds a specific
 // URL into a fresh browser tab.
+export function openUrlInBrowserTab(uri: string): void {
+  const id = Date.now().toString(36)
+  useBrowserStore.getState().ensureTab(id, uri)
+  useEditorStore.getState().openTab({ path: buildBrowserPath(id), content: '', dirty: false })
+}
+
 export function createUrlActivateHandler() {
-  return (_event: MouseEvent, uri: string): void => {
-    const id = Date.now().toString(36)
-    useBrowserStore.getState().ensureTab(id, uri)
-    useEditorStore.getState().openTab({ path: buildBrowserPath(id), content: '', dirty: false })
-  }
+  return (_event: MouseEvent, uri: string): void => openUrlInBrowserTab(uri)
 }
 
 // Maps a JS string index within a buffer line's plain text back to a 1-based

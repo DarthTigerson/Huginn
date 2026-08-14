@@ -4,6 +4,8 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { Chat } from '../Chat'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { useBrowserStore } from '@/stores/browserStore'
 
 // Diagnostic/regression test: exercises the REAL link provider Chat.tsx
 // registers on a REAL xterm buffer, rather than just the pure regex/parse
@@ -37,7 +39,11 @@ describe('Chat terminal link provider (integration)', () => {
     vi.restoreAllMocks()
   })
 
-  it('registers a link provider that detects an extensionless SSH-key path in real terminal buffer content', async () => {
+  // Renders Chat, captures the two providers it registers for 'claude', and
+  // feeds `line` through the exact same path real PTY output takes (into the
+  // SAME xterm instance the providers close over — writing into a
+  // separately-constructed XTerm would test nothing).
+  async function setupAndWriteLine(line: string) {
     const registered: any[] = []
     const spy = vi.spyOn(XTerm.prototype, 'registerLinkProvider').mockImplementation(function (
       this: any,
@@ -57,13 +63,9 @@ describe('Chat terminal link provider (integration)', () => {
     expect(registered.length).toBe(2)
     const filePathProvider = registered[1]
 
-    // Feed data through the exact same path real PTY output takes, into the
-    // SAME xterm instance Chat.tsx registered the provider on — writing into
-    // a separately-constructed XTerm would test nothing, since the captured
-    // provider closes over Chat.tsx's own internal instance, not a new one.
     expect(assistantDataCallback).not.toBeNull()
     await new Promise<void>((resolve) => {
-      assistantDataCallback!('claude', '~/.ssh/id_ed25519_github_personal\r\n')
+      assistantDataCallback!('claude', `${line}\r\n`)
       // xterm.write() parses the written data asynchronously; give it a tick.
       setTimeout(resolve, 50)
     })
@@ -71,6 +73,12 @@ describe('Chat terminal link provider (integration)', () => {
     const links = await new Promise<any[]>((resolve) => {
       filePathProvider.provideLinks(1, (result: any[] | undefined) => resolve(result ?? []))
     })
+
+    return { links, spy }
+  }
+
+  it('registers a link provider that detects an extensionless SSH-key path in real terminal buffer content', async () => {
+    const { links, spy } = await setupAndWriteLine('~/.ssh/id_ed25519_github_personal')
 
     expect(links.length).toBeGreaterThan(0)
     expect(links[0].text).toBe('~/.ssh/id_ed25519_github_personal')
@@ -81,6 +89,25 @@ describe('Chat terminal link provider (integration)', () => {
     await links[0].activate(new MouseEvent('mouseup'), links[0].text)
     expect(window.api.getHomeDir).toHaveBeenCalled()
     expect(window.api.pathExists).toHaveBeenCalledWith('/Users/thomas/.ssh/id_ed25519_github_personal')
+
+    spy.mockRestore()
+  })
+
+  it('opens a scheme-less domain reference (e.g. "github.com/settings/ssh/new") as a URL, not a nonexistent file (reported bug)', async () => {
+    const { links, spy } = await setupAndWriteLine('Go to github.com/settings/ssh/new to add it')
+
+    const domainLink = links.find((l) => l.text === 'github.com/settings/ssh/new')
+    expect(domainLink).toBeDefined()
+
+    await domainLink.activate(new MouseEvent('mouseup'), domainLink.text)
+
+    expect(window.api.pathExists).toHaveBeenCalled() // still tried as a file first
+    const openedTab = useEditorStore
+      .getState()
+      .tabs.find((t) => t.path.startsWith('browser://'))
+    expect(openedTab).toBeDefined()
+    const browserId = openedTab!.path.replace('browser://', '')
+    expect(useBrowserStore.getState().tabs[browserId]?.url).toBe('https://github.com/settings/ssh/new')
 
     spy.mockRestore()
   })

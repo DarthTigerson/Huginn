@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { FILE_PATH_REGEX, parseFileLink, resolveFileLinkPath } from '../terminalLinks'
+import { FILE_PATH_REGEX, parseFileLink, resolveFileLinkPath, looksLikeBareDomain } from '../terminalLinks'
 
 function match(text: string): string | null {
   const m = text.match(FILE_PATH_REGEX)
@@ -50,6 +50,36 @@ describe('FILE_PATH_REGEX', () => {
   it('does not match ordinary prose that merely contains a dot', () => {
     expect(match('e.g. this works')).toBeNull()
     expect(match('v1.2.3')).toBeNull()
+  })
+
+  it('also matches a scheme-less domain path (handled by looksLikeBareDomain at click time, not filtered here)', () => {
+    expect(match('Go to github.com/settings/ssh/new')).toBe('github.com/settings/ssh/new')
+  })
+})
+
+describe('looksLikeBareDomain', () => {
+  it('recognizes a scheme-less domain path (the reported bug: clicking it did nothing)', () => {
+    expect(looksLikeBareDomain('github.com/settings/ssh/new')).toBe(true)
+  })
+
+  it('recognizes a multi-label domain', () => {
+    expect(looksLikeBareDomain('api.example.com/v1/users')).toBe(true)
+  })
+
+  it('rejects a relative path with no dot in its first segment', () => {
+    expect(looksLikeBareDomain('src/App.tsx')).toBe(false)
+  })
+
+  it('rejects an absolute path', () => {
+    expect(looksLikeBareDomain('/etc/hosts')).toBe(false)
+  })
+
+  it('rejects a home-relative path', () => {
+    expect(looksLikeBareDomain('~/.ssh/id_ed25519')).toBe(false)
+  })
+
+  it('rejects a dotfile directory (leading dot, not a domain label)', () => {
+    expect(looksLikeBareDomain('.ssh/config')).toBe(false)
   })
 })
 
