@@ -111,4 +111,46 @@ describe('Chat terminal link provider (integration)', () => {
 
     spy.mockRestore()
   })
+
+  // Claude's own "banner" links (an artifact publish confirmation, etc.) are
+  // rendered by the CLI as real OSC 8 terminal hyperlinks, not plain pasted
+  // URL text — a wholly separate xterm.js code path (Terminal's `linkHandler`
+  // option, consumed by its built-in OscLinkProvider) from the WebLinksAddon
+  // regex matching the tests above exercise. Reported bug: clicking one of
+  // these opened via xterm's default window.open() fallback instead of
+  // Huginn's in-app Browser tab, because createXTerm() never set linkHandler.
+  it('routes OSC 8 terminal hyperlink activation (Claude\'s own banner links) through the in-app Browser tab', async () => {
+    let capturedXterm: any = null
+    const spy = vi.spyOn(XTerm.prototype, 'registerLinkProvider').mockImplementation(function (
+      this: any,
+      _provider: any
+    ) {
+      capturedXterm = this
+      return { dispose: () => {} }
+    })
+
+    const { container } = render(<Chat />)
+    await waitFor(() => {
+      if (!container.querySelector('.xterm-helper-textarea')) throw new Error('terminal not mounted yet')
+    })
+
+    expect(capturedXterm).not.toBeNull()
+    const linkHandler = capturedXterm.options.linkHandler
+    expect(linkHandler).toBeTruthy()
+
+    linkHandler.activate(new MouseEvent('mouseup'), 'https://claude.ai/code/artifact/abc123')
+
+    // .at(-1): earlier tests in this file may have already opened browser://
+    // tabs of their own and state isn't reset between tests, so the most
+    // recently opened tab is the one this activation produced.
+    const openedTab = useEditorStore
+      .getState()
+      .tabs.filter((t) => t.path.startsWith('browser://'))
+      .at(-1)
+    expect(openedTab).toBeDefined()
+    const browserId = openedTab!.path.replace('browser://', '')
+    expect(useBrowserStore.getState().tabs[browserId]?.url).toBe('https://claude.ai/code/artifact/abc123')
+
+    spy.mockRestore()
+  })
 })

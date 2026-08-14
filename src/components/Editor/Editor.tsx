@@ -19,6 +19,7 @@ import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { TabBar } from './TabBar'
+import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
 import { detectLang } from './utils'
 import {
   isSettingsTab,
@@ -37,6 +38,7 @@ import {
   MODELS_SETTINGS_TAB_PATH,
   GRAPHIFY_SETTINGS_TAB_PATH,
   TODO_SETTINGS_TAB_PATH,
+  JIRA_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
@@ -47,6 +49,7 @@ import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { TodoSettingsPage } from '@/components/Settings/TodoSettingsPage'
+import { JiraSettingsPage } from '@/components/Settings/JiraSettingsPage'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -311,7 +314,8 @@ function EditorPane({ paneId }: { paneId: string }) {
       onMouseDown={activatePane}
     >
       <TabBar paneId={paneId} />
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <PaneDropZoneOverlay paneId={paneId} />
       {activeTab ? (
         isTerminal ? (
           <TerminalTab key={activeTab.path} terminalId={getTerminalId(activeTab.path)} />
@@ -330,6 +334,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <GraphifySettingsPage />
           ) : activeTab.path === TODO_SETTINGS_TAB_PATH ? (
             <TodoSettingsPage />
+          ) : activeTab.path === JIRA_SETTINGS_TAB_PATH ? (
+            <JiraSettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (

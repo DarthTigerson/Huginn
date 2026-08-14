@@ -1,7 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
+
+function Field({ id, label, value, onChange, placeholder }: {
+  id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm text-fg">{label}</label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        spellCheck={false}
+        className="h-8 px-2 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
+      />
+    </div>
+  )
+}
 
 export function GitSettingsPage() {
   const {
@@ -13,6 +33,10 @@ export function GitSettingsPage() {
     periodicFetchEnabled, setPeriodicFetchEnabled,
     periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
   } = useGitSettingsStore()
+  const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
+  const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
+  const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
+  const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -146,6 +170,29 @@ export function GitSettingsPage() {
               </p>
             </div>
           )}
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Git Remote</h2>
+          <p className="text-xs text-fg-subtle -mt-3">
+            Point this at your repo's page on GitHub, GitLab, or Bitbucket and a
+            matching launcher button appears at the bottom of the Git panel.
+          </p>
+
+          <Field
+            id="git-remote-external-url"
+            label="URL"
+            value={gitRemoteUrl}
+            onChange={setGitRemoteUrl}
+            placeholder="https://github.com/your-org/your-repo"
+          />
+
+          <Toggle
+            label="Close side panel when opening"
+            description="Collapse the currently open sidebar (Files, Git, etc.) when jumping to the repo browser tab, to give it the full width."
+            checked={gitRemoteCloseSidePanelOnOpen}
+            onChange={setGitRemoteCloseSidePanelOnOpen}
+          />
         </section>
       </div>
     </div>

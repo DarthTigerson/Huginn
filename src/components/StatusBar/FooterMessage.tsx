@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { FOOTER_TIPS } from '@/lib/footerTips'
 import { useUpdateStore } from '@/stores/updateStore'
 import { useStatusMessageStore } from '@/stores/statusMessageStore'
+import { useDisplayStore } from '@/stores/displayStore'
+import { Clock } from './Clock'
 
 const ROTATE_INTERVAL_MS = 9000
 const FADE_MS = 200
@@ -20,6 +22,7 @@ export function FooterMessage() {
   const upToDateVersion = useUpdateStore((s) => s.upToDateVersion)
   const startUpdate = useUpdateStore((s) => s.startUpdate)
   const restart = useUpdateStore((s) => s.restart)
+  const footerContent = useDisplayStore((s) => s.footerContent)
 
   const [tipIndex, setTipIndex] = useState(() => randomTipIndex())
   const [fading, setFading] = useState(false)
@@ -78,6 +81,14 @@ export function FooterMessage() {
     return (
       <span className={[positionClasses, 'text-accent select-none pointer-events-none'].join(' ')}>
         {`You're on the latest version — v${upToDateVersion}`}
+      </span>
+    )
+  }
+
+  if (footerContent === 'clock') {
+    return (
+      <span className={[positionClasses, 'pointer-events-none'].join(' ')}>
+        <Clock />
       </span>
     )
   }

@@ -1,10 +1,16 @@
-import { useDisplayStore, FONT_PRESETS, type PanelStyle } from '@/stores/displayStore'
+import { useDisplayStore, FONT_PRESETS, type PanelStyle, type FooterContent } from '@/stores/displayStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 import { Toggle } from '@/components/ui/Toggle'
 
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
   { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
   { value: 'glossy', label: 'Glossy', description: 'Frosted glass' },
+]
+
+// More may be added later — see FooterContent's own comment in displayStore.
+const FOOTER_CONTENT_OPTIONS: { value: FooterContent; label: string }[] = [
+  { value: 'hints', label: 'Hints' },
+  { value: 'clock', label: 'Clock' },
 ]
 
 interface ThemeOption {
@@ -26,11 +32,18 @@ const THEME_OPTIONS: ThemeOption[] = [
 ]
 
 export function DisplayPage() {
-  const { font, panelStyle, setFont, setPanelStyle } = useDisplayStore()
+  const {
+    font, panelStyle, footerContent, memoryUsageVisible,
+    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible,
+  } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFont(e.target.value)
+  }
+
+  const handleFooterContentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFooterContent(e.target.value as FooterContent)
   }
 
   return (
@@ -88,69 +101,97 @@ export function DisplayPage() {
           </div>
         </section>
 
-        {/* Panel Style */}
-        <section className="flex-1 min-w-[240px] rounded-xl border border-border/60 p-4">
-          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Panel Style</h2>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
-            {PANEL_STYLE_OPTIONS.map((opt) => {
-              const isActive = panelStyle === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPanelStyle(opt.value)}
-                  className={[
-                    'text-left rounded-lg border-2 overflow-hidden transition-colors',
-                    isActive ? 'border-accent' : 'border-border hover:border-fg-muted',
-                  ].join(' ')}
-                >
-                  {/* Visual preview — reflects the real effect: matt is solid theme
-                      colors, glossy is the same theme colors made translucent with
-                      blur (see [data-panel-style="glossy"] in index.css), no color shift */}
-                  <div className="h-14 relative overflow-hidden bg-bg">
-                    {opt.value === 'glossy' ? (
-                      <>
-                        <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/50 backdrop-blur-sm" />
-                        <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/60 backdrop-blur-sm border-b border-border/40" />
-                        <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/50 backdrop-blur-sm" />
-                      </>
-                    ) : (
-                      <>
-                        <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar" />
-                        <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar border-b border-border" />
-                        <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel" />
-                      </>
-                    )}
-                  </div>
-                  {/* Label */}
-                  <div className={['px-3 py-2', isActive ? 'bg-accent/10' : 'bg-sidebar'].join(' ')}>
-                    <div className={['text-sm font-medium', isActive ? 'text-fg' : 'text-fg-muted'].join(' ')}>
-                      {opt.label}
+        {/* Panel Style + Typography — grouped as one flex item so Typography
+            always stacks directly under Panel Style as a second column,
+            rather than wrapping independently based on available width. */}
+        <div className="flex-1 min-w-[240px] flex flex-col gap-6">
+          <section className="rounded-xl border border-border/60 p-4">
+            <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Panel Style</h2>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+              {PANEL_STYLE_OPTIONS.map((opt) => {
+                const isActive = panelStyle === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPanelStyle(opt.value)}
+                    className={[
+                      'text-left rounded-lg border-2 overflow-hidden transition-colors',
+                      isActive ? 'border-accent' : 'border-border hover:border-fg-muted',
+                    ].join(' ')}
+                  >
+                    {/* Visual preview — reflects the real effect: matt is solid theme
+                        colors, glossy is the same theme colors made translucent with
+                        blur (see [data-panel-style="glossy"] in index.css), no color shift */}
+                    <div className="h-14 relative overflow-hidden bg-bg">
+                      {opt.value === 'glossy' ? (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/50 backdrop-blur-sm" />
+                          <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/60 backdrop-blur-sm border-b border-border/40" />
+                          <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/50 backdrop-blur-sm" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar" />
+                          <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar border-b border-border" />
+                          <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel" />
+                        </>
+                      )}
                     </div>
-                    <div className="text-xs text-fg-subtle mt-0.5">{opt.description}</div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </section>
+                    {/* Label */}
+                    <div className={['px-3 py-2', isActive ? 'bg-accent/10' : 'bg-sidebar'].join(' ')}>
+                      <div className={['text-sm font-medium', isActive ? 'text-fg' : 'text-fg-muted'].join(' ')}>
+                        {opt.label}
+                      </div>
+                      <div className="text-xs text-fg-subtle mt-0.5">{opt.description}</div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
-        {/* Typography */}
+          <section className="rounded-xl border border-border/60 p-4">
+            <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Typography</h2>
+            <div className="flex flex-wrap items-start gap-6">
+              <div className="flex-1 min-w-[220px]">
+                <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
+                <div className="relative">
+                  <select
+                    value={font}
+                    onChange={handleSelectChange}
+                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
+                  >
+                    {FONT_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value} style={{ fontFamily: preset.value }}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                    ▾
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Footer & Indicators */}
         <section className="w-full rounded-xl border border-border/60 p-4">
-          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Typography</h2>
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Footer & Indicators</h2>
           <div className="flex flex-wrap items-start gap-6">
             <div className="flex-1 min-w-[220px]">
-              <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
+              <label htmlFor="footer-content-select" className="text-xs text-fg-muted mb-1.5 block">Footer Content</label>
               <div className="relative">
                 <select
-                  value={font}
-                  onChange={handleSelectChange}
+                  id="footer-content-select"
+                  value={footerContent}
+                  onChange={handleFooterContentChange}
                   className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
                 >
-                  {FONT_PRESETS.map((preset) => (
-                    <option key={preset.value} value={preset.value} style={{ fontFamily: preset.value }}>
-                      {preset.label}
-                    </option>
+                  {FOOTER_CONTENT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
@@ -158,6 +199,15 @@ export function DisplayPage() {
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-border/40">
+            <Toggle
+              label="Show memory usage"
+              description="Show the RAM used/total indicator next to the model dropdown in the title bar."
+              checked={memoryUsageVisible}
+              onChange={setMemoryUsageVisible}
+            />
           </div>
         </section>
       </div>

@@ -3,28 +3,43 @@ import { useEditorStore } from '@/stores/editorStore'
 import { useBrowserStore } from '@/stores/browserStore'
 import { FileIcon } from '@/components/Sidebar/FileIcon'
 import { isTerminalTab, isBrowserTab, getBrowserId } from '@/components/Settings/paths'
+import { orderTabsForDisplay, truncateTabLabel } from './tabDisplay'
+import { TabContextMenu } from './TabContextMenu'
+import { useTabContextMenuStore } from '@/stores/tabContextMenuStore'
+import { useTabDragStore } from '@/stores/tabDragStore'
 
 export function TabBar({ paneId }: { paneId: string }) {
   const tabs = useEditorStore((s) => s.tabs)
   const browserTabs = useBrowserStore((s) => s.tabs)
   const paneTabs = useEditorStore((s) => s.paneTabs)
   const paneTabLists = useEditorStore((s) => s.paneTabLists)
+  const pinnedPaths = useEditorStore((s) => s.pinnedPaths)
   const closeTabInPane = useEditorStore((s) => s.closeTabInPane)
   const moveTabWithinPane = useEditorStore((s) => s.moveTabWithinPane)
   const moveTabBetweenPanes = useEditorStore((s) => s.moveTabBetweenPanes)
   const setPaneActive = useEditorStore((s) => s.setPaneActive)
 
   const activePath = paneTabs[paneId] ?? null
-  const paneTabPaths = paneTabLists[paneId] ?? []
+  const paneTabPaths = orderTabsForDisplay(paneTabLists[paneId] ?? [], pinnedPaths)
   const paneTabs_ = paneTabPaths
     .map((path) => tabs.find((t) => t.path === path))
     .filter((t): t is (typeof tabs)[number] => t !== undefined)
 
-  const [draggedPath, setDraggedPath] = useState<string | null>(null)
+  const dragging = useTabDragStore((s) => s.dragging)
+  const startDrag = useTabDragStore((s) => s.startDrag)
+  const endDrag = useTabDragStore((s) => s.endDrag)
+  const draggedPath = dragging?.path ?? null
   const [dropTarget, setDropTarget] = useState<{
     path: string
     placement: 'before' | 'after'
   } | null>(null)
+  const openContextMenu = useTabContextMenuStore((s) => s.open)
+  const openTabContextMenu = useTabContextMenuStore((s) => s.openMenu)
+  const closeTabContextMenu = useTabContextMenuStore((s) => s.closeMenu)
+  const contextMenu =
+    openContextMenu?.paneId === paneId
+      ? { x: openContextMenu.x, y: openContextMenu.y, path: openContextMenu.path }
+      : null
 
   if (paneTabs_.length === 0) return null
 
@@ -34,7 +49,7 @@ export function TabBar({ paneId }: { paneId: string }) {
   }
 
   function clearDragState() {
-    setDraggedPath(null)
+    endDrag()
     setDropTarget(null)
   }
 
@@ -49,21 +64,29 @@ export function TabBar({ paneId }: { paneId: string }) {
         const isActive = activePath === tab.path
         const isDragging = draggedPath === tab.path
         const isDropTarget = dropTarget?.path === tab.path && draggedPath !== tab.path
+        const isPinned = pinnedPaths.has(tab.path)
+        const displayName = isPinned ? truncateTabLabel(name) : name
         return (
           <div
             key={tab.path}
             draggable
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 border-r border-border cursor-grab active:cursor-grabbing whitespace-nowrap text-sm ${
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 border-r border-border whitespace-nowrap text-sm ${
+              isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            } ${
               isActive
                 ? 'bg-panel text-fg border-t-2 border-t-accent -mt-px'
                 : 'text-fg-muted hover:text-fg hover:bg-white/5'
             } ${isDragging ? 'opacity-45' : ''}`}
             onClick={() => setPaneActive(paneId, tab.path)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              openTabContextMenu(paneId, tab.path, e.clientX, e.clientY)
+            }}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = 'move'
               e.dataTransfer.setData('text/plain', tab.path)
               e.dataTransfer.setData('application/x-huginn-pane', paneId)
-              setDraggedPath(tab.path)
+              startDrag(tab.path, paneId)
             }}
             onDragOver={(e) => {
               if (!e.dataTransfer.types.includes('text/plain')) return
@@ -103,7 +126,7 @@ export function TabBar({ paneId }: { paneId: string }) {
               />
             )}
             <FileIcon name={name} />
-            <span>{name}</span>
+            <span>{displayName}</span>
             {tab.missing && (
               <span
                 title="File no longer exists on disk. Press Cmd+S to save it again."
@@ -132,6 +155,15 @@ export function TabBar({ paneId }: { paneId: string }) {
           </div>
         )
       })}
+      {contextMenu && (
+        <TabContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          paneId={paneId}
+          path={contextMenu.path}
+          onClose={closeTabContextMenu}
+        />
+      )}
     </div>
   )
 }

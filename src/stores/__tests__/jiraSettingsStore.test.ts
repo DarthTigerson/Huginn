@@ -1,0 +1,50 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+const { localStorageStore } = vi.hoisted(() => {
+  const localStorageStore: Record<string, string> = {}
+  ;(global as any).localStorage = {
+    getItem: (k: string) => localStorageStore[k] ?? null,
+    setItem: (k: string, v: string) => { localStorageStore[k] = v },
+    removeItem: (k: string) => { delete localStorageStore[k] },
+  }
+  return { localStorageStore }
+})
+
+import { useJiraSettingsStore } from '../jiraSettingsStore'
+
+describe('jiraSettingsStore', () => {
+  beforeEach(() => {
+    Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
+    useJiraSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false, enabled: true })
+  })
+
+  it('defaults to an empty URL', () => {
+    expect(useJiraSettingsStore.getState().externalUrl).toBe('')
+  })
+
+  it('setExternalUrl updates state and persists to localStorage', () => {
+    useJiraSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
+    expect(useJiraSettingsStore.getState().externalUrl).toBe('https://team.atlassian.net/jira/board')
+    expect(localStorageStore['huginn:jira:externalUrl']).toBe('https://team.atlassian.net/jira/board')
+  })
+
+  it('defaults closeSidePanelOnOpen to false', () => {
+    expect(useJiraSettingsStore.getState().closeSidePanelOnOpen).toBe(false)
+  })
+
+  it('setCloseSidePanelOnOpen updates state and persists to localStorage', () => {
+    useJiraSettingsStore.getState().setCloseSidePanelOnOpen(true)
+    expect(useJiraSettingsStore.getState().closeSidePanelOnOpen).toBe(true)
+    expect(localStorageStore['huginn:jira:closeSidePanel']).toBe('true')
+  })
+
+  it('defaults enabled to true', () => {
+    expect(useJiraSettingsStore.getState().enabled).toBe(true)
+  })
+
+  it('setEnabled updates state and persists to localStorage', () => {
+    useJiraSettingsStore.getState().setEnabled(false)
+    expect(useJiraSettingsStore.getState().enabled).toBe(false)
+    expect(localStorageStore['huginn:jira:enabled']).toBe('false')
+  })
+})

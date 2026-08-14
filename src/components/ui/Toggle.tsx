@@ -1,11 +1,12 @@
-export function Toggle({ label, description, checked, onChange }: {
+export function Toggle({ label, description, checked, onChange, disabled }: {
   label: string
   description: string
   checked: boolean
   onChange: (value: boolean) => void
+  disabled?: boolean
 }) {
   return (
-    <label className="flex items-start justify-between gap-4 cursor-pointer">
+    <label className={['flex items-start justify-between gap-4', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'].join(' ')}>
       <div>
         <div className="text-sm text-fg">{label}</div>
         <div className="text-xs text-fg-muted mt-0.5">{description}</div>
@@ -15,9 +16,11 @@ export function Toggle({ label, description, checked, onChange }: {
         role="switch"
         aria-label={label}
         aria-checked={checked}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={[
           'relative shrink-0 w-9 h-5 rounded-full border transition-colors mt-0.5',
+          disabled ? 'cursor-not-allowed' : '',
           checked ? 'bg-accent border-accent' : 'bg-fg-subtle border-fg-subtle',
         ].join(' ')}
       >

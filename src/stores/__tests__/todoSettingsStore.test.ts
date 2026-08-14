@@ -15,7 +15,7 @@ import { useTodoSettingsStore } from '../todoSettingsStore'
 describe('todoSettingsStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false, enabled: true })
+    useTodoSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false, enabled: false })
   })
 
   it('defaults to an empty URL', () => {
@@ -38,8 +38,8 @@ describe('todoSettingsStore', () => {
     expect(localStorageStore['huginn:todo:closeSidePanel']).toBe('true')
   })
 
-  it('defaults enabled to true', () => {
-    expect(useTodoSettingsStore.getState().enabled).toBe(true)
+  it('defaults enabled to false', () => {
+    expect(useTodoSettingsStore.getState().enabled).toBe(false)
   })
 
   it('setEnabled updates state and persists to localStorage', () => {

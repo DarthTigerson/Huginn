@@ -33,7 +33,7 @@ export const useTodoSettingsStore = create<TodoSettingsStore>((set) => ({
     set({ closeSidePanelOnOpen: value })
   },
 
-  enabled: getBool(ENABLED_KEY, true),
+  enabled: getBool(ENABLED_KEY, false),
 
   setEnabled: (value) => {
     localStorage.setItem(ENABLED_KEY, String(value))

@@ -56,3 +56,14 @@ describe('claudeStore selection hand-off', () => {
     expect(state.pendingInjection).toBe('second')
   })
 })
+
+describe('claudeStore.setChatVisible', () => {
+  it('sets chatVisible directly, in either direction', () => {
+    useClaudeStore.setState({ chatVisible: true })
+    useClaudeStore.getState().setChatVisible(false)
+    expect(useClaudeStore.getState().chatVisible).toBe(false)
+
+    useClaudeStore.getState().setChatVisible(true)
+    expect(useClaudeStore.getState().chatVisible).toBe(true)
+  })
+})

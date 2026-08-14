@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Tab } from '@/types/index'
 
 export type EditorSplitDirection = 'horizontal' | 'vertical'
+export type SplitPlacement = 'before' | 'after'
 
 export type EditorLayoutNode =
   | { type: 'pane'; id: string }
@@ -42,6 +43,140 @@ function collectPaneIds(node: EditorLayoutNode): string[] {
   return [...collectPaneIds(node.children[0]), ...collectPaneIds(node.children[1])]
 }
 
+// Shared by closeAllTabs/closeSavedTabs: closes every open tab matching
+// `shouldClose` (pinned tabs are always exempt, regardless of the
+// predicate), collapsing any pane left with nothing open the same way
+// closeTabInPane already does one tab at a time - just applied to however
+// many panes empty out at once here.
+function closeTabsMatching(state: EditorState, shouldClose: (tab: Tab) => boolean): Partial<EditorState> {
+  const pathsToClose = new Set(
+    state.tabs.filter((t) => !state.pinnedPaths.has(t.path) && shouldClose(t)).map((t) => t.path)
+  )
+  if (pathsToClose.size === 0) return {}
+
+  const allPaneIds = collectPaneIds(state.layout)
+  const paneOfClosedPath = new Map<string, string>()
+  for (const paneId of allPaneIds) {
+    for (const path of state.paneTabLists[paneId] ?? []) {
+      if (pathsToClose.has(path)) paneOfClosedPath.set(path, paneId)
+    }
+  }
+
+  const newPaneTabLists: Record<string, string[]> = { ...state.paneTabLists }
+  const newPaneTabs: Record<string, string | null> = { ...state.paneTabs }
+  const emptiedPaneIds: string[] = []
+
+  for (const paneId of allPaneIds) {
+    const newList = (state.paneTabLists[paneId] ?? []).filter((p) => !pathsToClose.has(p))
+    newPaneTabLists[paneId] = newList
+    if (newList.length === 0) {
+      emptiedPaneIds.push(paneId)
+      continue
+    }
+    const oldActive = state.paneTabs[paneId]
+    newPaneTabs[paneId] = oldActive && !pathsToClose.has(oldActive) ? oldActive : newList[newList.length - 1]
+  }
+
+  let newLayout: EditorLayoutNode | null = state.layout
+  for (const paneId of emptiedPaneIds) {
+    newLayout = removePane(newLayout as EditorLayoutNode, paneId)
+    delete newPaneTabLists[paneId]
+    delete newPaneTabs[paneId]
+  }
+  if (newLayout === null) {
+    newLayout = createDefaultLayout()
+    newPaneTabLists[ROOT_PANE_ID] = []
+    newPaneTabs[ROOT_PANE_ID] = null
+  }
+
+  const survivingPaneIds = collectPaneIds(newLayout)
+  const newActivePaneId = survivingPaneIds.includes(state.activePaneId)
+    ? state.activePaneId
+    : survivingPaneIds[0]
+  const newActiveTabPath = newPaneTabs[newActivePaneId] ?? null
+
+  const closedTabs = [
+    ...state.closedTabs,
+    ...state.tabs
+      .filter((tab) => pathsToClose.has(tab.path))
+      .map((tab) => ({ tab, paneId: paneOfClosedPath.get(tab.path) ?? state.activePaneId })),
+  ].slice(-20)
+
+  return {
+    tabs: state.tabs.filter((t) => !pathsToClose.has(t.path)),
+    layout: newLayout,
+    activePaneId: newActivePaneId,
+    activeTabPath: newActiveTabPath,
+    paneTabs: newPaneTabs,
+    paneTabLists: newPaneTabLists,
+    closedTabs,
+  }
+}
+
+export type PaneDirection = 'left' | 'right' | 'up' | 'down'
+
+interface PaneAncestorStep {
+  node: EditorLayoutNode & { type: 'split' }
+  childIndex: 0 | 1
+}
+
+function findPathToPane(
+  node: EditorLayoutNode,
+  paneId: string,
+  path: PaneAncestorStep[]
+): PaneAncestorStep[] | null {
+  if (node.type === 'pane') return node.id === paneId ? path : null
+  return (
+    findPathToPane(node.children[0], paneId, [...path, { node, childIndex: 0 }]) ??
+    findPathToPane(node.children[1], paneId, [...path, { node, childIndex: 1 }])
+  )
+}
+
+// A binary split tree has no notion of "the pane at the same vertical
+// position" once you cross into a sibling subtree that's split again along
+// the other axis - there's nothing to line up against. So when descending
+// toward the shared boundary, splits along the requested direction's own
+// axis pick the child nearest that boundary (the only unambiguous choice),
+// and splits along the other axis just always take the first child - an
+// arbitrary but deterministic and stable pick.
+function pickBoundaryPane(node: EditorLayoutNode, direction: PaneDirection): string {
+  if (node.type === 'pane') return node.id
+  const onDirectionAxis =
+    direction === 'left' || direction === 'right'
+      ? node.direction === 'horizontal'
+      : node.direction === 'vertical'
+  if (!onDirectionAxis) return pickBoundaryPane(node.children[0], direction)
+  const nearestChildIndex = direction === 'right' || direction === 'down' ? 0 : 1
+  return pickBoundaryPane(node.children[nearestChildIndex], direction)
+}
+
+// Finds the pane, if any, spatially adjacent to `paneId` in `direction`,
+// walking up the split tree to the nearest ancestor whose split axis
+// matches the direction and whose other child is on that side.
+export function findAdjacentPane(
+  layout: EditorLayoutNode,
+  paneId: string,
+  direction: PaneDirection
+): string | null {
+  const path = findPathToPane(layout, paneId, [])
+  if (!path) return null
+
+  const directionAxis = direction === 'left' || direction === 'right' ? 'horizontal' : 'vertical'
+  // The child index this pane's lineage must have come from for the OTHER
+  // child to be in `direction`: e.g. for 'right', the sibling (children[1])
+  // is to the right only if we descended via children[0].
+  const cameFromIndex = direction === 'right' || direction === 'down' ? 0 : 1
+
+  for (let i = path.length - 1; i >= 0; i--) {
+    const step = path[i]
+    if (step.node.direction !== directionAxis) continue
+    if (step.childIndex !== cameFromIndex) continue
+    const siblingIndex = step.childIndex === 0 ? 1 : 0
+    return pickBoundaryPane(step.node.children[siblingIndex], direction)
+  }
+  return null
+}
+
 interface EditorState {
   tabs: Tab[]
   activeTabPath: string | null
@@ -55,15 +190,33 @@ interface EditorState {
   closeTab: (path: string) => void
   closeActiveTab: () => void
   closedTabs: { tab: Tab; paneId: string }[]
+  pinnedPaths: Set<string>
+  togglePin: (path: string) => void
+  closeAllTabs: () => void
+  closeSavedTabs: () => void
   reopenLastClosed: () => void
   resetForNewProject: () => void
   moveTabWithinPane: (paneId: string, path: string, targetPath: string, placement: 'before' | 'after') => void
   moveTab: (path: string, targetPath: string, placement: 'before' | 'after') => void
   moveTabBetweenPanes: (sourcePaneId: string, targetPaneId: string, path: string) => void
+  moveTabToAdjacentPane: (paneId: string, path: string, direction: PaneDirection) => void
   setActive: (path: string) => void
   setActivePane: (paneId: string) => void
   setPaneActive: (paneId: string, path: string) => void
   splitActivePane: (direction: EditorSplitDirection) => void
+  splitPaneForTab: (
+    paneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) => void
+  splitPaneWithIncomingTab: (
+    targetPaneId: string,
+    sourcePaneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) => void
   updateContent: (path: string, content: string) => void
   markSaved: (path: string, content?: string) => void
   syncFromDisk: (path: string, content: string) => void
@@ -82,6 +235,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   paneTabs: { [ROOT_PANE_ID]: null },
   paneTabLists: { [ROOT_PANE_ID]: [] },
   closedTabs: [],
+  pinnedPaths: new Set(),
+  togglePin: (path: string) =>
+    set((state) => {
+      const pinnedPaths = new Set(state.pinnedPaths)
+      if (pinnedPaths.has(path)) pinnedPaths.delete(path)
+      else pinnedPaths.add(path)
+      return { pinnedPaths }
+    }),
   revealRequest: null,
   setRevealRequest: (req) => set({ revealRequest: req }),
   clearRevealRequest: () => set({ revealRequest: null }),
@@ -220,6 +381,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (path) closeTabInPane(activePaneId, path)
   },
 
+  closeAllTabs: () => set((state) => closeTabsMatching(state, () => true)),
+
+  closeSavedTabs: () => set((state) => closeTabsMatching(state, (tab) => !tab.dirty)),
+
   reopenLastClosed: () =>
     set((state) => {
       if (state.closedTabs.length === 0) return state
@@ -260,6 +425,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       paneTabs: { [ROOT_PANE_ID]: null },
       paneTabLists: { [ROOT_PANE_ID]: [] },
       closedTabs: [],
+      pinnedPaths: new Set(),
       revealRequest: null,
     }),
 
@@ -322,6 +488,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
     }),
 
+  moveTabToAdjacentPane: (paneId: string, path: string, direction: PaneDirection) => {
+    const { layout, moveTabBetweenPanes } = get()
+    const targetPaneId = findAdjacentPane(layout, paneId, direction)
+    if (targetPaneId) moveTabBetweenPanes(paneId, targetPaneId, path)
+  },
+
   setActive: (path: string) =>
     set((state) => ({
       activeTabPath: path,
@@ -350,43 +522,120 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
     }),
 
-  splitActivePane: (direction: EditorSplitDirection) =>
-    set((state) => {
-      if (!state.activeTabPath) return state
-      const currentPaneList = state.paneTabLists[state.activePaneId] ?? []
-      if (currentPaneList.length < 2) return state
+  splitActivePane: (direction: EditorSplitDirection) => {
+    const { activePaneId, activeTabPath, splitPaneForTab } = get()
+    if (!activeTabPath) return
+    splitPaneForTab(activePaneId, activeTabPath, direction, 'after')
+  },
 
-      const activeIndex = currentPaneList.indexOf(state.activeTabPath)
-      const newCurrentList = currentPaneList.filter((p) => p !== state.activeTabPath)
-      const fallbackPath = newCurrentList[Math.min(activeIndex, newCurrentList.length - 1)] ?? null
+  // Moves `path` out of `paneId` into a newly created sibling pane split off
+  // in `direction`, positioned before (left/up) or after (right/down) the
+  // original pane. No-ops if `path` isn't actually open in `paneId`, or if
+  // it's the only tab there (splitting would leave the original pane empty,
+  // which this codebase's panes never do - see closeTabInPane's collapse
+  // logic for the other half of that invariant).
+  splitPaneForTab: (
+    paneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) =>
+    set((state) => {
+      const currentPaneList = state.paneTabLists[paneId] ?? []
+      if (currentPaneList.length < 2 || !currentPaneList.includes(path)) return state
+
+      const pathIndex = currentPaneList.indexOf(path)
+      const newCurrentList = currentPaneList.filter((p) => p !== path)
+      const fallbackPath = newCurrentList[Math.min(pathIndex, newCurrentList.length - 1)] ?? null
 
       const nextPaneNumber = collectPaneIds(state.layout).length + 1
       const nextPaneId = `pane-${Date.now()}-${nextPaneNumber}`
+      const originalPaneNode: EditorLayoutNode = { type: 'pane', id: paneId }
+      const newPaneNode: EditorLayoutNode = { type: 'pane', id: nextPaneId }
       const replacement: EditorLayoutNode = {
         type: 'split',
         direction,
-        children: [
-          { type: 'pane', id: state.activePaneId },
-          { type: 'pane', id: nextPaneId },
-        ],
+        children: placement === 'after' ? [originalPaneNode, newPaneNode] : [newPaneNode, originalPaneNode],
       }
 
       return {
-        layout: replacePane(state.layout, state.activePaneId, replacement),
+        layout: replacePane(state.layout, paneId, replacement),
         activePaneId: nextPaneId,
-        activeTabPath: state.activeTabPath,
+        activeTabPath: path,
         paneTabs: {
           ...state.paneTabs,
-          [state.activePaneId]: fallbackPath,
-          [nextPaneId]: state.activeTabPath,
+          [paneId]: fallbackPath,
+          [nextPaneId]: path,
         },
         paneTabLists: {
           ...state.paneTabLists,
-          [state.activePaneId]: newCurrentList,
-          [nextPaneId]: [state.activeTabPath],
+          [paneId]: newCurrentList,
+          [nextPaneId]: [path],
         },
       }
     }),
+
+  // Backs the drop-zone overlay: dropping a dragged tab on the edge of a
+  // pane's content area splits THAT pane in `direction`, landing the tab in
+  // the new sibling - regardless of which pane (including this one) it was
+  // dragged from. Same-pane drops just delegate to splitPaneForTab; cross-
+  // pane drops leave the target pane's own tabs untouched and remove the
+  // dragged tab from its source pane, collapsing that pane if it empties
+  // out (the same invariant closeTabInPane/moveTabBetweenPanes enforce).
+  splitPaneWithIncomingTab: (
+    targetPaneId: string,
+    sourcePaneId: string,
+    path: string,
+    direction: EditorSplitDirection,
+    placement: SplitPlacement
+  ) => {
+    const { splitPaneForTab } = get()
+    if (sourcePaneId === targetPaneId) {
+      splitPaneForTab(targetPaneId, path, direction, placement)
+      return
+    }
+
+    set((state) => {
+      const sourceList = state.paneTabLists[sourcePaneId] ?? []
+      if (!sourceList.includes(path)) return state
+
+      const nextPaneNumber = collectPaneIds(state.layout).length + 1
+      const nextPaneId = `pane-${Date.now()}-${nextPaneNumber}`
+      const targetPaneNode: EditorLayoutNode = { type: 'pane', id: targetPaneId }
+      const newPaneNode: EditorLayoutNode = { type: 'pane', id: nextPaneId }
+      const replacement: EditorLayoutNode = {
+        type: 'split',
+        direction,
+        children: placement === 'after' ? [targetPaneNode, newPaneNode] : [newPaneNode, targetPaneNode],
+      }
+      let newLayout = replacePane(state.layout, targetPaneId, replacement)
+
+      const closedIndex = sourceList.indexOf(path)
+      const newSourceList = sourceList.filter((p) => p !== path)
+      const newPaneTabs = { ...state.paneTabs, [nextPaneId]: path }
+      const newPaneTabLists = { ...state.paneTabLists, [nextPaneId]: [path] }
+
+      if (newSourceList.length === 0) {
+        newLayout = removePane(newLayout, sourcePaneId) ?? createDefaultLayout()
+        delete newPaneTabs[sourcePaneId]
+        delete newPaneTabLists[sourcePaneId]
+      } else {
+        newPaneTabs[sourcePaneId] =
+          state.paneTabs[sourcePaneId] === path
+            ? (newSourceList[Math.min(closedIndex, newSourceList.length - 1)] ?? null)
+            : state.paneTabs[sourcePaneId]
+        newPaneTabLists[sourcePaneId] = newSourceList
+      }
+
+      return {
+        layout: newLayout,
+        activePaneId: nextPaneId,
+        activeTabPath: path,
+        paneTabs: newPaneTabs,
+        paneTabLists: newPaneTabLists,
+      }
+    })
+  },
 
   updateContent: (path: string, content: string) =>
     set((state) => ({

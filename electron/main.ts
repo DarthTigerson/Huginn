@@ -21,6 +21,7 @@ import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
 import { UpdateChecker } from './updateChecker'
 import { getChangelogForVersion } from './changelog'
+import { getSystemMemoryUsage } from './systemMemory'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -49,6 +50,10 @@ function registerFsHandlers(): void {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled ? null : result.filePaths[0]
   })
+}
+
+function registerSystemHandlers(): void {
+  ipcMain.handle('system:getMemoryUsage', () => getSystemMemoryUsage())
 }
 
 function registerDevtoolsHandlers(): void {
@@ -410,8 +415,15 @@ async function buildMenu(): Promise<void> {
         { role: 'toggleDevTools' },
         { type: 'separator' },
         {
+          // No accelerator here on purpose — CmdOrCtrl+B is handled by a
+          // renderer-level capture-phase keydown listener instead (see
+          // App.tsx), which is reliable even when Monaco has focus, unlike
+          // this native menu accelerator (its keystroke could get swallowed
+          // by Monaco's own input handling before ever reaching this).
+          // Keeping BOTH active would double-toggle on every press outside
+          // Monaco, since preventDefault() in the renderer doesn't suppress
+          // a native accelerator. The menu item stays clickable by mouse.
           label: 'Toggle Sidebar',
-          accelerator: 'CmdOrCtrl+B',
           click: () => {
             const win = BrowserWindow.getFocusedWindow()
             if (win) win.webContents.send('menu:toggleSidebar')
@@ -526,6 +538,7 @@ app.whenReady().then(() => {
   registerSessionHandlers()
   registerRecentProjectsHandlers()
   registerWindowHandlers()
+  registerSystemHandlers()
 
   ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()

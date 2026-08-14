@@ -14,6 +14,7 @@ import {
   FilesIcon,
   GitIcon,
   TodoIcon,
+  JiraIcon,
   PhoneIcon,
   GraphIcon,
   SettingsIcon,
@@ -58,7 +59,11 @@ import { useUpdateStore } from './stores/updateStore'
 import { useChangelogStore } from './stores/changelogStore'
 import { useBrowserStore } from './stores/browserStore'
 import { useTodoSettingsStore } from './stores/todoSettingsStore'
-import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH } from './components/Settings/paths'
+import { useJiraSettingsStore } from './stores/jiraSettingsStore'
+import { useGitRemoteSettingsStore } from './stores/gitRemoteSettingsStore'
+import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
+import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
+import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -72,7 +77,10 @@ function assistantIcon(kind: AssistantKind) {
 }
 
 const TODO_BROWSER_ID = 'todo-external'
+const JIRA_BROWSER_ID = 'jira-external'
+const GIT_REMOTE_BROWSER_ID = 'git-remote-external'
 const GIT_POLL_INTERVAL_MS = 3000
+const MEMORY_POLL_INTERVAL_MS = 3000
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 26
@@ -107,6 +115,7 @@ export default function App() {
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
+  const [memoryUsage, setMemoryUsage] = useState<{ usedBytes: number; totalBytes: number } | null>(null)
   const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
   const searchOpen = useSearchStore((s) => s.searchOpen)
   const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
@@ -115,6 +124,7 @@ export default function App() {
   const recentProjectsPaletteOpen = useSearchStore((s) => s.recentProjectsPaletteOpen)
   const branchPaletteOpen = useSearchStore((s) => s.branchPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
+  const sidebarPanelRef = useRef<ImperativePanelHandle>(null)
   const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
   const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
   const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : assistant === 'codex' ? 'Resume Latest Codex Session' : 'Restore Previous Cosmos Session'
@@ -127,10 +137,17 @@ export default function App() {
   const mobileBadge = mobileState.running && mobileState.connectedCount > 0 ? mobileState.connectedCount : undefined
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
+  const memoryUsageVisible = useDisplayStore((s) => s.memoryUsageVisible)
   const periodicFetchEnabled = useGitSettingsStore((s) => s.periodicFetchEnabled)
   const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
   const todoEnabled = useTodoSettingsStore((s) => s.enabled)
+  const jiraEnabled = useJiraSettingsStore((s) => s.enabled)
+  const jiraUrl = useJiraSettingsStore((s) => s.externalUrl)
+  const jiraReady = jiraEnabled && jiraUrl.trim() !== ''
+  const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
+  const gitRemoteReady = gitRemoteUrl.trim() !== ''
+  const gitRemoteProvider = detectGitRemoteProvider(gitRemoteUrl)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -156,6 +173,33 @@ export default function App() {
     useBrowserStore.getState().ensureTab(TODO_BROWSER_ID, url)
     useEditorStore.getState().openTab({ path: buildBrowserPath(TODO_BROWSER_ID), content: '', dirty: false })
     if (useTodoSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
+  }
+
+  // Mirrors openTodo() above — same fixed-tab-id, empty-URL-falls-back-to-
+  // settings, closeSidePanelOnOpen behavior.
+  function openJira() {
+    const url = useJiraSettingsStore.getState().externalUrl
+    if (!url) {
+      useEditorStore.getState().openTab({ path: JIRA_SETTINGS_TAB_PATH, content: '', dirty: false })
+      return
+    }
+    useBrowserStore.getState().ensureTab(JIRA_BROWSER_ID, url)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(JIRA_BROWSER_ID), content: '', dirty: false })
+    if (useJiraSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
+  }
+
+  // Mirrors openTodo()/openJira() above. Its Settings config lives inside
+  // the Git settings page (a dedicated section) rather than its own tab, so
+  // the empty-URL fallback opens that instead of a page of its own.
+  function openGitRemote() {
+    const url = useGitRemoteSettingsStore.getState().externalUrl
+    if (!url) {
+      useEditorStore.getState().openTab({ path: GIT_SETTINGS_TAB_PATH, content: '', dirty: false })
+      return
+    }
+    useBrowserStore.getState().ensureTab(GIT_REMOTE_BROWSER_ID, url)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(GIT_REMOTE_BROWSER_ID), content: '', dirty: false })
+    if (useGitRemoteSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
   function saveSidebarSize(size: number) {
@@ -198,6 +242,31 @@ export default function App() {
     if (chatVisible) chatPanelRef.current?.expand()
     else chatPanelRef.current?.collapse()
   }, [chatVisible])
+
+  // No project open means no assistant terminal to show, so the chat panel
+  // is forced closed (and its toggle disabled, see the ActivityBar item
+  // below) rather than sitting open on an empty state. Auto-reopens the
+  // moment a project first resolves — on launch restore or a fresh Open
+  // Folder — but a later project SWITCH (already had one, picked another)
+  // doesn't re-force it open, respecting whatever the user set it to.
+  const hadProjectRef = useRef(false)
+  useEffect(() => {
+    if (!projectRoot) {
+      useClaudeStore.getState().setChatVisible(false)
+    } else if (!hadProjectRef.current) {
+      useClaudeStore.getState().setChatVisible(true)
+    }
+    hadProjectRef.current = !!projectRoot
+  }, [projectRoot])
+
+  // Mirrors the chat panel above: driven imperatively rather than
+  // conditionally unmounted (see the sidebar Panel's own comment for why —
+  // unmounting it here would re-trigger the exact desync this pattern
+  // exists to avoid).
+  useEffect(() => {
+    if (leftPanel !== null) sidebarPanelRef.current?.expand()
+    else sidebarPanelRef.current?.collapse()
+  }, [leftPanel])
 
   useEffect(() => {
     if (leftPanel !== null) lastLeftPanelRef.current = leftPanel
@@ -295,6 +364,16 @@ export default function App() {
   }, [projectRoot])
 
   useEffect(() => {
+    const poll = () => {
+      if (document.visibilityState !== 'visible') return
+      window.api.getSystemMemoryUsage().then(setMemoryUsage).catch(() => {})
+    }
+    poll()
+    const interval = setInterval(poll, MEMORY_POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
     // Refresh from the remote once whenever a repo is opened, so ahead/
     // behind and remote branches reflect reality from the start rather than
     // whatever was last fetched (possibly in a previous session).
@@ -330,9 +409,20 @@ export default function App() {
     })
   }, [])
 
+  const pendingPinnedCloseRef = useRef<PendingClose | null>(null)
   useEffect(() => {
     return window.api.onMenuCloseActiveTab(() => {
-      useEditorStore.getState().closeActiveTab()
+      const { activePaneId, paneTabs, pinnedPaths, closeActiveTab } = useEditorStore.getState()
+      const path = paneTabs[activePaneId]
+      if (!path) return
+      const { shouldClose, nextPending } = evaluateCmdWForPinnedTab(
+        path,
+        pinnedPaths.has(path),
+        pendingPinnedCloseRef.current,
+        Date.now()
+      )
+      pendingPinnedCloseRef.current = nextPending
+      if (shouldClose) closeActiveTab()
     })
   }, [])
 
@@ -408,6 +498,29 @@ export default function App() {
     })
   }, [])
 
+  // Belt-and-suspenders for the handler above: the native Electron menu
+  // accelerator (CmdOrCtrl+B) is supposed to fire regardless of what's
+  // focused in the renderer, but in practice it's unreliable while Monaco
+  // has focus — its hidden textarea's own keydown handling can swallow the
+  // keystroke before Electron's native accelerator layer ever sees it,
+  // so toggling the sidebar back open (or closed) silently does nothing
+  // until focus moves elsewhere. A capture-phase listener on window fires
+  // before Monaco's own handler regardless (capture runs top-down before
+  // the event reaches the target/bubble phase), so it can't be swallowed
+  // the same way — this is the primary, reliable path; the IPC/menu path
+  // above still covers triggering it from the actual menu bar.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const isToggleSidebar = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b'
+      if (!isToggleSidebar) return
+      e.preventDefault()
+      e.stopPropagation()
+      setLeftPanel((p) => (p !== null ? null : lastLeftPanelRef.current))
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [])
+
   useEffect(() => {
     return window.api.onMenuCommandPalette(() => {
       if (!useFileStore.getState().projectRoot) return
@@ -448,10 +561,11 @@ export default function App() {
           <span className="text-sm font-medium text-fg-muted">{repoName}</span>
         )}
         <div
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
+          {memoryUsageVisible && memoryUsage && <MemoryPill usage={memoryUsage} />}
           <button
             type="button"
             onClick={() => setAssistantMenuOpen((open) => !open)}
@@ -532,14 +646,28 @@ export default function App() {
               active: leftPanel === 'graphify',
               onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
             },
-          ], ...(todoEnabled ? [[
-            {
+          ], ...(gitRemoteReady || todoEnabled || jiraReady ? [[
+            ...(gitRemoteReady ? [{
+              id: 'git-remote',
+              icon: gitRemoteIcon(gitRemoteProvider),
+              title: gitRemoteLabel(gitRemoteProvider),
+              active: activeTabPath === buildBrowserPath(GIT_REMOTE_BROWSER_ID),
+              onClick: openGitRemote,
+            }] : []),
+            ...(todoEnabled ? [{
               id: 'todos',
               icon: <TodoIcon />,
               title: 'To Do',
               active: activeTabPath === buildBrowserPath(TODO_BROWSER_ID),
               onClick: openTodo,
-            },
+            }] : []),
+            ...(jiraReady ? [{
+              id: 'jira',
+              icon: <JiraIcon />,
+              title: 'Jira',
+              active: activeTabPath === buildBrowserPath(JIRA_BROWSER_ID),
+              onClick: openJira,
+            }] : []),
           ]] : [])]}
           bottomGroups={[[
             {
@@ -558,6 +686,7 @@ export default function App() {
               disabled: !projectRoot,
               onClick: openNewTerminal,
             },
+          ], [
             {
               id: 'settings',
               icon: <SettingsIcon />,
@@ -568,24 +697,24 @@ export default function App() {
           ]]}
         />
         <PanelGroup direction="horizontal" className="flex-1">
-          {leftPanel && (
-            <>
-              <Panel
-                defaultSize={sidebarSize}
-                minSize={SIDEBAR_MIN_SIZE}
-                maxSize={SIDEBAR_MAX_SIZE}
-                collapsible
-                collapsedSize={0}
-                onCollapse={() => setLeftPanel(null)}
-                id="sidebar"
-                order={1}
-                onResize={saveSidebarSize}
-              >
-                {leftPanel === 'files' ? <Sidebar /> : leftPanel === 'git' ? <GitPanel /> : leftPanel === 'mobile' ? <MobileDisplayPanel /> : leftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />}
-              </Panel>
-              <PanelResizeHandle className="w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize" />
-            </>
-          )}
+          <Panel
+            ref={sidebarPanelRef}
+            defaultSize={sidebarSize}
+            minSize={SIDEBAR_MIN_SIZE}
+            maxSize={SIDEBAR_MAX_SIZE}
+            collapsible
+            collapsedSize={0}
+            onCollapse={() => setLeftPanel(null)}
+            id="sidebar"
+            order={1}
+            onResize={saveSidebarSize}
+          >
+            {(() => {
+              const activeLeftPanel = leftPanel ?? lastLeftPanelRef.current
+              return activeLeftPanel === 'files' ? <Sidebar /> : activeLeftPanel === 'git' ? <GitPanel /> : activeLeftPanel === 'mobile' ? <MobileDisplayPanel /> : activeLeftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />
+            })()}
+          </Panel>
+          <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
 
           <Panel id="center" order={2}>
             <Editor />
@@ -605,6 +734,7 @@ export default function App() {
             <Chat />
           </Panel>
         </PanelGroup>
+        {projectRoot && (
         <ActivityBar
           side="right"
           showAccent={false}
@@ -615,6 +745,7 @@ export default function App() {
               icon: assistantIcon(assistant),
               title: assistantLabel,
               active: chatVisible,
+              disabled: !projectRoot,
               onClick: () => useClaudeStore.getState().toggleChatVisible(),
             }],
             [
@@ -692,6 +823,7 @@ export default function App() {
             ]]
             : []}
         />
+        )}
       </div>
       <StatusBar />
       {commandPaletteOpen && projectRoot && (
@@ -716,6 +848,38 @@ export default function App() {
       )}
       <UpdateChangelogModal />
     </div>
+  )
+}
+
+function formatGb(bytes: number): string {
+  return (bytes / 1024 ** 3).toFixed(1)
+}
+
+function MemoryPill({ usage }: { usage: { usedBytes: number; totalBytes: number } }) {
+  return (
+    <span
+      className="flex items-center gap-1 text-xs font-medium text-fg-muted tabular-nums"
+      title="System memory used / total"
+    >
+      <RamIcon />
+      {formatGb(usage.usedBytes)}/{formatGb(usage.totalBytes)} GB
+    </span>
+  )
+}
+
+function RamIcon() {
+  return (
+    <svg
+      className="shrink-0"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="3" y="7" width="18" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 7V4.5M11 7V4.5M13 7V4.5M17 7V4.5M7 17V19.5M11 17V19.5M13 17V19.5M17 17V19.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   )
 }
 

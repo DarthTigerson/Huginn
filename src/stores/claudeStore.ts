@@ -29,6 +29,7 @@ interface ClaudeState {
   model: () => void
   fast: () => void
   toggleChatVisible: () => void
+  setChatVisible: (visible: boolean) => void
   sendSelection: (text: string) => void
   focusChat: () => void
   consumeInjection: () => void
@@ -38,7 +39,11 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   assistant: readStoredAssistant(),
   restartToken: 0,
   usageOpen: false,
-  chatVisible: true,
+  // Starts closed — App.tsx opens it automatically once a project resolves
+  // (on launch restore or a fresh Open Folder), so there's no toggle to
+  // click (or flash of an empty chat panel) before there's a project for it
+  // to attach to.
+  chatVisible: false,
   pendingInjection: null,
   focusToken: 0,
 
@@ -48,6 +53,8 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   },
 
   toggleChatVisible: () => set((s) => ({ chatVisible: !s.chatVisible })),
+
+  setChatVisible: (visible) => set({ chatVisible: visible }),
 
   sendSelection: (text) => {
     set((s) => ({ chatVisible: true, pendingInjection: text, focusToken: s.focusToken + 1 }))
