@@ -646,6 +646,7 @@ export default function App() {
               disabled: !projectRoot,
               onClick: openNewTerminal,
             },
+          ], [
             {
               id: 'settings',
               icon: <SettingsIcon />,
