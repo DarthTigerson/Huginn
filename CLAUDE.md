@@ -118,3 +118,9 @@ reading files directly can cost tens of thousands of tokens for the same
 question. Still fall back to an agent/grep when the graph comes back too
 thin, when verbatim source is needed to copy exact patterns/line numbers for
 editing, or for runtime/git state the static graph can't capture.
+
+If a graphify command errors with something like "no such file" (a stale
+node pointing at a path that's since been moved/renamed/deleted), run
+`graphify update .` to rebuild the graph — this also regenerates
+`graphify-out/GRAPH_REPORT.md`, so re-open/re-read the report afterward
+rather than trusting the stale one.
