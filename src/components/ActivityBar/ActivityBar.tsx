@@ -68,7 +68,7 @@ function ActivityBarButton({ item, showAccent, side, dense }: { item: ActivityBa
 }
 
 function Divider({ dense }: { dense: boolean }) {
-  return <div className={['w-6 h-px bg-border shrink-0', dense ? 'my-0.5' : 'my-1'].join(' ')} />
+  return <div className={['w-full h-px bg-border shrink-0', dense ? 'my-0.5' : 'my-1'].join(' ')} />
 }
 
 function ItemGroups({ groups, side, showAccent, dense }: { groups: ActivityBarItem[][]; side: 'left' | 'right'; showAccent: boolean; dense: boolean }) {
