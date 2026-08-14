@@ -23,10 +23,11 @@ afterEach(() => {
 })
 
 describe('StatusBar autocomplete icon', () => {
-  it('shows the crossed-out icon when disabled in settings', () => {
+  it('does not render the icon at all when disabled in settings', () => {
     useAutocompleteSettingsStore.setState({ enabled: false })
     render(<StatusBar />)
-    expect(screen.getByRole('button', { name: 'Autocomplete off' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Autocomplete off' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Autocomplete on' })).toBeNull()
   })
 
   it('shows the active icon when enabled and not paused', () => {
@@ -50,12 +51,11 @@ describe('StatusBar autocomplete icon', () => {
     expect(screen.getByText('Resume')).toBeTruthy()
   })
 
-  it('shows an informational message instead of a toggle when disabled in settings', () => {
+  it('renders no autocomplete-related popup when disabled in settings (no button to open it from)', () => {
     useAutocompleteSettingsStore.setState({ enabled: false })
     render(<StatusBar />)
-    fireEvent.click(screen.getByRole('button', { name: 'Autocomplete off' }))
 
-    expect(screen.getByText('Autocomplete is off in Settings')).toBeTruthy()
+    expect(screen.queryByText('Autocomplete is off in Settings')).toBeNull()
     expect(screen.queryByText('Pause for this session')).toBeNull()
     expect(screen.queryByText('Resume')).toBeNull()
   })

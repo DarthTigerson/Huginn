@@ -97,32 +97,30 @@ export function StatusBar() {
         <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
-            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
-            className={[
-              'w-5 h-5 flex items-center justify-center transition-colors',
-              autocompleteActive && autocompleteBusy
-                ? 'text-accent'
-                : autocompleteActive
-                  ? 'text-fg-muted hover:text-fg'
-                  : 'text-fg-subtle hover:text-fg-muted',
-            ].join(' ')}
-            aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
-            title={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
-          >
-            <AutocompleteIcon
-              crossedOut={!autocompleteActive}
-              busy={autocompleteActive && autocompleteBusy}
-            />
-          </button>
-          {autocompleteMenuOpen && (
-            <div className="absolute bottom-full right-0 mb-1 w-56 rounded border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
-              {!autocompleteEnabled ? (
-                <div className="px-3 py-1.5 text-xs text-fg-subtle">Autocomplete is off in Settings</div>
-              ) : (
+        {autocompleteEnabled && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+              className={[
+                'w-5 h-5 flex items-center justify-center transition-colors',
+                autocompleteActive && autocompleteBusy
+                  ? 'text-accent'
+                  : autocompleteActive
+                    ? 'text-fg-muted hover:text-fg'
+                    : 'text-fg-subtle hover:text-fg-muted',
+              ].join(' ')}
+              aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
+              title={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
+            >
+              <AutocompleteIcon
+                crossedOut={!autocompleteActive}
+                busy={autocompleteActive && autocompleteBusy}
+              />
+            </button>
+            {autocompleteMenuOpen && (
+              <div className="absolute bottom-full right-0 mb-1 w-56 rounded border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
                 <button
                   type="button"
                   onClick={() => { togglePaused(); setAutocompleteMenuOpen(false) }}
@@ -130,11 +128,11 @@ export function StatusBar() {
                 >
                   {autocompletePaused ? 'Resume' : 'Pause for this session'}
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border">
+              </div>
+            )}
+          </div>
+        )}
+        <div className={['flex items-center gap-1', autocompleteEnabled ? 'ml-2 pl-2 border-l border-border' : ''].join(' ')}>
           <button
             type="button"
             onClick={decrease}
