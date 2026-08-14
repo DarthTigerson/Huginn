@@ -1,15 +1,15 @@
 import { create } from 'zustand'
 
-const URL_KEY = 'huginn:todo:externalUrl'
-const CLOSE_SIDE_PANEL_KEY = 'huginn:todo:closeSidePanel'
-const ENABLED_KEY = 'huginn:todo:enabled'
+const URL_KEY = 'huginn:jira:externalUrl'
+const CLOSE_SIDE_PANEL_KEY = 'huginn:jira:closeSidePanel'
+const ENABLED_KEY = 'huginn:jira:enabled'
 
 function getBool(key: string, def: boolean): boolean {
   const value = localStorage.getItem(key)
   return value === null ? def : value === 'true'
 }
 
-interface TodoSettingsStore {
+interface JiraSettingsStore {
   externalUrl: string
   setExternalUrl: (value: string) => void
   closeSidePanelOnOpen: boolean
@@ -18,7 +18,7 @@ interface TodoSettingsStore {
   setEnabled: (value: boolean) => void
 }
 
-export const useTodoSettingsStore = create<TodoSettingsStore>((set) => ({
+export const useJiraSettingsStore = create<JiraSettingsStore>((set) => ({
   externalUrl: localStorage.getItem(URL_KEY) || '',
 
   setExternalUrl: (value) => {
@@ -33,7 +33,7 @@ export const useTodoSettingsStore = create<TodoSettingsStore>((set) => ({
     set({ closeSidePanelOnOpen: value })
   },
 
-  enabled: getBool(ENABLED_KEY, false),
+  enabled: getBool(ENABLED_KEY, true),
 
   setEnabled: (value) => {
     localStorage.setItem(ENABLED_KEY, String(value))

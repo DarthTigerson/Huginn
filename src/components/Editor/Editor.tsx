@@ -37,6 +37,7 @@ import {
   MODELS_SETTINGS_TAB_PATH,
   GRAPHIFY_SETTINGS_TAB_PATH,
   TODO_SETTINGS_TAB_PATH,
+  JIRA_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
@@ -47,6 +48,7 @@ import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { TodoSettingsPage } from '@/components/Settings/TodoSettingsPage'
+import { JiraSettingsPage } from '@/components/Settings/JiraSettingsPage'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -330,6 +332,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <GraphifySettingsPage />
           ) : activeTab.path === TODO_SETTINGS_TAB_PATH ? (
             <TodoSettingsPage />
+          ) : activeTab.path === JIRA_SETTINGS_TAB_PATH ? (
+            <JiraSettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (

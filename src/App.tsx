@@ -14,6 +14,7 @@ import {
   FilesIcon,
   GitIcon,
   TodoIcon,
+  JiraIcon,
   PhoneIcon,
   GraphIcon,
   SettingsIcon,
@@ -58,7 +59,8 @@ import { useUpdateStore } from './stores/updateStore'
 import { useChangelogStore } from './stores/changelogStore'
 import { useBrowserStore } from './stores/browserStore'
 import { useTodoSettingsStore } from './stores/todoSettingsStore'
-import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH } from './components/Settings/paths'
+import { useJiraSettingsStore } from './stores/jiraSettingsStore'
+import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -72,6 +74,7 @@ function assistantIcon(kind: AssistantKind) {
 }
 
 const TODO_BROWSER_ID = 'todo-external'
+const JIRA_BROWSER_ID = 'jira-external'
 const GIT_POLL_INTERVAL_MS = 3000
 const MEMORY_POLL_INTERVAL_MS = 3000
 
@@ -133,6 +136,9 @@ export default function App() {
   const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
   const todoEnabled = useTodoSettingsStore((s) => s.enabled)
+  const jiraEnabled = useJiraSettingsStore((s) => s.enabled)
+  const jiraUrl = useJiraSettingsStore((s) => s.externalUrl)
+  const jiraReady = jiraEnabled && jiraUrl.trim() !== ''
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -158,6 +164,19 @@ export default function App() {
     useBrowserStore.getState().ensureTab(TODO_BROWSER_ID, url)
     useEditorStore.getState().openTab({ path: buildBrowserPath(TODO_BROWSER_ID), content: '', dirty: false })
     if (useTodoSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
+  }
+
+  // Mirrors openTodo() above — same fixed-tab-id, empty-URL-falls-back-to-
+  // settings, closeSidePanelOnOpen behavior.
+  function openJira() {
+    const url = useJiraSettingsStore.getState().externalUrl
+    if (!url) {
+      useEditorStore.getState().openTab({ path: JIRA_SETTINGS_TAB_PATH, content: '', dirty: false })
+      return
+    }
+    useBrowserStore.getState().ensureTab(JIRA_BROWSER_ID, url)
+    useEditorStore.getState().openTab({ path: buildBrowserPath(JIRA_BROWSER_ID), content: '', dirty: false })
+    if (useJiraSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
   function saveSidebarSize(size: number) {
@@ -545,14 +564,21 @@ export default function App() {
               active: leftPanel === 'graphify',
               onClick: () => setLeftPanel((p) => (p === 'graphify' ? null : 'graphify')),
             },
-          ], ...(todoEnabled ? [[
-            {
+          ], ...(todoEnabled || jiraReady ? [[
+            ...(todoEnabled ? [{
               id: 'todos',
               icon: <TodoIcon />,
               title: 'To Do',
               active: activeTabPath === buildBrowserPath(TODO_BROWSER_ID),
               onClick: openTodo,
-            },
+            }] : []),
+            ...(jiraReady ? [{
+              id: 'jira',
+              icon: <JiraIcon />,
+              title: 'Jira',
+              active: activeTabPath === buildBrowserPath(JIRA_BROWSER_ID),
+              onClick: openJira,
+            }] : []),
           ]] : [])]}
           bottomGroups={[[
             {

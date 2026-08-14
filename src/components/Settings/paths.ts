@@ -15,6 +15,7 @@ export const BROWSER_SETTINGS_TAB_PATH = 'settings://Browser'
 export const MODELS_SETTINGS_TAB_PATH = 'settings://Models'
 export const GRAPHIFY_SETTINGS_TAB_PATH = 'settings://Graphify'
 export const TODO_SETTINGS_TAB_PATH = 'settings://To Do'
+export const JIRA_SETTINGS_TAB_PATH = 'settings://Jira'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {
