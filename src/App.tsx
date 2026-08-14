@@ -73,6 +73,7 @@ function assistantIcon(kind: AssistantKind) {
 
 const TODO_BROWSER_ID = 'todo-external'
 const GIT_POLL_INTERVAL_MS = 3000
+const MEMORY_POLL_INTERVAL_MS = 3000
 
 const SIDEBAR_SIZE_KEY = 'huginn:layout:sidebarSize'
 const SIDEBAR_DEFAULT_SIZE = 26
@@ -107,6 +108,7 @@ export default function App() {
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
+  const [memoryUsage, setMemoryUsage] = useState<{ usedBytes: number; totalBytes: number } | null>(null)
   const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
   const searchOpen = useSearchStore((s) => s.searchOpen)
   const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
@@ -295,6 +297,16 @@ export default function App() {
   }, [projectRoot])
 
   useEffect(() => {
+    const poll = () => {
+      if (document.visibilityState !== 'visible') return
+      window.api.getSystemMemoryUsage().then(setMemoryUsage).catch(() => {})
+    }
+    poll()
+    const interval = setInterval(poll, MEMORY_POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
     // Refresh from the remote once whenever a repo is opened, so ahead/
     // behind and remote branches reflect reality from the start rather than
     // whatever was last fetched (possibly in a previous session).
@@ -448,10 +460,11 @@ export default function App() {
           <span className="text-sm font-medium text-fg-muted">{repoName}</span>
         )}
         <div
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
+          {memoryUsage && <MemoryPill usage={memoryUsage} />}
           <button
             type="button"
             onClick={() => setAssistantMenuOpen((open) => !open)}
@@ -716,6 +729,38 @@ export default function App() {
       )}
       <UpdateChangelogModal />
     </div>
+  )
+}
+
+function formatGb(bytes: number): string {
+  return (bytes / 1024 ** 3).toFixed(1)
+}
+
+function MemoryPill({ usage }: { usage: { usedBytes: number; totalBytes: number } }) {
+  return (
+    <span
+      className="flex items-center gap-1 text-xs font-medium text-fg-muted tabular-nums"
+      title="System memory used / total"
+    >
+      <RamIcon />
+      {formatGb(usage.usedBytes)}/{formatGb(usage.totalBytes)} GB
+    </span>
+  )
+}
+
+function RamIcon() {
+  return (
+    <svg
+      className="shrink-0"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="3" y="7" width="18" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 7V4.5M11 7V4.5M13 7V4.5M17 7V4.5M7 17V19.5M11 17V19.5M13 17V19.5M17 17V19.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   )
 }
 

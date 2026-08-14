@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   searchText: (root: string, query: string, caseSensitive: boolean) =>
     ipcRenderer.invoke('fs:searchText', root, query, caseSensitive),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  getSystemMemoryUsage: () => ipcRenderer.invoke('system:getMemoryUsage'),
   fsWatchRoot: (cwd: string | null) => ipcRenderer.send('fs:watchRoot', cwd),
   onFsChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)

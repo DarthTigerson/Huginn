@@ -21,6 +21,7 @@ import { registerSessionHandlers } from './session'
 import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRecentProjects } from './recentProjects'
 import { UpdateChecker } from './updateChecker'
 import { getChangelogForVersion } from './changelog'
+import { getSystemMemoryUsage } from './systemMemory'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -49,6 +50,10 @@ function registerFsHandlers(): void {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled ? null : result.filePaths[0]
   })
+}
+
+function registerSystemHandlers(): void {
+  ipcMain.handle('system:getMemoryUsage', () => getSystemMemoryUsage())
 }
 
 function registerDevtoolsHandlers(): void {
@@ -526,6 +531,7 @@ app.whenReady().then(() => {
   registerSessionHandlers()
   registerRecentProjectsHandlers()
   registerWindowHandlers()
+  registerSystemHandlers()
 
   ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()
