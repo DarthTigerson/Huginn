@@ -73,6 +73,39 @@ function QRImage({ svg }: { svg: string }) {
   )
 }
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label={label}
+      className="text-accent hover:opacity-80 transition-opacity"
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
+function formatConnectedAt(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 export function MobileDisplayPanel() {
   const state = useMobileStore((s) => s.state)
   const [toggling, setToggling] = useState(false)
@@ -140,15 +173,36 @@ export function MobileDisplayPanel() {
           </p>
         )}
 
+        {state.running && state.interfaces.length > 1 && (
+          <label className="flex flex-col gap-1 text-[0.6875rem] text-fg-muted">
+            <span className="font-medium uppercase tracking-wider">Pairing network</span>
+            <select
+              aria-label="Pairing network"
+              value={state.localIp}
+              onChange={(e) => window.api.mobileSelectInterface(e.target.value)}
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-fg font-mono"
+            >
+              {state.interfaces.map((iface) => (
+                <option key={iface.address} value={iface.address}>
+                  {iface.name} — {iface.address}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {state.running && state.allowingNewDevice && (
           <>
             {/* QR Code */}
             {state.qrSvg && <QRImage svg={state.qrSvg} />}
 
             {/* URL */}
-            <p className="text-[0.6875rem] text-fg-muted text-center font-mono">
-              http://{state.localIp}:{state.port}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-[0.6875rem] text-fg-muted font-mono">
+                http://{state.localIp}:{state.port}
+              </p>
+              <CopyButton text={`http://${state.localIp}:${state.port}`} label="Copy pairing URL" />
+            </div>
 
             {/* Divider */}
             <div className="h-px bg-border" />
@@ -159,7 +213,12 @@ export function MobileDisplayPanel() {
                 <span className="text-xs font-medium text-fg-muted uppercase tracking-wider">PIN</span>
                 <CountdownRing key={state.pin} onExpire={stableOnExpire.current} />
               </div>
-              {state.pin && <PinDisplay pin={state.pin} />}
+              {state.pin && (
+                <div className="flex items-center justify-center gap-2">
+                  <PinDisplay pin={state.pin} />
+                  <CopyButton text={state.pin} label="Copy PIN" />
+                </div>
+              )}
               <p className="text-[0.6875rem] text-fg-muted text-center leading-relaxed">
                 Scan the QR code on your phone,<br />then enter this PIN to connect.
               </p>
@@ -177,6 +236,32 @@ export function MobileDisplayPanel() {
               </span>
             </div>
 
+            {/* Device list */}
+            {state.devices.length > 0 && (
+              <ul className="flex flex-col gap-1.5">
+                {state.devices.map((device) => (
+                  <li
+                    key={device.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-border"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-fg">{device.label}</span>
+                      <span className="text-[0.625rem] text-fg-muted">
+                        Connected {formatConnectedAt(device.connectedAt)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => window.api.mobileDisconnectDevice(device.id)}
+                      aria-label={`Disconnect ${device.label}`}
+                      className="text-fg-muted hover:text-fg text-xs px-1.5"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {/* Add another device */}
             <button
               onClick={() => window.api.mobileAddDevice()}
@@ -184,6 +269,16 @@ export function MobileDisplayPanel() {
             >
               Connect another device
             </button>
+
+            {/* Disconnect all */}
+            {state.devices.length > 0 && (
+              <button
+                onClick={() => window.api.mobileDisconnectAll()}
+                className="w-full py-2 text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+              >
+                Disconnect all
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -19,6 +19,19 @@ vi.mock('electron', () => ({
   },
 }))
 
+// Ensure at least two non-internal IPv4 candidates regardless of the host's real network config,
+// so interface-selection tests are deterministic in CI/sandboxes with only one live interface.
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>()
+  return {
+    ...actual,
+    networkInterfaces: () => ({
+      en0: [{ address: '192.168.1.50', netmask: '255.255.255.0', family: 'IPv4', internal: false, mac: '00:00:00:00:00:00', cidr: '192.168.1.50/24' }],
+      en5: [{ address: '10.0.0.20', netmask: '255.255.255.0', family: 'IPv4', internal: false, mac: '00:00:00:00:00:00', cidr: '10.0.0.20/24' }],
+    }),
+  }
+})
+
 import { MobileServer } from '../mobile'
 import { UsageManager } from '../usageManager'
 import { join } from 'path'
@@ -77,6 +90,30 @@ function postJson(port: number, path: string, cookie: string, payload: unknown):
         let raw = ''
         res.on('data', (c) => { raw += c })
         res.on('end', () => resolve({ status: res.statusCode ?? 0, body: JSON.parse(raw) }))
+      }
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
+function authenticateWithUserAgent(port: number, pin: string, userAgent: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const body = `pin=${pin}`
+    const req = request(
+      {
+        host: '127.0.0.1', port, path: '/auth', method: 'POST', agent: false,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body),
+          'User-Agent': userAgent,
+        },
+      },
+      (res) => {
+        res.resume()
+        const cookie = res.headers['set-cookie']?.[0]?.split(';')[0]
+        if (!cookie) return reject(new Error('no session cookie'))
+        resolve(cookie)
       }
     )
     req.on('error', reject)
@@ -179,5 +216,100 @@ describe('MobileServer display sync', () => {
     const res = await postJson(server['port'], '/api/usage/interval', cookie, { ms: 12_345 })
     expect(res.status).toBe(400)
     expect(res.body.ok).toBe(false)
+  })
+})
+
+describe('MobileServer network interfaces', () => {
+  let server: MobileServer
+
+  afterEach(() => {
+    server?.stop()
+  })
+
+  it('populates state.interfaces with at least one candidate and defaults localIp to one of them', async () => {
+    server = newServer()
+    await server.start()
+    expect(server['state'].interfaces.length).toBeGreaterThan(0)
+    expect(server['state'].interfaces.map((i: { address: string }) => i.address)).toContain(server['state'].localIp)
+  })
+
+  it('selectInterface updates localIp and regenerates the QR code', async () => {
+    server = newServer()
+    await server.start()
+    const interfaces = server['state'].interfaces as { name: string; address: string }[]
+    const other = interfaces.find((i) => i.address !== server['state'].localIp) ?? interfaces[0]
+    const prevQr = server['state'].qrSvg
+
+    await server.selectInterface(other.address)
+
+    expect(server['state'].localIp).toBe(other.address)
+    expect(server['state'].qrSvg).not.toBe(prevQr)
+  })
+
+  it('selectInterface ignores an address that is not in the detected list', async () => {
+    server = newServer()
+    await server.start()
+    const before = server['state'].localIp
+    await server.selectInterface('203.0.113.1')
+    expect(server['state'].localIp).toBe(before)
+  })
+})
+
+describe('MobileServer device tracking', () => {
+  let server: MobileServer
+
+  afterEach(() => {
+    server?.stop()
+  })
+
+  it('records a connecting device with a coarse label parsed from User-Agent', async () => {
+    server = newServer()
+    await server.start()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit')
+
+    expect(server['state'].devices).toHaveLength(1)
+    expect(server['state'].devices[0].label).toBe('iPhone')
+    expect(typeof server['state'].devices[0].connectedAt).toBe('number')
+    expect(typeof server['state'].devices[0].id).toBe('string')
+  })
+
+  it('disconnectDevice removes just that device and reopens pairing once none remain', async () => {
+    server = newServer()
+    await server.start()
+    const cookie1 = await authenticateWithUserAgent(server['port'], server['pin'], 'iPhone')
+    await server.addDevice()
+    const cookie2 = await authenticateWithUserAgent(server['port'], server['pin'], 'iPad')
+    expect(server['state'].devices).toHaveLength(2)
+
+    const [first, second] = server['state'].devices as { id: string }[]
+    server.disconnectDevice(first.id)
+    expect(server['state'].devices).toHaveLength(1)
+    expect(server['state'].allowingNewDevice).toBe(false)
+
+    // the surviving session should still work
+    const state1 = await fetchJson(server['port'], '/api/state', cookie2)
+    expect(state1.connectedCount).toBe(1)
+    void cookie1
+
+    server.disconnectDevice(second.id)
+    expect(server['state'].devices).toHaveLength(0)
+    expect(server['state'].allowingNewDevice).toBe(true)
+    expect(server['state'].pin).not.toBe('')
+  })
+
+  it('disconnectAll clears every session and reopens pairing', async () => {
+    server = newServer()
+    await server.start()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'iPhone')
+    await server.addDevice()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'iPad')
+    expect(server['state'].devices).toHaveLength(2)
+
+    server.disconnectAll()
+
+    expect(server['state'].devices).toHaveLength(0)
+    expect(server['state'].connectedCount).toBe(0)
+    expect(server['state'].allowingNewDevice).toBe(true)
+    expect(server['state'].pin).not.toBe('')
   })
 })

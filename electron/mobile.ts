@@ -7,6 +7,17 @@ import { join } from 'path'
 import QRCode from 'qrcode'
 import { UsageManager } from './usageManager'
 
+export interface MobileNetworkInterface {
+  name: string
+  address: string
+}
+
+export interface MobileDevice {
+  id: string
+  label: string
+  connectedAt: number
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -15,26 +26,42 @@ export interface MobileState {
   qrSvg: string
   connectedCount: number
   allowingNewDevice: boolean
+  interfaces: MobileNetworkInterface[]
+  devices: MobileDevice[]
 }
 
-function getLocalIp(): string {
+function getNetworkInterfaceCandidates(): MobileNetworkInterface[] {
   const nets = networkInterfaces()
-  const candidates: string[] = []
-  for (const ifaces of Object.values(nets)) {
+  const candidates: MobileNetworkInterface[] = []
+  for (const [name, ifaces] of Object.entries(nets)) {
     for (const iface of ifaces ?? []) {
       if (iface.family !== 'IPv4' || iface.internal) continue
       if (iface.address.startsWith('169.254.')) continue // skip link-local
-      candidates.push(iface.address)
+      candidates.push({ name, address: iface.address })
     }
   }
+  return candidates
+}
+
+function getLocalIp(candidates: MobileNetworkInterface[]): string {
+  const addresses = candidates.map((c) => c.address)
   // prefer 192.168.x.x, then 10.x.x.x, then 172.x.x.x, then whatever's left
   return (
-    candidates.find((a) => a.startsWith('192.168.')) ??
-    candidates.find((a) => a.startsWith('10.')) ??
-    candidates.find((a) => a.startsWith('172.')) ??
-    candidates[0] ??
+    addresses.find((a) => a.startsWith('192.168.')) ??
+    addresses.find((a) => a.startsWith('10.')) ??
+    addresses.find((a) => a.startsWith('172.')) ??
+    addresses[0] ??
     '127.0.0.1'
   )
+}
+
+function labelForUserAgent(userAgent: string | undefined): string {
+  const ua = userAgent ?? ''
+  if (/iPhone/.test(ua)) return 'iPhone'
+  if (/iPad/.test(ua)) return 'iPad'
+  if (/Android/.test(ua)) return 'Android'
+  if (/Macintosh/.test(ua)) return 'Mac'
+  return 'Device'
 }
 
 export function generatePin(): string {
@@ -86,7 +113,8 @@ export class MobileServer {
   private port = BASE_PORT
   private pin = ''
   private prevPin = ''
-  private sessions = new Set<string>()
+  private sessions = new Map<string, { connectedAt: number; label: string }>()
+  private interfaces: MobileNetworkInterface[] = []
   private rotateInterval: ReturnType<typeof setInterval> | null = null
   private currentTheme = 'claude-dark'
   private currentFont = 'Menlo, monospace'
@@ -98,6 +126,8 @@ export class MobileServer {
     qrSvg: '',
     connectedCount: 0,
     allowingNewDevice: true,
+    interfaces: [],
+    devices: [],
   }
 
   constructor(win: BrowserWindow, private readonly usageManager: UsageManager) {
@@ -122,6 +152,24 @@ export class MobileServer {
   private isAuthenticated(req: IncomingMessage): boolean {
     const cookies = parseCookies(req.headers.cookie)
     return this.sessions.has(cookies['session'] ?? '')
+  }
+
+  private syncDevicesFromSessions(): void {
+    this.state.devices = [...this.sessions.entries()].map(([id, info]) => ({
+      id,
+      label: info.label,
+      connectedAt: info.connectedAt,
+    }))
+    this.state.connectedCount = this.sessions.size
+  }
+
+  private openPairingWindow(): void {
+    this.prevPin = ''
+    this.pin = generatePin()
+    this.state.pin = this.pin
+    this.state.allowingNewDevice = true
+    if (this.rotateInterval) clearInterval(this.rotateInterval)
+    this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
   }
 
   setDisplay(theme: string, font: string): void {
@@ -161,10 +209,10 @@ export class MobileServer {
         const candidate = params.get('pin') ?? ''
         if (this.isValidPin(candidate)) {
           const token = randomUUID()
-          this.sessions.add(token)
+          this.sessions.set(token, { connectedAt: Date.now(), label: labelForUserAgent(req.headers['user-agent']) })
           // stop rotation — pairing is done until user explicitly requests another device
           if (this.rotateInterval) { clearInterval(this.rotateInterval); this.rotateInterval = null }
-          this.state.connectedCount = this.sessions.size
+          this.syncDevicesFromSessions()
           this.state.allowingNewDevice = false
           this.state.pin = ''
           setImmediate(() => this.pushState())
@@ -266,9 +314,9 @@ export class MobileServer {
 
     this.pin = generatePin()
     this.prevPin = ''
-    const localIp = getLocalIp()
-    const url = `http://${localIp}:${this.port}`
-    const qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1 })
+    this.interfaces = getNetworkInterfaceCandidates()
+    const localIp = getLocalIp(this.interfaces)
+    const qrSvg = await this.buildQrForAddress(localIp)
 
     this.server = createServer((req, res) => this.handleRequest(req, res))
     await new Promise<void>((resolve) => {
@@ -278,7 +326,30 @@ export class MobileServer {
     this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
     this.usageManager.acquire('mobile')
 
-    this.state = { running: true, port: this.port, localIp, pin: this.pin, qrSvg, connectedCount: 0, allowingNewDevice: true }
+    this.state = {
+      running: true,
+      port: this.port,
+      localIp,
+      pin: this.pin,
+      qrSvg,
+      connectedCount: 0,
+      allowingNewDevice: true,
+      interfaces: this.interfaces,
+      devices: [],
+    }
+    this.pushState()
+  }
+
+  private async buildQrForAddress(address: string): Promise<string> {
+    const url = `http://${address}:${this.port}`
+    return QRCode.toString(url, { type: 'svg', margin: 1 })
+  }
+
+  async selectInterface(address: string): Promise<void> {
+    if (!this.server) return
+    if (!this.interfaces.some((i) => i.address === address)) return
+    this.state.localIp = address
+    this.state.qrSvg = await this.buildQrForAddress(address)
     this.pushState()
   }
 
@@ -288,18 +359,38 @@ export class MobileServer {
     this.server?.close()
     this.server = null
     this.sessions.clear()
-    this.state = { running: false, port: this.port, localIp: this.state.localIp, pin: '', qrSvg: '', connectedCount: 0, allowingNewDevice: true }
+    this.state = {
+      running: false,
+      port: this.port,
+      localIp: this.state.localIp,
+      pin: '',
+      qrSvg: '',
+      connectedCount: 0,
+      allowingNewDevice: true,
+      interfaces: this.state.interfaces,
+      devices: [],
+    }
     this.pushState()
   }
 
   async addDevice(): Promise<void> {
     if (!this.server) return
-    this.prevPin = ''
-    this.pin = generatePin()
-    this.state.pin = this.pin
-    this.state.allowingNewDevice = true
-    if (this.rotateInterval) clearInterval(this.rotateInterval)
-    this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
+    this.openPairingWindow()
+    this.pushState()
+  }
+
+  disconnectDevice(id: string): void {
+    if (!this.sessions.delete(id)) return
+    this.syncDevicesFromSessions()
+    if (this.sessions.size === 0) this.openPairingWindow()
+    this.pushState()
+  }
+
+  disconnectAll(): void {
+    if (this.sessions.size === 0) return
+    this.sessions.clear()
+    this.syncDevicesFromSessions()
+    this.openPairingWindow()
     this.pushState()
   }
 
@@ -310,6 +401,9 @@ export class MobileServer {
     ipcMain.handle('mobile:stop', () => this.stop())
     ipcMain.handle('mobile:getState', () => this.state)
     ipcMain.handle('mobile:addDevice', () => this.addDevice())
+    ipcMain.handle('mobile:selectInterface', (_evt, address: string) => this.selectInterface(address))
+    ipcMain.handle('mobile:disconnectDevice', (_evt, id: string) => this.disconnectDevice(id))
+    ipcMain.handle('mobile:disconnectAll', () => this.disconnectAll())
     ipcMain.on('mobile:setDisplay', (_evt, theme: string, font: string) => this.setDisplay(theme, font))
   }
 
