@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ITheme } from '@xterm/xterm'
+import { hexWithAlpha } from '@/lib/color'
 
 export type ThemeId =
   | 'claude-dark' | 'claude-light'
@@ -265,4 +266,16 @@ export const XTERM_THEMES: Record<ThemeId, ITheme> = {
     brightCyan:          '#7cd0dc',
     brightWhite:         '#ffffff',
   },
+}
+
+// "glass" panel style needs the terminal surface itself to be see-through,
+// not just its wrapper div — xterm paints its own opaque background from
+// ITheme.background, independent of the --color-bg CSS custom property the
+// rest of the UI uses. Matches --color-bg's glass alpha in index.css so the
+// terminal blends with the same transparency as its own wrapper panel.
+const XTERM_GLASS_ALPHA = 0.2
+
+export function glassXtermTheme(theme: ThemeId): ITheme {
+  const base = XTERM_THEMES[theme]
+  return { ...base, background: hexWithAlpha(base.background!, XTERM_GLASS_ALPHA) }
 }

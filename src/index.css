@@ -225,10 +225,50 @@ body {
   --color-tab-bar: rgba(24,  24,  24,  0.65);
 }
 
+/* Glass panel opacity. Unlike glossy, this deliberately only touches
+   --color-bg and --color-panel (the editor and every terminal panel's own
+   background) — --color-sidebar/--color-tab-bar are left undeclared here
+   so they keep falling back to the base theme's normal solid value. The
+   header, footer, activity bar, primary sidebar, and tab strip (all
+   bg-sidebar/bg-tab-bar) read better solid; the editor and Claude/Codex/
+   Cosmos terminal panels (bg-panel/bg-bg) are where the app-wide
+   background badge (see .app-bg-badge) is actually meant to show through. */
+[data-theme="claude-dark"][data-panel-style="glass"] {
+  --color-bg:    rgba(26, 26, 26, 0.2);
+  --color-panel: rgba(30, 30, 30, 0.25);
+}
+[data-theme="claude-light"][data-panel-style="glass"] {
+  --color-bg:    rgba(243, 243, 243, 0.25);
+  --color-panel: rgba(255, 255, 255, 0.3);
+}
+[data-theme="codex-dark"][data-panel-style="glass"] {
+  --color-bg:    rgba(26, 26, 26, 0.2);
+  --color-panel: rgba(32, 32, 32, 0.25);
+}
+[data-theme="codex-light"][data-panel-style="glass"] {
+  --color-bg:    rgba(250, 250, 250, 0.25);
+  --color-panel: rgba(255, 255, 255, 0.3);
+}
+[data-theme="thomas-dark"][data-panel-style="glass"] {
+  --color-bg:    rgba(28, 23, 18, 0.2);
+  --color-panel: rgba(34, 28, 21, 0.25);
+}
+[data-theme="thomas-light"][data-panel-style="glass"] {
+  --color-bg:    rgba(247, 241, 224, 0.25);
+  --color-panel: rgba(255, 252, 242, 0.3);
+}
+[data-theme="luuk-dark"][data-panel-style="glass"],
+[data-theme="luuk-light"][data-panel-style="glass"] {
+  --color-bg:    rgba(13, 13, 13, 0.2);
+  --color-panel: rgba(20, 20, 20, 0.25);
+}
+
 [data-panel-style="glossy"] .bg-bg,
 [data-panel-style="glossy"] .bg-panel,
 [data-panel-style="glossy"] .bg-sidebar,
-[data-panel-style="glossy"] .bg-tab-bar {
+[data-panel-style="glossy"] .bg-tab-bar,
+[data-panel-style="glass"] .bg-bg,
+[data-panel-style="glass"] .bg-panel {
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
 }
@@ -265,4 +305,79 @@ body {
 }
 .autocomplete-busy-arc {
   animation: autocomplete-spin 0.6s linear infinite;
+}
+
+/* Decorative badge in the empty editor panel ("open a file to start
+   editing"). The source PNG has real alpha (pre-cropped to the badge's
+   corner with a transparent surround), so it just composites normally —
+   no blend-mode trick needed. Height is pinned to 100% of the pane and it's
+   anchored to the right edge. background-attachment: fixed makes that
+   right-edge anchor resolve against the app window instead of this pane's
+   own (shrinking) box — otherwise, opening the Claude side panel narrows
+   the pane and its right edge moves left with it, dragging the badge along
+   and making it look like it's sliding rather than staying put. With fixed
+   attachment the badge stays pinned to the same spot on screen and the
+   Claude panel just progressively covers it, like wallpaper behind a
+   shrinking window. */
+.empty-editor-bg {
+  background-image: url('./assets/emptyEditorBackground.png');
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: auto 100%;
+  background-attachment: fixed;
+  opacity: 0.2;
+}
+
+/* App-wide counterpart of .empty-editor-bg, rendered once behind the whole
+   window (see App.tsx). It's the same badge at the same screen position,
+   but since this element IS the window, no background-attachment: fixed
+   trick is needed — background-position/size already resolve against the
+   full viewport. position: absolute (not fixed) + negative z-index, so it
+   paints above the app root's own background but below every normal panel
+   — fixed would escape the app root's stacking context entirely (fixed
+   positioning ignores position:relative ancestors, only transform/filter/
+   etc. capture it), landing it in the wrong paint layer regardless of
+   z-index. The app root needs `relative isolate` (see App.tsx) for the
+   negative z-index to be scoped locally instead of leaking to the
+   document's own stacking context. Invisible under matt/glossy since every
+   panel painted on top of it (sidebar, tab bar, terminal) is opaque or
+   near-opaque; only "glass" panel style (see the
+   [data-panel-style="glass"] rules above) makes the editor/terminal panels
+   translucent enough for it to actually read through. */
+.app-bg-badge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: url('./assets/emptyEditorBackground.png');
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: auto 100%;
+  opacity: 0.2;
+}
+
+/* Konami code easter egg (see useKonamiCode.ts / EasterEgg.tsx) — the Going
+   Merry sails across the window, riding just above the status bar (24px =
+   the bar's own h-6). position: fixed here is intentionally relative to the
+   real viewport, not scoped by the app root's `isolate` (isolation doesn't
+   affect the fixed containing block) — it should sail across the whole
+   window, unclipped by any pane. transform (not left/right) for a smooth
+   GPU-composited slide over the full 8s. */
+@keyframes ee-sail-across {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-100vw - 360px)); }
+}
+.easter-egg-ship {
+  position: fixed;
+  bottom: 24px;
+  right: -180px;
+  width: 160px;
+  aspect-ratio: 1448 / 1086;
+  background-image: url('./assets/goingMerry.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 200;
+  pointer-events: none;
+  animation: ee-sail-across 8s linear forwards;
 }

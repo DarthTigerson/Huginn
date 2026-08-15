@@ -4,6 +4,7 @@ const FONT_KEY = 'huginn:font'
 const PANEL_STYLE_KEY = 'huginn:panelStyle'
 const FOOTER_CONTENT_KEY = 'huginn:footerContent'
 const MEMORY_USAGE_VISIBLE_KEY = 'huginn:memoryUsageVisible'
+const BACKGROUND_IMAGE_VISIBLE_KEY = 'huginn:backgroundImageVisible'
 
 // Presets are limited to monospace fonts that ship preinstalled with a
 // major OS (macOS: Menlo/Monaco, Windows: Consolas, both: Courier New).
@@ -18,7 +19,7 @@ export const FONT_PRESETS = [
   { label: 'Courier New', value: 'Courier New, monospace' },
 ] as const
 
-export type PanelStyle = 'matt' | 'glossy'
+export type PanelStyle = 'matt' | 'glossy' | 'glass'
 
 // More may be added later (e.g. a combined view) - kept as its own union
 // rather than a boolean so the settings dropdown and FooterMessage's switch
@@ -32,10 +33,12 @@ interface DisplayStore {
   panelStyle: PanelStyle
   footerContent: FooterContent
   memoryUsageVisible: boolean
+  backgroundImageVisible: boolean
   setFont: (font: string) => void
   setPanelStyle: (style: PanelStyle) => void
   setFooterContent: (content: FooterContent) => void
   setMemoryUsageVisible: (visible: boolean) => void
+  setBackgroundImageVisible: (visible: boolean) => void
 }
 
 function applyFont(font: string) {
@@ -55,6 +58,7 @@ const storedFooterContent = localStorage.getItem(FOOTER_CONTENT_KEY)
 const initialFooterContent: FooterContent = storedFooterContent === 'clock' ? 'clock' : 'hints'
 const storedMemoryUsageVisible = localStorage.getItem(MEMORY_USAGE_VISIBLE_KEY)
 const initialMemoryUsageVisible = storedMemoryUsageVisible === null ? true : storedMemoryUsageVisible === 'true'
+const initialBackgroundImageVisible = localStorage.getItem(BACKGROUND_IMAGE_VISIBLE_KEY) === 'true'
 applyFont(initialFont)
 applyPanelStyle(initialPanelStyle)
 
@@ -63,6 +67,7 @@ export const useDisplayStore = create<DisplayStore>((set) => ({
   panelStyle: initialPanelStyle,
   footerContent: initialFooterContent,
   memoryUsageVisible: initialMemoryUsageVisible,
+  backgroundImageVisible: initialBackgroundImageVisible,
   setFont: (font) => {
     applyFont(font)
     set({ font })
@@ -78,5 +83,9 @@ export const useDisplayStore = create<DisplayStore>((set) => ({
   setMemoryUsageVisible: (visible) => {
     localStorage.setItem(MEMORY_USAGE_VISIBLE_KEY, String(visible))
     set({ memoryUsageVisible: visible })
+  },
+  setBackgroundImageVisible: (visible) => {
+    localStorage.setItem(BACKGROUND_IMAGE_VISIBLE_KEY, String(visible))
+    set({ backgroundImageVisible: visible })
   },
 }))

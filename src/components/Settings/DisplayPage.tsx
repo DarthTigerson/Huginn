@@ -5,6 +5,7 @@ import { Toggle } from '@/components/ui/Toggle'
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
   { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
   { value: 'glossy', label: 'Glossy', description: 'Frosted glass' },
+  { value: 'glass',  label: 'Glass',  description: 'See-through, reveals the background image' },
 ]
 
 // More may be added later — see FooterContent's own comment in displayStore.
@@ -33,8 +34,8 @@ const THEME_OPTIONS: ThemeOption[] = [
 
 export function DisplayPage() {
   const {
-    font, panelStyle, footerContent, memoryUsageVisible,
-    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible,
+    font, panelStyle, footerContent, memoryUsageVisible, backgroundImageVisible,
+    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible,
   } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
 
@@ -101,9 +102,10 @@ export function DisplayPage() {
           </div>
         </section>
 
-        {/* Panel Style + Typography — grouped as one flex item so Typography
-            always stacks directly under Panel Style as a second column,
-            rather than wrapping independently based on available width. */}
+        {/* Panel Style + General — grouped as one flex item so General always
+            stacks directly under Panel Style, using the vertical space that
+            column has left over next to the taller Theme card, rather than
+            wrapping independently onto its own row. */}
         <div className="flex-1 min-w-[240px] flex flex-col gap-6">
           <section className="rounded-xl border border-border/60 p-4">
             <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Panel Style</h2>
@@ -124,11 +126,20 @@ export function DisplayPage() {
                         colors, glossy is the same theme colors made translucent with
                         blur (see [data-panel-style="glossy"] in index.css), no color shift */}
                     <div className="h-14 relative overflow-hidden bg-bg">
+                      {opt.value === 'glass' && (
+                        <div className="absolute right-1 bottom-0 w-6 h-6 rounded-full bg-accent/70 blur-[3px]" />
+                      )}
                       {opt.value === 'glossy' ? (
                         <>
                           <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/50 backdrop-blur-sm" />
                           <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/60 backdrop-blur-sm border-b border-border/40" />
                           <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/50 backdrop-blur-sm" />
+                        </>
+                      ) : opt.value === 'glass' ? (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/20 backdrop-blur-sm" />
+                          <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/25 backdrop-blur-sm border-b border-border/30" />
+                          <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/20 backdrop-blur-sm" />
                         </>
                       ) : (
                         <>
@@ -152,8 +163,27 @@ export function DisplayPage() {
           </section>
 
           <section className="rounded-xl border border-border/60 p-4">
-            <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Typography</h2>
+            <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">General</h2>
             <div className="flex flex-wrap items-start gap-6">
+              <div className="flex-1 min-w-[220px]">
+                <label htmlFor="footer-content-select" className="text-xs text-fg-muted mb-1.5 block">Footer Content</label>
+                <div className="relative">
+                  <select
+                    id="footer-content-select"
+                    value={footerContent}
+                    onChange={handleFooterContentChange}
+                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
+                  >
+                    {FOOTER_CONTENT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                    ▾
+                  </span>
+                </div>
+              </div>
+
               <div className="flex-1 min-w-[220px]">
                 <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
                 <div className="relative">
@@ -174,42 +204,23 @@ export function DisplayPage() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-4 flex flex-col gap-4">
+              <Toggle
+                label="Show background image"
+                description="Decorative badge in the corner of the empty editor pane, and (with Glass panel style) behind the editor and terminal panels."
+                checked={backgroundImageVisible}
+                onChange={setBackgroundImageVisible}
+              />
+              <Toggle
+                label="Show memory usage"
+                description="Show the RAM used/total indicator next to the model dropdown in the title bar."
+                checked={memoryUsageVisible}
+                onChange={setMemoryUsageVisible}
+              />
+            </div>
           </section>
         </div>
-
-        {/* Footer & Indicators */}
-        <section className="w-full rounded-xl border border-border/60 p-4">
-          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">Footer & Indicators</h2>
-          <div className="flex flex-wrap items-start gap-6">
-            <div className="flex-1 min-w-[220px]">
-              <label htmlFor="footer-content-select" className="text-xs text-fg-muted mb-1.5 block">Footer Content</label>
-              <div className="relative">
-                <select
-                  id="footer-content-select"
-                  value={footerContent}
-                  onChange={handleFooterContentChange}
-                  className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-                >
-                  {FOOTER_CONTENT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                  ▾
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border/40">
-            <Toggle
-              label="Show memory usage"
-              description="Show the RAM used/total indicator next to the model dropdown in the title bar."
-              checked={memoryUsageVisible}
-              onChange={setMemoryUsageVisible}
-            />
-          </div>
-        </section>
       </div>
     </div>
   )
