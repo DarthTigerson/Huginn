@@ -139,6 +139,7 @@ export default function App() {
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
   const memoryUsageVisible = useDisplayStore((s) => s.memoryUsageVisible)
+  const backgroundImageVisible = useDisplayStore((s) => s.backgroundImageVisible)
   const periodicFetchEnabled = useGitSettingsStore((s) => s.periodicFetchEnabled)
   const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
@@ -558,7 +559,7 @@ export default function App() {
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col relative isolate">
-      <div className="app-bg-badge" aria-hidden="true" />
+      {backgroundImageVisible && <div className="app-bg-badge" aria-hidden="true" />}
       <div
         className="relative z-50 h-8 shrink-0 flex items-center justify-center bg-tab-bar border-b border-border"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
