@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import type { GitCommandAction, GitCheckoutPayload } from '../src/types/index'
-import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote } from './git'
+import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getFileAtHead, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote } from './git'
 
 const ARGS: Record<Exclude<GitCommandAction, 'checkout'>, string[]> = {
   fetch:           ['fetch'],
@@ -63,6 +63,7 @@ export class GitRunner {
     ipcMain.handle('git:discardAll', (_e, cwd: string) => discardAllChanges(cwd))
     ipcMain.handle('git:commit', (_e, cwd: string, message: string) => commit(cwd, message))
     ipcMain.handle('git:diff', (_e, cwd: string, path: string, staged: boolean) => getDiffContent(cwd, path, staged))
+    ipcMain.handle('git:fileAtHead', (_e, cwd: string, path: string) => getFileAtHead(cwd, path))
     ipcMain.handle('git:commitDiff', (_e, cwd: string, hash: string, path: string) => getCommitDiffContent(cwd, hash, path))
     ipcMain.handle('git:graph', (_e, cwd: string) => getGitGraph(cwd))
     ipcMain.handle('git:branches', (_e, cwd: string) => getGitBranches(cwd))

@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
+  gitFileAtHead: (cwd: string, path: string) => ipcRenderer.invoke('git:fileAtHead', cwd, path),
   gitCommitDiff: (cwd: string, hash: string, path: string) =>
     ipcRenderer.invoke('git:commitDiff', cwd, hash, path),
   gitRunCommand: (id: string, cwd: string, action: string, payload?: unknown) =>

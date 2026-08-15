@@ -258,7 +258,11 @@ export async function commit(
 
 async function showRef(cwd: string, ref: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('git', ['show', ref], { cwd })
+    // Node's execFile default maxBuffer is 1MB - past that it throws and the
+    // catch below silently returns '', which callers (e.g. computeLineChanges
+    // for the gutter indicators) treat as "file didn't exist at HEAD",
+    // misleadingly marking every line of an unmodified large file as added.
+    const { stdout } = await execFileAsync('git', ['show', ref], { cwd, maxBuffer: 10 * 1024 * 1024 })
     return stdout
   } catch {
     return ''
@@ -347,6 +351,14 @@ export async function getGitShowStat(cwd: string, hash: string): Promise<string[
   } catch {
     return []
   }
+}
+
+// Backs the editor's gutter change indicators — the file's content as of
+// HEAD, to diff against the live buffer client-side. Resolves to '' (via
+// showRef's error handling) for a new/untracked file, same as everything
+// else built on showRef, so the whole file counts as added.
+export async function getFileAtHead(cwd: string, path: string): Promise<string> {
+  return showRef(cwd, `HEAD:${path}`)
 }
 
 export async function getDiffContent(

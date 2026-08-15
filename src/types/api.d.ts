@@ -110,6 +110,7 @@ declare global {
       gitDiscardAll: (cwd: string) => Promise<void>
       gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
+      gitFileAtHead: (cwd: string, path: string) => Promise<string>
       gitCommitDiff: (cwd: string, hash: string, path: string) => Promise<GitDiffContent>
       gitRunCommand: (id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => Promise<void>
       onGitLogData: (cb: (id: string, data: string) => void) => () => void

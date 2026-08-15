@@ -18,6 +18,7 @@ import { registerInlineEditCommands } from '@/lib/inlineEditMonaco'
 import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
+import { computeLineChanges } from '@/lib/lineDiff'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
@@ -193,6 +194,15 @@ function EditorPane({ paneId }: { paneId: string }) {
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
   const decorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
+  // Gutter change indicators (colored line numbers for uncommitted changes).
+  // Separate from decorationsRef above, which is the ephemeral search-reveal
+  // highlight - both live on the same editor instance but must not clobber
+  // each other. gutterDecorationsRef is recreated fresh each mount (see
+  // onMount below); refreshGutterRef lets the onGitChanged listener further
+  // down trigger a recompute on the currently-mounted editor without needing
+  // to reach into onMount's own closure state.
+  const gutterDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
+  const refreshGutterRef = useRef<() => void>(() => {})
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -213,7 +223,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   // Plain file tabs only for now - diff/image/markdown-preview tabs encode
   // their real file path in a scheme (diff://, etc.) rather than using it
   // directly as activeTab.path, so they'd need separate parsing to show here.
-  const showBreadcrumb =
+  const isPlainFileTab =
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
@@ -240,7 +250,11 @@ function EditorPane({ paneId }: { paneId: string }) {
       if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
     })
     const offGit = window.api.onGitChanged((cwd) => {
-      if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
+      if (cwd === projectRoot) {
+        setDiffRefreshTick((t) => t + 1)
+        // HEAD moved (commit/checkout/stage) - the cached blob is stale.
+        refreshGutterRef.current()
+      }
     })
     return () => {
       offFs()
@@ -324,7 +338,7 @@ function EditorPane({ paneId }: { paneId: string }) {
       onMouseDown={activatePane}
     >
       <TabBar paneId={paneId} />
-      {showBreadcrumb && activeTab && <EditorBreadcrumb path={activeTab.path} projectRoot={projectRoot} />}
+      {isPlainFileTab && activeTab && <EditorBreadcrumb path={activeTab.path} projectRoot={projectRoot} />}
       <div className="relative flex-1 min-h-0 overflow-hidden">
       <PaneDropZoneOverlay paneId={paneId} />
       {activeTab ? (
@@ -512,6 +526,65 @@ function EditorPane({ paneId }: { paneId: string }) {
                   setTimeout(() => decorationsRef.current?.clear(), 3000)
                   useEditorStore.getState().clearRevealRequest()
                 }
+
+                // Gutter change indicators: diff the file's git HEAD blob
+                // against the live buffer, live as you type (debounced),
+                // not just on save - matches VS Code's behavior.
+                //
+                // headContent/debounceTimer/cancelled are local to this one
+                // mount, not the pane-level refs above (gutterDecorationsRef,
+                // refreshGutterRef) - Monaco remounts per file via its own
+                // `key`, and headContentRef/refreshGutterRef used to be reset
+                // in-place here, so a fetch or debounce timer left in flight
+                // from the PREVIOUS file could resolve after the switch and
+                // paint decorations using the new file's editor/model with
+                // the old file's HEAD content. `cancelled` (flipped by
+                // onDidDispose, which fires whenever this exact editor
+                // instance is torn down - tab switch or otherwise) closes
+                // that window, and also makes a stale refreshGutterRef
+                // harmless if the pane switches to a non-file tab, since the
+                // old closure just no-ops instead of touching a disposed
+                // editor.
+                let cancelled = false
+                let headContent: string | null = null
+                let debounceTimer: ReturnType<typeof setTimeout> | null = null
+                gutterDecorationsRef.current = editor.createDecorationsCollection([])
+
+                async function applyGutterDecorations() {
+                  if (cancelled || !projectRoot || !activeTab) return
+                  if (headContent === null) {
+                    const relPath = toRelativePath(activeTab.path, projectRoot)
+                    try {
+                      headContent = await window.api.gitFileAtHead(projectRoot, relPath)
+                    } catch {
+                      return
+                    }
+                    if (cancelled) return
+                  }
+                  const model = editor.getModel()
+                  if (!model) return
+                  const changes = computeLineChanges(headContent, model.getValue())
+                  gutterDecorationsRef.current?.set(changes.map((c) => ({
+                    range: new monaco.Range(c.startLine, 1, c.endLine, 1),
+                    options: { isWholeLine: true, lineNumberClassName: `git-gutter-${c.type}` },
+                  })))
+                }
+
+                refreshGutterRef.current = () => {
+                  headContent = null
+                  applyGutterDecorations()
+                }
+
+                editor.onDidDispose(() => {
+                  cancelled = true
+                  if (debounceTimer) clearTimeout(debounceTimer)
+                })
+
+                applyGutterDecorations()
+                editor.onDidChangeModelContent(() => {
+                  if (debounceTimer) clearTimeout(debounceTimer)
+                  debounceTimer = setTimeout(applyGutterDecorations, 300)
+                })
               }}
             />
           </div>
