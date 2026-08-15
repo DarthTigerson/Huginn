@@ -97,6 +97,30 @@ function postJson(port: number, path: string, cookie: string, payload: unknown):
   })
 }
 
+function authenticateWithUserAgent(port: number, pin: string, userAgent: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const body = `pin=${pin}`
+    const req = request(
+      {
+        host: '127.0.0.1', port, path: '/auth', method: 'POST', agent: false,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body),
+          'User-Agent': userAgent,
+        },
+      },
+      (res) => {
+        res.resume()
+        const cookie = res.headers['set-cookie']?.[0]?.split(';')[0]
+        if (!cookie) return reject(new Error('no session cookie'))
+        resolve(cookie)
+      }
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 describe('MobileServer display sync', () => {
   let server: MobileServer
 
@@ -228,5 +252,64 @@ describe('MobileServer network interfaces', () => {
     const before = server['state'].localIp
     await server.selectInterface('203.0.113.1')
     expect(server['state'].localIp).toBe(before)
+  })
+})
+
+describe('MobileServer device tracking', () => {
+  let server: MobileServer
+
+  afterEach(() => {
+    server?.stop()
+  })
+
+  it('records a connecting device with a coarse label parsed from User-Agent', async () => {
+    server = newServer()
+    await server.start()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit')
+
+    expect(server['state'].devices).toHaveLength(1)
+    expect(server['state'].devices[0].label).toBe('iPhone')
+    expect(typeof server['state'].devices[0].connectedAt).toBe('number')
+    expect(typeof server['state'].devices[0].id).toBe('string')
+  })
+
+  it('disconnectDevice removes just that device and reopens pairing once none remain', async () => {
+    server = newServer()
+    await server.start()
+    const cookie1 = await authenticateWithUserAgent(server['port'], server['pin'], 'iPhone')
+    await server.addDevice()
+    const cookie2 = await authenticateWithUserAgent(server['port'], server['pin'], 'iPad')
+    expect(server['state'].devices).toHaveLength(2)
+
+    const [first, second] = server['state'].devices as { id: string }[]
+    server.disconnectDevice(first.id)
+    expect(server['state'].devices).toHaveLength(1)
+    expect(server['state'].allowingNewDevice).toBe(false)
+
+    // the surviving session should still work
+    const state1 = await fetchJson(server['port'], '/api/state', cookie2)
+    expect(state1.connectedCount).toBe(1)
+    void cookie1
+
+    server.disconnectDevice(second.id)
+    expect(server['state'].devices).toHaveLength(0)
+    expect(server['state'].allowingNewDevice).toBe(true)
+    expect(server['state'].pin).not.toBe('')
+  })
+
+  it('disconnectAll clears every session and reopens pairing', async () => {
+    server = newServer()
+    await server.start()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'iPhone')
+    await server.addDevice()
+    await authenticateWithUserAgent(server['port'], server['pin'], 'iPad')
+    expect(server['state'].devices).toHaveLength(2)
+
+    server.disconnectAll()
+
+    expect(server['state'].devices).toHaveLength(0)
+    expect(server['state'].connectedCount).toBe(0)
+    expect(server['state'].allowingNewDevice).toBe(true)
+    expect(server['state'].pin).not.toBe('')
   })
 })

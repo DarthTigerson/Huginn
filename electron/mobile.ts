@@ -12,6 +12,12 @@ export interface MobileNetworkInterface {
   address: string
 }
 
+export interface MobileDevice {
+  id: string
+  label: string
+  connectedAt: number
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -21,6 +27,7 @@ export interface MobileState {
   connectedCount: number
   allowingNewDevice: boolean
   interfaces: MobileNetworkInterface[]
+  devices: MobileDevice[]
 }
 
 function getNetworkInterfaceCandidates(): MobileNetworkInterface[] {
@@ -46,6 +53,15 @@ function getLocalIp(candidates: MobileNetworkInterface[]): string {
     addresses[0] ??
     '127.0.0.1'
   )
+}
+
+function labelForUserAgent(userAgent: string | undefined): string {
+  const ua = userAgent ?? ''
+  if (/iPhone/.test(ua)) return 'iPhone'
+  if (/iPad/.test(ua)) return 'iPad'
+  if (/Android/.test(ua)) return 'Android'
+  if (/Macintosh/.test(ua)) return 'Mac'
+  return 'Device'
 }
 
 export function generatePin(): string {
@@ -97,7 +113,7 @@ export class MobileServer {
   private port = BASE_PORT
   private pin = ''
   private prevPin = ''
-  private sessions = new Set<string>()
+  private sessions = new Map<string, { connectedAt: number; label: string }>()
   private interfaces: MobileNetworkInterface[] = []
   private rotateInterval: ReturnType<typeof setInterval> | null = null
   private currentTheme = 'claude-dark'
@@ -111,6 +127,7 @@ export class MobileServer {
     connectedCount: 0,
     allowingNewDevice: true,
     interfaces: [],
+    devices: [],
   }
 
   constructor(win: BrowserWindow, private readonly usageManager: UsageManager) {
@@ -135,6 +152,24 @@ export class MobileServer {
   private isAuthenticated(req: IncomingMessage): boolean {
     const cookies = parseCookies(req.headers.cookie)
     return this.sessions.has(cookies['session'] ?? '')
+  }
+
+  private syncDevicesFromSessions(): void {
+    this.state.devices = [...this.sessions.entries()].map(([id, info]) => ({
+      id,
+      label: info.label,
+      connectedAt: info.connectedAt,
+    }))
+    this.state.connectedCount = this.sessions.size
+  }
+
+  private openPairingWindow(): void {
+    this.prevPin = ''
+    this.pin = generatePin()
+    this.state.pin = this.pin
+    this.state.allowingNewDevice = true
+    if (this.rotateInterval) clearInterval(this.rotateInterval)
+    this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
   }
 
   setDisplay(theme: string, font: string): void {
@@ -174,10 +209,10 @@ export class MobileServer {
         const candidate = params.get('pin') ?? ''
         if (this.isValidPin(candidate)) {
           const token = randomUUID()
-          this.sessions.add(token)
+          this.sessions.set(token, { connectedAt: Date.now(), label: labelForUserAgent(req.headers['user-agent']) })
           // stop rotation — pairing is done until user explicitly requests another device
           if (this.rotateInterval) { clearInterval(this.rotateInterval); this.rotateInterval = null }
-          this.state.connectedCount = this.sessions.size
+          this.syncDevicesFromSessions()
           this.state.allowingNewDevice = false
           this.state.pin = ''
           setImmediate(() => this.pushState())
@@ -300,6 +335,7 @@ export class MobileServer {
       connectedCount: 0,
       allowingNewDevice: true,
       interfaces: this.interfaces,
+      devices: [],
     }
     this.pushState()
   }
@@ -332,18 +368,29 @@ export class MobileServer {
       connectedCount: 0,
       allowingNewDevice: true,
       interfaces: this.state.interfaces,
+      devices: [],
     }
     this.pushState()
   }
 
   async addDevice(): Promise<void> {
     if (!this.server) return
-    this.prevPin = ''
-    this.pin = generatePin()
-    this.state.pin = this.pin
-    this.state.allowingNewDevice = true
-    if (this.rotateInterval) clearInterval(this.rotateInterval)
-    this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
+    this.openPairingWindow()
+    this.pushState()
+  }
+
+  disconnectDevice(id: string): void {
+    if (!this.sessions.delete(id)) return
+    this.syncDevicesFromSessions()
+    if (this.sessions.size === 0) this.openPairingWindow()
+    this.pushState()
+  }
+
+  disconnectAll(): void {
+    if (this.sessions.size === 0) return
+    this.sessions.clear()
+    this.syncDevicesFromSessions()
+    this.openPairingWindow()
     this.pushState()
   }
 
@@ -355,6 +402,8 @@ export class MobileServer {
     ipcMain.handle('mobile:getState', () => this.state)
     ipcMain.handle('mobile:addDevice', () => this.addDevice())
     ipcMain.handle('mobile:selectInterface', (_evt, address: string) => this.selectInterface(address))
+    ipcMain.handle('mobile:disconnectDevice', (_evt, id: string) => this.disconnectDevice(id))
+    ipcMain.handle('mobile:disconnectAll', () => this.disconnectAll())
     ipcMain.on('mobile:setDisplay', (_evt, theme: string, font: string) => this.setDisplay(theme, font))
   }
 

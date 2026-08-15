@@ -14,6 +14,7 @@ const defaultState: MobileState = {
   connectedCount: 0,
   allowingNewDevice: true,
   interfaces: [],
+  devices: [],
 }
 
 function mockApi(state: MobileState) {
@@ -24,6 +25,8 @@ function mockApi(state: MobileState) {
       mobileStop: vi.fn().mockResolvedValue(undefined),
       mobileAddDevice: vi.fn().mockResolvedValue(undefined),
       mobileSelectInterface: vi.fn().mockResolvedValue(undefined),
+      mobileDisconnectDevice: vi.fn().mockResolvedValue(undefined),
+      mobileDisconnectAll: vi.fn().mockResolvedValue(undefined),
       onMobileState: vi.fn().mockReturnValue(() => {}),
     },
     writable: true,
@@ -131,5 +134,29 @@ describe('MobileDisplayPanel', () => {
     const copyButton = await screen.findByLabelText('Copy PIN')
     await user.click(copyButton)
     expect(writeText).toHaveBeenCalledWith('12345')
+  })
+
+  it('lists connected devices with a disconnect action for each, plus a disconnect-all button', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      ...defaultState,
+      running: true,
+      allowingNewDevice: false,
+      connectedCount: 2,
+      devices: [
+        { id: 'tok-1', label: 'iPhone', connectedAt: Date.now() },
+        { id: 'tok-2', label: 'iPad', connectedAt: Date.now() },
+      ],
+    })
+    render(<MobileDisplayPanel />)
+
+    expect(await screen.findByText('iPhone')).toBeTruthy()
+    expect(screen.getByText('iPad')).toBeTruthy()
+
+    await user.click(screen.getByLabelText('Disconnect iPhone'))
+    expect(window.api.mobileDisconnectDevice).toHaveBeenCalledWith('tok-1')
+
+    await user.click(screen.getByText('Disconnect all'))
+    expect(window.api.mobileDisconnectAll).toHaveBeenCalled()
   })
 })

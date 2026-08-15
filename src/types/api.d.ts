@@ -25,6 +25,12 @@ export interface MobileNetworkInterface {
   address: string
 }
 
+export interface MobileDevice {
+  id: string
+  label: string
+  connectedAt: number
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -34,6 +40,7 @@ export interface MobileState {
   connectedCount: number
   allowingNewDevice: boolean
   interfaces: MobileNetworkInterface[]
+  devices: MobileDevice[]
 }
 
 export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -156,6 +163,8 @@ declare global {
       mobileGetState: () => Promise<MobileState>
       mobileAddDevice: () => Promise<void>
       mobileSelectInterface: (address: string) => Promise<void>
+      mobileDisconnectDevice: (id: string) => Promise<void>
+      mobileDisconnectAll: () => Promise<void>
       mobileSetDisplay: (theme: string, font: string) => void
       onMobileState: (cb: (state: MobileState) => void) => () => void
 

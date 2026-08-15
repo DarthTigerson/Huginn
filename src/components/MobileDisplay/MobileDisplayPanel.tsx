@@ -102,6 +102,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   )
 }
 
+function formatConnectedAt(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 export function MobileDisplayPanel() {
   const state = useMobileStore((s) => s.state)
   const [toggling, setToggling] = useState(false)
@@ -232,6 +236,32 @@ export function MobileDisplayPanel() {
               </span>
             </div>
 
+            {/* Device list */}
+            {state.devices.length > 0 && (
+              <ul className="flex flex-col gap-1.5">
+                {state.devices.map((device) => (
+                  <li
+                    key={device.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-border"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium text-fg">{device.label}</span>
+                      <span className="text-[0.625rem] text-fg-muted">
+                        Connected {formatConnectedAt(device.connectedAt)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => window.api.mobileDisconnectDevice(device.id)}
+                      aria-label={`Disconnect ${device.label}`}
+                      className="text-fg-muted hover:text-fg text-xs px-1.5"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {/* Add another device */}
             <button
               onClick={() => window.api.mobileAddDevice()}
@@ -239,6 +269,16 @@ export function MobileDisplayPanel() {
             >
               Connect another device
             </button>
+
+            {/* Disconnect all */}
+            {state.devices.length > 0 && (
+              <button
+                onClick={() => window.api.mobileDisconnectAll()}
+                className="w-full py-2 text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+              >
+                Disconnect all
+              </button>
+            )}
           </div>
         )}
       </div>
