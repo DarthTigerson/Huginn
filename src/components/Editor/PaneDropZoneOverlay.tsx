@@ -32,6 +32,8 @@ export function PaneDropZoneOverlay({ paneId }: { paneId: string }) {
   const moveTabBetweenPanes = useEditorStore((s) => s.moveTabBetweenPanes)
   const splitPaneWithIncomingTab = useEditorStore((s) => s.splitPaneWithIncomingTab)
 
+  const endDrag = useTabDragStore((s) => s.endDrag)
+
   const isDragActive = dragging !== null
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
@@ -50,6 +52,12 @@ export function PaneDropZoneOverlay({ paneId }: { paneId: string }) {
     e.preventDefault()
     const current = dragging
     setZone(null)
+    // Cleared here rather than left to the dragged tab's own onDragEnd: moving/
+    // splitting below can remove that tab's DOM node from its source pane in
+    // this same tick, and a source node removed before the browser dispatches
+    // dragend on it means dragend may never fire - which would leave `dragging`
+    // stuck non-null and every pane's overlay permanently pointer-events-auto.
+    endDrag()
     if (!current || !zone) return
 
     if (zone === 'center') {
