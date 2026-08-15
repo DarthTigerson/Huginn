@@ -6,10 +6,39 @@ function applyDisplay(theme, font) {
   if (font) document.documentElement.style.setProperty('--font-mono', font)
 }
 
+let displayPollTimer = null
+
+// Shown when a poll finds our session gone (device disconnected from the
+// IDE side) — covers whatever page we're on so a stale usage screen etc.
+// doesn't just sit there looking connected.
+function showDisconnectedOverlay() {
+  if (displayPollTimer) { clearInterval(displayPollTimer); displayPollTimer = null }
+  if (document.getElementById('disconnected-overlay')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'disconnected-overlay'
+  overlay.className = 'disconnected-overlay'
+  overlay.innerHTML =
+    '<div style="text-align:center">'
+    + '<h1 style="font-size:20px;font-weight:700">Disconnected</h1>'
+    + '<p class="muted" style="margin-top:8px;font-size:14px">This device was disconnected from Huginn.</p>'
+    + '<a href="/" class="btn" style="margin-top:20px;display:inline-block;text-decoration:none">Enter PIN</a>'
+    + '</div>'
+  document.body.appendChild(overlay)
+}
+
 function pollDisplay() {
-  fetch('/api/state')
-    .then((r) => r.json())
-    .then((s) => applyDisplay(s.theme, s.font))
+  // redirect: 'manual' surfaces the auth gate's 302 as an opaqueredirect
+  // response instead of silently following it and trying (and failing) to
+  // parse the PIN page's HTML as JSON.
+  fetch('/api/state', { redirect: 'manual' })
+    .then((r) => {
+      if (r.type === 'opaqueredirect') {
+        if (location.pathname !== '/') showDisconnectedOverlay()
+        return null
+      }
+      return r.json()
+    })
+    .then((s) => { if (s) applyDisplay(s.theme, s.font) })
     .catch(() => {})
 }
 
@@ -56,6 +85,6 @@ function initFullscreenOnTap() {
 }
 
 pollDisplay()
-setInterval(pollDisplay, 10000)
+displayPollTimer = setInterval(pollDisplay, 10000)
 initNoSleep()
 initFullscreenOnTap()

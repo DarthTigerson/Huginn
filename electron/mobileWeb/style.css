@@ -342,3 +342,14 @@ a { color: inherit; }
 }
 .chart-tooltip-time { font-size: 10px; color: var(--fg-muted); }
 .chart-tooltip-pct { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 2px; }
+
+.disconnected-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
