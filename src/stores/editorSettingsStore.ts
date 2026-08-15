@@ -14,6 +14,7 @@ interface EditorSettingsStore {
   autoSaveEnabled: boolean
   setAutoSaveEnabled: (value: boolean) => void
   wordWrapEnabled: boolean
+  setWordWrapEnabled: (value: boolean) => void
   toggleWordWrap: () => void
 }
 
@@ -27,9 +28,10 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
 
   wordWrapEnabled: getBool(KEYS.wordWrapEnabled, false),
 
-  toggleWordWrap: () => {
-    const value = !get().wordWrapEnabled
+  setWordWrapEnabled: (value) => {
     localStorage.setItem(KEYS.wordWrapEnabled, String(value))
     set({ wordWrapEnabled: value })
   },
+
+  toggleWordWrap: () => get().setWordWrapEnabled(!get().wordWrapEnabled),
 }))

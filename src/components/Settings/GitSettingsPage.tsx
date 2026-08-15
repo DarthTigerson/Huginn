@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
 
@@ -37,6 +38,8 @@ export function GitSettingsPage() {
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
   const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
+  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
+  const setWordWrapEnabled = useEditorSettingsStore((s) => s.setWordWrapEnabled)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -136,6 +139,17 @@ export function GitSettingsPage() {
               <span className="text-sm text-fg-muted">minutes</span>
             </div>
           )}
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Git Log</h2>
+
+          <Toggle
+            label="Word Wrap"
+            description="Wrap long lines instead of scrolling horizontally. Also toggleable with ⌥Z. Shared with the editor."
+            checked={wordWrapEnabled}
+            onChange={setWordWrapEnabled}
+          />
         </section>
 
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
