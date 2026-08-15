@@ -1,5 +1,6 @@
 import { useEditorStore } from '@/stores/editorStore'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { isMac } from '@/lib/platform'
 import {
   GIT_GRAPH_TAB_PATH,
   GIT_BRANCH_DIFF_TAB_PATH,
@@ -17,6 +18,9 @@ export interface Command {
   keywords?: string[]
   condition?: () => boolean
   action: () => void
+  // Shown as a muted hint on the right, for commands that have a known
+  // keyboard shortcut - left unset for the ones that don't.
+  shortcut?: string
 }
 
 function openTab(path: string) {
@@ -29,6 +33,7 @@ export const COMMANDS: Command[] = [
     label: 'New Terminal',
     description: 'Open a terminal tab in the active pane',
     keywords: ['shell', 'bash', 'zsh', 'console'],
+    shortcut: isMac ? '⌘T' : 'Ctrl+T',
     action: () => {
       const id = Date.now().toString(36)
       openTab(buildTerminalPath(id))

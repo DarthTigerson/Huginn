@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { COMMANDS } from './commands'
 import type { Command } from './commands'
+import { getMonacoCommands } from '@/lib/monacoCommands'
+import { ShortcutKeys } from '@/components/ui/ShortcutKeys'
 
 interface Props {
   onClose: () => void
 }
 
 function filterCommands(query: string): Command[] {
-  const visible = COMMANDS.filter((cmd) => cmd.condition === undefined || cmd.condition())
+  // Editor commands (Add Cursor Above, Format Document, etc.) come from
+  // whichever editor was last focused - merged in fresh on every filter
+  // pass rather than once, since which editor that is can change while
+  // the palette itself stays open across re-renders.
+  const all = [...COMMANDS, ...getMonacoCommands()]
+  const visible = all.filter((cmd) => cmd.condition === undefined || cmd.condition())
   if (!query.trim()) return visible
 
   const q = query.toLowerCase()
@@ -108,6 +115,7 @@ export function ActionPalette({ onClose }: Props) {
                         <div className="text-xs text-fg-subtle truncate">{cmd.description}</div>
                       )}
                     </div>
+                    {cmd.shortcut && <ShortcutKeys shortcut={cmd.shortcut} />}
                   </button>
                 </li>
               )

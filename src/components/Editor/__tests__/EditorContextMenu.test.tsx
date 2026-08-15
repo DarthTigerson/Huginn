@@ -29,15 +29,24 @@ describe('EditorContextMenu', () => {
     const { editor } = fakeEditor()
     render(<EditorContextMenu x={10} y={10} editor={editor} onClose={() => {}} />)
     expect(screen.getByText('Change All Occurrences')).toBeInTheDocument()
+    // The exact hint text is platform-dependent (⌘F2 vs Ctrl+F2) - just
+    // confirm it renders as a key chip, not bare unstyled text.
+    const hint = screen.getByText(/F2$/).closest('kbd')
+    expect(hint).not.toBeNull()
   })
 
-  it('always shows Cut, Copy, Paste, and Command Palette', () => {
+  it('always shows Cut, Copy, and Paste', () => {
     const { editor } = fakeEditor()
     render(<EditorContextMenu x={10} y={10} editor={editor} onClose={() => {}} />)
     expect(screen.getByText('Cut')).toBeInTheDocument()
     expect(screen.getByText('Copy')).toBeInTheDocument()
     expect(screen.getByText('Paste')).toBeInTheDocument()
-    expect(screen.getByText('Command Palette')).toBeInTheDocument()
+  })
+
+  it('no longer shows Command Palette (superseded by the Action Palette, which now includes editor commands)', () => {
+    const { editor } = fakeEditor()
+    render(<EditorContextMenu x={10} y={10} editor={editor} onClose={() => {}} />)
+    expect(screen.queryByText('Command Palette')).not.toBeInTheDocument()
   })
 
   it('runs the matching Monaco action and closes on click', () => {

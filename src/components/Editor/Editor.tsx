@@ -19,6 +19,7 @@ import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { computeLineChanges } from '@/lib/lineDiff'
+import { getLastFocusedEditor, setLastFocusedEditor } from '@/lib/lastFocusedEditor'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { EditorContextMenu } from './EditorContextMenu'
@@ -464,7 +465,10 @@ function EditorPane({ paneId }: { paneId: string }) {
                 registerLspDefinitionProvider(monaco)
                 const model = editor.getModel()
                 if (model) registerModelPath(model, activeTab.path)
-                editor.onDidFocusEditorWidget(activatePane)
+                editor.onDidFocusEditorWidget(() => {
+                  activatePane()
+                  setLastFocusedEditor(editor)
+                })
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                   activatePane()
                   saveActiveTab({ allowCreateMissing: true })
@@ -599,6 +603,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                   cancelled = true
                   if (debounceTimer) clearTimeout(debounceTimer)
                   setEditorContextMenu(null)
+                  if (getLastFocusedEditor() === editor) setLastFocusedEditor(null)
                 })
 
                 applyGutterDecorations()

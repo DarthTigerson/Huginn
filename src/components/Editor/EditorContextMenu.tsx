@@ -4,9 +4,9 @@ import type * as Monaco from 'monaco-editor'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { isMac } from '@/lib/platform'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
+import { ShortcutKeys } from '@/components/ui/ShortcutKeys'
 
 const CHANGE_ALL_HINT = isMac ? '⌘F2' : 'Ctrl+F2'
-const COMMAND_PALETTE_HINT = 'F1'
 
 function MenuButton({ label, hint, onClick }: { label: string; hint?: string; onClick: () => void }) {
   return (
@@ -16,7 +16,7 @@ function MenuButton({ label, hint, onClick }: { label: string; hint?: string; on
       className="flex w-full items-center justify-between gap-4 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
     >
       <span>{label}</span>
-      {hint && <span className="text-fg-subtle">{hint}</span>}
+      {hint && <ShortcutKeys shortcut={hint} />}
     </button>
   )
 }
@@ -91,13 +91,6 @@ export function EditorContextMenu({ x, y, editor, onClose }: Props) {
       <MenuButton label="Cut" onClick={run('editor.action.clipboardCutAction')} />
       <MenuButton label="Copy" onClick={run('editor.action.clipboardCopyAction')} />
       <MenuButton label="Paste" onClick={run('editor.action.clipboardPasteAction')} />
-      <MenuDivider />
-
-      <MenuButton
-        label="Command Palette"
-        hint={COMMAND_PALETTE_HINT}
-        onClick={run('editor.action.quickCommand')}
-      />
     </div>,
     document.body
   )
