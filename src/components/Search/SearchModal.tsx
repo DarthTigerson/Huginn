@@ -4,7 +4,6 @@ import type { SearchMatch } from '@/types/index'
 
 interface Props {
   projectRoot: string
-  caseSensitive: boolean
   onClose: () => void
 }
 
@@ -55,8 +54,9 @@ interface FileGroup {
   isCurrent: boolean
 }
 
-export function SearchModal({ projectRoot, caseSensitive, onClose }: Props) {
+export function SearchModal({ projectRoot, onClose }: Props) {
   const [query, setQuery] = useState('')
+  const [caseSensitive, setCaseSensitive] = useState(false)
   const [otherResults, setOtherResults] = useState<SearchMatch[]>([])
   const [searching, setSearching] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -164,15 +164,18 @@ export function SearchModal({ projectRoot, caseSensitive, onClose }: Props) {
             placeholder={caseSensitive ? 'Search text (case-sensitive)…' : 'Search text…'}
             className="flex-1 bg-transparent text-sm text-fg placeholder:text-fg-subtle outline-none"
           />
-          <span
-            title={caseSensitive ? 'Case-sensitive (⌘⇧F)' : 'Case-insensitive (⌘F)'}
+          <button
+            type="button"
+            onClick={() => setCaseSensitive((c) => !c)}
+            title={caseSensitive ? 'Case-sensitive — click for case-insensitive' : 'Case-insensitive — click for case-sensitive'}
+            aria-pressed={caseSensitive}
             className={[
               'shrink-0 text-xs font-mono px-1.5 py-0.5 rounded border select-none',
-              caseSensitive ? 'border-accent text-accent bg-accent/10' : 'border-border text-fg-subtle',
+              caseSensitive ? 'border-accent text-accent bg-accent/10' : 'border-border text-fg-subtle hover:text-fg',
             ].join(' ')}
           >
             Aa
-          </span>
+          </button>
           {query && (
             <button type="button" onClick={() => setQuery('')} className="text-fg-subtle hover:text-fg transition-colors">
               <ClearIcon />

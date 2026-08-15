@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import * as monaco from 'monaco-editor'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { clampSize, loadPanelSize } from '@/lib/panelSize'
 import { syncOpenTabsFromDisk } from '@/lib/syncOpenTabsFromDisk'
@@ -118,7 +119,6 @@ export default function App() {
   const [memoryUsage, setMemoryUsage] = useState<{ usedBytes: number; totalBytes: number } | null>(null)
   const commandPaletteOpen = useSearchStore((s) => s.commandPaletteOpen)
   const searchOpen = useSearchStore((s) => s.searchOpen)
-  const searchCaseSensitive = useSearchStore((s) => s.searchCaseSensitive)
   const actionPaletteOpen = useSearchStore((s) => s.actionPaletteOpen)
   const shortcutsOverlayOpen = useSearchStore((s) => s.shortcutsOverlayOpen)
   const recentProjectsPaletteOpen = useSearchStore((s) => s.recentProjectsPaletteOpen)
@@ -479,16 +479,20 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Cmd+F itself reaches Monaco's own find widget directly (nothing
+    // intercepts the keystroke anymore) - this only backs the Edit menu's
+    // "Find" item for a mouse click, mirroring that same native behavior on
+    // whichever editor currently has focus.
     return window.api.onMenuFind(() => {
-      if (!useFileStore.getState().projectRoot) return
-      useSearchStore.getState().openSearch(false)
+      const editor = monaco.editor.getEditors().find((e) => e.hasTextFocus())
+      editor?.getAction('actions.find')?.run()
     })
   }, [])
 
   useEffect(() => {
     return window.api.onMenuFindInFiles(() => {
       if (!useFileStore.getState().projectRoot) return
-      useSearchStore.getState().openSearch(true)
+      useSearchStore.getState().openSearch()
     })
   }, [])
 
@@ -832,7 +836,6 @@ export default function App() {
       {searchOpen && projectRoot && (
         <SearchModal
           projectRoot={projectRoot}
-          caseSensitive={searchCaseSensitive}
           onClose={() => useSearchStore.getState().closeSearch()}
         />
       )}

@@ -430,12 +430,12 @@ function EditorPane({ paneId }: { paneId: string }) {
                     useEditorStore.getState().splitActivePane('vertical')
                   }
                 )
-                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
-                  useSearchStore.getState().openSearch(false)
-                })
+                // Cmd+F is deliberately left unbound here so Monaco's own
+                // built-in find widget (already bound to Cmd+F internally)
+                // handles it - basic in-file search, no app-level modal.
                 editor.addCommand(
                   monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
-                  () => { useSearchStore.getState().openSearch(true) }
+                  () => { useSearchStore.getState().openSearch() }
                 )
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
                   useSearchStore.getState().openCommandPalette()

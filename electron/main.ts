@@ -384,7 +384,10 @@ async function buildMenu(): Promise<void> {
         { type: 'separator' },
         {
           label: 'Find',
-          accelerator: 'CmdOrCtrl+F',
+          // No accelerator: Cmd+F is left for Monaco's own find widget to
+          // handle directly when an editor is focused. This menu item still
+          // exists for mouse/menu access, which App.tsx's onMenuFind handler
+          // triggers on the focused editor the same way.
           click: () => {
             const win = BrowserWindow.getFocusedWindow()
             if (win) win.webContents.send('menu:find')
