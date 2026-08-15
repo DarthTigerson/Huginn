@@ -5,6 +5,7 @@ import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
 
 export function GitLogView() {
@@ -14,12 +15,21 @@ export function GitLogView() {
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const fontSizeOverride = useInstanceFontSizeStore((s) => s.overrides[GIT_LOG_TAB_PATH])
   const effectiveFontSize = fontSizeOverride ?? fontSize
+  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Unshifted CmdOrCtrl+=/-/0 zoom just this panel, mirroring TerminalTab.tsx
   // and the Monaco editor commands — shifted variants are left unhandled so
-  // they pass through to the app-level global zoom shortcut.
+  // they pass through to the app-level global zoom shortcut. Alt+Z mirrors
+  // the same word-wrap toggle the Monaco editor binds, for consistency
+  // across every "look at some text" surface in the app.
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.altKey && !event.metaKey && !event.ctrlKey && event.code === 'KeyZ') {
+      event.preventDefault()
+      useEditorSettingsStore.getState().toggleWordWrap()
+      return
+    }
+
     const isMod = event.metaKey || event.ctrlKey
     if (!isMod || event.shiftKey || event.altKey) return
 
@@ -62,7 +72,10 @@ export function GitLogView() {
           from any ancestor, so the zoom state changed but nothing visible
           moved. Setting it inline here bypasses that. */}
       <pre
-        className="whitespace-pre-wrap break-words leading-relaxed m-0"
+        className={[
+          'leading-relaxed m-0',
+          wordWrapEnabled ? 'whitespace-pre-wrap break-words' : 'whitespace-pre',
+        ].join(' ')}
         style={{ fontSize: effectiveFontSize }}
       >
         {text || 'No git commands run yet.'}

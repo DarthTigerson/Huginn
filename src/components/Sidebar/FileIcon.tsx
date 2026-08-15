@@ -49,24 +49,30 @@ function iconSpecFor(name: string): IconSpec {
   return EXT[ext] ?? DEFAULT
 }
 
-export function FileIcon({ name }: { name: string }) {
+export function FileIcon({ name, scale = 1 }: { name: string; scale?: number }) {
   const { label, bg, color } = iconSpecFor(name)
   return (
     <span
-      className="shrink-0 flex items-center justify-center rounded-[3px] text-[0.5rem] font-bold leading-none tracking-tighter"
-      style={{ width: '1.125rem', height: '0.9375rem', background: bg, color: color ?? '#fff' }}
+      className="shrink-0 flex items-center justify-center rounded-[3px] font-bold leading-none tracking-tighter"
+      style={{
+        width: `${1.125 * scale}rem`,
+        height: `${0.9375 * scale}rem`,
+        fontSize: `${0.5 * scale}rem`,
+        background: bg,
+        color: color ?? '#fff',
+      }}
     >
       {label}
     </span>
   )
 }
 
-export function FolderIcon({ open }: { open: boolean }) {
+export function FolderIcon({ open, scale = 1 }: { open: boolean; scale?: number }) {
   return (
     <svg
       className="shrink-0"
-      width="0.9375rem"
-      height="0.9375rem"
+      width={`${0.9375 * scale}rem`}
+      height={`${0.9375 * scale}rem`}
       viewBox="0 0 24 24"
       fill={open ? '#e8c94c' : '#c9a227'}
     >

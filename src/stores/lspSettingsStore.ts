@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type LspServerId = 'typescript' | 'python' | 'go' | 'rust'
 
-export const LSP_SERVER_IDS: LspServerId[] = ['typescript', 'python', 'go', 'rust']
+export const LSP_SERVER_IDS: LspServerId[] = ['go', 'python', 'rust', 'typescript']
 
 const KEY_PREFIX = 'huginn:lsp:enabled:'
 

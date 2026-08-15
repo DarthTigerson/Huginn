@@ -109,6 +109,24 @@ describe('PaneDropZoneOverlay', () => {
     expect(useEditorStore.getState()).toEqual(before)
   })
 
+  it('clears drag state on drop even if dragend never fires on the (possibly-unmounted) source', () => {
+    // Regression test: dropping on a pane's content area (not another tab in
+    // the strip) moves/splits the tab, which can remove the drag source's own
+    // DOM node before the browser dispatches dragend on it - if handleDrop
+    // relied on dragend to clear useTabDragStore, dragging would stay stuck
+    // non-null forever, leaving every pane's overlay permanently
+    // pointer-events-auto. This drop deliberately never fires dragend.
+    twoPaneLayout()
+    useTabDragStore.getState().startDrag('/right.ts', 'pane-right')
+    const { container } = render(<PaneDropZoneOverlay paneId="pane-left" />)
+    const overlay = container.firstElementChild as HTMLElement
+
+    fireEvent(overlay, dragEventAt('dragover', 50 + 100, 20 + 50))
+    fireEvent(overlay, dragEventAt('drop', 50 + 100, 20 + 50))
+
+    expect(useTabDragStore.getState().dragging).toBeNull()
+  })
+
   it('renders nothing interactive when no drag is in progress', () => {
     twoPaneLayout()
     const { container } = render(<PaneDropZoneOverlay paneId="pane-left" />)

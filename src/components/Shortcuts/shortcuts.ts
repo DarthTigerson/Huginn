@@ -30,6 +30,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['⌘', 'D'], label: 'Split Pane Horizontal' },
       { keys: ['⌘', '⇧', 'D'], label: 'Split Pane Vertical' },
       { keys: ['⌘', 'Click'], label: 'Go to Definition' },
+      { keys: ['⌥', 'Z'], label: 'Toggle Word Wrap (Editor/Git Log)' },
     ],
   },
   {

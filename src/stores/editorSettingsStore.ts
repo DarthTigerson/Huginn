@@ -2,6 +2,8 @@ import { create } from 'zustand'
 
 const KEYS = {
   autoSaveEnabled: 'huginn:editor:autoSaveEnabled',
+  wordWrapEnabled: 'huginn:editor:wordWrapEnabled',
+  changeAllOccurrencesInMenu: 'huginn:editor:changeAllOccurrencesInMenu',
 }
 
 function getBool(key: string, def: boolean): boolean {
@@ -12,13 +14,38 @@ function getBool(key: string, def: boolean): boolean {
 interface EditorSettingsStore {
   autoSaveEnabled: boolean
   setAutoSaveEnabled: (value: boolean) => void
+  wordWrapEnabled: boolean
+  setWordWrapEnabled: (value: boolean) => void
+  toggleWordWrap: () => void
+  // Controls whether "Change All Occurrences" is listed in the editor's
+  // right-click menu - off by default (available via Settings or ⌘F2
+  // instead). The ⌘F2 keybinding for it works regardless of this setting;
+  // it only hides/shows the menu entry.
+  changeAllOccurrencesInMenu: boolean
+  setChangeAllOccurrencesInMenu: (value: boolean) => void
 }
 
-export const useEditorSettingsStore = create<EditorSettingsStore>((set) => ({
+export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
   autoSaveEnabled: getBool(KEYS.autoSaveEnabled, false),
 
   setAutoSaveEnabled: (value) => {
     localStorage.setItem(KEYS.autoSaveEnabled, String(value))
     set({ autoSaveEnabled: value })
+  },
+
+  wordWrapEnabled: getBool(KEYS.wordWrapEnabled, false),
+
+  setWordWrapEnabled: (value) => {
+    localStorage.setItem(KEYS.wordWrapEnabled, String(value))
+    set({ wordWrapEnabled: value })
+  },
+
+  toggleWordWrap: () => get().setWordWrapEnabled(!get().wordWrapEnabled),
+
+  changeAllOccurrencesInMenu: getBool(KEYS.changeAllOccurrencesInMenu, false),
+
+  setChangeAllOccurrencesInMenu: (value) => {
+    localStorage.setItem(KEYS.changeAllOccurrencesInMenu, String(value))
+    set({ changeAllOccurrencesInMenu: value })
   },
 }))

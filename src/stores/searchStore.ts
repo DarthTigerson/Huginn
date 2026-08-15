@@ -3,14 +3,13 @@ import { create } from 'zustand'
 interface SearchState {
   commandPaletteOpen: boolean
   searchOpen: boolean
-  searchCaseSensitive: boolean
   actionPaletteOpen: boolean
   shortcutsOverlayOpen: boolean
   recentProjectsPaletteOpen: boolean
   branchPaletteOpen: boolean
   openCommandPalette: () => void
   closeCommandPalette: () => void
-  openSearch: (caseSensitive: boolean) => void
+  openSearch: () => void
   closeSearch: () => void
   openActionPalette: () => void
   closeActionPalette: () => void
@@ -25,14 +24,13 @@ interface SearchState {
 export const useSearchStore = create<SearchState>((set) => ({
   commandPaletteOpen: false,
   searchOpen: false,
-  searchCaseSensitive: false,
   actionPaletteOpen: false,
   shortcutsOverlayOpen: false,
   recentProjectsPaletteOpen: false,
   branchPaletteOpen: false,
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
-  openSearch: (caseSensitive) => set({ searchOpen: true, searchCaseSensitive: caseSensitive }),
+  openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
   openActionPalette: () => set({ actionPaletteOpen: true }),
   closeActionPalette: () => set({ actionPaletteOpen: false }),

@@ -8,6 +8,10 @@ import { LspServerRow } from './LspServerRow'
 export function EditorSettingsPage() {
   const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
   const setAutoSaveEnabled = useEditorSettingsStore((s) => s.setAutoSaveEnabled)
+  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
+  const setWordWrapEnabled = useEditorSettingsStore((s) => s.setWordWrapEnabled)
+  const changeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.changeAllOccurrencesInMenu)
+  const setChangeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.setChangeAllOccurrencesInMenu)
   const refreshLspStatus = useLspStatusStore((s) => s.refresh)
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export function EditorSettingsPage() {
       <div className="grid grid-cols-1 gap-6 max-w-lg">
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
-            Save
+            General
           </h2>
 
           <Toggle
@@ -31,6 +35,20 @@ export function EditorSettingsPage() {
             description="Automatically save the active file shortly after changes."
             checked={autoSaveEnabled}
             onChange={setAutoSaveEnabled}
+          />
+
+          <Toggle
+            label="Word Wrap"
+            description="Wrap long lines instead of scrolling horizontally. Also toggleable with ⌥Z. Shared with Git Log."
+            checked={wordWrapEnabled}
+            onChange={setWordWrapEnabled}
+          />
+
+          <Toggle
+            label="Show &quot;Change All Occurrences&quot; in right-click menu"
+            description="⌘F2 still works either way — this only hides the menu entry."
+            checked={changeAllOccurrencesInMenu}
+            onChange={setChangeAllOccurrencesInMenu}
           />
         </section>
 

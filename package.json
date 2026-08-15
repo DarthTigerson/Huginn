@@ -23,6 +23,7 @@
     "@xterm/xterm": "^5.5.0",
     "chokidar": "^3.6.0",
     "d3-force": "^3.0.0",
+    "diff": "^9.0.0",
     "minimatch": "^10.2.6",
     "node-pty": "^1.0.0",
     "qrcode": "^1.5.4",
