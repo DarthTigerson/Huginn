@@ -34,6 +34,11 @@ function mockApi(state: MobileState) {
 beforeEach(() => {
   useMobileStore.setState({ initialized: false, state: defaultState })
   mockApi(defaultState)
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    writable: true,
+    configurable: true,
+  })
 })
 
 describe('MobileDisplayPanel', () => {
@@ -94,5 +99,37 @@ describe('MobileDisplayPanel', () => {
     const select = await screen.findByLabelText('Pairing network')
     await user.selectOptions(select, '10.0.0.20')
     expect(window.api.mobileSelectInterface).toHaveBeenCalledWith('10.0.0.20')
+  })
+
+  it('copies the pairing URL to the clipboard', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    mockApi({
+      ...defaultState,
+      running: true,
+      pin: '12345',
+      localIp: '192.168.1.50',
+      port: 7842,
+      interfaces: [{ name: 'en0', address: '192.168.1.50' }],
+    })
+    render(<MobileDisplayPanel />)
+    const copyButton = await screen.findByLabelText('Copy pairing URL')
+    await user.click(copyButton)
+    expect(writeText).toHaveBeenCalledWith('http://192.168.1.50:7842')
+  })
+
+  it('copies the PIN to the clipboard', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    mockApi({
+      ...defaultState,
+      running: true,
+      pin: '12345',
+      interfaces: [{ name: 'en0', address: '127.0.0.1' }],
+    })
+    render(<MobileDisplayPanel />)
+    const copyButton = await screen.findByLabelText('Copy PIN')
+    await user.click(copyButton)
+    expect(writeText).toHaveBeenCalledWith('12345')
   })
 })

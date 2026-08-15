@@ -73,6 +73,35 @@ function QRImage({ svg }: { svg: string }) {
   )
 }
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label={label}
+      className="text-accent hover:opacity-80 transition-opacity"
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 export function MobileDisplayPanel() {
   const state = useMobileStore((s) => s.state)
   const [toggling, setToggling] = useState(false)
@@ -164,9 +193,12 @@ export function MobileDisplayPanel() {
             {state.qrSvg && <QRImage svg={state.qrSvg} />}
 
             {/* URL */}
-            <p className="text-[0.6875rem] text-fg-muted text-center font-mono">
-              http://{state.localIp}:{state.port}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-[0.6875rem] text-fg-muted font-mono">
+                http://{state.localIp}:{state.port}
+              </p>
+              <CopyButton text={`http://${state.localIp}:${state.port}`} label="Copy pairing URL" />
+            </div>
 
             {/* Divider */}
             <div className="h-px bg-border" />
@@ -177,7 +209,12 @@ export function MobileDisplayPanel() {
                 <span className="text-xs font-medium text-fg-muted uppercase tracking-wider">PIN</span>
                 <CountdownRing key={state.pin} onExpire={stableOnExpire.current} />
               </div>
-              {state.pin && <PinDisplay pin={state.pin} />}
+              {state.pin && (
+                <div className="flex items-center justify-center gap-2">
+                  <PinDisplay pin={state.pin} />
+                  <CopyButton text={state.pin} label="Copy PIN" />
+                </div>
+              )}
               <p className="text-[0.6875rem] text-fg-muted text-center leading-relaxed">
                 Scan the QR code on your phone,<br />then enter this PIN to connect.
               </p>
