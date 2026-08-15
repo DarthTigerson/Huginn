@@ -14,6 +14,8 @@ const SAMPLE: LatestUsage = {
   weeklyResetAt: Date.now() + 86_400_000,
   sessionAvgRatePerHour: 30.55,
   weeklyAvgRatePerHour: 0.73,
+  sessionCutoffAt: null,
+  weeklyCutoffAt: null,
 }
 
 function mockApi(overrides: Partial<typeof window.api> = {}) {
@@ -51,7 +53,7 @@ describe('UsagePanel', () => {
     expect(screen.getByText('No usage data yet')).toBeTruthy()
   })
 
-  it('renders gauges and burn-rate stats once data resolves', async () => {
+  it('renders gauges, burn-rate, and est. run out together once data resolves', async () => {
     mockApi({ usageGetLatest: vi.fn().mockResolvedValue(SAMPLE) })
     render(<UsagePanel />)
 
@@ -61,6 +63,7 @@ describe('UsagePanel', () => {
     expect(screen.getByText('THIS WEEK')).toBeTruthy()
     expect(screen.getByText('≈30.55%/hr')).toBeTruthy()
     expect(screen.getByText('≈0.73%/hr')).toBeTruthy()
+    expect(screen.getByText('Est. run out')).toBeTruthy()
   })
 
   it('re-renders when a push update arrives', async () => {
@@ -77,5 +80,37 @@ describe('UsagePanel', () => {
     act(() => pushUpdate(SAMPLE))
 
     await waitFor(() => expect(screen.getByText('38%')).toBeTruthy())
+  })
+
+  it('shows an estimated run-out date/time with an hours-and-minutes countdown underneath', async () => {
+    const cutoffAt = new Date(2026, 7, 13, 9, 59).getTime()
+    mockApi({ usageGetLatest: vi.fn().mockResolvedValue({ ...SAMPLE, sessionCutoffAt: cutoffAt }) })
+    render(<UsagePanel />)
+
+    await waitFor(() => expect(screen.getByText('Est. run out')).toBeTruthy())
+    expect(screen.getByText(/Aug 13, 9:59/)).toBeTruthy()
+    expect(screen.getByText(/^\d+h \d+m$/)).toBeTruthy()
+  })
+
+  it('shows "on track" for the run-out stat when there is no cutoff', async () => {
+    mockApi({ usageGetLatest: vi.fn().mockResolvedValue(SAMPLE) })
+    render(<UsagePanel />)
+
+    await waitFor(() => expect(screen.getByText('38%')).toBeTruthy())
+    expect(screen.getAllByText('on track')).toHaveLength(2)
+  })
+
+  it('keeps the Est. run out column visible regardless of panel width', async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 300 })
+
+    try {
+      mockApi({ usageGetLatest: vi.fn().mockResolvedValue(SAMPLE) })
+      render(<UsagePanel />)
+
+      await waitFor(() => expect(screen.getByText('Est. run out')).toBeTruthy())
+    } finally {
+      if (originalDescriptor) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', originalDescriptor)
+    }
   })
 })

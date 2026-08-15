@@ -7,6 +7,7 @@ import {
   parseResetAt,
   downsample,
   computeBurnRate,
+  computeCutoff,
   UsagePoller,
   ALLOWED_INTERVALS_MS,
   type UsageSnapshot,
@@ -81,6 +82,40 @@ describe('computeBurnRate', () => {
   it('guards against a spike in the first few minutes of a window', () => {
     const resetAt = Date.now() + (5 * 3_600_000 - 60_000) // only 1 minute elapsed
     expect(computeBurnRate(10, resetAt, 5)).toBeNull()
+  })
+})
+
+describe('computeCutoff', () => {
+  const now = new Date(2026, 7, 6, 12, 0).getTime() // Aug 6, 2026, noon
+
+  it('returns null when there is no burn rate', () => {
+    expect(computeCutoff(50, null, null, now)).toBeNull()
+  })
+
+  it('returns null when the rate is zero or negative', () => {
+    expect(computeCutoff(50, null, 0, now)).toBeNull()
+    expect(computeCutoff(50, null, -1, now)).toBeNull()
+  })
+
+  it('projects forward from the current pct at the given rate', () => {
+    // 50% used, climbing 10%/hr -> 5h to reach 100%
+    expect(computeCutoff(50, null, 10, now)).toBe(now + 5 * 3_600_000)
+  })
+
+  it('returns null when the reset happens before the projected cutoff (on track)', () => {
+    // Cutoff is 5h out, but the window resets in 3h -> never actually hits 100%
+    const resetAt = now + 3 * 3_600_000
+    expect(computeCutoff(50, resetAt, 10, now)).toBeNull()
+  })
+
+  it('returns the projected cutoff when it lands before the reset', () => {
+    const resetAt = now + 10 * 3_600_000
+    expect(computeCutoff(50, resetAt, 10, now)).toBe(now + 5 * 3_600_000)
+  })
+
+  it('treats pct at or above 100 as already at cutoff', () => {
+    expect(computeCutoff(100, null, 10, now)).toBe(now)
+    expect(computeCutoff(103, null, 10, now)).toBe(now)
   })
 })
 

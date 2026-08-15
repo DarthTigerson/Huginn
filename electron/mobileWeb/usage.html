@@ -74,6 +74,11 @@
         <div id="session-rate" class="reset-rate">—</div>
         <div class="reset-rate-label">burn rate</div>
       </div>
+      <div style="text-align:right">
+        <div id="session-cutoff-time" class="reset-cutoff-time">on track</div>
+        <div id="session-cutoff-countdown" class="reset-cutoff-countdown"></div>
+        <div class="reset-rate-label">run out</div>
+      </div>
     </div>
     <div class="reset-row">
       <div>
@@ -84,6 +89,11 @@
       <div style="text-align:right">
         <div id="weekly-rate" class="reset-rate">—</div>
         <div class="reset-rate-label">burn rate</div>
+      </div>
+      <div style="text-align:right">
+        <div id="weekly-cutoff-time" class="reset-cutoff-time">on track</div>
+        <div id="weekly-cutoff-countdown" class="reset-cutoff-countdown"></div>
+        <div class="reset-rate-label">run out</div>
       </div>
     </div>
   </div>
@@ -124,6 +134,10 @@
           </g>
           <polygon id="ufill" points="0,100 0,100" fill="url(#grad)"/>
           <polyline id="uline" points="0,100" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+          <!-- Dashed "at this rate, you'll hit 100% here" segment — same
+               hidden-by-CSS-class convention as #crosshair below, not the
+               `hidden` attribute. -->
+          <line id="uprojection" x1="0" y1="0" x2="0" y2="0" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"/>
           <!-- Visibility is a CSS class (see #crosshair in style.css), not the
                `hidden` attribute — SVG elements don't reliably pick up the
                HTML `hidden` -> display:none UA rule in every browser, which
