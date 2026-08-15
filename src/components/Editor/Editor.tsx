@@ -24,6 +24,7 @@ import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { EditorContextMenu } from './EditorContextMenu'
 import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
+import { EmptyEditorBackground } from './EmptyEditorBackground'
 import { detectLang } from './utils'
 import {
   isSettingsTab,
@@ -147,8 +148,8 @@ export function Editor() {
           <EditorLayout node={layout} />
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-fg-subtle text-sm">Open a file to start editing</p>
+        <div className="flex-1 relative overflow-hidden">
+          <EmptyEditorBackground />
         </div>
       )}
     </div>

@@ -266,3 +266,24 @@ body {
 .autocomplete-busy-arc {
   animation: autocomplete-spin 0.6s linear infinite;
 }
+
+/* Decorative badge in the empty editor panel ("open a file to start
+   editing"). The source PNG has real alpha (pre-cropped to the badge's
+   corner with a transparent surround), so it just composites normally —
+   no blend-mode trick needed. Height is pinned to 100% of the pane and it's
+   anchored to the right edge. background-attachment: fixed makes that
+   right-edge anchor resolve against the app window instead of this pane's
+   own (shrinking) box — otherwise, opening the Claude side panel narrows
+   the pane and its right edge moves left with it, dragging the badge along
+   and making it look like it's sliding rather than staying put. With fixed
+   attachment the badge stays pinned to the same spot on screen and the
+   Claude panel just progressively covers it, like wallpaper behind a
+   shrinking window. */
+.empty-editor-bg {
+  background-image: url('./assets/emptyEditorBackground.png');
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: auto 100%;
+  background-attachment: fixed;
+  opacity: 0.2;
+}
