@@ -111,6 +111,8 @@ contextBridge.exposeInMainWorld('api', {
   usageAcquire: () => ipcRenderer.invoke('usage:acquire'),
   usageRelease: () => ipcRenderer.invoke('usage:release'),
   usageGetLatest: () => ipcRenderer.invoke('usage:getLatest'),
+  usageGetRange: (fromTs: number, toTs: number, maxPoints?: number) =>
+    ipcRenderer.invoke('usage:getRange', fromTs, toTs, maxPoints) as Promise<import('./usagePoller').UsageSnapshot[]>,
   usageGetPassiveEnabled: () => ipcRenderer.invoke('usage:getPassiveEnabled'),
   usageSetPassiveEnabled: (enabled: boolean) => ipcRenderer.invoke('usage:setPassiveEnabled', enabled),
   onUsageUpdate: (cb: (latest: import('./usagePoller').LatestUsage | null) => void) => {

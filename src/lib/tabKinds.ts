@@ -1,5 +1,5 @@
 import type { Tab } from '@/types/index'
-import { isSettingsTab, isGitLogTab, isGitGraphTab, isGitBranchDiffTab, isGraphifyGraphTab, isTerminalTab, isBrowserTab } from '@/components/Settings/paths'
+import { isSettingsTab, isGitLogTab, isGitGraphTab, isGitBranchDiffTab, isGraphifyGraphTab, isUsageGraphTab, isTerminalTab, isBrowserTab } from '@/components/Settings/paths'
 import { isGitDiffTab, isGitCommitDiffTab } from '@/components/Git/paths'
 import { isImagePreviewTab, isMarkdownPreviewTab } from '@/components/Viewer/paths'
 
@@ -16,6 +16,7 @@ export function isReadOnlyTab(tab: Tab | null): boolean {
     isGitGraphTab(tab.path) ||
     isGitBranchDiffTab(tab.path) ||
     isGraphifyGraphTab(tab.path) ||
+    isUsageGraphTab(tab.path) ||
     isTerminalTab(tab.path) ||
     isBrowserTab(tab.path) ||
     isImagePreviewTab(tab.path) ||

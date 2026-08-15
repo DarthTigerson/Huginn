@@ -7,6 +7,8 @@ import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 
 function baseWindowApi() {
   return {
@@ -158,5 +160,14 @@ describe('ModelsSettingsPage usage monitoring section', () => {
 
     expect(useUsagePassiveSettingsStore.getState().enabled).toBe(true)
     expect(window.api.usageSetPassiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('opens the Usage Graph tab when "Open Usage Graph" is clicked', async () => {
+    render(<ModelsSettingsPage />)
+    await waitFor(() => expect(window.api.usageGetPassiveEnabled).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Usage Graph' }))
+
+    expect(useEditorStore.getState().tabs.some((t) => t.path === USAGE_GRAPH_TAB_PATH)).toBe(true)
   })
 })

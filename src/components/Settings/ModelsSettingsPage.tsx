@@ -4,6 +4,8 @@ import { useAutocompleteSettingsStore, AUTOCOMPLETE_MODELS } from '@/stores/auto
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { Toggle } from '@/components/ui/Toggle'
 import type { AssistantKind } from '@/types/api'
 
@@ -184,10 +186,20 @@ export function ModelsSettingsPage() {
 
           <Toggle
             label="Passive usage monitoring"
-            description="Track Claude Code usage continuously in the background, even when the usage panel and mobile display are closed. Off by default — usage is otherwise only tracked while one of those is open."
+            description="Track Claude Code usage continuously in the background, even when the usage panel and mobile display are closed. Off by default — usage is otherwise only tracked while one of those is open. History collected this way is viewable in the Usage Graph tab."
             checked={passiveUsageEnabled}
             onChange={setPassiveUsageEnabled}
           />
+
+          <div>
+            <button
+              type="button"
+              onClick={() => useEditorStore.getState().openTab({ path: USAGE_GRAPH_TAB_PATH, content: '', dirty: false })}
+              className="h-8 px-3 rounded border border-border text-sm text-fg hover:border-fg-subtle transition-colors"
+            >
+              Open Usage Graph
+            </button>
+          </div>
         </section>
       </div>
     </div>

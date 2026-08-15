@@ -20,6 +20,7 @@ vi.mock('../usagePoller', () => ({
       start: vi.fn(),
       stop: vi.fn(),
       getLatest: vi.fn(() => null),
+      getRange: vi.fn(() => []),
       onSnapshot,
     }
     pollerInstances.push(instance)
@@ -149,6 +150,18 @@ describe('UsageManager', () => {
 
       await ipcHandlers['usage:release']()
       expect(pollerInstances[0].stop).not.toHaveBeenCalled() // passive is now on, keeps it running
+    })
+
+    it('wires usage:getRange to the poller, forwarding the from/to/maxPoints arguments', async () => {
+      const [historyFile, pollSettingsFile, passiveSettingsFile] = paths()
+      const mgr = new UsageManager(historyFile, pollSettingsFile, passiveSettingsFile, fakeWin())
+      mgr.registerHandlers()
+
+      pollerInstances[0].getRange.mockReturnValue([{ ts: 1, sessionPct: 5 }])
+      const result = await ipcHandlers['usage:getRange'](null, 0, 1000, 50)
+
+      expect(result).toEqual([{ ts: 1, sessionPct: 5 }])
+      expect(pollerInstances[0].getRange).toHaveBeenCalledWith(0, 1000, 50)
     })
   })
 })

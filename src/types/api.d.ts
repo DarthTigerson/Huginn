@@ -1,12 +1,12 @@
 import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCheckoutPayload, GitBranchList, GitCommit, GitBranchDiff, SearchMatch } from './index'
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
-import type { LatestUsage } from '../../electron/usagePoller'
+import type { LatestUsage, UsageSnapshot } from '../../electron/usagePoller'
 import type { UpdateInfo } from '../../electron/updateChecker'
 import type { GraphifyGraph } from './graphify'
 import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
 
-export type { LatestUsage, UpdateInfo }
+export type { LatestUsage, UsageSnapshot, UpdateInfo }
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -172,6 +172,7 @@ declare global {
       usageAcquire: () => Promise<void>
       usageRelease: () => Promise<void>
       usageGetLatest: () => Promise<LatestUsage | null>
+      usageGetRange: (fromTs: number, toTs: number, maxPoints?: number) => Promise<UsageSnapshot[]>
       usageGetPassiveEnabled: () => Promise<boolean>
       usageSetPassiveEnabled: (enabled: boolean) => Promise<void>
       onUsageUpdate: (cb: (latest: LatestUsage | null) => void) => () => void
