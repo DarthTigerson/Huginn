@@ -7,6 +7,11 @@ import { join } from 'path'
 import QRCode from 'qrcode'
 import { UsageManager } from './usageManager'
 
+export interface MobileNetworkInterface {
+  name: string
+  address: string
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -15,24 +20,30 @@ export interface MobileState {
   qrSvg: string
   connectedCount: number
   allowingNewDevice: boolean
+  interfaces: MobileNetworkInterface[]
 }
 
-function getLocalIp(): string {
+function getNetworkInterfaceCandidates(): MobileNetworkInterface[] {
   const nets = networkInterfaces()
-  const candidates: string[] = []
-  for (const ifaces of Object.values(nets)) {
+  const candidates: MobileNetworkInterface[] = []
+  for (const [name, ifaces] of Object.entries(nets)) {
     for (const iface of ifaces ?? []) {
       if (iface.family !== 'IPv4' || iface.internal) continue
       if (iface.address.startsWith('169.254.')) continue // skip link-local
-      candidates.push(iface.address)
+      candidates.push({ name, address: iface.address })
     }
   }
+  return candidates
+}
+
+function getLocalIp(candidates: MobileNetworkInterface[]): string {
+  const addresses = candidates.map((c) => c.address)
   // prefer 192.168.x.x, then 10.x.x.x, then 172.x.x.x, then whatever's left
   return (
-    candidates.find((a) => a.startsWith('192.168.')) ??
-    candidates.find((a) => a.startsWith('10.')) ??
-    candidates.find((a) => a.startsWith('172.')) ??
-    candidates[0] ??
+    addresses.find((a) => a.startsWith('192.168.')) ??
+    addresses.find((a) => a.startsWith('10.')) ??
+    addresses.find((a) => a.startsWith('172.')) ??
+    addresses[0] ??
     '127.0.0.1'
   )
 }
@@ -87,6 +98,7 @@ export class MobileServer {
   private pin = ''
   private prevPin = ''
   private sessions = new Set<string>()
+  private interfaces: MobileNetworkInterface[] = []
   private rotateInterval: ReturnType<typeof setInterval> | null = null
   private currentTheme = 'claude-dark'
   private currentFont = 'Menlo, monospace'
@@ -98,6 +110,7 @@ export class MobileServer {
     qrSvg: '',
     connectedCount: 0,
     allowingNewDevice: true,
+    interfaces: [],
   }
 
   constructor(win: BrowserWindow, private readonly usageManager: UsageManager) {
@@ -266,9 +279,9 @@ export class MobileServer {
 
     this.pin = generatePin()
     this.prevPin = ''
-    const localIp = getLocalIp()
-    const url = `http://${localIp}:${this.port}`
-    const qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1 })
+    this.interfaces = getNetworkInterfaceCandidates()
+    const localIp = getLocalIp(this.interfaces)
+    const qrSvg = await this.buildQrForAddress(localIp)
 
     this.server = createServer((req, res) => this.handleRequest(req, res))
     await new Promise<void>((resolve) => {
@@ -278,7 +291,29 @@ export class MobileServer {
     this.rotateInterval = setInterval(() => this.rotatePin(), 15_000)
     this.usageManager.acquire('mobile')
 
-    this.state = { running: true, port: this.port, localIp, pin: this.pin, qrSvg, connectedCount: 0, allowingNewDevice: true }
+    this.state = {
+      running: true,
+      port: this.port,
+      localIp,
+      pin: this.pin,
+      qrSvg,
+      connectedCount: 0,
+      allowingNewDevice: true,
+      interfaces: this.interfaces,
+    }
+    this.pushState()
+  }
+
+  private async buildQrForAddress(address: string): Promise<string> {
+    const url = `http://${address}:${this.port}`
+    return QRCode.toString(url, { type: 'svg', margin: 1 })
+  }
+
+  async selectInterface(address: string): Promise<void> {
+    if (!this.server) return
+    if (!this.interfaces.some((i) => i.address === address)) return
+    this.state.localIp = address
+    this.state.qrSvg = await this.buildQrForAddress(address)
     this.pushState()
   }
 
@@ -288,7 +323,16 @@ export class MobileServer {
     this.server?.close()
     this.server = null
     this.sessions.clear()
-    this.state = { running: false, port: this.port, localIp: this.state.localIp, pin: '', qrSvg: '', connectedCount: 0, allowingNewDevice: true }
+    this.state = {
+      running: false,
+      port: this.port,
+      localIp: this.state.localIp,
+      pin: '',
+      qrSvg: '',
+      connectedCount: 0,
+      allowingNewDevice: true,
+      interfaces: this.state.interfaces,
+    }
     this.pushState()
   }
 
@@ -310,6 +354,7 @@ export class MobileServer {
     ipcMain.handle('mobile:stop', () => this.stop())
     ipcMain.handle('mobile:getState', () => this.state)
     ipcMain.handle('mobile:addDevice', () => this.addDevice())
+    ipcMain.handle('mobile:selectInterface', (_evt, address: string) => this.selectInterface(address))
     ipcMain.on('mobile:setDisplay', (_evt, theme: string, font: string) => this.setDisplay(theme, font))
   }
 

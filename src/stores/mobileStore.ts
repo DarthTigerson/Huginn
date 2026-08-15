@@ -15,6 +15,7 @@ const DEFAULT_STATE: MobileState = {
   qrSvg: '',
   connectedCount: 0,
   allowingNewDevice: true,
+  interfaces: [],
 }
 
 export const useMobileStore = create<MobileStore>((set, get) => ({

@@ -19,6 +19,19 @@ vi.mock('electron', () => ({
   },
 }))
 
+// Ensure at least two non-internal IPv4 candidates regardless of the host's real network config,
+// so interface-selection tests are deterministic in CI/sandboxes with only one live interface.
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>()
+  return {
+    ...actual,
+    networkInterfaces: () => ({
+      en0: [{ address: '192.168.1.50', netmask: '255.255.255.0', family: 'IPv4', internal: false, mac: '00:00:00:00:00:00', cidr: '192.168.1.50/24' }],
+      en5: [{ address: '10.0.0.20', netmask: '255.255.255.0', family: 'IPv4', internal: false, mac: '00:00:00:00:00:00', cidr: '10.0.0.20/24' }],
+    }),
+  }
+})
+
 import { MobileServer } from '../mobile'
 import { UsageManager } from '../usageManager'
 import { join } from 'path'
@@ -179,5 +192,41 @@ describe('MobileServer display sync', () => {
     const res = await postJson(server['port'], '/api/usage/interval', cookie, { ms: 12_345 })
     expect(res.status).toBe(400)
     expect(res.body.ok).toBe(false)
+  })
+})
+
+describe('MobileServer network interfaces', () => {
+  let server: MobileServer
+
+  afterEach(() => {
+    server?.stop()
+  })
+
+  it('populates state.interfaces with at least one candidate and defaults localIp to one of them', async () => {
+    server = newServer()
+    await server.start()
+    expect(server['state'].interfaces.length).toBeGreaterThan(0)
+    expect(server['state'].interfaces.map((i: { address: string }) => i.address)).toContain(server['state'].localIp)
+  })
+
+  it('selectInterface updates localIp and regenerates the QR code', async () => {
+    server = newServer()
+    await server.start()
+    const interfaces = server['state'].interfaces as { name: string; address: string }[]
+    const other = interfaces.find((i) => i.address !== server['state'].localIp) ?? interfaces[0]
+    const prevQr = server['state'].qrSvg
+
+    await server.selectInterface(other.address)
+
+    expect(server['state'].localIp).toBe(other.address)
+    expect(server['state'].qrSvg).not.toBe(prevQr)
+  })
+
+  it('selectInterface ignores an address that is not in the detected list', async () => {
+    server = newServer()
+    await server.start()
+    const before = server['state'].localIp
+    await server.selectInterface('203.0.113.1')
+    expect(server['state'].localIp).toBe(before)
   })
 })

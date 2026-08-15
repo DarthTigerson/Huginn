@@ -10,6 +10,7 @@ const runningState: MobileState = {
   qrSvg: '<svg></svg>',
   connectedCount: 2,
   allowingNewDevice: false,
+  interfaces: [{ name: 'en0', address: '192.168.1.5' }],
 }
 
 let stateListener: ((state: MobileState) => void) | undefined
@@ -39,6 +40,7 @@ describe('mobileStore', () => {
         qrSvg: '',
         connectedCount: 0,
         allowingNewDevice: true,
+        interfaces: [],
       },
       initialized: false,
     })

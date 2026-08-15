@@ -20,6 +20,11 @@ export interface SessionData {
   browserUrls: Record<string, string>
 }
 
+export interface MobileNetworkInterface {
+  name: string
+  address: string
+}
+
 export interface MobileState {
   running: boolean
   port: number
@@ -28,6 +33,7 @@ export interface MobileState {
   qrSvg: string
   connectedCount: number
   allowingNewDevice: boolean
+  interfaces: MobileNetworkInterface[]
 }
 
 export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -149,6 +155,7 @@ declare global {
       mobileStop: () => Promise<void>
       mobileGetState: () => Promise<MobileState>
       mobileAddDevice: () => Promise<void>
+      mobileSelectInterface: (address: string) => Promise<void>
       mobileSetDisplay: (theme: string, font: string) => void
       onMobileState: (cb: (state: MobileState) => void) => () => void
 

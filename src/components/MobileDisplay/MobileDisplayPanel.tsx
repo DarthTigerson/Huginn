@@ -140,6 +140,24 @@ export function MobileDisplayPanel() {
           </p>
         )}
 
+        {state.running && state.interfaces.length > 1 && (
+          <label className="flex flex-col gap-1 text-[0.6875rem] text-fg-muted">
+            <span className="font-medium uppercase tracking-wider">Pairing network</span>
+            <select
+              aria-label="Pairing network"
+              value={state.localIp}
+              onChange={(e) => window.api.mobileSelectInterface(e.target.value)}
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-fg font-mono"
+            >
+              {state.interfaces.map((iface) => (
+                <option key={iface.address} value={iface.address}>
+                  {iface.name} — {iface.address}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {state.running && state.allowingNewDevice && (
           <>
             {/* QR Code */}
