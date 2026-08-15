@@ -5,7 +5,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useEditorStore, type EditorLayoutNode } from '@/stores/editorStore'
 import { useSearchStore } from '@/stores/searchStore'
 import { useThemeStore, MONACO_THEMES } from '@/stores/themeStore'
-import { defineMonacoThemes } from '@/monacoThemes'
+import { defineMonacoThemes, glassMonacoThemeId } from '@/monacoThemes'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
@@ -191,7 +191,9 @@ function EditorPane({ paneId }: { paneId: string }) {
   const setActivePane = useEditorStore((s) => s.setActivePane)
   const updateContent = useEditorStore((s) => s.updateContent)
   const revealRequest = useEditorStore((s) => s.revealRequest)
-  const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
+  const themeId = useThemeStore((s) => s.theme)
+  const panelStyle = useDisplayStore((s) => s.panelStyle)
+  const monacoTheme = panelStyle === 'glass' ? glassMonacoThemeId(themeId) : MONACO_THEMES[themeId]
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
   const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)

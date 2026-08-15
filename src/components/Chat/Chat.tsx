@@ -5,10 +5,10 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
-import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
+import { useThemeStore, XTERM_THEMES, glassXtermTheme, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
-import { useDisplayStore } from '@/stores/displayStore'
+import { useDisplayStore, type PanelStyle } from '@/stores/displayStore'
 import { CosmosChat } from './CosmosChat'
 import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
@@ -30,9 +30,9 @@ interface AssistantTerminal {
 
 const ASSISTANTS: AssistantKind[] = ['claude', 'codex']
 
-function createXTerm(themeId: ThemeId, fontSize: number): XTerm {
+function createXTerm(themeId: ThemeId, panelStyle: PanelStyle, fontSize: number): XTerm {
   return new XTerm({
-    theme: XTERM_THEMES[themeId],
+    theme: panelStyle === 'glass' ? glassXtermTheme(themeId) : XTERM_THEMES[themeId],
     fontFamily: useDisplayStore.getState().font,
     fontSize,
     cursorBlink: true,
@@ -53,6 +53,7 @@ export function Chat() {
   const focusToken = useClaudeStore((s) => s.focusToken)
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
+  const panelStyle = useDisplayStore((s) => s.panelStyle)
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const claudeFontSizeOverride = useInstanceFontSizeStore((s) => s.overrides.claude)
   const codexFontSizeOverride = useInstanceFontSizeStore((s) => s.overrides.codex)
@@ -82,7 +83,7 @@ export function Chat() {
       container.appendChild(host)
 
       const initialFontSize = useInstanceFontSizeStore.getState().overrides[kind] ?? useFontSizeStore.getState().fontSize
-      const xterm = createXTerm(useThemeStore.getState().theme, initialFontSize)
+      const xterm = createXTerm(useThemeStore.getState().theme, useDisplayStore.getState().panelStyle, initialFontSize)
       const fit = new FitAddon()
       xterm.loadAddon(fit)
       xterm.open(host)
@@ -192,9 +193,9 @@ export function Chat() {
 
   useEffect(() => {
     Object.values(terminalsRef.current).forEach((terminal) => {
-      terminal.xterm.options.theme = XTERM_THEMES[theme]
+      terminal.xterm.options.theme = panelStyle === 'glass' ? glassXtermTheme(theme) : XTERM_THEMES[theme]
     })
-  }, [theme])
+  }, [theme, panelStyle])
 
   useEffect(() => {
     const overrides: Partial<Record<AssistantKind, number>> = { claude: claudeFontSizeOverride, codex: codexFontSizeOverride }

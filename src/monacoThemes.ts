@@ -1,5 +1,6 @@
 import type { Monaco } from '@monaco-editor/react'
 import type { ThemeId } from '@/stores/themeStore'
+import { hexWithAlpha } from '@/lib/color'
 
 interface ThemePalette {
   base: 'vs' | 'vs-dark'
@@ -26,6 +27,19 @@ const THEME_PALETTES: Record<ThemeId, ThemePalette> = {
   'luuk-light':   { base: 'vs-dark', background: '#141414', foreground: '#d4d4d4', accent: '#9e9e9e', border: '#2e2e2e', fgMuted: '#8a8a8a', fgSubtle: '#525252' },
 }
 
+// "glass" panel style needs the editor surface itself to be see-through, not
+// just its wrapper div — Monaco paints its own opaque background from this
+// theme's 'editor.background' color, independent of the --color-panel CSS
+// custom property the rest of the UI uses, so a plain CSS opacity change on
+// the wrapper has no visible effect on the actual editing surface.
+export function glassMonacoThemeId(id: ThemeId): string {
+  return `${id}-glass`
+}
+
+// Matches --color-panel's glass alpha in index.css so the editor surface
+// blends with the same transparency as its own wrapper panel.
+const GLASS_ALPHA = 0.25
+
 let defined = false
 
 export function defineMonacoThemes(monaco: Monaco) {
@@ -33,23 +47,29 @@ export function defineMonacoThemes(monaco: Monaco) {
   defined = true
 
   for (const [id, p] of Object.entries(THEME_PALETTES) as [ThemeId, ThemePalette][]) {
+    const colors = {
+      'editor.foreground':                   p.foreground,
+      'editorCursor.foreground':              p.accent,
+      'editor.selectionBackground':           p.accent + '40',
+      'editor.inactiveSelectionBackground':   p.accent + '20',
+      'editor.lineHighlightBackground':       p.accent + '12',
+      'editorLineNumber.foreground':          p.fgSubtle,
+      'editorLineNumber.activeForeground':    p.fgMuted,
+      'editorIndentGuide.background':         p.border,
+      'editorIndentGuide.activeBackground':   p.fgSubtle,
+      'editorWhitespace.foreground':          p.border,
+    }
     monaco.editor.defineTheme(id, {
       base: p.base,
       inherit: true,
       rules: [],
-      colors: {
-        'editor.background':                  p.background,
-        'editor.foreground':                   p.foreground,
-        'editorCursor.foreground':              p.accent,
-        'editor.selectionBackground':           p.accent + '40',
-        'editor.inactiveSelectionBackground':   p.accent + '20',
-        'editor.lineHighlightBackground':       p.accent + '12',
-        'editorLineNumber.foreground':          p.fgSubtle,
-        'editorLineNumber.activeForeground':    p.fgMuted,
-        'editorIndentGuide.background':         p.border,
-        'editorIndentGuide.activeBackground':   p.fgSubtle,
-        'editorWhitespace.foreground':          p.border,
-      },
+      colors: { ...colors, 'editor.background': p.background },
+    })
+    monaco.editor.defineTheme(glassMonacoThemeId(id), {
+      base: p.base,
+      inherit: true,
+      rules: [],
+      colors: { ...colors, 'editor.background': hexWithAlpha(p.background, GLASS_ALPHA) },
     })
   }
 }

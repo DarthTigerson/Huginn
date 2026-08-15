@@ -18,7 +18,7 @@ export const FONT_PRESETS = [
   { label: 'Courier New', value: 'Courier New, monospace' },
 ] as const
 
-export type PanelStyle = 'matt' | 'glossy'
+export type PanelStyle = 'matt' | 'glossy' | 'glass'
 
 // More may be added later (e.g. a combined view) - kept as its own union
 // rather than a boolean so the settings dropdown and FooterMessage's switch

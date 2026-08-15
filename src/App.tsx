@@ -557,7 +557,8 @@ export default function App() {
   }, [])
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col">
+    <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col relative isolate">
+      <div className="app-bg-badge" aria-hidden="true" />
       <div
         className="relative z-50 h-8 shrink-0 flex items-center justify-center bg-tab-bar border-b border-border"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}

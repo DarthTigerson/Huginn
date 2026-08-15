@@ -5,6 +5,7 @@ import { Toggle } from '@/components/ui/Toggle'
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
   { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
   { value: 'glossy', label: 'Glossy', description: 'Frosted glass' },
+  { value: 'glass',  label: 'Glass',  description: 'See-through, reveals the background image' },
 ]
 
 // More may be added later — see FooterContent's own comment in displayStore.
@@ -124,11 +125,20 @@ export function DisplayPage() {
                         colors, glossy is the same theme colors made translucent with
                         blur (see [data-panel-style="glossy"] in index.css), no color shift */}
                     <div className="h-14 relative overflow-hidden bg-bg">
+                      {opt.value === 'glass' && (
+                        <div className="absolute right-1 bottom-0 w-6 h-6 rounded-full bg-accent/70 blur-[3px]" />
+                      )}
                       {opt.value === 'glossy' ? (
                         <>
                           <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/50 backdrop-blur-sm" />
                           <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/60 backdrop-blur-sm border-b border-border/40" />
                           <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/50 backdrop-blur-sm" />
+                        </>
+                      ) : opt.value === 'glass' ? (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/20 backdrop-blur-sm" />
+                          <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/25 backdrop-blur-sm border-b border-border/30" />
+                          <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/20 backdrop-blur-sm" />
                         </>
                       ) : (
                         <>
