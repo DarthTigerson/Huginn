@@ -3,6 +3,7 @@ import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useAutocompleteSettingsStore, AUTOCOMPLETE_MODELS } from '@/stores/autocompleteSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
+import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
@@ -86,6 +87,12 @@ export function ModelsSettingsPage() {
   const setInlineEditModel = useInlineEditSettingsStore((s) => s.setModel)
   const passiveUsageEnabled = useUsagePassiveSettingsStore((s) => s.enabled)
   const setPassiveUsageEnabled = useUsagePassiveSettingsStore((s) => s.setEnabled)
+  const commitMessageEnabled = useCommitMessageSettingsStore((s) => s.enabled)
+  const setCommitMessageEnabled = useCommitMessageSettingsStore((s) => s.setEnabled)
+  const commitMessageModel = useCommitMessageSettingsStore((s) => s.model)
+  const setCommitMessageModel = useCommitMessageSettingsStore((s) => s.setModel)
+  const commitMessagePrompt = useCommitMessageSettingsStore((s) => s.prompt)
+  const setCommitMessagePrompt = useCommitMessageSettingsStore((s) => s.setPrompt)
 
   useEffect(() => {
     useUsagePassiveSettingsStore.getState().init()
@@ -176,6 +183,50 @@ export function ModelsSettingsPage() {
                 ▾
               </span>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+            Commit Messages
+          </h2>
+
+          <Toggle
+            label="Generate commit messages"
+            description="Adds a button next to the commit message box in the Git panel that writes a message from your staged diff."
+            checked={commitMessageEnabled}
+            onChange={setCommitMessageEnabled}
+          />
+
+          <div>
+            <label htmlFor="commit-message-model" className="text-xs text-fg-muted mb-1.5 block">Commit Message Model</label>
+            <div className="relative">
+              <select
+                id="commit-message-model"
+                value={commitMessageModel}
+                onChange={(e) => setCommitMessageModel(e.target.value)}
+                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
+              >
+                {AUTOCOMPLETE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                ▾
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="commit-message-prompt" className="text-sm text-fg">Prompt</label>
+            <textarea
+              id="commit-message-prompt"
+              value={commitMessagePrompt}
+              onChange={(e) => setCommitMessagePrompt(e.target.value)}
+              placeholder="Leave empty for the default prompt"
+              rows={3}
+              className="w-full resize-none px-2 py-1.5 text-sm text-fg bg-bg border border-border rounded-lg placeholder:text-fg-subtle focus:outline-none focus:border-accent/60"
+            />
           </div>
         </section>
 

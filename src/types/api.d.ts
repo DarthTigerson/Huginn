@@ -122,6 +122,7 @@ declare global {
       gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitFetchSilent: (cwd: string) => Promise<boolean>
+      gitStagedDiff: (cwd: string) => Promise<string>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
 
@@ -224,6 +225,8 @@ declare global {
       setWindowTitle: (root: string) => void
 
       autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) => Promise<string | null>
+
+      commitMessageGenerate: (diff: string, model: string, customPrompt: string) => Promise<string | null>
 
       inlineEditStart: (payload: InlineEditStartPayload) => void
       inlineEditCancel: () => void

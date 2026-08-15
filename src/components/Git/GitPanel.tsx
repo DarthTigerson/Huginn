@@ -14,6 +14,7 @@ import { useSearchStore } from '@/stores/searchStore'
 import { FileRow } from './FileRow'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
+import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 
 const pillButtonClass =
   'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
@@ -26,6 +27,20 @@ interface ContextMenuState {
   y: number
   file: GitFileEntry
   staged: boolean
+}
+
+function SparkleIcon({ spinning }: { spinning?: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={spinning ? 'animate-spin' : ''}
+    >
+      <path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" fill="currentColor" />
+    </svg>
+  )
 }
 
 function DiscardAllIcon() {
@@ -63,6 +78,28 @@ export function GitPanel() {
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
   const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
+  const commitMessageEnabled = useCommitMessageSettingsStore((s) => s.enabled)
+  const commitMessageModel = useCommitMessageSettingsStore((s) => s.model)
+  const commitMessagePrompt = useCommitMessageSettingsStore((s) => s.prompt)
+  const [generatingMessage, setGeneratingMessage] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+
+  async function generateCommitMessage() {
+    if (!projectRoot) return
+    setGeneratingMessage(true)
+    setGenerateError(null)
+    try {
+      const diff = await window.api.gitStagedDiff(projectRoot)
+      const message = await window.api.commitMessageGenerate(diff, commitMessageModel, commitMessagePrompt)
+      if (message) {
+        setCommitMessage(message)
+      } else {
+        setGenerateError('Could not generate a commit message')
+      }
+    } finally {
+      setGeneratingMessage(false)
+    }
+  }
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -147,13 +184,27 @@ export function GitPanel() {
       </div>
 
       <div className="px-3 py-2 border-b border-border shrink-0 flex flex-col gap-1.5">
-        <textarea
-          value={commitMessage}
-          onChange={(e) => setCommitMessage(e.target.value)}
-          placeholder="Message"
-          rows={3}
-          className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
-        />
+        <div className="relative">
+          <textarea
+            value={commitMessage}
+            onChange={(e) => setCommitMessage(e.target.value)}
+            placeholder="Message"
+            rows={3}
+            className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+          />
+          {commitMessageEnabled && (
+            <button
+              type="button"
+              title="Generate commit message from staged changes"
+              disabled={generatingMessage || status.staged.length === 0}
+              onClick={generateCommitMessage}
+              className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <SparkleIcon spinning={generatingMessage} />
+            </button>
+          )}
+        </div>
+        {generateError && <p className="text-xs text-red-400">{generateError}</p>}
         {commitError && <p className="text-xs text-red-400">{commitError}</p>}
         <button
           type="button"

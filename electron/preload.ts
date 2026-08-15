@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
+  gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,
   gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
   onGitChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)
@@ -286,6 +287,9 @@ contextBridge.exposeInMainWorld('api', {
 
   autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) =>
     ipcRenderer.invoke('autocomplete:complete', prefix, suffix, language, model),
+
+  commitMessageGenerate: (diff: string, model: string, customPrompt: string) =>
+    ipcRenderer.invoke('commitMessage:generate', diff, model, customPrompt) as Promise<string | null>,
 
   inlineEditStart: (payload: import('./inlineEdit').InlineEditStartPayload) =>
     ipcRenderer.send('inlineEdit:start', payload),
