@@ -5,6 +5,8 @@ import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { SHIFT_ENTER_SEQUENCE } from '../shiftEnterSequence'
 import { BRACKETED_PASTE_START, BRACKETED_PASTE_END } from '@/lib/sendSelectionToAssistant'
+import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
+import { useFontSizeStore } from '@/stores/fontSizeStore'
 
 beforeEach(() => {
   ;(global as any).window.api = {
@@ -16,11 +18,13 @@ beforeEach(() => {
   }
   useFileStore.setState({ projectRoot: '/project' })
   useClaudeStore.setState({ assistant: 'claude', restartToken: 0, pendingInjection: null, focusToken: 0 })
+  useInstanceFontSizeStore.getState().resetAll()
 })
 
 afterEach(() => {
   cleanup()
   useFileStore.setState({ projectRoot: null })
+  useInstanceFontSizeStore.getState().resetAll()
 })
 
 describe('Chat (claude terminal)', () => {
@@ -118,5 +122,97 @@ describe('Chat (claude terminal)', () => {
 
     const writeMock = (window.api as any).assistantWrite as ReturnType<typeof vi.fn>
     expect(writeMock).not.toHaveBeenCalled()
+  })
+
+  it('zooms only the focused panel on unshifted CmdOrCtrl+=, leaving the global font size untouched', async () => {
+    const { container } = render(<Chat />)
+    const textarea = await waitFor(() => {
+      const el = container.querySelector('.xterm-helper-textarea')
+      if (!el) throw new Error('xterm helper textarea not mounted yet')
+      return el as HTMLTextAreaElement
+    })
+
+    const globalSizeBefore = useFontSizeStore.getState().fontSize
+    const event = new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true })
+    act(() => { textarea.dispatchEvent(event) })
+
+    expect(useInstanceFontSizeStore.getState().overrides.claude).toBe(globalSizeBefore + 1)
+    expect(useInstanceFontSizeStore.getState().overrides.codex).toBeUndefined()
+    expect(useFontSizeStore.getState().fontSize).toBe(globalSizeBefore)
+  })
+
+  it('resets only the focused panel zoom on unshifted CmdOrCtrl+0', async () => {
+    useInstanceFontSizeStore.setState({ overrides: { claude: 20 } })
+    const { container } = render(<Chat />)
+    const textarea = await waitFor(() => {
+      const el = container.querySelector('.xterm-helper-textarea')
+      if (!el) throw new Error('xterm helper textarea not mounted yet')
+      return el as HTMLTextAreaElement
+    })
+
+    const event = new KeyboardEvent('keydown', { key: '0', metaKey: true, bubbles: true, cancelable: true })
+    act(() => { textarea.dispatchEvent(event) })
+
+    expect(useInstanceFontSizeStore.getState().overrides.claude).toBeUndefined()
+  })
+
+  it('lets shifted CmdOrCtrl+Shift+= (the global zoom shortcut) pass through unhandled', async () => {
+    const { container } = render(<Chat />)
+    const textarea = await waitFor(() => {
+      const el = container.querySelector('.xterm-helper-textarea')
+      if (!el) throw new Error('xterm helper textarea not mounted yet')
+      return el as HTMLTextAreaElement
+    })
+
+    const event = new KeyboardEvent('keydown', { key: '+', metaKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    act(() => { textarea.dispatchEvent(event) })
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(useInstanceFontSizeStore.getState().overrides.claude).toBeUndefined()
+  })
+
+  it('keeps codex panel zoom independent from claude panel zoom', async () => {
+    useClaudeStore.setState({ assistant: 'codex', restartToken: 0, pendingInjection: null, focusToken: 0 })
+    const { container } = render(<Chat />)
+    const textarea = await waitFor(() => {
+      const el = container.querySelector('.xterm-helper-textarea')
+      if (!el) throw new Error('xterm helper textarea not mounted yet')
+      return el as HTMLTextAreaElement
+    })
+
+    const globalSizeBefore = useFontSizeStore.getState().fontSize
+    const event = new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true })
+    act(() => { textarea.dispatchEvent(event) })
+
+    expect(useInstanceFontSizeStore.getState().overrides.codex).toBe(globalSizeBefore + 1)
+    expect(useInstanceFontSizeStore.getState().overrides.claude).toBeUndefined()
+  })
+
+  it('relays a resize to the PTY when the global font size changes, so the CLI redraws for its actual grid', async () => {
+    const { container } = render(<Chat />)
+    await waitFor(() => {
+      if (!container.querySelector('.xterm-helper-textarea')) throw new Error('xterm helper textarea not mounted yet')
+    })
+
+    const resizeMock = (window.api as any).assistantResize as ReturnType<typeof vi.fn>
+    resizeMock.mockClear()
+
+    act(() => { useFontSizeStore.getState().decrease() })
+
+    expect(resizeMock).toHaveBeenCalledWith('claude', expect.any(Number), expect.any(Number))
+  })
+
+  it('relays a resize to the PTY when a per-panel zoom override changes', async () => {
+    const { container } = render(<Chat />)
+    await waitFor(() => {
+      if (!container.querySelector('.xterm-helper-textarea')) throw new Error('xterm helper textarea not mounted yet')
+    })
+
+    const resizeMock = (window.api as any).assistantResize as ReturnType<typeof vi.fn>
+    resizeMock.mockClear()
+
+    act(() => { useInstanceFontSizeStore.getState().decrease('claude') })
+
+    expect(resizeMock).toHaveBeenCalledWith('claude', expect.any(Number), expect.any(Number))
   })
 })

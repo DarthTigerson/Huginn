@@ -150,15 +150,27 @@ export function TerminalTab({ terminalId }: Props) {
 
   useEffect(() => {
     if (!instanceRef.current) return
-    instanceRef.current.xterm.options.fontSize = effectiveFontSize
-    instanceRef.current.fit.fit()
-  }, [effectiveFontSize])
+    const { xterm, fit } = instanceRef.current
+    xterm.options.fontSize = effectiveFontSize
+    fit.fit()
+    // A font-size change resizes the cell grid (more/fewer cols and rows fit
+    // the same pixel area). Without relaying that to the PTY, the shell keeps
+    // rendering for its old dimensions until some other resize happens to
+    // sync it — producing a visibly broken TUI layout for full-screen apps.
+    if (hasValidSize(xterm.cols, xterm.rows)) {
+      window.api.termResize(terminalId, xterm.cols, xterm.rows)
+    }
+  }, [effectiveFontSize, terminalId])
 
   useEffect(() => {
     if (!instanceRef.current) return
-    instanceRef.current.xterm.options.fontFamily = font
-    instanceRef.current.fit.fit()
-  }, [font])
+    const { xterm, fit } = instanceRef.current
+    xterm.options.fontFamily = font
+    fit.fit()
+    if (hasValidSize(xterm.cols, xterm.rows)) {
+      window.api.termResize(terminalId, xterm.cols, xterm.rows)
+    }
+  }, [font, terminalId])
 
   return (
     <div ref={containerRef} className="h-full w-full overflow-hidden bg-bg p-1" />

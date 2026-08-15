@@ -7,6 +7,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { useThemeStore, XTERM_THEMES, type ThemeId } from '@/stores/themeStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
+import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { CosmosChat } from './CosmosChat'
 import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
@@ -29,11 +30,11 @@ interface AssistantTerminal {
 
 const ASSISTANTS: AssistantKind[] = ['claude', 'codex']
 
-function createXTerm(themeId: ThemeId): XTerm {
+function createXTerm(themeId: ThemeId, fontSize: number): XTerm {
   return new XTerm({
     theme: XTERM_THEMES[themeId],
     fontFamily: useDisplayStore.getState().font,
-    fontSize: useFontSizeStore.getState().fontSize,
+    fontSize,
     cursorBlink: true,
     convertEol: true,
     // Without this, xterm's built-in OscLinkProvider handles OSC 8 terminal
@@ -53,6 +54,8 @@ export function Chat() {
   const restartToken = useClaudeStore((s) => s.restartToken)
   const theme = useThemeStore((s) => s.theme)
   const fontSize = useFontSizeStore((s) => s.fontSize)
+  const claudeFontSizeOverride = useInstanceFontSizeStore((s) => s.overrides.claude)
+  const codexFontSizeOverride = useInstanceFontSizeStore((s) => s.overrides.codex)
   const font = useDisplayStore((s) => s.font)
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalsRef = useRef<Partial<Record<AssistantKind, AssistantTerminal>>>({})
@@ -78,30 +81,57 @@ export function Chat() {
       host.style.display = kind === assistant ? 'block' : 'none'
       container.appendChild(host)
 
-      const xterm = createXTerm(useThemeStore.getState().theme)
+      const initialFontSize = useInstanceFontSizeStore.getState().overrides[kind] ?? useFontSizeStore.getState().fontSize
+      const xterm = createXTerm(useThemeStore.getState().theme, initialFontSize)
       const fit = new FitAddon()
       xterm.loadAddon(fit)
       xterm.open(host)
 
-      if (kind === 'claude') {
-        // xterm sends the same CR byte for Enter and Shift+Enter by default, which
-        // Claude Code's CLI reads as "submit" either way. Send the ESC+CR sequence
-        // it expects for "insert newline" instead of falling through to xterm's
-        // default Enter handling.
-        //
-        // Returning false here short-circuits xterm's own _keyDown before it ever
-        // calls cancel() (its preventDefault/stopPropagation), so without calling
-        // preventDefault ourselves the browser still runs Enter's default action —
-        // inserting a newline into xterm's hidden textarea — which xterm's input
-        // handler then forwards to the PTY as a stray extra keystroke right behind
-        // our escape sequence, submitting the message anyway.
-        xterm.attachCustomKeyEventHandler((event) => {
-          if (!isShiftEnterKeydown(event)) return true
+      // xterm only allows one attached custom key handler per instance, so
+      // Claude's Shift+Enter handling and the per-panel zoom shortcut (both
+      // needed here) have to live in a single combined handler.
+      xterm.attachCustomKeyEventHandler((event) => {
+        if (event.type !== 'keydown') return true
+
+        if (kind === 'claude' && isShiftEnterKeydown(event)) {
+          // xterm sends the same CR byte for Enter and Shift+Enter by default, which
+          // Claude Code's CLI reads as "submit" either way. Send the ESC+CR sequence
+          // it expects for "insert newline" instead of falling through to xterm's
+          // default Enter handling.
+          //
+          // Returning false here short-circuits xterm's own _keyDown before it ever
+          // calls cancel() (its preventDefault/stopPropagation), so without calling
+          // preventDefault ourselves the browser still runs Enter's default action —
+          // inserting a newline into xterm's hidden textarea — which xterm's input
+          // handler then forwards to the PTY as a stray extra keystroke right behind
+          // our escape sequence, submitting the message anyway.
           event.preventDefault()
           window.api.assistantWrite(kind, SHIFT_ENTER_SEQUENCE)
           return false
-        })
+        }
 
+        // CmdOrCtrl+=/-/0 (unshifted) zoom just this panel; shifted variants are
+        // left unhandled so they pass through to the app-level global zoom shortcut.
+        const isMod = event.metaKey || event.ctrlKey
+        if (isMod && !event.shiftKey && !event.altKey) {
+          if (event.key === '=' || event.key === '+') {
+            useInstanceFontSizeStore.getState().increase(kind)
+            return false
+          }
+          if (event.key === '-' || event.key === '_') {
+            useInstanceFontSizeStore.getState().decrease(kind)
+            return false
+          }
+          if (event.key === '0') {
+            useInstanceFontSizeStore.getState().reset(kind)
+            return false
+          }
+        }
+
+        return true
+      })
+
+      if (kind === 'claude') {
         // Clickable file paths and URLs in Claude's own output. Registered in
         // this order so a URL match wins over the file-path one for any
         // overlapping range (a URL's own path segment, e.g. "/path.txt" in
@@ -167,16 +197,31 @@ export function Chat() {
   }, [theme])
 
   useEffect(() => {
-    Object.values(terminalsRef.current).forEach((terminal) => {
-      terminal.xterm.options.fontSize = fontSize
+    const overrides: Partial<Record<AssistantKind, number>> = { claude: claudeFontSizeOverride, codex: codexFontSizeOverride }
+    ASSISTANTS.forEach((kind) => {
+      const terminal = terminalsRef.current[kind]
+      if (!terminal) return
+      terminal.xterm.options.fontSize = overrides[kind] ?? fontSize
       terminal.fit.fit()
+      // A font-size change resizes the cell grid (more/fewer cols and rows fit
+      // the same pixel area). Without relaying that to the PTY, the CLI keeps
+      // rendering for its old dimensions until some other resize (e.g. dragging
+      // the pane) happens to sync it — producing a visibly broken TUI layout.
+      if (hasValidSize(terminal.xterm.cols, terminal.xterm.rows)) {
+        window.api.assistantResize(kind, terminal.xterm.cols, terminal.xterm.rows)
+      }
     })
-  }, [fontSize])
+  }, [fontSize, claudeFontSizeOverride, codexFontSizeOverride])
 
   useEffect(() => {
-    Object.values(terminalsRef.current).forEach((terminal) => {
+    ASSISTANTS.forEach((kind) => {
+      const terminal = terminalsRef.current[kind]
+      if (!terminal) return
       terminal.xterm.options.fontFamily = font
       terminal.fit.fit()
+      if (hasValidSize(terminal.xterm.cols, terminal.xterm.rows)) {
+        window.api.assistantResize(kind, terminal.xterm.cols, terminal.xterm.rows)
+      }
     })
   }, [font])
 
