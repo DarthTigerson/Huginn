@@ -43,3 +43,9 @@ export const GRAPHIFY_GRAPH_TAB_PATH = 'graphify-graph://Graphify'
 export function isGraphifyGraphTab(path: string): boolean {
   return path === GRAPHIFY_GRAPH_TAB_PATH
 }
+
+export const USAGE_GRAPH_TAB_PATH = 'usage-graph://Usage Graph'
+
+export function isUsageGraphTab(path: string): boolean {
+  return path === USAGE_GRAPH_TAB_PATH
+}

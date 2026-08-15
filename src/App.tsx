@@ -29,6 +29,7 @@ import {
   CompactIcon,
   ClearIcon,
   UsageIcon,
+  UsageGraphIcon,
   ModelIcon,
   FastIcon,
 } from './components/ActivityBar/ActivityBar'
@@ -64,7 +65,7 @@ import { useJiraSettingsStore } from './stores/jiraSettingsStore'
 import { useGitRemoteSettingsStore } from './stores/gitRemoteSettingsStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
 import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
-import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH } from './components/Settings/paths'
+import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, USAGE_GRAPH_TAB_PATH } from './components/Settings/paths'
 import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
@@ -798,14 +799,24 @@ export default function App() {
             ]] : []),
           ]}
           bottomGroups={assistant === 'claude'
-            ? [[{
+            ? [[
+              {
                 id: 'usage',
                 icon: <UsageIcon />,
                 title: 'Usage',
                 active: usageOpen,
                 disabled: !projectRoot,
                 onClick: () => useClaudeStore.getState().usage(),
-              }]]
+              },
+              {
+                id: 'usage-graph',
+                icon: <UsageGraphIcon />,
+                title: 'Usage Graph',
+                active: activeTabPath === USAGE_GRAPH_TAB_PATH,
+                disabled: !projectRoot,
+                onClick: () => useEditorStore.getState().openTab({ path: USAGE_GRAPH_TAB_PATH, content: '', dirty: false }),
+              },
+            ]]
             : assistant === 'codex'
             ? [[
               {

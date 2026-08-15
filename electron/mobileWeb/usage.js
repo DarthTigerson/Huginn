@@ -2,6 +2,12 @@ const CIRC = 238.76
 const RANGES = ['1h', '24h', '7d', '30d']
 const RANGE_MS = { '1h': 3_600_000, '24h': 86_400_000, '7d': 604_800_000, '30d': 2_592_000_000 }
 const INTERVALS = [15000, 30000, 60000, 300000, 900000]
+// The projected cutoff lands in the future (that's the point), so the
+// visible window has to stretch past "now" to fit its dashed line — but
+// only when it's near-term; a cutoff weeks out would otherwise squash all
+// the real history into a sliver on the left. Same trick as the desktop
+// sparkline (src/components/UsagePanel/UsageSparkline.tsx).
+const CUTOFF_FUTURE_WINDOW_MS = 6 * 3_600_000
 
 let currentRange = '24h'
 let refreshTimer = null
@@ -100,6 +106,43 @@ function renderCountdowns() {
   if (!latestData) return
   document.getElementById('session-reset-countdown').textContent = fmtCountdown(latestData.sessionResetAt)
   document.getElementById('weekly-reset-countdown').textContent = fmtCountdown(latestData.weeklyResetAt)
+  if (latestData.sessionCutoffAt != null) {
+    document.getElementById('session-cutoff-countdown').textContent = fmtCountdown(latestData.sessionCutoffAt)
+  }
+  if (latestData.weeklyCutoffAt != null) {
+    document.getElementById('weekly-cutoff-countdown').textContent = fmtCountdown(latestData.weeklyCutoffAt)
+  }
+}
+
+function renderCutoff(prefix, cutoffAt) {
+  const timeEl = document.getElementById(prefix + '-cutoff-time')
+  const countdownEl = document.getElementById(prefix + '-cutoff-countdown')
+  if (cutoffAt == null) {
+    timeEl.textContent = 'on track'
+    timeEl.classList.add('on-track')
+    countdownEl.textContent = ''
+  } else {
+    timeEl.textContent = fmtTime(cutoffAt)
+    timeEl.classList.remove('on-track')
+    countdownEl.textContent = fmtCountdown(cutoffAt)
+  }
+}
+
+// Only drawn when the cutoff actually falls inside the visible window —
+// off-screen numbers aren't a useful graph annotation, the numeric estimate
+// (renderCutoff above) covers that case regardless.
+function renderProjection(snaps, cutoffAt) {
+  const line = document.getElementById('uprojection')
+  const last = snaps[snaps.length - 1]
+  if (!last || cutoffAt == null || cutoffAt < currentWindow.from || cutoffAt > currentWindow.to) {
+    line.classList.remove('visible')
+    return
+  }
+  line.setAttribute('x1', xFor(last.ts))
+  line.setAttribute('y1', yFor(last.sessionPct))
+  line.setAttribute('x2', xFor(cutoffAt))
+  line.setAttribute('y2', yFor(100))
+  line.classList.add('visible')
 }
 
 function render(data) {
@@ -116,13 +159,24 @@ function render(data) {
   document.getElementById('weekly-reset-time').textContent = fmtTime(l.weeklyResetAt)
   document.getElementById('session-rate').textContent = fmtRate(l.sessionAvgRatePerHour)
   document.getElementById('weekly-rate').textContent = fmtRate(l.weeklyAvgRatePerHour)
+  renderCutoff('session', l.sessionCutoffAt)
+  renderCutoff('weekly', l.weeklyCutoffAt)
   renderCountdowns()
+
+  if (
+    l.sessionCutoffAt != null &&
+    l.sessionCutoffAt > currentWindow.to &&
+    l.sessionCutoffAt <= currentWindow.to + CUTOFF_FUTURE_WINDOW_MS
+  ) {
+    currentWindow = { from: currentWindow.from, to: l.sessionCutoffAt }
+  }
 
   const snaps = data.snapshots || []
   currentSnapshots = snaps
   const p = pts(snaps)
   document.getElementById('uline').setAttribute('points', p || '0,100')
   document.getElementById('ufill').setAttribute('points', p ? fillPts(snaps) : '0,100 0,100')
+  renderProjection(snaps, l.sessionCutoffAt)
   renderXAxis()
 
   const sk = l.topSkills || []

@@ -7,6 +7,9 @@ import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
+import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 
 function baseWindowApi() {
   return {
@@ -26,6 +29,7 @@ afterEach(() => {
   useCosmosSettingsStore.setState({ endpoint: '', apiKey: '', modelId: '' })
   useInlineEditSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5' })
   useUsagePassiveSettingsStore.setState({ enabled: false, initialized: false })
+  useCommitMessageSettingsStore.setState({ enabled: false, model: 'claude-sonnet-5', prompt: '' })
 })
 
 describe('ModelsSettingsPage assistants section', () => {
@@ -141,6 +145,32 @@ describe('ModelsSettingsPage inline edit section', () => {
   })
 })
 
+describe('ModelsSettingsPage commit messages section', () => {
+  it('reflects the current enabled state', () => {
+    useCommitMessageSettingsStore.setState({ enabled: true })
+    render(<ModelsSettingsPage />)
+    expect(screen.getByRole('switch', { name: 'Generate commit messages' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('toggles on click', () => {
+    render(<ModelsSettingsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Generate commit messages' }))
+    expect(useCommitMessageSettingsStore.getState().enabled).toBe(true)
+  })
+
+  it('reflects the current model selection', () => {
+    useCommitMessageSettingsStore.setState({ model: 'claude-opus-5' })
+    render(<ModelsSettingsPage />)
+    expect((screen.getByLabelText('Commit Message Model') as HTMLSelectElement).value).toBe('claude-opus-5')
+  })
+
+  it('updates the prompt when changed, leaving empty as the default sentinel', () => {
+    render(<ModelsSettingsPage />)
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Always mention the ticket number' } })
+    expect(useCommitMessageSettingsStore.getState().prompt).toBe('Always mention the ticket number')
+  })
+})
+
 describe('ModelsSettingsPage usage monitoring section', () => {
   it('reflects the persisted passive-monitoring setting on load', async () => {
     ;(global as any).window.api = { ...baseWindowApi(), usageGetPassiveEnabled: vi.fn().mockResolvedValue(true) }
@@ -158,5 +188,14 @@ describe('ModelsSettingsPage usage monitoring section', () => {
 
     expect(useUsagePassiveSettingsStore.getState().enabled).toBe(true)
     expect(window.api.usageSetPassiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('opens the Usage Graph tab when "Open Usage Graph" is clicked', async () => {
+    render(<ModelsSettingsPage />)
+    await waitFor(() => expect(window.api.usageGetPassiveEnabled).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Usage Graph' }))
+
+    expect(useEditorStore.getState().tabs.some((t) => t.path === USAGE_GRAPH_TAB_PATH)).toBe(true)
   })
 })

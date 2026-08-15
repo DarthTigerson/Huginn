@@ -224,6 +224,9 @@ a { color: inherit; }
 .reset-countdown { font-size: 12px; color: var(--accent); margin-top: 2px; }
 .reset-rate { font-size: 13px; font-weight: 700; color: var(--fg-muted); white-space: nowrap; }
 .reset-rate-label { font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.reset-cutoff-time { font-size: 13px; font-weight: 700; color: #fbbf24; white-space: nowrap; }
+.reset-cutoff-time.on-track { color: var(--fg-muted); font-weight: 400; }
+.reset-cutoff-countdown { font-size: 11px; color: #fbbf24; margin-top: 2px; }
 
 /* Custom dropdown — a native <select>'s open menu is OS chrome that CSS
    can't touch (especially iOS's picker wheel), so this is a plain
@@ -315,6 +318,8 @@ a { color: inherit; }
 
 #crosshair { display: none; }
 #crosshair.visible { display: inline; }
+#uprojection { display: none; }
+#uprojection.visible { display: inline; }
 
 .chart-dot {
   position: absolute;

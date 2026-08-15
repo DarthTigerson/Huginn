@@ -18,6 +18,8 @@ export interface UsageSnapshot {
 export interface LatestUsage extends UsageSnapshot {
   sessionAvgRatePerHour: number | null
   weeklyAvgRatePerHour: number | null
+  sessionCutoffAt: number | null
+  weeklyCutoffAt: number | null
 }
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
@@ -89,6 +91,17 @@ export function computeBurnRate(pct: number, resetAt: number | null, windowHours
   const elapsed = windowHours - hoursRemaining
   if (elapsed < MIN_ELAPSED_HOURS) return null
   return pct / elapsed
+}
+
+// Projects when usage would hit 100% at the current burn rate. Null means
+// "no meaningful cutoff": either the rate isn't climbing, or the window
+// resets before the projection would ever reach 100% (on track).
+export function computeCutoff(pct: number, resetAt: number | null, ratePerHour: number | null, now = Date.now()): number | null {
+  if (ratePerHour == null || ratePerHour <= 0) return null
+  if (pct >= 100) return now
+  const cutoffAt = now + ((100 - pct) / ratePerHour) * 3_600_000
+  if (resetAt != null && cutoffAt >= resetAt) return null
+  return cutoffAt
 }
 
 function averageBucket(bucket: UsageSnapshot[]): UsageSnapshot {
@@ -204,10 +217,14 @@ export class UsagePoller {
 
   getLatest(): LatestUsage | null {
     if (!this.latest) return null
+    const sessionAvgRatePerHour = computeBurnRate(this.latest.sessionPct, this.latest.sessionResetAt, SESSION_WINDOW_HOURS)
+    const weeklyAvgRatePerHour = computeBurnRate(this.latest.weeklyPct, this.latest.weeklyResetAt, WEEKLY_WINDOW_HOURS)
     return {
       ...this.latest,
-      sessionAvgRatePerHour: computeBurnRate(this.latest.sessionPct, this.latest.sessionResetAt, SESSION_WINDOW_HOURS),
-      weeklyAvgRatePerHour: computeBurnRate(this.latest.weeklyPct, this.latest.weeklyResetAt, WEEKLY_WINDOW_HOURS),
+      sessionAvgRatePerHour,
+      weeklyAvgRatePerHour,
+      sessionCutoffAt: computeCutoff(this.latest.sessionPct, this.latest.sessionResetAt, sessionAvgRatePerHour),
+      weeklyCutoffAt: computeCutoff(this.latest.weeklyPct, this.latest.weeklyResetAt, weeklyAvgRatePerHour),
     }
   }
 

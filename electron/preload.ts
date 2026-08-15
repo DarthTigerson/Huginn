@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('git:branchDiff', cwd, source, target),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
+  gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,
   gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
   onGitChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)
@@ -111,6 +112,8 @@ contextBridge.exposeInMainWorld('api', {
   usageAcquire: () => ipcRenderer.invoke('usage:acquire'),
   usageRelease: () => ipcRenderer.invoke('usage:release'),
   usageGetLatest: () => ipcRenderer.invoke('usage:getLatest'),
+  usageGetRange: (fromTs: number, toTs: number, maxPoints?: number) =>
+    ipcRenderer.invoke('usage:getRange', fromTs, toTs, maxPoints) as Promise<import('./usagePoller').UsageSnapshot[]>,
   usageGetPassiveEnabled: () => ipcRenderer.invoke('usage:getPassiveEnabled'),
   usageSetPassiveEnabled: (enabled: boolean) => ipcRenderer.invoke('usage:setPassiveEnabled', enabled),
   onUsageUpdate: (cb: (latest: import('./usagePoller').LatestUsage | null) => void) => {
@@ -284,6 +287,9 @@ contextBridge.exposeInMainWorld('api', {
 
   autocompleteComplete: (prefix: string, suffix: string, language: string, model: string) =>
     ipcRenderer.invoke('autocomplete:complete', prefix, suffix, language, model),
+
+  commitMessageGenerate: (diff: string, model: string, customPrompt: string) =>
+    ipcRenderer.invoke('commitMessage:generate', diff, model, customPrompt) as Promise<string | null>,
 
   inlineEditStart: (payload: import('./inlineEdit').InlineEditStartPayload) =>
     ipcRenderer.send('inlineEdit:start', payload),

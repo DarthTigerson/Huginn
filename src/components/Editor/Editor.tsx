@@ -31,6 +31,7 @@ import {
   isGitGraphTab,
   isGitBranchDiffTab,
   isGraphifyGraphTab,
+  isUsageGraphTab,
   isTerminalTab,
   getTerminalId,
   isBrowserTab,
@@ -59,6 +60,7 @@ import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
+import { UsageGraphPage } from '@/components/UsagePanel/UsageGraphPage'
 import {
   isImagePreviewTab,
   parseImagePreviewPath,
@@ -221,6 +223,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGitGraph = !!activeTab && isGitGraphTab(activeTab.path)
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
   const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
+  const isUsageGraph = !!activeTab && isUsageGraphTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
   // Plain file tabs only for now - diff/image/markdown-preview tabs encode
@@ -230,7 +233,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
-    !isGraphifyGraph && !isImagePreview && !isMarkdownPreview
+    !isGraphifyGraph && !isUsageGraph && !isImagePreview && !isMarkdownPreview
 
   function activatePane() {
     setActivePane(paneId)
@@ -383,6 +386,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GitGraphPage />
         ) : isGraphifyGraph ? (
           <GraphifyGraphPage />
+        ) : isUsageGraph ? (
+          <UsageGraphPage />
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
         ) : isImagePreview ? (

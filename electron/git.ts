@@ -213,6 +213,17 @@ export async function getIgnoredPaths(cwd: string): Promise<string[]> {
   }
 }
 
+// Unified diff of staged changes only — the input for AI-generated commit
+// messages (electron/commitMessage.ts).
+export async function getStagedDiff(cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['diff', '--staged'], { cwd })
+    return stdout
+  } catch {
+    return ''
+  }
+}
+
 export async function stageFiles(cwd: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return
   await execFileAsync('git', ['add', '--', ...paths], { cwd })

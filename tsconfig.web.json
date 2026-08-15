@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
+    "outDir": "./.tsbuild/web",
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
