@@ -17,12 +17,20 @@ describe('editorSettingsStore', () => {
     useEditorSettingsStore.setState({
       autoSaveEnabled: false,
       wordWrapEnabled: false,
+      changeAllOccurrencesInMenu: false,
     })
   })
 
   it('has correct defaults', () => {
     expect(useEditorSettingsStore.getState().autoSaveEnabled).toBe(false)
     expect(useEditorSettingsStore.getState().wordWrapEnabled).toBe(false)
+    expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(false)
+  })
+
+  it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
+    useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
+    expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)
+    expect(store['huginn:editor:changeAllOccurrencesInMenu']).toBe('true')
   })
 
   it('setAutoSaveEnabled persists to localStorage', () => {

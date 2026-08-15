@@ -21,6 +21,7 @@ import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelection
 import { computeLineChanges } from '@/lib/lineDiff'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
+import { EditorContextMenu } from './EditorContextMenu'
 import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
 import { detectLang } from './utils'
 import {
@@ -192,6 +193,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
+  const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number } | null>(null)
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
   const decorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
   // Gutter change indicators (colored line numbers for uncommitted changes).
@@ -341,6 +343,14 @@ function EditorPane({ paneId }: { paneId: string }) {
       {isPlainFileTab && activeTab && <EditorBreadcrumb path={activeTab.path} projectRoot={projectRoot} />}
       <div className="relative flex-1 min-h-0 overflow-hidden">
       <PaneDropZoneOverlay paneId={paneId} />
+      {editorContextMenu && editorRef.current && (
+        <EditorContextMenu
+          x={editorContextMenu.x}
+          y={editorContextMenu.y}
+          editor={editorRef.current}
+          onClose={() => setEditorContextMenu(null)}
+        />
+      )}
       {activeTab ? (
         isTerminal ? (
           <TerminalTab key={activeTab.path} terminalId={getTerminalId(activeTab.path)} />
@@ -435,10 +445,20 @@ function EditorPane({ paneId }: { paneId: string }) {
                 automaticLayout: true,
                 inlineSuggest: { enabled: true },
                 wordWrap: wordWrapEnabled ? 'on' : 'off',
+                // Monaco's own native menu is replaced with EditorContextMenu
+                // below (rendered on editor.onContextMenu, wired in onMount) -
+                // matches the rest of the app's context menus and lets us
+                // control exactly what's in it (e.g. hiding "Change All
+                // Occurrences" per the editor settings toggle) without
+                // reaching into Monaco's menu-registry internals.
+                contextmenu: false,
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
                 editorRef.current = editor
+                editor.onContextMenu((e) => {
+                  setEditorContextMenu({ x: e.event.posx, y: e.event.posy })
+                })
                 registerAutocompleteProvider(monaco)
                 registerInlineEditCommands(editor, monaco)
                 registerLspDefinitionProvider(monaco)
@@ -578,6 +598,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                 editor.onDidDispose(() => {
                   cancelled = true
                   if (debounceTimer) clearTimeout(debounceTimer)
+                  setEditorContextMenu(null)
                 })
 
                 applyGutterDecorations()
