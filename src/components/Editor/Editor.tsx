@@ -19,6 +19,7 @@ import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { TabBar } from './TabBar'
+import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { PaneDropZoneOverlay } from './PaneDropZoneOverlay'
 import { detectLang } from './utils'
 import {
@@ -209,6 +210,14 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
+  // Plain file tabs only for now - diff/image/markdown-preview tabs encode
+  // their real file path in a scheme (diff://, etc.) rather than using it
+  // directly as activeTab.path, so they'd need separate parsing to show here.
+  const showBreadcrumb =
+    !!activeTab &&
+    !isVirtual && !isTerminal && !isBrowser &&
+    !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
+    !isGraphifyGraph && !isImagePreview && !isMarkdownPreview
 
   function activatePane() {
     setActivePane(paneId)
@@ -315,6 +324,7 @@ function EditorPane({ paneId }: { paneId: string }) {
       onMouseDown={activatePane}
     >
       <TabBar paneId={paneId} />
+      {showBreadcrumb && activeTab && <EditorBreadcrumb path={activeTab.path} projectRoot={projectRoot} />}
       <div className="relative flex-1 min-h-0 overflow-hidden">
       <PaneDropZoneOverlay paneId={paneId} />
       {activeTab ? (
