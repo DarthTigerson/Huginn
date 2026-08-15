@@ -1,5 +1,23 @@
 # Huginn 
 
+## v0.1.7 (2026-08-16)
+- **Glass panel style**: a new Panel Style option makes the editor and terminal panels see-through, with an optional decorative background image you can enable in Settings > Display
+- **AI-generated commit messages**: configurable model and prompt in Settings
+- **Claude usage tracking**: full Usage Graph tab with interactive session/weekly charts, plus an estimated cutoff time
+- **Editor breadcrumb**: shows the current file's path with folder/file icons above the editor
+- **Editor right-click menu**: cut/copy/paste and other editor commands, also available from the Command Palette with shortcut hints shown
+- **Word wrap**: toggle from Settings > Editor
+- **In-file search**: ⌘F now searches the current file using Monaco's native find widget; ⌘⇧F still searches the whole project
+- **Mobile Display**: pick which network interface gets shown/QR'd for pairing, disconnect individual or all paired devices, copy pairing info, and clearer disconnection status
+- Editor gutter now colors line numbers for uncommitted changes (added/modified/deleted), matching the Git panel's file list colors
+- ⌘+/⌘− now zooms just the focused Claude/Codex panel's font size, separate from the app-wide shortcut
+
+**Bug fixes**
+- Fixed the discard-changes confirmation modal
+- Fixed a rare drag-state bug when dropping files onto editor split panes
+- Fixed a rare case where stale compiled build output could get served instead of the real source
+
+
 ## v0.1.6 (2026-08-15)
 - **Tab context menu**: right-click a tab to pin it, close all tabs, or split the view (with a directional submenu); tabs can also be dragged and dropped between panes
 - **Jira**: pin a Jira page as a browser tab, mirroring the existing To Do integration
