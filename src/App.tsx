@@ -39,6 +39,7 @@ import { BranchPalette } from './components/Git/BranchPalette'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { GraphifyPanel } from './components/Graphify/GraphifyPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
+import { EasterEgg } from './components/EasterEgg'
 import { CommandPalette } from './components/Search/CommandPalette'
 import { RecentProjectsPalette } from './components/Search/RecentProjectsPalette'
 import { SearchModal } from './components/Search/SearchModal'
@@ -560,6 +561,7 @@ export default function App() {
   return (
     <div className="w-screen h-screen overflow-hidden bg-panel flex flex-col relative isolate">
       {backgroundImageVisible && <div className="app-bg-badge" aria-hidden="true" />}
+      <EasterEgg />
       <div
         className="relative z-50 h-8 shrink-0 flex items-center justify-center bg-tab-bar border-b border-border"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}

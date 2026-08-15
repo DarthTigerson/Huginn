@@ -355,3 +355,29 @@ body {
   background-size: auto 100%;
   opacity: 0.2;
 }
+
+/* Konami code easter egg (see useKonamiCode.ts / EasterEgg.tsx) — the Going
+   Merry sails across the window, riding just above the status bar (24px =
+   the bar's own h-6). position: fixed here is intentionally relative to the
+   real viewport, not scoped by the app root's `isolate` (isolation doesn't
+   affect the fixed containing block) — it should sail across the whole
+   window, unclipped by any pane. transform (not left/right) for a smooth
+   GPU-composited slide over the full 8s. */
+@keyframes ee-sail-across {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-100vw - 360px)); }
+}
+.easter-egg-ship {
+  position: fixed;
+  bottom: 24px;
+  right: -180px;
+  width: 160px;
+  aspect-ratio: 1448 / 1086;
+  background-image: url('./assets/goingMerry.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 200;
+  pointer-events: none;
+  animation: ee-sail-across 8s linear forwards;
+}
