@@ -187,6 +187,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const monacoTheme = useThemeStore((s) => MONACO_THEMES[s.theme])
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const font = useDisplayStore((s) => s.font)
+  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -371,6 +372,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                   minimap: { enabled: false },
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
+                  wordWrap: wordWrapEnabled ? 'on' : 'off',
                 }}
                 onMount={(editor, monaco) => {
                   const modified = editor.getModifiedEditor()
@@ -382,6 +384,9 @@ function EditorPane({ paneId }: { paneId: string }) {
                   })
                   modified.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Digit0, () => {
                     useInstanceFontSizeStore.getState().reset(activeTab.path)
+                  })
+                  modified.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
+                    useEditorSettingsStore.getState().toggleWordWrap()
                   })
                 }}
               />
@@ -405,6 +410,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                 padding: { top: 8 },
                 automaticLayout: true,
                 inlineSuggest: { enabled: true },
+                wordWrap: wordWrapEnabled ? 'on' : 'off',
               }}
               onChange={(val) => updateContent(activeTab.path, val ?? '')}
               onMount={(editor, monaco) => {
@@ -439,6 +445,9 @@ function EditorPane({ paneId }: { paneId: string }) {
                 )
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
                   useSearchStore.getState().openCommandPalette()
+                })
+                editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
+                  useEditorSettingsStore.getState().toggleWordWrap()
                 })
                 editor.addCommand(
                   monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP,
