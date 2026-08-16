@@ -231,6 +231,18 @@ export function GitIcon({ className }: { className?: string } = {}) {
   )
 }
 
+export function DockerIcon() {
+  return (
+    <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="10" width="4" height="4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="8" y="10" width="4" height="4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="8" y="5" width="4" height="4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="13" y="10" width="4" height="4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M2 14c0 4 3.5 6.5 9 6.5S21 17 21.5 12c-1.2.8-2.4.6-3-.4-.8 1-2.4 1.3-3.2.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export function AutocompleteIcon({ crossedOut, busy, className }: { crossedOut: boolean; busy?: boolean; className?: string }) {
   return (
     <svg className={className} width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

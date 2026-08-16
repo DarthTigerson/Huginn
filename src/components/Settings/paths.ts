@@ -16,6 +16,7 @@ export const MODELS_SETTINGS_TAB_PATH = 'settings://Models'
 export const GRAPHIFY_SETTINGS_TAB_PATH = 'settings://Graphify'
 export const TODO_SETTINGS_TAB_PATH = 'settings://To Do'
 export const JIRA_SETTINGS_TAB_PATH = 'settings://Jira'
+export const DOCKER_SETTINGS_TAB_PATH = 'settings://Docker'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {
@@ -49,3 +50,4 @@ export const USAGE_GRAPH_TAB_PATH = 'usage-graph://Usage Graph'
 export function isUsageGraphTab(path: string): boolean {
   return path === USAGE_GRAPH_TAB_PATH
 }
+

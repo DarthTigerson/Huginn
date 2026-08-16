@@ -5,8 +5,9 @@ import type { LatestUsage, UsageSnapshot } from '../../electron/usagePoller'
 import type { UpdateInfo } from '../../electron/updateChecker'
 import type { GraphifyGraph } from './graphify'
 import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
+import type { DockerStatus, DockerContainer, DockerActionResult } from '../../electron/docker'
 
-export type { LatestUsage, UsageSnapshot, UpdateInfo }
+export type { LatestUsage, UsageSnapshot, UpdateInfo, DockerStatus, DockerContainer, DockerActionResult }
 
 export type AssistantKind = 'claude' | 'codex' | 'cosmos'
 
@@ -126,6 +127,21 @@ declare global {
       gitDiscoverRepos: (root: string) => Promise<string[]>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
+
+      dockerStatus: () => Promise<DockerStatus>
+      dockerListContainers: () => Promise<DockerContainer[]>
+      dockerStartContainer: (id: string) => Promise<DockerActionResult>
+      dockerStopContainer: (id: string) => Promise<DockerActionResult>
+      dockerRestartContainer: (id: string) => Promise<DockerActionResult>
+      dockerRemoveContainer: (id: string) => Promise<DockerActionResult>
+      dockerOpenApp: () => Promise<DockerActionResult>
+      dockerRunLogs: (streamId: string, containerId: string) => Promise<void>
+      dockerStopLogs: (streamId: string) => void
+      onDockerLogData: (cb: (streamId: string, data: string) => void) => () => void
+      onDockerLogExit: (cb: (streamId: string, code: number) => void) => () => void
+      dockerWatch: () => void
+      dockerUnwatch: () => void
+      onDockerChanged: (cb: () => void) => () => void
 
       termSpawn: (id: string, cwd?: string) => Promise<void>
       termKill: (id: string) => Promise<void>

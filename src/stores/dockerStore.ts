@@ -1,0 +1,81 @@
+import { create } from 'zustand'
+import type { DockerStatus, DockerContainer, DockerActionResult } from '@/types/api'
+
+interface DockerStore {
+  status: DockerStatus | 'unknown'
+  containers: DockerContainer[]
+  loading: boolean
+  watching: boolean
+  // Both DockerPanel and a DockerLogsPage tab can be mounted at once and
+  // each wants the shared `docker events` stream alive for as long as it's
+  // open — a plain boolean would have the second consumer's unmount kill
+  // watching out from under the first, so this counts live subscribers and
+  // only calls the IPC watch/unwatch channels on the 0->1 / 1->0 edges.
+  watcherRefCount: number
+  refresh: () => Promise<void>
+  startContainer: (id: string) => Promise<DockerActionResult>
+  stopContainer: (id: string) => Promise<DockerActionResult>
+  restartContainer: (id: string) => Promise<DockerActionResult>
+  removeContainer: (id: string) => Promise<DockerActionResult>
+  openApp: () => Promise<DockerActionResult>
+  startWatching: () => void
+  stopWatching: () => void
+}
+
+export const useDockerStore = create<DockerStore>((set, get) => ({
+  status: 'unknown',
+  containers: [],
+  loading: false,
+  watching: false,
+  watcherRefCount: 0,
+
+  refresh: async () => {
+    set({ loading: true })
+    const status = await window.api.dockerStatus()
+    const containers = status === 'running' ? await window.api.dockerListContainers() : []
+    set({ status, containers, loading: false })
+  },
+
+  startContainer: async (id) => {
+    const result = await window.api.dockerStartContainer(id)
+    await get().refresh()
+    return result
+  },
+  stopContainer: async (id) => {
+    const result = await window.api.dockerStopContainer(id)
+    await get().refresh()
+    return result
+  },
+  restartContainer: async (id) => {
+    const result = await window.api.dockerRestartContainer(id)
+    await get().refresh()
+    return result
+  },
+  removeContainer: async (id) => {
+    const result = await window.api.dockerRemoveContainer(id)
+    await get().refresh()
+    return result
+  },
+  openApp: async () => {
+    const result = await window.api.dockerOpenApp()
+    await get().refresh()
+    return result
+  },
+
+  startWatching: () => {
+    const count = get().watcherRefCount + 1
+    set({ watcherRefCount: count })
+    if (count === 1) {
+      set({ watching: true })
+      window.api.dockerWatch()
+    }
+  },
+  stopWatching: () => {
+    const count = Math.max(0, get().watcherRefCount - 1)
+    set({ watcherRefCount: count })
+    if (count === 0) {
+      set({ watching: false })
+      window.api.dockerUnwatch()
+    }
+  },
+}))

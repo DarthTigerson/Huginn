@@ -8,6 +8,8 @@ import { ClaudeManager } from './claude'
 import { GitRunner } from './gitRunner'
 import { GraphifyManager } from './graphify'
 import { GitWatcher } from './gitWatcher'
+import { DockerRunner } from './dockerRunner'
+import { DockerWatcher } from './dockerWatcher'
 import { FileWatcher } from './fileWatcher'
 import { MobileServer } from './mobile'
 import { UsageManager } from './usageManager'
@@ -163,6 +165,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     ptyMgr.disposeWindow(win.id)
     claudeMgr.disposeWindow(win.id)
     gitWatcher.disposeWindow(win.id)
+    dockerWatcher.disposeWindow(win.id)
     fileWatcher.disposeWindow(win.id)
     cosmosMgr.disposeWindow(win.id)
     browserViewMgr.disposeWindow(win.id)
@@ -520,6 +523,7 @@ async function buildMenu(): Promise<void> {
 let ptyMgr: PtyManager
 let claudeMgr: ClaudeManager
 let gitWatcher: GitWatcher
+let dockerWatcher: DockerWatcher
 let fileWatcher: FileWatcher
 let cosmosMgr: CosmosManager
 let browserViewMgr: BrowserViewManager
@@ -552,11 +556,15 @@ app.whenReady().then(() => {
   claudeMgr.registerHandlers()
   const gitRunner = new GitRunner()
   gitRunner.registerHandlers()
+  const dockerRunner = new DockerRunner()
+  dockerRunner.registerHandlers()
 
   const graphifyMgr = new GraphifyManager()
   graphifyMgr.registerHandlers()
   gitWatcher = new GitWatcher()
   gitWatcher.registerHandlers()
+  dockerWatcher = new DockerWatcher()
+  dockerWatcher.registerHandlers()
   fileWatcher = new FileWatcher()
   fileWatcher.registerHandlers()
   cosmosMgr = new CosmosManager()

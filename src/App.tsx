@@ -14,6 +14,7 @@ import {
   ActivityBar,
   FilesIcon,
   GitIcon,
+  DockerIcon,
   TodoIcon,
   JiraIcon,
   PhoneIcon,
@@ -36,6 +37,7 @@ import {
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { GitPanel } from './components/Git/GitPanel'
 import { BranchPalette } from './components/Git/BranchPalette'
+import { DockerPanel } from './components/Docker/DockerPanel'
 import { MobileDisplayPanel } from './components/MobileDisplay/MobileDisplayPanel'
 import { GraphifyPanel } from './components/Graphify/GraphifyPanel'
 import { StatusBar } from './components/StatusBar/StatusBar'
@@ -65,6 +67,7 @@ import { useBrowserStore } from './stores/browserStore'
 import { useTodoSettingsStore } from './stores/todoSettingsStore'
 import { useJiraSettingsStore } from './stores/jiraSettingsStore'
 import { useGitRemoteSettingsStore } from './stores/gitRemoteSettingsStore'
+import { useDockerSettingsStore } from './stores/dockerSettingsStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
 import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
 import { buildTerminalPath, buildBrowserPath, TODO_SETTINGS_TAB_PATH, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, USAGE_GRAPH_TAB_PATH } from './components/Settings/paths'
@@ -115,8 +118,8 @@ export default function App() {
   const enabledModels = useModelSettingsStore((s) => s.enabled)
   const visibleAssistantOptions = ASSISTANT_OPTIONS.filter((option) => enabledModels[option.id])
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
-  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'mobile' | 'graphify' | 'settings' | null>('files')
-  const lastLeftPanelRef = useRef<'files' | 'git' | 'mobile' | 'graphify' | 'settings'>('files')
+  const [leftPanel, setLeftPanel] = useState<'files' | 'git' | 'docker' | 'mobile' | 'graphify' | 'settings' | null>('files')
+  const lastLeftPanelRef = useRef<'files' | 'git' | 'docker' | 'mobile' | 'graphify' | 'settings'>('files')
   const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
   const [chatSize, setChatSize] = useState(loadChatSize)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
@@ -153,6 +156,7 @@ export default function App() {
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const gitRemoteReady = gitRemoteUrl.trim() !== ''
   const gitRemoteProvider = detectGitRemoteProvider(gitRemoteUrl)
+  const dockerEnabled = useDockerSettingsStore((s) => s.enabled)
 
   function openNewTerminal() {
     const id = Date.now().toString(36)
@@ -652,6 +656,13 @@ export default function App() {
               badge: gitBadge,
               onClick: () => setLeftPanel((p) => (p === 'git' ? null : 'git')),
             },
+            ...(dockerEnabled ? [{
+              id: 'docker',
+              icon: <DockerIcon />,
+              title: 'Docker',
+              active: leftPanel === 'docker',
+              onClick: () => setLeftPanel((p) => (p === 'docker' ? null : 'docker')),
+            }] : []),
             {
               id: 'mobile',
               icon: <PhoneIcon />,
@@ -732,7 +743,7 @@ export default function App() {
           >
             {(() => {
               const activeLeftPanel = leftPanel ?? lastLeftPanelRef.current
-              return activeLeftPanel === 'files' ? <Sidebar /> : activeLeftPanel === 'git' ? <GitPanel /> : activeLeftPanel === 'mobile' ? <MobileDisplayPanel /> : activeLeftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />
+              return activeLeftPanel === 'files' ? <Sidebar /> : activeLeftPanel === 'git' ? <GitPanel /> : activeLeftPanel === 'docker' ? <DockerPanel /> : activeLeftPanel === 'mobile' ? <MobileDisplayPanel /> : activeLeftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />
             })()}
           </Panel>
           <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
