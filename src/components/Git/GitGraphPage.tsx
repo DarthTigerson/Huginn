@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { useGitGraphStore } from '@/stores/gitGraphStore'
-import { useFileStore } from '@/stores/fileStore'
+import { useGitGraphStore, useRepoGraphState } from '@/stores/gitGraphStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
 import { normalizeRef, formatExactDate, formatRelDate, refTone } from './commitFormat'
@@ -283,17 +283,15 @@ interface RowMenuState {
 }
 
 export function GitGraphPage() {
-  const commits = useGitGraphStore((s) => s.commits)
-  const selectedHash = useGitGraphStore((s) => s.selectedHash)
-  const loading = useGitGraphStore((s) => s.loading)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const { commits, selectedHash, loading } = useRepoGraphState(selectedRepo)
   const load = useGitGraphStore((s) => s.load)
   const select = useGitGraphStore((s) => s.select)
-  const projectRoot = useFileStore((s) => s.projectRoot)
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
-    if (projectRoot) load(projectRoot)
-  }, [projectRoot, load])
+    if (selectedRepo) load(selectedRepo)
+  }, [selectedRepo, load])
 
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
@@ -305,8 +303,9 @@ export function GitGraphPage() {
   const graphRailWidth = graphWidth(graphLaneCount)
 
   const handleSelect = useCallback((hash: string) => {
-    select(selectedHash === hash ? null : hash)
-  }, [selectedHash, select])
+    if (!selectedRepo) return
+    select(selectedRepo, selectedHash === hash ? null : hash)
+  }, [selectedRepo, selectedHash, select])
 
   function handleRowContextMenu(event: MouseEvent, message: string, hash: string) {
     event.preventDefault()
@@ -325,7 +324,7 @@ export function GitGraphPage() {
           ) : (
             <button
               type="button"
-              onClick={() => projectRoot && load(projectRoot)}
+              onClick={() => selectedRepo && load(selectedRepo)}
               className="text-[0.625rem] text-fg-muted hover:text-fg transition-colors"
             >
               Refresh
@@ -359,11 +358,11 @@ export function GitGraphPage() {
         </div>
       </div>
 
-      {selectedCommit && projectRoot && (
+      {selectedCommit && selectedRepo && (
         <CommitDetailsPanel
-          cwd={projectRoot}
+          cwd={selectedRepo}
           commit={selectedCommit}
-          onClose={() => select(null)}
+          onClose={() => select(selectedRepo, null)}
         />
       )}
 

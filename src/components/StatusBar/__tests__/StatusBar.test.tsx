@@ -4,7 +4,8 @@ import { StatusBar } from '../StatusBar'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
 import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useFileStore } from '@/stores/fileStore'
 
 beforeEach(() => {
@@ -19,7 +20,8 @@ afterEach(() => {
   useAutocompleteSettingsStore.setState({ enabled: true, model: 'claude-haiku-4-5-20251001' })
   useAutocompleteSessionStore.setState({ paused: false })
   useAutocompleteStatusStore.setState({ busy: false })
-  useGitStore.setState({ branch: null, commandStatus: 'idle', silentFetchInFlight: false })
+  useGitStore.setState({ repos: {} })
+  useGitReposStore.setState({ repos: [], selectedRepo: null })
 })
 
 describe('StatusBar autocomplete icon', () => {
@@ -80,10 +82,12 @@ describe('StatusBar git icon', () => {
       gitListIgnored: async () => [],
     }
     useFileStore.setState({ projectRoot: '/proj' })
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
   })
 
   afterEach(() => {
     useFileStore.setState({ projectRoot: null })
+    useGitReposStore.setState({ repos: [], selectedRepo: null })
   })
 
   function gitIcon(container: HTMLElement): SVGElement {
@@ -92,21 +96,82 @@ describe('StatusBar git icon', () => {
 
   it('does not flash while idle', async () => {
     const { container } = render(<StatusBar />)
-    await waitFor(() => expect(useGitStore.getState().branch).toBe('main'))
+    await waitFor(() => expect(useGitStore.getState().repos['/proj']?.branch).toBe('main'))
     expect(gitIcon(container).getAttribute('class')).not.toContain('text-accent')
   })
 
   it('flashes while a visible git command is running', async () => {
     const { container } = render(<StatusBar />)
-    await waitFor(() => expect(useGitStore.getState().branch).toBe('main'))
-    act(() => { useGitStore.setState({ commandStatus: 'running' }) })
+    await waitFor(() => expect(useGitStore.getState().repos['/proj']?.branch).toBe('main'))
+    act(() => {
+      useGitStore.setState((s) => ({
+        repos: { ...s.repos, '/proj': { ...(s.repos['/proj'] ?? emptyRepoGitState), commandStatus: 'running' } },
+      }))
+    })
     expect(gitIcon(container).getAttribute('class')).toContain('text-accent')
   })
 
   it('flashes while a silent background fetch is in flight', async () => {
     const { container } = render(<StatusBar />)
-    await waitFor(() => expect(useGitStore.getState().branch).toBe('main'))
-    act(() => { useGitStore.setState({ silentFetchInFlight: true }) })
+    await waitFor(() => expect(useGitStore.getState().repos['/proj']?.branch).toBe('main'))
+    act(() => {
+      useGitStore.setState((s) => ({
+        repos: { ...s.repos, '/proj': { ...(s.repos['/proj'] ?? emptyRepoGitState), silentFetchInFlight: true } },
+      }))
+    })
     expect(gitIcon(container).getAttribute('class')).toContain('text-accent')
+  })
+})
+
+describe('StatusBar — multi-repo branch display', () => {
+  beforeEach(() => {
+    ;(global as any).window.api = {
+      gitBranch: async () => 'main',
+      gitAheadBehind: async () => null,
+      gitStatus: async () => ({ staged: [], unstaged: [] }),
+      gitListIgnored: async () => [],
+    }
+  })
+
+  afterEach(() => {
+    useGitReposStore.setState({ repos: [], selectedRepo: null, hasExplicitSelection: false })
+  })
+
+  it('shows nothing until a repo has been explicitly selected', () => {
+    useGitReposStore.setState({
+      repos: ['/parent/repoA', '/parent/repoB'],
+      selectedRepo: '/parent/repoA',
+      hasExplicitSelection: false,
+    })
+    useGitStore.setState({ repos: { '/parent/repoA': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    expect(screen.queryByText('main')).toBeNull()
+  })
+
+  it('shows "repoName › branch" with the repo name bold once a repo is explicitly selected', () => {
+    useGitReposStore.setState({
+      repos: ['/parent/repoA', '/parent/repoB'],
+      selectedRepo: '/parent/repoB',
+      hasExplicitSelection: true,
+    })
+    useGitStore.setState({ repos: { '/parent/repoB': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    const repoName = screen.getByText('repoB')
+    expect(repoName.className).toContain('font-bold')
+    expect(screen.getByText('main')).toBeTruthy()
+  })
+
+  it('single-repo projects show the branch immediately with no repo name prefix, regardless of hasExplicitSelection', () => {
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj', hasExplicitSelection: false })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    expect(screen.getByText('main')).toBeTruthy()
+    expect(screen.queryByText('proj')).toBeNull()
   })
 })

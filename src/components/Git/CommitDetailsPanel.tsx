@@ -104,7 +104,7 @@ export function CommitDetailsPanel({ cwd, commit, onClose }: {
   }, [cwd, commit.hash])
 
   function openFileDiff(path: string) {
-    useEditorStore.getState().openTab({ path: buildGitCommitDiffPath(commit.hash, path), content: '', dirty: false })
+    useEditorStore.getState().openTab({ path: buildGitCommitDiffPath(cwd, commit.hash, path), content: '', dirty: false })
   }
 
   async function openCurrentFile(path: string) {

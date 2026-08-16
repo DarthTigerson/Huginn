@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
-import { useGitLogStore } from '@/stores/gitLogStore'
+import { useRepoGitLogText } from '@/stores/gitLogStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
@@ -9,7 +10,8 @@ import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
 
 export function GitLogView() {
-  const text = useGitLogStore((s) => s.text)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const text = useRepoGitLogText(selectedRepo)
   const theme = useThemeStore((s) => s.theme)
   const font = useDisplayStore((s) => s.font)
   const fontSize = useFontSizeStore((s) => s.fontSize)

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useFileStore } from '../fileStore'
 import { useEditorStore } from '../editorStore'
+import { useGitReposStore } from '../gitReposStore'
+import { useGitStore } from '../gitStore'
 import type { FileNode } from '@/types/index'
 
 const mockTree: FileNode[] = [
@@ -26,13 +28,24 @@ vi.stubGlobal('window', {
     fsWatchRoot: vi.fn(),
     recentProjectsAdd: vi.fn(),
     setWindowTitle: vi.fn(),
+    gitDiscoverRepos: vi.fn().mockResolvedValue(['/proj']),
+    gitBranch: vi.fn().mockResolvedValue('main'),
+    gitAheadBehind: vi.fn().mockResolvedValue(null),
+    gitStatus: vi.fn().mockResolvedValue({ staged: [], unstaged: [] }),
+    gitListIgnored: vi.fn().mockResolvedValue([]),
   },
 })
 
 describe('fileStore', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(window.api.openFolder).mockResolvedValue('/proj')
+    vi.mocked(window.api.readDir).mockResolvedValue(mockTree)
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValue(['/proj'])
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
     useFileStore.setState({ projectRoot: null, tree: [], selectedPath: null, expandedPaths: new Set(), revealedPath: null })
+    useGitReposStore.setState({ repos: [], selectedRepo: null })
+    useGitStore.setState({ repos: {} })
     useEditorStore.getState().resetForNewProject()
   })
 
@@ -63,10 +76,44 @@ describe('fileStore', () => {
 
     vi.mocked(window.api.openFolder).mockResolvedValueOnce('/other-proj')
     vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/other-proj'])
     await useFileStore.getState().openFolder()
 
     expect(useFileStore.getState().projectRoot).toBe('/other-proj')
     expect(useEditorStore.getState().tabs).toHaveLength(0)
+  })
+
+  it('openFolder in the single-repo case discovers just the root and selects it', async () => {
+    await useFileStore.getState().openFolder()
+    expect(window.api.gitDiscoverRepos).toHaveBeenCalledWith('/proj')
+    expect(useGitReposStore.getState().repos).toEqual(['/proj'])
+    expect(useGitReposStore.getState().selectedRepo).toBe('/proj')
+    expect(window.api.gitWatchRoot).toHaveBeenCalledWith('/proj')
+  })
+
+  it('openFolder in the multi-repo case discovers every sibling repo and selects the first', async () => {
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/proj/repoA', '/proj/repoB'])
+    await useFileStore.getState().openFolder()
+    expect(useGitReposStore.getState().repos).toEqual(['/proj/repoA', '/proj/repoB'])
+    expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoA')
+    expect(window.api.gitWatchRoot).toHaveBeenCalledWith('/proj/repoA')
+  })
+
+  it('openFolder does an upfront fetch pass for every discovered repo', async () => {
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/proj/repoA', '/proj/repoB'])
+    await useFileStore.getState().openFolder()
+    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj/repoA')
+    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj/repoB')
+    expect(useGitStore.getState().repos['/proj/repoA'].branch).toBe('main')
+    expect(useGitStore.getState().repos['/proj/repoB'].branch).toBe('main')
+  })
+
+  it('openFolder with zero discovered repos clears the repo selection', async () => {
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce([])
+    await useFileStore.getState().openFolder()
+    expect(useGitReposStore.getState().repos).toEqual([])
+    expect(useGitReposStore.getState().selectedRepo).toBeNull()
+    expect(window.api.gitWatchRoot).toHaveBeenCalledWith(null)
   })
 
   it('openRecentProject sets root and loads tree without a dialog', async () => {
@@ -86,6 +133,7 @@ describe('fileStore', () => {
     expect(useEditorStore.getState().tabs).toHaveLength(1)
 
     vi.mocked(window.api.readDir).mockResolvedValueOnce([])
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/other-proj'])
     await useFileStore.getState().openRecentProject('/other-proj')
 
     expect(useFileStore.getState().projectRoot).toBe('/other-proj')
@@ -177,6 +225,7 @@ describe('fileStore', () => {
 
   it('openProjectAt sets root and tree from the given path without opening a picker dialog', async () => {
     vi.mocked(window.api.readDir).mockResolvedValueOnce(mockTree)
+    vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/other-proj'])
     await useFileStore.getState().openProjectAt('/other-proj')
     const { projectRoot, tree } = useFileStore.getState()
     expect(projectRoot).toBe('/other-proj')

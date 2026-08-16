@@ -2,7 +2,8 @@ import type { MouseEvent } from 'react'
 import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import {
   buildImagePreviewPath,
@@ -85,18 +86,19 @@ export function FileTree({
   const expandedPaths = useFileStore((s) => s.expandedPaths)
   const projectRoot = useFileStore((s) => s.projectRoot)
   const revealedPath = useFileStore((s) => s.revealedPath)
-  const ignoredPaths = useGitStore((s) => s.ignoredPaths)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const ignoredPaths = useRepoGitState(selectedRepo).ignoredPaths
   const { activeTabPath, openTab } = useEditorStore()
   // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path (that's
   // what git status/git show hand back, and what getDiffContent's own
-  // HEAD:<path> git refs require) — has to be re-joined to projectRoot
-  // before it can match node.path, which is always absolute.
+  // HEAD:<path> git refs require) — has to be re-joined to the diff tab's
+  // own repoRoot before it can match node.path, which is always absolute.
   const activeFilePath = !activeTabPath
     ? null
     : isGitDiffTab(activeTabPath)
-      ? (projectRoot ? `${projectRoot}/${parseGitDiffPath(activeTabPath).path}` : null)
+      ? `${parseGitDiffPath(activeTabPath).repoRoot}/${parseGitDiffPath(activeTabPath).path}`
       : isGitCommitDiffTab(activeTabPath)
-        ? (projectRoot ? `${projectRoot}/${parseGitCommitDiffPath(activeTabPath).path}` : null)
+        ? `${parseGitCommitDiffPath(activeTabPath).repoRoot}/${parseGitCommitDiffPath(activeTabPath).path}`
         : isImagePreviewTab(activeTabPath)
           ? parseImagePreviewPath(activeTabPath)
           : isMarkdownPreviewTab(activeTabPath)
@@ -138,7 +140,7 @@ export function FileTree({
         </li>
       )}
       {nodes.map((node) => {
-        const ignored = !!projectRoot && isIgnoredPath(node.path, projectRoot, ignoredPaths)
+        const ignored = !!selectedRepo && isIgnoredPath(node.path, selectedRepo, ignoredPaths)
         return (
           <li key={node.path}>
             {prompt?.kind === 'rename' && prompt.node?.path === node.path ? (

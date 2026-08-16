@@ -84,12 +84,12 @@ export function Sidebar() {
     if (!projectRoot || !activeTabPath) return
 
     // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path
-    // (what git status/git show hand back) — needs projectRoot re-joined
-    // before it's a real absolute path this tree deals in.
+    // (what git status/git show hand back) — needs the diff tab's own
+    // repoRoot re-joined before it's a real absolute path this tree deals in.
     const realPath = isGitDiffTab(activeTabPath)
-      ? `${projectRoot}/${parseGitDiffPath(activeTabPath).path}`
+      ? `${parseGitDiffPath(activeTabPath).repoRoot}/${parseGitDiffPath(activeTabPath).path}`
       : isGitCommitDiffTab(activeTabPath)
-        ? `${projectRoot}/${parseGitCommitDiffPath(activeTabPath).path}`
+        ? `${parseGitCommitDiffPath(activeTabPath).repoRoot}/${parseGitCommitDiffPath(activeTabPath).path}`
         : activeTabPath.includes('://')
           ? null
           : activeTabPath

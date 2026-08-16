@@ -48,7 +48,8 @@ import { useClaudeStore } from './stores/claudeStore'
 import { useCosmosStore } from './stores/cosmosStore'
 import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
 import { useModelSettingsStore } from './stores/modelSettingsStore'
-import { useGitStore } from './stores/gitStore'
+import { useGitStore, useRepoGitState } from './stores/gitStore'
+import { useGitReposStore } from './stores/gitReposStore'
 import { useGitSettingsStore } from './stores/gitSettingsStore'
 import { useMobileStore } from './stores/mobileStore'
 import { useThemeStore } from './stores/themeStore'
@@ -104,7 +105,8 @@ function loadChatSize(): number {
 
 export default function App() {
   const projectRoot = useFileStore((s) => s.projectRoot)
-  const gitStatus = useGitStore((s) => s.status)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const gitStatus = useRepoGitState(selectedRepo).status
   const refreshGitStatus = useGitStore((s) => s.refreshStatus)
   const assistant = useClaudeStore((s) => s.assistant)
   const usageOpen = useClaudeStore((s) => s.usageOpen)
@@ -311,18 +313,28 @@ export default function App() {
   useHoldToShowShortcuts()
 
   useEffect(() => {
-    refreshGitStatus(projectRoot)
-    const onFocus = () => refreshGitStatus(projectRoot)
+    refreshGitStatus(selectedRepo)
+    const onFocus = () => refreshGitStatus(selectedRepo)
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [projectRoot, refreshGitStatus])
+  }, [selectedRepo, refreshGitStatus])
+
+  // Mirrors VS Code: when the focused editor tab belongs to a different
+  // repo than the one the Git Panel/footer are currently scoped to, follow
+  // it automatically. followFilePath() itself decides whether the path
+  // actually resolves to a different known repo and fires the "Switched
+  // to…" footer notice — this effect just feeds it the active tab's path.
+  useEffect(() => {
+    if (!activeTabPath) return
+    useGitReposStore.getState().followFilePath(activeTabPath)
+  }, [activeTabPath])
 
   useEffect(() => {
     // Catches git state changes made outside the app's own UI — most
     // commonly commands run in the integrated terminal (checkout, commit,
     // pull...) — which the focus/action-based refreshes above never see.
     return window.api.onGitChanged((cwd) => {
-      if (cwd === useFileStore.getState().projectRoot) {
+      if (cwd === useGitReposStore.getState().selectedRepo) {
         useGitStore.getState().refresh(cwd)
       }
     })
@@ -861,8 +873,8 @@ export default function App() {
       {recentProjectsPaletteOpen && (
         <RecentProjectsPalette onClose={() => useSearchStore.getState().closeRecentProjectsPalette()} />
       )}
-      {branchPaletteOpen && projectRoot && (
-        <BranchPalette projectRoot={projectRoot} onClose={() => useSearchStore.getState().closeBranchPalette()} />
+      {branchPaletteOpen && selectedRepo && (
+        <BranchPalette projectRoot={selectedRepo} onClose={() => useSearchStore.getState().closeBranchPalette()} />
       )}
       <UpdateChangelogModal />
     </div>

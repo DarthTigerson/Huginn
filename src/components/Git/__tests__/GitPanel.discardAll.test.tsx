@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { GitPanel } from '../GitPanel'
 import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
+import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
 import type { GitStatus } from '@/types/index'
 
 const trackedChange: GitStatus = {
@@ -22,11 +23,11 @@ beforeEach(() => {
     gitDiscardAll: vi.fn().mockResolvedValue(undefined),
   }
   useFileStore.setState({ projectRoot: '/proj' })
+  useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
   useGitStore.setState({
-    status: trackedChange,
-    commandStatus: 'idle',
-    commitMessage: '',
-    commitError: null,
+    repos: {
+      '/proj': { ...emptyRepoGitState, status: trackedChange, commandStatus: 'idle', commitMessage: '', commitError: null },
+    },
   })
 })
 
@@ -45,19 +46,19 @@ describe('GitPanel — Discard All Changes', () => {
   })
 
   it('is disabled when only untracked files are present', () => {
-    useGitStore.setState({ status: untrackedOnly })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: untrackedOnly } } })
     render(<GitPanel />)
     expect(discardAllButton()).toBeDisabled()
   })
 
   it('is disabled when there are no changes at all', () => {
-    useGitStore.setState({ status: noChanges })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: noChanges } } })
     render(<GitPanel />)
     expect(discardAllButton()).toBeDisabled()
   })
 
   it('is enabled when there are staged changes even with no unstaged changes', () => {
-    useGitStore.setState({ status: { staged: [{ path: 'a.ts', status: 'M' }], unstaged: [] } })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: { staged: [{ path: 'a.ts', status: 'M' }], unstaged: [] } } } })
     render(<GitPanel />)
     expect(discardAllButton()).not.toBeDisabled()
   })

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { FileNode } from '@/types/index'
 import { useEditorStore } from './editorStore'
+import { useGitReposStore } from './gitReposStore'
+import { useGitStore } from './gitStore'
 
 function setNodeChildren(
   nodes: FileNode[],
@@ -46,13 +48,28 @@ export const useFileStore = create<FileState>((set, get) => {
     const previousRoot = get().projectRoot
     localStorage.setItem(LAST_ROOT_KEY, root)
     set({ projectRoot: root, tree, expandedPaths: new Set() })
-    window.api.gitWatchRoot(root)
+    await discoverAndWatchRepos(root)
     window.api.fsWatchRoot(root)
     window.api.recentProjectsAdd(root)
     window.api.setWindowTitle(root)
     if (previousRoot !== null && previousRoot !== root) {
       useEditorStore.getState().resetForNewProject()
     }
+  }
+
+  // Shared by every place a project root gets set (dialog pick, recent
+  // project, restore-on-launch, "open in new window"): discovers the repo
+  // set for the new root, tells gitReposStore about it (which
+  // auto-selects), points the git file watcher at whichever repo ends up
+  // selected instead of always the project root, and does a one-time
+  // upfront fetch so the "Show All Repos" overview and the very first
+  // auto-follow switch notice have real data instead of a loading flicker.
+  const discoverAndWatchRepos = async (root: string) => {
+    const repos = await window.api.gitDiscoverRepos(root)
+    useGitReposStore.getState().setRepos(repos)
+    const selected = useGitReposStore.getState().selectedRepo
+    window.api.gitWatchRoot(selected)
+    await Promise.all(repos.map((repo) => useGitStore.getState().refresh(repo)))
   }
 
   return {
@@ -68,7 +85,7 @@ export const useFileStore = create<FileState>((set, get) => {
     try {
       const tree = await window.api.readDir(lastRoot)
       set({ projectRoot: lastRoot, tree, expandedPaths: new Set() })
-      window.api.gitWatchRoot(lastRoot)
+      await discoverAndWatchRepos(lastRoot)
       window.api.fsWatchRoot(lastRoot)
       window.api.setWindowTitle(lastRoot)
     } catch {
@@ -112,7 +129,7 @@ export const useFileStore = create<FileState>((set, get) => {
   openProjectAt: async (root: string) => {
     const tree = await window.api.readDir(root)
     set({ projectRoot: root, tree, expandedPaths: new Set() })
-    window.api.gitWatchRoot(root)
+    await discoverAndWatchRepos(root)
     window.api.fsWatchRoot(root)
     window.api.setWindowTitle(root)
   },

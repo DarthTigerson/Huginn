@@ -3,7 +3,8 @@ import { render, cleanup, fireEvent } from '@testing-library/react'
 import { FileTree } from '../FileTree'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { buildGitDiffPath, buildGitCommitDiffPath } from '@/components/Git/paths'
 import type { FileNode } from '@/types/index'
 
@@ -16,7 +17,8 @@ function noop() {}
 
 beforeEach(() => {
   useFileStore.setState({ projectRoot: '/proj', expandedPaths: new Set(), revealedPath: null })
-  useGitStore.setState({ ignoredPaths: [] } as any)
+  useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
+  useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, ignoredPaths: [] } } })
   ;(global as any).window.api = { readFile: vi.fn().mockResolvedValue('file contents') }
 })
 
@@ -54,18 +56,18 @@ describe('FileTree active-file highlight', () => {
     // This mirrors GitPanel.tsx's actual call: buildGitDiffPath(file.path, staged),
     // where file.path comes straight from `git status --porcelain` and is
     // always repo-relative, never absolute.
-    const { container } = renderTree(buildGitDiffPath('src/App.tsx', false))
+    const { container } = renderTree(buildGitDiffPath('/proj', 'src/App.tsx', false))
     expect(classesFor(container, '/proj/src/App.tsx')).toContain('bg-accent/20')
     expect(classesFor(container, '/proj/src/Other.tsx')).not.toContain('bg-accent/20')
   })
 
   it('highlights the node for a staged working-tree diff tab the same way', () => {
-    const { container } = renderTree(buildGitDiffPath('src/App.tsx', true))
+    const { container } = renderTree(buildGitDiffPath('/proj', 'src/App.tsx', true))
     expect(classesFor(container, '/proj/src/App.tsx')).toContain('bg-accent/20')
   })
 
   it('highlights the node for a commit diff tab, built from a repo-relative git-show path', () => {
-    const { container } = renderTree(buildGitCommitDiffPath('abc123', 'src/App.tsx'))
+    const { container } = renderTree(buildGitCommitDiffPath('/proj', 'abc123', 'src/App.tsx'))
     expect(classesFor(container, '/proj/src/App.tsx')).toContain('bg-accent/20')
     expect(classesFor(container, '/proj/src/Other.tsx')).not.toContain('bg-accent/20')
   })
@@ -78,7 +80,7 @@ describe('FileTree active-file highlight', () => {
 
 describe('FileTree click on an already-highlighted diff node', () => {
   it('opens the plain file editor, not the diff, when clicking the node highlighted by an active commit diff tab', async () => {
-    const { container } = renderTree(buildGitCommitDiffPath('abc123', 'src/App.tsx'))
+    const { container } = renderTree(buildGitCommitDiffPath('/proj', 'abc123', 'src/App.tsx'))
     const node = container.querySelector('#file-tree-node\\:\\/proj\\/src\\/App\\.tsx') as HTMLElement
 
     fireEvent.click(node)
@@ -88,7 +90,7 @@ describe('FileTree click on an already-highlighted diff node', () => {
   })
 
   it('opens the plain file editor, not the diff, when clicking the node highlighted by an active working-tree diff tab', async () => {
-    const { container } = renderTree(buildGitDiffPath('src/App.tsx', false))
+    const { container } = renderTree(buildGitDiffPath('/proj', 'src/App.tsx', false))
     const node = container.querySelector('#file-tree-node\\:\\/proj\\/src\\/App\\.tsx') as HTMLElement
 
     fireEvent.click(node)

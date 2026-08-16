@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, screen } from '@testing-library/react'
 import { GitGraphPage } from '../GitGraphPage'
-import { useFileStore } from '@/stores/fileStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import type { GitCommit } from '@/types/index'
 
@@ -24,8 +24,8 @@ describe('GitGraphPage — selection survives a tab switch away and back', () =>
       gitGraph: vi.fn().mockResolvedValue([commit]),
       gitShowStat: vi.fn().mockResolvedValue(['src/App.tsx']),
     }
-    useFileStore.setState({ projectRoot: '/proj' })
-    useGitGraphStore.setState({ commits: [commit], selectedHash: 'abc123def456', loading: false })
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
+    useGitGraphStore.setState({ repos: { '/proj': { commits: [commit], selectedHash: 'abc123def456', loading: false } } })
 
     const { unmount } = render(<GitGraphPage />)
     expect(await screen.findByText('Commit Details')).toBeTruthy()

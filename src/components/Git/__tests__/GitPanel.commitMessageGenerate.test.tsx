@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { GitPanel } from '../GitPanel'
 import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
+import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import type { GitStatus } from '@/types/index'
 
@@ -20,11 +21,11 @@ beforeEach(() => {
     commitMessageGenerate: vi.fn().mockResolvedValue('Fix the login bug'),
   }
   useFileStore.setState({ projectRoot: '/proj' })
+  useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
   useGitStore.setState({
-    status: staged,
-    commandStatus: 'idle',
-    commitMessage: '',
-    commitError: null,
+    repos: {
+      '/proj': { ...emptyRepoGitState, status: staged, commandStatus: 'idle', commitMessage: '', commitError: null },
+    },
   })
   useCommitMessageSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5', prompt: '' })
 })
@@ -45,7 +46,7 @@ describe('GitPanel — generate commit message', () => {
   })
 
   it('is disabled when nothing is staged', () => {
-    useGitStore.setState({ status: nothingStaged })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: nothingStaged } } })
     render(<GitPanel />)
     expect(generateButton()).toBeDisabled()
   })
@@ -54,7 +55,7 @@ describe('GitPanel — generate commit message', () => {
     render(<GitPanel />)
     fireEvent.click(generateButton())
 
-    await waitFor(() => expect(useGitStore.getState().commitMessage).toBe('Fix the login bug'))
+    await waitFor(() => expect(useGitStore.getState().repos['/proj'].commitMessage).toBe('Fix the login bug'))
     expect(window.api.gitStagedDiff).toHaveBeenCalledWith('/proj')
     expect(window.api.commitMessageGenerate).toHaveBeenCalledWith('diff --git a/x b/x', 'claude-sonnet-5', '')
   })
@@ -73,20 +74,20 @@ describe('GitPanel — generate commit message', () => {
   })
 
   it('overwrites an existing commit message rather than appending', async () => {
-    useGitStore.setState({ commitMessage: 'wip' })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: staged, commitMessage: 'wip' } } })
     render(<GitPanel />)
     fireEvent.click(generateButton())
 
-    await waitFor(() => expect(useGitStore.getState().commitMessage).toBe('Fix the login bug'))
+    await waitFor(() => expect(useGitStore.getState().repos['/proj'].commitMessage).toBe('Fix the login bug'))
   })
 
   it('shows an error and leaves the message box alone when generation fails', async () => {
     ;(window.api.commitMessageGenerate as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    useGitStore.setState({ commitMessage: 'wip' })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: staged, commitMessage: 'wip' } } })
     render(<GitPanel />)
     fireEvent.click(generateButton())
 
     await waitFor(() => expect(screen.getByText('Could not generate a commit message')).toBeTruthy())
-    expect(useGitStore.getState().commitMessage).toBe('wip')
+    expect(useGitStore.getState().repos['/proj'].commitMessage).toBe('wip')
   })
 })

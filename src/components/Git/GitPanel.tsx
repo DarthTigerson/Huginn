@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { MouseEvent, ReactNode } from 'react'
+import type { MouseEvent } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { buildGitDiffPath } from './paths'
@@ -15,6 +16,8 @@ import { FileRow } from './FileRow'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
+import { RepoOverviewList } from './RepoOverviewList'
+import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
 const pillButtonClass =
   'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
@@ -54,14 +57,129 @@ function DiscardAllIcon() {
   )
 }
 
+function RepoSelect({ repos, selectedRepo, onSelect }: {
+  repos: string[]
+  selectedRepo: string | null
+  onSelect: (repo: string) => void
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return repos
+    return repos.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
+  }, [repos, query])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [open])
+
+  function handleSelect(repo: string) {
+    onSelect(repo)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-label="Select repository"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'w-full h-6 rounded border px-1.5 text-xs text-fg flex items-center justify-between gap-1 transition-colors focus:outline-none focus:ring-1 focus:ring-accent/50',
+          open ? 'border-accent/60 bg-accent/10' : 'border-border bg-bg hover:border-fg-subtle',
+        ].join(' ')}
+      >
+        <span className="truncate">{selectedRepo ? selectedRepo.split('/').pop() : 'Select repo'}</span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={['shrink-0 text-fg-subtle transition-transform', open ? 'rotate-180' : ''].join(' ')}
+        >
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-md border border-border bg-popover shadow-2xl shadow-black/40">
+          <div className="border-b border-border p-1.5">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+              placeholder="Find a repo"
+              className="w-full h-6 rounded border border-border bg-bg px-1.5 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setOpen(false)
+                  setQuery('')
+                } else if (e.key === 'Enter' && filtered.length > 0) {
+                  e.preventDefault()
+                  handleSelect(filtered[0])
+                }
+              }}
+            />
+          </div>
+          <div role="listbox" aria-label="Repositories" className="max-h-56 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-fg-subtle">No repos found</div>
+            ) : (
+              filtered.map((repo) => {
+                const selected = repo === selectedRepo
+                return (
+                  <button
+                    key={repo}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => handleSelect(repo)}
+                    className={[
+                      'w-full truncate rounded px-2 py-1.5 text-left text-xs transition-colors',
+                      selected ? 'bg-accent/15 text-fg' : 'text-fg-muted hover:bg-white/[0.06] hover:text-fg',
+                    ].join(' ')}
+                  >
+                    {repo.split('/').pop()}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function GitPanel() {
-  const projectRoot = useFileStore((s) => s.projectRoot)
+  const repos = useGitReposStore((s) => s.repos)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const selectRepo = useGitReposStore((s) => s.selectRepo)
   const {
     branch,
     status,
     commitMessage,
     commitError,
     commandStatus,
+  } = useRepoGitState(selectedRepo)
+  const {
     refreshStatus,
     stage,
     unstage,
@@ -77,7 +195,7 @@ export function GitPanel() {
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
-  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(selectedRepo)
   const commitMessageEnabled = useCommitMessageSettingsStore((s) => s.enabled)
   const commitMessageModel = useCommitMessageSettingsStore((s) => s.model)
   const commitMessagePrompt = useCommitMessageSettingsStore((s) => s.prompt)
@@ -85,14 +203,14 @@ export function GitPanel() {
   const [generateError, setGenerateError] = useState<string | null>(null)
 
   async function generateCommitMessage() {
-    if (!projectRoot) return
+    if (!selectedRepo) return
     setGeneratingMessage(true)
     setGenerateError(null)
     try {
-      const diff = await window.api.gitStagedDiff(projectRoot)
+      const diff = await window.api.gitStagedDiff(selectedRepo)
       const message = await window.api.commitMessageGenerate(diff, commitMessageModel, commitMessagePrompt)
       if (message) {
-        setCommitMessage(message)
+        setCommitMessage(selectedRepo, message)
       } else {
         setGenerateError('Could not generate a commit message')
       }
@@ -105,13 +223,14 @@ export function GitPanel() {
   const menuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
+  const [showAllRepos, setShowAllRepos] = useState(false)
 
   useEffect(() => {
-    refreshStatus(projectRoot)
-    const onFocus = () => refreshStatus(projectRoot)
+    refreshStatus(selectedRepo)
+    const onFocus = () => refreshStatus(selectedRepo)
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [projectRoot, refreshStatus])
+  }, [selectedRepo, refreshStatus])
 
   useEffect(() => {
     if (!menu) return
@@ -143,7 +262,8 @@ export function GitPanel() {
   }
 
   function openDiff(path: string, staged: boolean) {
-    openTab({ path: buildGitDiffPath(path, staged), content: '', dirty: false })
+    if (!selectedRepo) return
+    openTab({ path: buildGitDiffPath(selectedRepo, path, staged), content: '', dirty: false })
   }
 
   function copyPath(path: string) {
@@ -159,14 +279,14 @@ export function GitPanel() {
   }
 
   async function trashUntrackedFile(file: GitFileEntry) {
-    if (!projectRoot) return
-    await window.api.trashPath(`${projectRoot}/${file.path}`)
-    await refreshStatus(projectRoot)
+    if (!selectedRepo) return
+    await window.api.trashPath(`${selectedRepo}/${file.path}`)
+    await refreshStatus(selectedRepo)
   }
 
   const isUntracked = menu?.file.status === '?'
   const isTrackedChange = menu && !menu.staged && menu.file.status !== '?'
-  const remoteActionDisabled = commandStatus === 'running' || !projectRoot
+  const remoteActionDisabled = commandStatus === 'running' || !selectedRepo
   // Matches discardAllChanges' scope (git reset --hard HEAD): staged changes
   // plus unstaged changes to already-tracked files. Untracked ('?') entries
   // aren't affected by that command, so they don't count toward "has
@@ -183,101 +303,120 @@ export function GitPanel() {
         </span>
       </div>
 
-      <div className="px-3 py-2 border-b border-border shrink-0 flex flex-col gap-1.5">
-        <div className="relative">
-          <textarea
-            value={commitMessage}
-            onChange={(e) => setCommitMessage(e.target.value)}
-            placeholder="Message"
-            rows={3}
-            className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
-          />
-          {commitMessageEnabled && (
-            <button
-              type="button"
-              title="Generate commit message from staged changes"
-              disabled={generatingMessage || status.staged.length === 0}
-              onClick={generateCommitMessage}
-              className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <SparkleIcon spinning={generatingMessage} />
-            </button>
-          )}
+      {repos.length > 1 && (
+        <div className="px-3 py-1.5 border-b border-border shrink-0 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowAllRepos((v) => !v)}
+            className="text-[0.6875rem] text-fg-muted hover:text-fg transition-colors text-center"
+          >
+            {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
+          </button>
+          <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
         </div>
-        {generateError && <p className="text-xs text-red-400">{generateError}</p>}
-        {commitError && <p className="text-xs text-red-400">{commitError}</p>}
-        <button
-          type="button"
-          disabled={!commitMessage.trim() || status.staged.length === 0}
-          onClick={() => projectRoot && commit(projectRoot)}
-          className="w-full h-7 rounded-full flex items-center justify-center text-xs font-semibold bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Commit
-        </button>
-      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto py-1">
-        <div className="mb-2">
-          <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
-              Staged Changes ({status.staged.length})
-            </span>
+      {showAllRepos ? (
+        <RepoOverviewList onClose={() => setShowAllRepos(false)} />
+      ) : (
+        <>
+          <div className="px-3 py-2 border-b border-border shrink-0 flex flex-col gap-1.5">
+            <div className="relative">
+              <textarea
+                value={commitMessage}
+                onChange={(e) => selectedRepo && setCommitMessage(selectedRepo, e.target.value)}
+                placeholder="Message"
+                rows={3}
+                className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+              />
+              {commitMessageEnabled && (
+                <button
+                  type="button"
+                  title="Generate commit message from staged changes"
+                  disabled={generatingMessage || status.staged.length === 0}
+                  onClick={generateCommitMessage}
+                  className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <SparkleIcon spinning={generatingMessage} />
+                </button>
+              )}
+            </div>
+            {generateError && <p className="text-xs text-red-400">{generateError}</p>}
+            {commitError && <p className="text-xs text-red-400">{commitError}</p>}
             <button
               type="button"
-              onClick={() => projectRoot && unstageAll(projectRoot)}
-              className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
+              disabled={!commitMessage.trim() || status.staged.length === 0}
+              onClick={() => selectedRepo && commit(selectedRepo)}
+              className="w-full h-7 rounded-full flex items-center justify-center text-xs font-semibold bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              -
+              Commit
             </button>
           </div>
-          {status.staged.map((file) => (
-            <FileRow
-              key={file.path}
-              file={file}
-              staged
-              onToggle={() => projectRoot && unstage(projectRoot, file.path)}
-              onOpenDiff={() => openDiff(file.path, true)}
-              onContextMenu={(e) => openContextMenu(e, file, true)}
-            />
-          ))}
-        </div>
-        <div>
-          <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
-              Changes ({status.unstaged.length})
-            </span>
-            <span className="flex items-center gap-2">
-              <button
-                type="button"
-                title="Discard All Changes"
-                aria-label="Discard All Changes"
-                disabled={!hasDiscardableChanges}
-                onClick={() => setDiscardAllConfirmOpen(true)}
-                className="text-fg-muted transition-colors hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-fg-muted"
-              >
-                <DiscardAllIcon />
-              </button>
-              <button
-                type="button"
-                onClick={() => projectRoot && stageAll(projectRoot)}
-                className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
-              >
-                +
-              </button>
-            </span>
+
+          <div className="flex-1 overflow-y-auto py-1">
+            <div className="mb-2">
+              <div className="flex items-center justify-between px-3 py-1">
+                <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
+                  Staged Changes ({status.staged.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => selectedRepo && unstageAll(selectedRepo)}
+                  className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
+                >
+                  -
+                </button>
+              </div>
+              {status.staged.map((file) => (
+                <FileRow
+                  key={file.path}
+                  file={file}
+                  staged
+                  onToggle={() => selectedRepo && unstage(selectedRepo, file.path)}
+                  onOpenDiff={() => openDiff(file.path, true)}
+                  onContextMenu={(e) => openContextMenu(e, file, true)}
+                />
+              ))}
+            </div>
+            <div>
+              <div className="flex items-center justify-between px-3 py-1">
+                <span className="text-[0.6875rem] font-semibold text-fg-muted uppercase tracking-wider">
+                  Changes ({status.unstaged.length})
+                </span>
+                <span className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    title="Discard All Changes"
+                    aria-label="Discard All Changes"
+                    disabled={!hasDiscardableChanges}
+                    onClick={() => setDiscardAllConfirmOpen(true)}
+                    className="text-fg-muted transition-colors hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-fg-muted"
+                  >
+                    <DiscardAllIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectedRepo && stageAll(selectedRepo)}
+                    className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
+                  >
+                    +
+                  </button>
+                </span>
+              </div>
+              {status.unstaged.map((file) => (
+                <FileRow
+                  key={file.path}
+                  file={file}
+                  staged={false}
+                  onToggle={() => selectedRepo && stage(selectedRepo, file.path)}
+                  onOpenDiff={() => openDiff(file.path, false)}
+                  onContextMenu={(e) => openContextMenu(e, file, false)}
+                />
+              ))}
+            </div>
           </div>
-          {status.unstaged.map((file) => (
-            <FileRow
-              key={file.path}
-              file={file}
-              staged={false}
-              onToggle={() => projectRoot && stage(projectRoot, file.path)}
-              onOpenDiff={() => openDiff(file.path, false)}
-              onContextMenu={(e) => openContextMenu(e, file, false)}
-            />
-          ))}
-        </div>
-      </div>
+        </>
+      )}
 
       <div className="border-t border-border shrink-0 px-3 py-2 flex flex-col gap-1.5">
         <button
@@ -293,7 +432,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && gitFetch(projectRoot)}
+            onClick={() => selectedRepo && gitFetch(selectedRepo)}
           >
             Fetch
           </button>
@@ -301,7 +440,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && pull(projectRoot)}
+            onClick={() => selectedRepo && pull(selectedRepo)}
           >
             Pull
           </button>
@@ -311,7 +450,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && push(projectRoot)}
+            onClick={() => selectedRepo && push(selectedRepo)}
           >
             Push
           </button>
@@ -340,7 +479,7 @@ export function GitPanel() {
             className={pillButtonClass}
             onClick={() => {
               openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
-              if (projectRoot) loadGraph(projectRoot)
+              if (selectedRepo) loadGraph(selectedRepo)
             }}
           >
             Graph
@@ -368,11 +507,11 @@ export function GitPanel() {
             </ContextMenuButton>
           )}
           {menu.staged ? (
-            <ContextMenuButton onClick={() => { projectRoot && unstage(projectRoot, menu.file.path); setMenu(null) }}>
+            <ContextMenuButton onClick={() => { selectedRepo && unstage(selectedRepo, menu.file.path); setMenu(null) }}>
               Unstage
             </ContextMenuButton>
           ) : (
-            <ContextMenuButton onClick={() => { projectRoot && stage(projectRoot, menu.file.path); setMenu(null) }}>
+            <ContextMenuButton onClick={() => { selectedRepo && stage(selectedRepo, menu.file.path); setMenu(null) }}>
               Stage
             </ContextMenuButton>
           )}
@@ -421,7 +560,7 @@ export function GitPanel() {
             <button
               type="button"
               onClick={() => {
-                if (projectRoot) discard(projectRoot, discardTarget.path)
+                if (selectedRepo) discard(selectedRepo, discardTarget.path)
                 setDiscardTarget(null)
               }}
               className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
@@ -450,7 +589,7 @@ export function GitPanel() {
             <button
               type="button"
               onClick={() => {
-                if (projectRoot) discardAll(projectRoot)
+                if (selectedRepo) discardAll(selectedRepo)
                 setDiscardAllConfirmOpen(false)
               }}
               className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
@@ -461,34 +600,9 @@ export function GitPanel() {
         </Modal>
       )}
 
-      {forceAction && projectRoot && (
-        <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
+      {forceAction && selectedRepo && (
+        <ConfirmForcePushModal action={forceAction} cwd={selectedRepo} onClose={closeForce} />
       )}
     </div>
   )
-}
-
-function ContextMenuButton({ children, danger = false, onClick }: {
-  children: ReactNode
-  danger?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-        danger
-          ? 'text-red-300 hover:bg-red-500/15 hover:text-red-200'
-          : 'text-fg-muted hover:bg-white/5 hover:text-fg',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  )
-}
-
-function ContextMenuDivider() {
-  return <div className="my-1 h-px bg-border" />
 }

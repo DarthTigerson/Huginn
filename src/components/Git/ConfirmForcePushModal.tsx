@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import type { GitCommandAction } from '@/types/index'
 
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function ConfirmForcePushModal({ action, cwd, onClose }: Props) {
-  const branch = useGitStore((s) => s.branch)
+  const branch = useRepoGitState(cwd).branch
   const runAction = useGitStore((s) => s[action])
   const countdownEnabled = useGitSettingsStore((s) => s.countdownEnabled)
   const countdownSeconds = useGitSettingsStore((s) => s.countdownSeconds)

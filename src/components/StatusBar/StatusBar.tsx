@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
-import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { GitIcon, AutocompleteIcon } from '@/components/ActivityBar/ActivityBar'
 import { GitActionsMenu } from '@/components/Git/GitActionsMenu'
 import { ConfirmForcePushModal } from '@/components/Git/ConfirmForcePushModal'
@@ -13,16 +13,24 @@ import { FooterMessage } from './FooterMessage'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
-  const projectRoot = useFileStore((s) => s.projectRoot)
-  const branch = useGitStore((s) => s.branch)
-  const aheadBehind = useGitStore((s) => s.aheadBehind)
-  const commandStatus = useGitStore((s) => s.commandStatus)
-  const silentFetchInFlight = useGitStore((s) => s.silentFetchInFlight)
+  const repos = useGitReposStore((s) => s.repos)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const hasExplicitSelection = useGitReposStore((s) => s.hasExplicitSelection)
+  const isMultiRepo = repos.length > 1
+  const { branch, aheadBehind, commandStatus, silentFetchInFlight } = useRepoGitState(selectedRepo)
+  // In a multi-repo project, stay silent until a repo has actually been
+  // picked (dropdown, "Show All Repos" row, or opening a file that
+  // resolves to one) — showing the arbitrary first repo's branch with
+  // nothing indicating which repo it belongs to is more confusing than
+  // showing nothing. Single-repo projects are unaffected (unchanged from
+  // before this feature existed).
+  const showBranch = !!branch && (!isMultiRepo || hasExplicitSelection)
+  const selectedRepoName = selectedRepo?.split('/').pop()
   const gitBusy = commandStatus === 'running' || silentFetchInFlight
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
   const [gitMenuOpen, setGitMenuOpen] = useState(false)
-  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(selectedRepo)
   const menuRef = useRef<HTMLDivElement>(null)
   const autocompleteEnabled = useAutocompleteSettingsStore((s) => s.enabled)
   const autocompletePaused = useAutocompleteSessionStore((s) => s.paused)
@@ -53,16 +61,16 @@ export function StatusBar() {
   }, [autocompleteMenuOpen])
 
   useEffect(() => {
-    refreshBranch(projectRoot)
-    const onFocus = () => refreshBranch(projectRoot)
+    refreshBranch(selectedRepo)
+    const onFocus = () => refreshBranch(selectedRepo)
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [projectRoot, refreshBranch])
+  }, [selectedRepo, refreshBranch])
 
   return (
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <FooterMessage />
-      {branch ? (
+      {showBranch ? (
         <div className="relative min-w-0">
           <span
             className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
@@ -74,6 +82,12 @@ export function StatusBar() {
                 gitBusy ? 'text-accent animate-pulse' : '',
               ].join(' ')}
             />
+            {isMultiRepo && selectedRepoName && (
+              <>
+                <span className="font-bold text-fg truncate shrink-0">{selectedRepoName}</span>
+                <span className="text-fg-subtle shrink-0">›</span>
+              </>
+            )}
             <span className="truncate">{branch}</span>
             {commandStatus === 'running' ? (
               <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>
@@ -93,8 +107,8 @@ export function StatusBar() {
       ) : (
         <span />
       )}
-      {forceAction && projectRoot && (
-        <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
+      {forceAction && selectedRepo && (
+        <ConfirmForcePushModal action={forceAction} cwd={selectedRepo} onClose={closeForce} />
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
         {autocompleteEnabled && (
