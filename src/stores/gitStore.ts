@@ -6,7 +6,7 @@ import { useGitGraphStore } from './gitGraphStore'
 import { useGitBranchStore } from './gitBranchStore'
 import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 
-interface GitStore {
+export interface RepoGitState {
   branch: string | null
   aheadBehind: GitAheadBehind | null
   status: GitStatus
@@ -15,6 +15,21 @@ interface GitStore {
   commitError: string | null
   commandStatus: 'idle' | 'running'
   silentFetchInFlight: boolean
+}
+
+export const emptyRepoGitState: RepoGitState = {
+  branch: null,
+  aheadBehind: null,
+  status: { staged: [], unstaged: [] },
+  ignoredPaths: [],
+  commitMessage: '',
+  commitError: null,
+  commandStatus: 'idle',
+  silentFetchInFlight: false,
+}
+
+interface GitStore {
+  repos: Record<string, RepoGitState>
   fetchSilent: (cwd: string) => Promise<void>
   refresh: (cwd: string | null) => Promise<void>
   refreshStatus: (cwd: string | null) => Promise<void>
@@ -24,7 +39,7 @@ interface GitStore {
   unstageAll: (cwd: string) => Promise<void>
   discard: (cwd: string, path: string) => Promise<void>
   discardAll: (cwd: string) => Promise<void>
-  setCommitMessage: (message: string) => void
+  setCommitMessage: (cwd: string, message: string) => void
   commit: (cwd: string) => Promise<void>
   fetch: (cwd: string) => Promise<void>
   pull: (cwd: string) => Promise<void>
@@ -46,19 +61,27 @@ function describeCommand(action: GitCommandAction, payload?: GitCheckoutPayload)
 }
 
 export const useGitStore = create<GitStore>((set, get) => {
+  const stateFor = (cwd: string): RepoGitState => get().repos[cwd] ?? emptyRepoGitState
+
+  const setRepo = (cwd: string, patch: Partial<RepoGitState>) =>
+    set((s) => ({ repos: { ...s.repos, [cwd]: { ...(s.repos[cwd] ?? emptyRepoGitState), ...patch } } }))
+
   const refreshGraphIfOpen = async (cwd: string) => {
     const graphOpen = useEditorStore.getState().tabs.some((tab) => tab.path === GIT_GRAPH_TAB_PATH)
     if (graphOpen) await useGitGraphStore.getState().load(cwd)
   }
 
   const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
-    if (get().commandStatus === 'running') return
+    if (stateFor(cwd).commandStatus === 'running') return
     const id = crypto.randomUUID()
 
     useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
+    // NOTE: gitLogStore.append is still (chunk: string) here — it gets converted
+    // to (cwd, chunk) in a later task in this plan, which will also update these
+    // three call sites. Left as single-arg deliberately for this task.
     useGitLogStore.getState().append(`\n> git ${describeCommand(action, payload)}\n`)
 
-    set({ commandStatus: 'running' })
+    setRepo(cwd, { commandStatus: 'running' })
 
     const cleanupData = window.api.onGitLogData((evtId, data) => {
       if (evtId !== id) return
@@ -68,7 +91,7 @@ export const useGitStore = create<GitStore>((set, get) => {
       if (evtId !== id) return
       cleanupData()
       cleanupExit()
-      set({ commandStatus: 'idle' })
+      setRepo(cwd, { commandStatus: 'idle' })
       if (code === 0) {
         get().refresh(cwd)
         if (action === 'checkout') {
@@ -88,19 +111,12 @@ export const useGitStore = create<GitStore>((set, get) => {
       cleanupData()
       cleanupExit()
       useGitLogStore.getState().append(`\nError: ${err instanceof Error ? err.message : String(err)}\n`)
-      set({ commandStatus: 'idle' })
+      setRepo(cwd, { commandStatus: 'idle' })
     }
   }
 
   return {
-  branch: null,
-  aheadBehind: null,
-  status: { staged: [], unstaged: [] },
-  ignoredPaths: [],
-  commitMessage: '',
-  commitError: null,
-  commandStatus: 'idle' as const,
-  silentFetchInFlight: false,
+  repos: {},
 
   // Best-effort background fetch — periodic timer, repo open, post-checkout.
   // Deliberately bypasses runCommand: it must not open/spam the Git Log tab
@@ -109,39 +125,34 @@ export const useGitStore = create<GitStore>((set, get) => {
   // dot next to the branch name). silentFetchInFlight exists purely so the
   // footer git icon can flash for this too, same as any visible command.
   fetchSilent: async (cwd) => {
-    if (get().commandStatus === 'running' || get().silentFetchInFlight) return
-    set({ silentFetchInFlight: true })
+    const state = stateFor(cwd)
+    if (state.commandStatus === 'running' || state.silentFetchInFlight) return
+    setRepo(cwd, { silentFetchInFlight: true })
     try {
       const ok = await window.api.gitFetchSilent(cwd)
       if (ok) await get().refresh(cwd)
     } finally {
-      set({ silentFetchInFlight: false })
+      setRepo(cwd, { silentFetchInFlight: false })
     }
   },
 
   refresh: async (cwd) => {
-    if (!cwd) {
-      set({ branch: null, aheadBehind: null, status: { staged: [], unstaged: [] }, ignoredPaths: [] })
-      return
-    }
+    if (!cwd) return
     const [branch, aheadBehind] = await Promise.all([
       window.api.gitBranch(cwd),
       window.api.gitAheadBehind(cwd),
     ])
-    set({ branch, aheadBehind })
+    setRepo(cwd, { branch, aheadBehind })
     await get().refreshStatus(cwd)
   },
 
   refreshStatus: async (cwd) => {
-    if (!cwd) {
-      set({ status: { staged: [], unstaged: [] }, ignoredPaths: [] })
-      return
-    }
+    if (!cwd) return
     const [status, ignoredPaths] = await Promise.all([
       window.api.gitStatus(cwd),
       window.api.gitListIgnored(cwd),
     ])
-    set({ status, ignoredPaths })
+    setRepo(cwd, { status, ignoredPaths })
   },
 
   stage: async (cwd, path) => {
@@ -204,17 +215,17 @@ export const useGitStore = create<GitStore>((set, get) => {
     }
   },
 
-  setCommitMessage: (message) => set({ commitMessage: message, commitError: null }),
+  setCommitMessage: (cwd, message) => setRepo(cwd, { commitMessage: message, commitError: null }),
 
   commit: async (cwd) => {
-    const { commitMessage } = get()
+    const { commitMessage } = stateFor(cwd)
     const result = await window.api.gitCommit(cwd, commitMessage)
     if (result.ok) {
-      set({ commitMessage: '', commitError: null })
+      setRepo(cwd, { commitMessage: '', commitError: null })
       await get().refresh(cwd)
       await refreshGraphIfOpen(cwd)
     } else {
-      set({ commitError: result.error })
+      setRepo(cwd, { commitError: result.error })
     }
   },
 
@@ -226,3 +237,10 @@ export const useGitStore = create<GitStore>((set, get) => {
   checkout:       (cwd, payload) => runCommand(cwd, 'checkout', payload),
   }
 })
+
+// Selector helper for components: reads one repo's slice, defaulting to
+// emptyRepoGitState (a stable module-level reference, safe to return
+// directly) when cwd is null or that repo hasn't loaded yet.
+export function useRepoGitState(cwd: string | null): RepoGitState {
+  return useGitStore((s) => (cwd ? s.repos[cwd] ?? emptyRepoGitState : emptyRepoGitState))
+}

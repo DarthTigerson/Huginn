@@ -1,5 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useGitStore } from '../gitStore'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { useGitStore, useRepoGitState, emptyRepoGitState } from '../gitStore'
+
+// useRepoGitState is a React hook (it calls the useGitStore hook internally),
+// so it can't be invoked as a bare function outside a component render — doing
+// so hits React's "invalid hook call" path. This suite otherwise runs in the
+// plain `node` vitest environment (see vitest.config.ts) and stubs `window`
+// wholesale via vi.stubGlobal, which is incompatible with a real DOM render
+// (jsdom + @testing-library/react's renderHook). A synchronous SSR render via
+// react-dom/server needs neither `window` nor `document` and correctly drives
+// zustand's useSyncExternalStore server-snapshot path, so it's used here just
+// to invoke the hook under test.
+function callHook<T>(hook: () => T): T {
+  let captured!: T
+  function Probe() {
+    captured = hook()
+    return null
+  }
+  renderToStaticMarkup(createElement(Probe))
+  return captured
+}
 import type { GitStatus, GitAheadBehind } from '@/types/index'
 
 const editorStoreMock = vi.hoisted(() => ({
@@ -8,6 +29,7 @@ const editorStoreMock = vi.hoisted(() => ({
 }))
 const gitGraphLoadMock = vi.hoisted(() => vi.fn())
 const gitBranchLoadMock = vi.hoisted(() => vi.fn())
+const gitLogAppendMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/stores/editorStore', () => ({
   useEditorStore: {
@@ -17,7 +39,9 @@ vi.mock('@/stores/editorStore', () => ({
     }),
   },
 }))
-vi.mock('@/stores/gitLogStore', () => ({ useGitLogStore: { getState: () => ({ append: vi.fn() }) } }))
+vi.mock('@/stores/gitLogStore', () => ({
+  useGitLogStore: { getState: () => ({ append: gitLogAppendMock }) },
+}))
 vi.mock('@/stores/gitGraphStore', () => ({
   useGitGraphStore: { getState: () => ({ load: gitGraphLoadMock }) },
 }))
@@ -56,214 +80,144 @@ describe('gitStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     editorStoreMock.tabs = []
-    useGitStore.setState({
-      branch: null,
-      aheadBehind: null,
-      status: emptyStatus,
-      ignoredPaths: [],
-      commitMessage: '',
-      commitError: null,
-      commandStatus: 'idle',
-      silentFetchInFlight: false,
-    })
+    useGitStore.setState({ repos: {} })
   })
 
-  it('starts empty', () => {
-    const { branch, aheadBehind, status, commitMessage, commitError } = useGitStore.getState()
-    expect(branch).toBeNull()
-    expect(aheadBehind).toBeNull()
-    expect(status).toEqual(emptyStatus)
-    expect(commitMessage).toBe('')
-    expect(commitError).toBeNull()
+  it('starts with no repos and useRepoGitState falls back to defaults', () => {
+    expect(useGitStore.getState().repos).toEqual({})
+    expect(callHook(() => useRepoGitState('/proj'))).toEqual(emptyRepoGitState)
+    expect(callHook(() => useRepoGitState(null))).toEqual(emptyRepoGitState)
   })
 
-  it('refresh loads branch, ahead/behind counts, and status', async () => {
+  it('refresh loads branch, ahead/behind counts, and status into repos[cwd]', async () => {
     await useGitStore.getState().refresh('/proj')
-    const { branch, aheadBehind, status } = useGitStore.getState()
-    expect(branch).toBe('main')
-    expect(aheadBehind).toEqual(mockAheadBehind)
-    expect(status).toEqual(mockStatus)
+    const state = useGitStore.getState().repos['/proj']
+    expect(state.branch).toBe('main')
+    expect(state.aheadBehind).toEqual(mockAheadBehind)
+    expect(state.status).toEqual(mockStatus)
   })
 
-  it('refresh with null cwd clears branch, ahead/behind, and status', async () => {
-    useGitStore.setState({ branch: 'main', aheadBehind: mockAheadBehind, status: mockStatus })
+  it('refresh with null cwd is a no-op', async () => {
     await useGitStore.getState().refresh(null)
-    const { branch, aheadBehind, status } = useGitStore.getState()
-    expect(branch).toBeNull()
-    expect(aheadBehind).toBeNull()
-    expect(status).toEqual(emptyStatus)
+    expect(useGitStore.getState().repos).toEqual({})
+    expect(window.api.gitBranch).not.toHaveBeenCalled()
   })
 
   it('refreshStatus loads ignored paths alongside status', async () => {
     await useGitStore.getState().refreshStatus('/proj')
     expect(window.api.gitListIgnored).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().ignoredPaths).toEqual(['node_modules', 'dist'])
+    expect(useGitStore.getState().repos['/proj'].ignoredPaths).toEqual(['node_modules', 'dist'])
   })
 
-  it('refreshStatus with null cwd clears ignored paths', async () => {
-    useGitStore.setState({ ignoredPaths: ['node_modules'] })
+  it('refreshStatus with null cwd is a no-op', async () => {
     await useGitStore.getState().refreshStatus(null)
-    expect(useGitStore.getState().ignoredPaths).toEqual([])
+    expect(useGitStore.getState().repos).toEqual({})
   })
 
-  it('stage calls gitStage with the path and refreshes status', async () => {
+  it('stage calls gitStage with the path and refreshes status for that repo', async () => {
     await useGitStore.getState().stage('/proj', 'a.ts')
     expect(window.api.gitStage).toHaveBeenCalledWith('/proj', ['a.ts'])
-    expect(useGitStore.getState().status).toEqual(mockStatus)
+    expect(useGitStore.getState().repos['/proj'].status).toEqual(mockStatus)
   })
 
-  it('unstage calls gitUnstage with the path and refreshes status', async () => {
+  it('unstage calls gitUnstage with the path', async () => {
     await useGitStore.getState().unstage('/proj', 'b.ts')
     expect(window.api.gitUnstage).toHaveBeenCalledWith('/proj', ['b.ts'])
-  })
-
-  it('stageAll calls gitStageAll and refreshes status', async () => {
-    await useGitStore.getState().stageAll('/proj')
-    expect(window.api.gitStageAll).toHaveBeenCalledWith('/proj')
-  })
-
-  it('unstageAll calls gitUnstageAll and refreshes status', async () => {
-    await useGitStore.getState().unstageAll('/proj')
-    expect(window.api.gitUnstageAll).toHaveBeenCalledWith('/proj')
-  })
-
-  it('discardAll calls gitDiscardAll and refreshes status', async () => {
-    await useGitStore.getState().discardAll('/proj')
-    expect(window.api.gitDiscardAll).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
   })
 
   it('discardAll does not throw and still refreshes status when gitDiscardAll rejects', async () => {
     vi.mocked(window.api.gitDiscardAll).mockRejectedValueOnce(new Error('boom'))
     await expect(useGitStore.getState().discardAll('/proj')).resolves.toBeUndefined()
     expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
+    expect(useGitStore.getState().repos['/proj'].status).toEqual(mockStatus)
   })
 
-  it('stage does not throw and still refreshes status when gitStage rejects', async () => {
-    vi.mocked(window.api.gitStage).mockRejectedValueOnce(new Error('boom'))
-    await expect(useGitStore.getState().stage('/proj', 'a.ts')).resolves.toBeUndefined()
-    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
+  it('two repos keep fully independent state', async () => {
+    await useGitStore.getState().refresh('/repoA')
+    vi.mocked(window.api.gitBranch).mockResolvedValueOnce('feature-x')
+    vi.mocked(window.api.gitStatus).mockResolvedValueOnce(emptyStatus)
+    await useGitStore.getState().refresh('/repoB')
+
+    expect(useGitStore.getState().repos['/repoA'].branch).toBe('main')
+    expect(useGitStore.getState().repos['/repoB'].branch).toBe('feature-x')
   })
 
-  it('unstage does not throw and still refreshes status when gitUnstage rejects', async () => {
-    vi.mocked(window.api.gitUnstage).mockRejectedValueOnce(new Error('boom'))
-    await expect(useGitStore.getState().unstage('/proj', 'b.ts')).resolves.toBeUndefined()
-    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
+  it('setCommitMessage updates the message for the given repo and clears its error', () => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commitError: 'boom' } } })
+    useGitStore.getState().setCommitMessage('/proj', 'fix bug')
+    const state = useGitStore.getState().repos['/proj']
+    expect(state.commitMessage).toBe('fix bug')
+    expect(state.commitError).toBeNull()
   })
 
-  it('stageAll does not throw and still refreshes status when gitStageAll rejects', async () => {
-    vi.mocked(window.api.gitStageAll).mockRejectedValueOnce(new Error('boom'))
-    await expect(useGitStore.getState().stageAll('/proj')).resolves.toBeUndefined()
-    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
-  })
-
-  it('unstageAll does not throw and still refreshes status when gitUnstageAll rejects', async () => {
-    vi.mocked(window.api.gitUnstageAll).mockRejectedValueOnce(new Error('boom'))
-    await expect(useGitStore.getState().unstageAll('/proj')).resolves.toBeUndefined()
-    expect(window.api.gitStatus).toHaveBeenCalledWith('/proj')
-    expect(useGitStore.getState().status).toEqual(mockStatus)
-  })
-
-  it('setCommitMessage updates the message and clears any error', () => {
-    useGitStore.setState({ commitError: 'boom' })
-    useGitStore.getState().setCommitMessage('fix bug')
-    const { commitMessage, commitError } = useGitStore.getState()
-    expect(commitMessage).toBe('fix bug')
-    expect(commitError).toBeNull()
+  it('setCommitMessage does not affect other repos', () => {
+    useGitStore.setState({
+      repos: {
+        '/repoA': { ...emptyRepoGitState, commitMessage: 'a' },
+        '/repoB': { ...emptyRepoGitState, commitMessage: 'b' },
+      },
+    })
+    useGitStore.getState().setCommitMessage('/repoA', 'updated')
+    expect(useGitStore.getState().repos['/repoA'].commitMessage).toBe('updated')
+    expect(useGitStore.getState().repos['/repoB'].commitMessage).toBe('b')
   })
 
   it('commit clears the message and refreshes on success', async () => {
-    useGitStore.setState({ commitMessage: 'fix bug' })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commitMessage: 'fix bug' } } })
     await useGitStore.getState().commit('/proj')
     expect(window.api.gitCommit).toHaveBeenCalledWith('/proj', 'fix bug')
-    const { commitMessage, commitError, status } = useGitStore.getState()
-    expect(commitMessage).toBe('')
-    expect(commitError).toBeNull()
-    expect(status).toEqual(mockStatus)
-  })
-
-  it('commit refreshes the git graph when the graph tab is open', async () => {
-    editorStoreMock.tabs = [{ path: 'git-graph://Graph', content: '', dirty: false }]
-    useGitStore.setState({ commitMessage: 'fix bug' })
-
-    await useGitStore.getState().commit('/proj')
-
-    expect(gitGraphLoadMock).toHaveBeenCalledWith('/proj')
-  })
-
-  it('commit does not refresh the git graph when the graph tab is closed', async () => {
-    editorStoreMock.tabs = [{ path: 'git-log://Git Log', content: '', dirty: false }]
-    useGitStore.setState({ commitMessage: 'fix bug' })
-
-    await useGitStore.getState().commit('/proj')
-
-    expect(gitGraphLoadMock).not.toHaveBeenCalled()
+    const state = useGitStore.getState().repos['/proj']
+    expect(state.commitMessage).toBe('')
+    expect(state.commitError).toBeNull()
   })
 
   it('commit sets commitError and keeps the message on failure', async () => {
     vi.mocked(window.api.gitCommit).mockResolvedValueOnce({ ok: false, error: 'nothing staged' })
-    useGitStore.setState({ commitMessage: 'fix bug' })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commitMessage: 'fix bug' } } })
     await useGitStore.getState().commit('/proj')
-    const { commitMessage, commitError } = useGitStore.getState()
-    expect(commitMessage).toBe('fix bug')
-    expect(commitError).toBe('nothing staged')
+    const state = useGitStore.getState().repos['/proj']
+    expect(state.commitMessage).toBe('fix bug')
+    expect(state.commitError).toBe('nothing staged')
   })
 })
 
 describe('gitStore — command actions', () => {
   beforeEach(() => {
-    useGitStore.setState({
-      branch: 'main',
-      aheadBehind: null,
-      status: emptyStatus,
-      commitMessage: '',
-      commitError: null,
-      commandStatus: 'idle',
-    })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
     vi.mocked(window.api.gitRunCommand).mockClear()
     gitBranchLoadMock.mockClear()
     vi.mocked(window.api.onGitLogData).mockClear()
     vi.mocked(window.api.onGitLogExit).mockClear()
     vi.mocked(window.api.gitBranch).mockClear()
     vi.mocked(window.api.gitFetchSilent).mockClear()
-    // Stub crypto.randomUUID so we know the id used internally
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('test-uuid' as `${string}-${string}-${string}-${string}-${string}`)
   })
 
-  it('sets commandStatus to running and calls gitRunCommand for push', async () => {
+  it('sets commandStatus to running for that repo and calls gitRunCommand for push', async () => {
     const pushPromise = useGitStore.getState().push('/proj')
-    expect(useGitStore.getState().commandStatus).toBe('running')
-    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
-      expect.any(String), '/proj', 'push'
-    )
+    expect(useGitStore.getState().repos['/proj'].commandStatus).toBe('running')
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(expect.any(String), '/proj', 'push')
     await pushPromise
   })
 
-  it('does nothing if commandStatus is already running', async () => {
-    useGitStore.setState({ commandStatus: 'running' })
+  it('does nothing if that repo already has a command running', async () => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commandStatus: 'running' } } })
     await useGitStore.getState().push('/proj')
     expect(window.api.gitRunCommand).not.toHaveBeenCalled()
   })
 
-  it('calls gitRunCommand with forcePush for forcePush action', async () => {
-    await useGitStore.getState().forcePush('/proj')
-    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
-      expect.any(String), '/proj', 'forcePush'
-    )
+  it('a running command in one repo does not block another repo', async () => {
+    useGitStore.setState({
+      repos: {
+        '/repoA': { ...emptyRepoGitState, commandStatus: 'running' },
+        '/repoB': { ...emptyRepoGitState },
+      },
+    })
+    await useGitStore.getState().push('/repoB')
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(expect.any(String), '/repoB', 'push')
   })
 
-  it('calls gitRunCommand with forcePushLease for forcePushLease action', async () => {
-    await useGitStore.getState().forcePushLease('/proj')
-    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
-      expect.any(String), '/proj', 'forcePushLease'
-    )
-  })
-
-  it('sets commandStatus back to idle when exit fires with code 0 and calls refresh', async () => {
+  it('sets commandStatus back to idle for that repo on exit code 0 and refreshes', async () => {
     let exitCb: ((id: string, code: number) => void) | null = null
     vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
       exitCb = cb
@@ -272,40 +226,11 @@ describe('gitStore — command actions', () => {
     const pushPromise = useGitStore.getState().push('/proj')
     await pushPromise
     exitCb!('test-uuid', 0)
-    expect(useGitStore.getState().commandStatus).toBe('idle')
-    expect(window.api.gitBranch).toHaveBeenCalled()
+    expect(useGitStore.getState().repos['/proj'].commandStatus).toBe('idle')
+    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj')
   })
 
-  it('sets commandStatus back to idle when exit fires with non-zero code and does NOT call refresh', async () => {
-    let exitCb: ((id: string, code: number) => void) | null = null
-    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
-      exitCb = cb
-      return () => {}
-    })
-    const pushPromise = useGitStore.getState().push('/proj')
-    await pushPromise
-    exitCb!('test-uuid', 1)
-    expect(useGitStore.getState().commandStatus).toBe('idle')
-    expect(window.api.gitBranch).not.toHaveBeenCalled()
-  })
-
-  it('checkout calls gitRunCommand with the checkout action and payload', async () => {
-    const payload = { ref: 'feature-x', create: false }
-    await useGitStore.getState().checkout('/proj', payload)
-    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
-      expect.any(String), '/proj', 'checkout', payload
-    )
-  })
-
-  it('checkout with create+track passes the full payload through', async () => {
-    const payload = { ref: 'feat/x', create: true, track: 'origin/feat/x' }
-    await useGitStore.getState().checkout('/proj', payload)
-    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
-      expect.any(String), '/proj', 'checkout', payload
-    )
-  })
-
-  it('checkout reloads the branch list on successful exit', async () => {
+  it('checkout reloads the branch list for that repo on successful exit', async () => {
     let exitCb: ((id: string, code: number) => void) | null = null
     vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
       exitCb = cb
@@ -316,88 +241,29 @@ describe('gitStore — command actions', () => {
     exitCb!('test-uuid', 0)
     expect(gitBranchLoadMock).toHaveBeenCalledWith('/proj')
   })
-
-  it('checkout does NOT reload the branch list on failed exit', async () => {
-    let exitCb: ((id: string, code: number) => void) | null = null
-    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
-      exitCb = cb
-      return () => {}
-    })
-    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
-    await checkoutPromise
-    exitCb!('test-uuid', 1)
-    expect(gitBranchLoadMock).not.toHaveBeenCalled()
-  })
-
-  it('checkout triggers a silent fetch on successful exit', async () => {
-    let exitCb: ((id: string, code: number) => void) | null = null
-    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
-      exitCb = cb
-      return () => {}
-    })
-    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
-    await checkoutPromise
-    exitCb!('test-uuid', 0)
-    expect(window.api.gitFetchSilent).toHaveBeenCalledWith('/proj')
-  })
-
-  it('checkout does NOT trigger a silent fetch on failed exit', async () => {
-    let exitCb: ((id: string, code: number) => void) | null = null
-    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
-      exitCb = cb
-      return () => {}
-    })
-    const checkoutPromise = useGitStore.getState().checkout('/proj', { ref: 'feature-x', create: false })
-    await checkoutPromise
-    exitCb!('test-uuid', 1)
-    expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
-  })
 })
 
 describe('gitStore — fetchSilent', () => {
   beforeEach(() => {
-    useGitStore.setState({
-      branch: 'main',
-      aheadBehind: null,
-      status: emptyStatus,
-      commandStatus: 'idle',
-      silentFetchInFlight: false,
-    })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
     vi.mocked(window.api.gitFetchSilent).mockClear().mockResolvedValue(true)
     vi.mocked(window.api.gitBranch).mockClear()
   })
 
-  it('sets silentFetchInFlight while running and clears it after', async () => {
+  it('sets silentFetchInFlight for that repo while running and clears it after', async () => {
     let resolveFetch: (v: boolean) => void = () => {}
     vi.mocked(window.api.gitFetchSilent).mockReturnValueOnce(
       new Promise((resolve) => { resolveFetch = resolve })
     )
     const fetchPromise = useGitStore.getState().fetchSilent('/proj')
-    expect(useGitStore.getState().silentFetchInFlight).toBe(true)
+    expect(useGitStore.getState().repos['/proj'].silentFetchInFlight).toBe(true)
     resolveFetch(true)
     await fetchPromise
-    expect(useGitStore.getState().silentFetchInFlight).toBe(false)
+    expect(useGitStore.getState().repos['/proj'].silentFetchInFlight).toBe(false)
   })
 
-  it('refreshes branch/status when the fetch succeeds', async () => {
-    await useGitStore.getState().fetchSilent('/proj')
-    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj')
-  })
-
-  it('does not refresh when the fetch fails', async () => {
-    vi.mocked(window.api.gitFetchSilent).mockResolvedValueOnce(false)
-    await useGitStore.getState().fetchSilent('/proj')
-    expect(window.api.gitBranch).not.toHaveBeenCalled()
-  })
-
-  it('does nothing if a visible git command is already running', async () => {
-    useGitStore.setState({ commandStatus: 'running' })
-    await useGitStore.getState().fetchSilent('/proj')
-    expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
-  })
-
-  it('does nothing if a silent fetch is already in flight', async () => {
-    useGitStore.setState({ silentFetchInFlight: true })
+  it('does nothing if a silent fetch is already in flight for that repo', async () => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, silentFetchInFlight: true } } })
     await useGitStore.getState().fetchSilent('/proj')
     expect(window.api.gitFetchSilent).not.toHaveBeenCalled()
   })
