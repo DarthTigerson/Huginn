@@ -1,5 +1,14 @@
 # Huginn 
 
+## v0.2.0 (2026-08-16)
+- **Docker controls**: a new Docker panel (toggle it from the activity bar, enable it first in Settings > Docker) lists your local containers with live status, and lets you start/stop/restart/remove them without leaving Huginn or switching to Docker Desktop; click a container to stream its logs in its own tab
+- **Multi-repo Git support**: opening a folder with several sibling git repos now discovers all of them — a repo dropdown in the Git panel picks which repo the panel, Git Graph, and List Diff are scoped to, and a "Show all repos" overview lists every discovered repo at a glance. The footer and branch palette automatically follow whichever repo the focused editor tab belongs to
+
+**Bug fixes**
+- Fixed diff tabs and the editor gutter's change indicators colliding when the same relative file path exists in two different repos
+- Clicking a file path in the Claude/Codex terminal now opens the diff in the file's own repo instead of assuming the project root
+
+
 ## v0.1.7 (2026-08-16)
 - **Glass panel style**: a new Panel Style option makes the editor and terminal panels see-through, with an optional decorative background image you can enable in Settings > Display
 - **AI-generated commit messages**: configurable model and prompt in Settings
