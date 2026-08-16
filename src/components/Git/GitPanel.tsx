@@ -192,7 +192,14 @@ export function GitPanel() {
       </div>
 
       {repos.length > 1 && (
-        <div className="px-3 py-1.5 border-b border-border shrink-0">
+        <div className="px-3 py-1.5 border-b border-border shrink-0 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowAllRepos((v) => !v)}
+            className="text-[0.6875rem] text-fg-muted hover:text-fg transition-colors text-center"
+          >
+            {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
+          </button>
           <select
             aria-label="Select repository"
             value={selectedRepo ?? ''}
@@ -384,15 +391,6 @@ export function GitPanel() {
             List Diff
           </button>
         </div>
-        {repos.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setShowAllRepos((v) => !v)}
-            className="text-[0.6875rem] text-fg-muted hover:text-fg transition-colors text-center"
-          >
-            {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
-          </button>
-        )}
       </div>
 
       {menu && createPortal(
