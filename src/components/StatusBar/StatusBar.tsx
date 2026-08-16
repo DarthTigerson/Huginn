@@ -13,8 +13,19 @@ import { FooterMessage } from './FooterMessage'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
+  const repos = useGitReposStore((s) => s.repos)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const hasExplicitSelection = useGitReposStore((s) => s.hasExplicitSelection)
+  const isMultiRepo = repos.length > 1
   const { branch, aheadBehind, commandStatus, silentFetchInFlight } = useRepoGitState(selectedRepo)
+  // In a multi-repo project, stay silent until a repo has actually been
+  // picked (dropdown, "Show All Repos" row, or opening a file that
+  // resolves to one) — showing the arbitrary first repo's branch with
+  // nothing indicating which repo it belongs to is more confusing than
+  // showing nothing. Single-repo projects are unaffected (unchanged from
+  // before this feature existed).
+  const showBranch = !!branch && (!isMultiRepo || hasExplicitSelection)
+  const selectedRepoName = selectedRepo?.split('/').pop()
   const gitBusy = commandStatus === 'running' || silentFetchInFlight
   const refreshBranch = useGitStore((s) => s.refresh)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -59,7 +70,7 @@ export function StatusBar() {
   return (
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <FooterMessage />
-      {branch ? (
+      {showBranch ? (
         <div className="relative min-w-0">
           <span
             className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
@@ -71,6 +82,12 @@ export function StatusBar() {
                 gitBusy ? 'text-accent animate-pulse' : '',
               ].join(' ')}
             />
+            {isMultiRepo && selectedRepoName && (
+              <>
+                <span className="font-bold text-fg truncate shrink-0">{selectedRepoName}</span>
+                <span className="text-fg-subtle shrink-0">›</span>
+              </>
+            )}
             <span className="truncate">{branch}</span>
             {commandStatus === 'running' ? (
               <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>

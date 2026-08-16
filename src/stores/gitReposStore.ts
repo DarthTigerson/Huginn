@@ -5,6 +5,14 @@ import { useStatusMessageStore } from './statusMessageStore'
 interface GitReposStore {
   repos: string[]
   selectedRepo: string | null
+  // True once the user (via the Git Panel dropdown or "Show All Repos") or
+  // auto-follow has actually picked a repo — distinct from setRepos'
+  // internal default-selection, which populates selectedRepo immediately on
+  // project open purely so GitPanel/RepoOverviewList have data ready. The
+  // footer uses this to stay silent in multi-repo projects until a repo has
+  // genuinely been chosen, rather than showing the arbitrary first repo's
+  // branch with no indication of which repo it belongs to.
+  hasExplicitSelection: boolean
   setRepos: (repos: string[]) => void
   selectRepo: (repo: string) => void
   resolveRepoForPath: (absPath: string) => string | null
@@ -14,18 +22,22 @@ interface GitReposStore {
 export const useGitReposStore = create<GitReposStore>((set, get) => ({
   repos: [],
   selectedRepo: null,
+  hasExplicitSelection: false,
 
   // Called once per project open/reload with the freshly discovered repo
   // list. Keeps the current selection if it's still valid (e.g. a
   // discovery re-run after a repo was added), otherwise falls back to the
-  // first (sorted) repo, or null if there are none.
+  // first (sorted) repo, or null if there are none. Always resets
+  // hasExplicitSelection — a fresh project open means no repo has been
+  // explicitly chosen for it yet, regardless of what the previous project
+  // left behind.
   setRepos: (repos) => {
     const current = get().selectedRepo
     const selectedRepo = current && repos.includes(current) ? current : (repos[0] ?? null)
-    set({ repos, selectedRepo })
+    set({ repos, selectedRepo, hasExplicitSelection: false })
   },
 
-  selectRepo: (repo) => set({ selectedRepo: repo }),
+  selectRepo: (repo) => set({ selectedRepo: repo, hasExplicitSelection: true }),
 
   resolveRepoForPath: (absPath) => {
     let match: string | null = null
@@ -42,8 +54,16 @@ export const useGitReposStore = create<GitReposStore>((set, get) => ({
   // already the user's confirmation.
   followFilePath: (absPath) => {
     const repo = get().resolveRepoForPath(absPath)
-    if (!repo || repo === get().selectedRepo) return
-    set({ selectedRepo: repo })
+    if (!repo) return
+    // An open file within the already-selected repo (the common case, e.g.
+    // the auto-selected first repo in a multi-repo project) still counts
+    // as an explicit selection for the footer's purposes — there's just no
+    // actual switch to notify about, so the toast stays silent.
+    if (repo === get().selectedRepo) {
+      if (!get().hasExplicitSelection) set({ hasExplicitSelection: true })
+      return
+    }
+    set({ selectedRepo: repo, hasExplicitSelection: true })
     const name = repo.split('/').pop()
     const branch = useGitStore.getState().repos[repo]?.branch
     useStatusMessageStore.getState().show(branch ? `Switched to ${name} on ${branch}` : `Switched to ${name}`)

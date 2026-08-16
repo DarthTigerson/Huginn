@@ -122,3 +122,56 @@ describe('StatusBar git icon', () => {
     expect(gitIcon(container).getAttribute('class')).toContain('text-accent')
   })
 })
+
+describe('StatusBar — multi-repo branch display', () => {
+  beforeEach(() => {
+    ;(global as any).window.api = {
+      gitBranch: async () => 'main',
+      gitAheadBehind: async () => null,
+      gitStatus: async () => ({ staged: [], unstaged: [] }),
+      gitListIgnored: async () => [],
+    }
+  })
+
+  afterEach(() => {
+    useGitReposStore.setState({ repos: [], selectedRepo: null, hasExplicitSelection: false })
+  })
+
+  it('shows nothing until a repo has been explicitly selected', () => {
+    useGitReposStore.setState({
+      repos: ['/parent/repoA', '/parent/repoB'],
+      selectedRepo: '/parent/repoA',
+      hasExplicitSelection: false,
+    })
+    useGitStore.setState({ repos: { '/parent/repoA': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    expect(screen.queryByText('main')).toBeNull()
+  })
+
+  it('shows "repoName › branch" with the repo name bold once a repo is explicitly selected', () => {
+    useGitReposStore.setState({
+      repos: ['/parent/repoA', '/parent/repoB'],
+      selectedRepo: '/parent/repoB',
+      hasExplicitSelection: true,
+    })
+    useGitStore.setState({ repos: { '/parent/repoB': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    const repoName = screen.getByText('repoB')
+    expect(repoName.className).toContain('font-bold')
+    expect(screen.getByText('main')).toBeTruthy()
+  })
+
+  it('single-repo projects show the branch immediately with no repo name prefix, regardless of hasExplicitSelection', () => {
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj', hasExplicitSelection: false })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+
+    expect(screen.getByText('main')).toBeTruthy()
+    expect(screen.queryByText('proj')).toBeNull()
+  })
+})
