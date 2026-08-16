@@ -1,20 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup, configure } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 
 vi.mock('@/stores/gitStore', () => ({
   useGitStore: vi.fn(),
+  useRepoGitState: vi.fn(),
 }))
 vi.mock('@/stores/gitSettingsStore', () => ({
   useGitSettingsStore: vi.fn(),
 }))
 
 function mockGitStore(overrides = {}) {
-  vi.mocked(useGitStore).mockImplementation((sel: any) =>
-    sel({ branch: 'main', forcePush: vi.fn(), forcePushLease: vi.fn(), ...overrides })
-  )
+  const state = { branch: 'main', forcePush: vi.fn(), forcePushLease: vi.fn(), ...overrides }
+  vi.mocked(useGitStore).mockImplementation((sel: any) => sel(state))
+  vi.mocked(useRepoGitState).mockReturnValue({ branch: state.branch } as any)
 }
 
 function mockSettings(overrides = {}) {

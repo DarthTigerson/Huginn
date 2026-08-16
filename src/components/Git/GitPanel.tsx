@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import type { MouseEvent, ReactNode } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useGitGraphStore } from '@/stores/gitGraphStore'
 import { buildGitDiffPath } from './paths'
@@ -55,13 +56,17 @@ function DiscardAllIcon() {
 }
 
 export function GitPanel() {
-  const projectRoot = useFileStore((s) => s.projectRoot)
+  const repos = useGitReposStore((s) => s.repos)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const selectRepo = useGitReposStore((s) => s.selectRepo)
   const {
     branch,
     status,
     commitMessage,
     commitError,
     commandStatus,
+  } = useRepoGitState(selectedRepo)
+  const {
     refreshStatus,
     stage,
     unstage,
@@ -77,7 +82,7 @@ export function GitPanel() {
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
-  const { forceAction, requestForce, closeForce } = useForcePushConfirm(projectRoot)
+  const { forceAction, requestForce, closeForce } = useForcePushConfirm(selectedRepo)
   const commitMessageEnabled = useCommitMessageSettingsStore((s) => s.enabled)
   const commitMessageModel = useCommitMessageSettingsStore((s) => s.model)
   const commitMessagePrompt = useCommitMessageSettingsStore((s) => s.prompt)
@@ -85,14 +90,14 @@ export function GitPanel() {
   const [generateError, setGenerateError] = useState<string | null>(null)
 
   async function generateCommitMessage() {
-    if (!projectRoot) return
+    if (!selectedRepo) return
     setGeneratingMessage(true)
     setGenerateError(null)
     try {
-      const diff = await window.api.gitStagedDiff(projectRoot)
+      const diff = await window.api.gitStagedDiff(selectedRepo)
       const message = await window.api.commitMessageGenerate(diff, commitMessageModel, commitMessagePrompt)
       if (message) {
-        setCommitMessage(message)
+        setCommitMessage(selectedRepo, message)
       } else {
         setGenerateError('Could not generate a commit message')
       }
@@ -107,11 +112,11 @@ export function GitPanel() {
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
 
   useEffect(() => {
-    refreshStatus(projectRoot)
-    const onFocus = () => refreshStatus(projectRoot)
+    refreshStatus(selectedRepo)
+    const onFocus = () => refreshStatus(selectedRepo)
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [projectRoot, refreshStatus])
+  }, [selectedRepo, refreshStatus])
 
   useEffect(() => {
     if (!menu) return
@@ -143,7 +148,8 @@ export function GitPanel() {
   }
 
   function openDiff(path: string, staged: boolean) {
-    openTab({ path: buildGitDiffPath(path, staged), content: '', dirty: false })
+    if (!selectedRepo) return
+    openTab({ path: buildGitDiffPath(selectedRepo, path, staged), content: '', dirty: false })
   }
 
   function copyPath(path: string) {
@@ -159,14 +165,14 @@ export function GitPanel() {
   }
 
   async function trashUntrackedFile(file: GitFileEntry) {
-    if (!projectRoot) return
-    await window.api.trashPath(`${projectRoot}/${file.path}`)
-    await refreshStatus(projectRoot)
+    if (!selectedRepo) return
+    await window.api.trashPath(`${selectedRepo}/${file.path}`)
+    await refreshStatus(selectedRepo)
   }
 
   const isUntracked = menu?.file.status === '?'
   const isTrackedChange = menu && !menu.staged && menu.file.status !== '?'
-  const remoteActionDisabled = commandStatus === 'running' || !projectRoot
+  const remoteActionDisabled = commandStatus === 'running' || !selectedRepo
   // Matches discardAllChanges' scope (git reset --hard HEAD): staged changes
   // plus unstaged changes to already-tracked files. Untracked ('?') entries
   // aren't affected by that command, so they don't count toward "has
@@ -183,11 +189,28 @@ export function GitPanel() {
         </span>
       </div>
 
+      {repos.length > 1 && (
+        <div className="px-3 py-1.5 border-b border-border shrink-0">
+          <select
+            aria-label="Select repository"
+            value={selectedRepo ?? ''}
+            onChange={(e) => selectRepo(e.target.value)}
+            className="w-full h-6 rounded border border-border bg-bg px-1.5 text-xs text-fg focus:outline-none focus:ring-1 focus:ring-accent/50"
+          >
+            {repos.map((repo) => (
+              <option key={repo} value={repo}>
+                {repo.split('/').pop()}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="px-3 py-2 border-b border-border shrink-0 flex flex-col gap-1.5">
         <div className="relative">
           <textarea
             value={commitMessage}
-            onChange={(e) => setCommitMessage(e.target.value)}
+            onChange={(e) => selectedRepo && setCommitMessage(selectedRepo, e.target.value)}
             placeholder="Message"
             rows={3}
             className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
@@ -209,7 +232,7 @@ export function GitPanel() {
         <button
           type="button"
           disabled={!commitMessage.trim() || status.staged.length === 0}
-          onClick={() => projectRoot && commit(projectRoot)}
+          onClick={() => selectedRepo && commit(selectedRepo)}
           className="w-full h-7 rounded-full flex items-center justify-center text-xs font-semibold bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Commit
@@ -224,7 +247,7 @@ export function GitPanel() {
             </span>
             <button
               type="button"
-              onClick={() => projectRoot && unstageAll(projectRoot)}
+              onClick={() => selectedRepo && unstageAll(selectedRepo)}
               className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
             >
               -
@@ -235,7 +258,7 @@ export function GitPanel() {
               key={file.path}
               file={file}
               staged
-              onToggle={() => projectRoot && unstage(projectRoot, file.path)}
+              onToggle={() => selectedRepo && unstage(selectedRepo, file.path)}
               onOpenDiff={() => openDiff(file.path, true)}
               onContextMenu={(e) => openContextMenu(e, file, true)}
             />
@@ -259,7 +282,7 @@ export function GitPanel() {
               </button>
               <button
                 type="button"
-                onClick={() => projectRoot && stageAll(projectRoot)}
+                onClick={() => selectedRepo && stageAll(selectedRepo)}
                 className="text-[0.6875rem] text-fg-muted transition-colors hover:text-fg"
               >
                 +
@@ -271,7 +294,7 @@ export function GitPanel() {
               key={file.path}
               file={file}
               staged={false}
-              onToggle={() => projectRoot && stage(projectRoot, file.path)}
+              onToggle={() => selectedRepo && stage(selectedRepo, file.path)}
               onOpenDiff={() => openDiff(file.path, false)}
               onContextMenu={(e) => openContextMenu(e, file, false)}
             />
@@ -293,7 +316,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && gitFetch(projectRoot)}
+            onClick={() => selectedRepo && gitFetch(selectedRepo)}
           >
             Fetch
           </button>
@@ -301,7 +324,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && pull(projectRoot)}
+            onClick={() => selectedRepo && pull(selectedRepo)}
           >
             Pull
           </button>
@@ -311,7 +334,7 @@ export function GitPanel() {
             type="button"
             className={pillButtonClass}
             disabled={remoteActionDisabled}
-            onClick={() => projectRoot && push(projectRoot)}
+            onClick={() => selectedRepo && push(selectedRepo)}
           >
             Push
           </button>
@@ -340,7 +363,7 @@ export function GitPanel() {
             className={pillButtonClass}
             onClick={() => {
               openTab({ path: GIT_GRAPH_TAB_PATH, content: '', dirty: false })
-              if (projectRoot) loadGraph(projectRoot)
+              if (selectedRepo) loadGraph(selectedRepo)
             }}
           >
             Graph
@@ -368,11 +391,11 @@ export function GitPanel() {
             </ContextMenuButton>
           )}
           {menu.staged ? (
-            <ContextMenuButton onClick={() => { projectRoot && unstage(projectRoot, menu.file.path); setMenu(null) }}>
+            <ContextMenuButton onClick={() => { selectedRepo && unstage(selectedRepo, menu.file.path); setMenu(null) }}>
               Unstage
             </ContextMenuButton>
           ) : (
-            <ContextMenuButton onClick={() => { projectRoot && stage(projectRoot, menu.file.path); setMenu(null) }}>
+            <ContextMenuButton onClick={() => { selectedRepo && stage(selectedRepo, menu.file.path); setMenu(null) }}>
               Stage
             </ContextMenuButton>
           )}
@@ -421,7 +444,7 @@ export function GitPanel() {
             <button
               type="button"
               onClick={() => {
-                if (projectRoot) discard(projectRoot, discardTarget.path)
+                if (selectedRepo) discard(selectedRepo, discardTarget.path)
                 setDiscardTarget(null)
               }}
               className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
@@ -450,7 +473,7 @@ export function GitPanel() {
             <button
               type="button"
               onClick={() => {
-                if (projectRoot) discardAll(projectRoot)
+                if (selectedRepo) discardAll(selectedRepo)
                 setDiscardAllConfirmOpen(false)
               }}
               className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
@@ -461,8 +484,8 @@ export function GitPanel() {
         </Modal>
       )}
 
-      {forceAction && projectRoot && (
-        <ConfirmForcePushModal action={forceAction} cwd={projectRoot} onClose={closeForce} />
+      {forceAction && selectedRepo && (
+        <ConfirmForcePushModal action={forceAction} cwd={selectedRepo} onClose={closeForce} />
       )}
     </div>
   )
