@@ -76,16 +76,13 @@ export const useGitStore = create<GitStore>((set, get) => {
     const id = crypto.randomUUID()
 
     useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
-    // NOTE: gitLogStore.append is still (chunk: string) here — it gets converted
-    // to (cwd, chunk) in a later task in this plan, which will also update these
-    // three call sites. Left as single-arg deliberately for this task.
-    useGitLogStore.getState().append(`\n> git ${describeCommand(action, payload)}\n`)
+    useGitLogStore.getState().append(cwd, `\n> git ${describeCommand(action, payload)}\n`)
 
     setRepo(cwd, { commandStatus: 'running' })
 
     const cleanupData = window.api.onGitLogData((evtId, data) => {
       if (evtId !== id) return
-      useGitLogStore.getState().append(data)
+      useGitLogStore.getState().append(cwd, data)
     })
     const cleanupExit = window.api.onGitLogExit((evtId, code) => {
       if (evtId !== id) return
@@ -110,7 +107,7 @@ export const useGitStore = create<GitStore>((set, get) => {
     } catch (err) {
       cleanupData()
       cleanupExit()
-      useGitLogStore.getState().append(`\nError: ${err instanceof Error ? err.message : String(err)}\n`)
+      useGitLogStore.getState().append(cwd, `\nError: ${err instanceof Error ? err.message : String(err)}\n`)
       setRepo(cwd, { commandStatus: 'idle' })
     }
   }

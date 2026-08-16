@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import { useGitLogStore } from '@/stores/gitLogStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
@@ -9,7 +10,8 @@ import { GitLogView } from '../GitLogView'
 
 describe('GitLogView', () => {
   beforeEach(() => {
-    useGitLogStore.setState({ text: 'git log output' })
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
+    useGitLogStore.setState({ repos: { '/proj': 'git log output' } })
     useFontSizeStore.setState({ fontSize: 13 })
     useInstanceFontSizeStore.setState({ overrides: {} })
     useEditorSettingsStore.setState({ wordWrapEnabled: false })
