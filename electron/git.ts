@@ -1,6 +1,7 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { readFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
+import { existsSync } from 'fs'
 import { join } from 'path'
 
 const execFileAsync = promisify(execFile)
@@ -18,6 +19,25 @@ export interface GitStatus {
 export interface GitAheadBehind {
   ahead: number
   behind: number
+}
+
+// Supports the "open a parent folder containing several sibling repos"
+// devops workflow. Scans immediate children only (no recursive walk) so a
+// vendored submodule or a deeply nested unrelated repo doesn't get picked
+// up — matches the common parent/repoA, parent/repoB layout.
+export async function discoverRepos(root: string): Promise<string[]> {
+  if (existsSync(join(root, '.git'))) return [root]
+
+  try {
+    const entries = await readdir(root, { withFileTypes: true })
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(root, entry.name))
+      .filter((dir) => existsSync(join(dir, '.git')))
+      .sort()
+  } catch {
+    return []
+  }
 }
 
 export async function getGitBranch(cwd: string): Promise<string | null> {

@@ -123,6 +123,7 @@ declare global {
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitFetchSilent: (cwd: string) => Promise<boolean>
       gitStagedDiff: (cwd: string) => Promise<string>
+      gitDiscoverRepos: (root: string) => Promise<string[]>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
 
