@@ -10,6 +10,7 @@ import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useClaudeStore } from '@/stores/claudeStore'
@@ -198,6 +199,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const font = useDisplayStore((s) => s.font)
   const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
   const projectRoot = useFileStore((s) => s.projectRoot)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const [diffContent, setDiffContent] = useState<GitDiffContent | null>(null)
   const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number } | null>(null)
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -259,7 +261,7 @@ function EditorPane({ paneId }: { paneId: string }) {
       if (cwd === projectRoot) setDiffRefreshTick((t) => t + 1)
     })
     const offGit = window.api.onGitChanged((cwd) => {
-      if (cwd === projectRoot) {
+      if (cwd === selectedRepo) {
         setDiffRefreshTick((t) => t + 1)
         // HEAD moved (commit/checkout/stage) - the cached blob is stale.
         refreshGutterRef.current()
@@ -269,10 +271,10 @@ function EditorPane({ paneId }: { paneId: string }) {
       offFs()
       offGit()
     }
-  }, [projectRoot])
+  }, [projectRoot, selectedRepo])
 
   useEffect(() => {
-    if (!activeTab || !projectRoot || (!isDiff && !isCommitDiff)) {
+    if (!activeTab || (!isDiff && !isCommitDiff)) {
       setDiffContent(null)
       return
     }
@@ -280,12 +282,12 @@ function EditorPane({ paneId }: { paneId: string }) {
     let cancelled = false
     const request = isCommitDiff
       ? (() => {
-          const { hash, path } = parseGitCommitDiffPath(activeTab.path)
-          return window.api.gitCommitDiff(projectRoot, hash, path)
+          const { repoRoot, hash, path } = parseGitCommitDiffPath(activeTab.path)
+          return window.api.gitCommitDiff(repoRoot, hash, path)
         })()
       : (() => {
-          const { path, staged } = parseGitDiffPath(activeTab.path)
-          return window.api.gitDiff(projectRoot, path, staged)
+          const { repoRoot, path, staged } = parseGitDiffPath(activeTab.path)
+          return window.api.gitDiff(repoRoot, path, staged)
         })()
     request.then((content) => {
       if (!cancelled) setDiffContent(content)
@@ -294,7 +296,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     return () => {
       cancelled = true
     }
-  }, [activeTab?.path, isDiff, isCommitDiff, projectRoot, diffRefreshTick])
+  }, [activeTab?.path, isDiff, isCommitDiff, diffRefreshTick])
 
   useEffect(() => {
     if (!activeTab || isReadOnlyTab(activeTab)) return
@@ -583,11 +585,13 @@ function EditorPane({ paneId }: { paneId: string }) {
                 gutterDecorationsRef.current = editor.createDecorationsCollection([])
 
                 async function applyGutterDecorations() {
-                  if (cancelled || !projectRoot || !activeTab) return
+                  if (cancelled || !activeTab) return
                   if (headContent === null) {
-                    const relPath = toRelativePath(activeTab.path, projectRoot)
+                    const fileRepoRoot = useGitReposStore.getState().resolveRepoForPath(activeTab.path)
+                    if (!fileRepoRoot) return
+                    const relPath = toRelativePath(activeTab.path, fileRepoRoot)
                     try {
-                      headContent = await window.api.gitFileAtHead(projectRoot, relPath)
+                      headContent = await window.api.gitFileAtHead(fileRepoRoot, relPath)
                     } catch {
                       return
                     }
