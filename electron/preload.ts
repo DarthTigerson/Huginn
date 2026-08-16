@@ -68,6 +68,39 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('git:changed', handler)
   },
 
+  dockerStatus: () => ipcRenderer.invoke('docker:status') as Promise<import('./docker').DockerStatus>,
+  dockerListContainers: () =>
+    ipcRenderer.invoke('docker:listContainers') as Promise<import('./docker').DockerContainer[]>,
+  dockerStartContainer: (id: string) =>
+    ipcRenderer.invoke('docker:startContainer', id) as Promise<import('./docker').DockerActionResult>,
+  dockerStopContainer: (id: string) =>
+    ipcRenderer.invoke('docker:stopContainer', id) as Promise<import('./docker').DockerActionResult>,
+  dockerRestartContainer: (id: string) =>
+    ipcRenderer.invoke('docker:restartContainer', id) as Promise<import('./docker').DockerActionResult>,
+  dockerRemoveContainer: (id: string) =>
+    ipcRenderer.invoke('docker:removeContainer', id) as Promise<import('./docker').DockerActionResult>,
+  dockerOpenApp: () => ipcRenderer.invoke('docker:openApp') as Promise<import('./docker').DockerActionResult>,
+  dockerRunLogs: (streamId: string, containerId: string) =>
+    ipcRenderer.invoke('docker:runLogs', streamId, containerId),
+  dockerStopLogs: (streamId: string) => ipcRenderer.send('docker:stopLogs', streamId),
+  onDockerLogData: (cb: (streamId: string, data: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, streamId: string, data: string) => cb(streamId, data)
+    ipcRenderer.on('docker:log:data', handler)
+    return () => ipcRenderer.removeListener('docker:log:data', handler)
+  },
+  onDockerLogExit: (cb: (streamId: string, code: number) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, streamId: string, code: number) => cb(streamId, code)
+    ipcRenderer.on('docker:log:exit', handler)
+    return () => ipcRenderer.removeListener('docker:log:exit', handler)
+  },
+  dockerWatch: () => ipcRenderer.send('docker:watch'),
+  dockerUnwatch: () => ipcRenderer.send('docker:unwatch'),
+  onDockerChanged: (cb: () => void) => {
+    const handler = () => cb()
+    ipcRenderer.on('docker:changed', handler)
+    return () => ipcRenderer.removeListener('docker:changed', handler)
+  },
+
   termSpawn: (id: string, cwd?: string) => ipcRenderer.invoke('term:spawn', id, cwd),
   termKill: (id: string) => ipcRenderer.invoke('term:kill', id),
   termWrite: (id: string, data: string) => ipcRenderer.send('term:write', id, data),

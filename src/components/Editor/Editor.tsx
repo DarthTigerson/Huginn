@@ -46,6 +46,7 @@ import {
   GRAPHIFY_SETTINGS_TAB_PATH,
   TODO_SETTINGS_TAB_PATH,
   JIRA_SETTINGS_TAB_PATH,
+  DOCKER_SETTINGS_TAB_PATH,
 } from '@/components/Settings/paths'
 import { TerminalTab } from '@/components/Terminal/TerminalTab'
 import { BrowserTab } from '@/components/Browser/BrowserTab'
@@ -57,6 +58,9 @@ import { ModelsSettingsPage } from '@/components/Settings/ModelsSettingsPage'
 import { GraphifySettingsPage } from '@/components/Settings/GraphifySettingsPage'
 import { TodoSettingsPage } from '@/components/Settings/TodoSettingsPage'
 import { JiraSettingsPage } from '@/components/Settings/JiraSettingsPage'
+import { DockerSettingsPage } from '@/components/Settings/DockerSettingsPage'
+import { DockerLogsPage } from '@/components/Docker/DockerLogsPage'
+import { isDockerLogsTab } from '@/components/Docker/paths'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
 import { GitLogView } from '@/components/Git/GitLogView'
 import { GitGraphPage } from '@/components/Git/GitGraphPage'
@@ -229,6 +233,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGitBranchDiff = !!activeTab && isGitBranchDiffTab(activeTab.path)
   const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isUsageGraph = !!activeTab && isUsageGraphTab(activeTab.path)
+  const isDockerLogs = !!activeTab && isDockerLogsTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
   // Plain file tabs only for now - diff/image/markdown-preview tabs encode
@@ -238,7 +243,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
-    !isGraphifyGraph && !isUsageGraph && !isImagePreview && !isMarkdownPreview
+    !isGraphifyGraph && !isUsageGraph && !isDockerLogs && !isImagePreview && !isMarkdownPreview
 
   function activatePane() {
     setActivePane(paneId)
@@ -380,6 +385,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <TodoSettingsPage />
           ) : activeTab.path === JIRA_SETTINGS_TAB_PATH ? (
             <JiraSettingsPage />
+          ) : activeTab.path === DOCKER_SETTINGS_TAB_PATH ? (
+            <DockerSettingsPage />
           ) : activeTab.path === DISPLAY_TAB_PATH ? (
             <DisplayPage />
           ) : (
@@ -393,6 +400,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GraphifyGraphPage />
         ) : isUsageGraph ? (
           <UsageGraphPage />
+        ) : isDockerLogs ? (
+          <DockerLogsPage path={activeTab.path} />
         ) : isGitBranchDiff ? (
           <GitBranchDiffPage />
         ) : isImagePreview ? (
