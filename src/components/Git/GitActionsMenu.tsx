@@ -1,5 +1,5 @@
-import { useGitStore } from '@/stores/gitStore'
-import { useFileStore } from '@/stores/fileStore'
+import { useGitStore, useRepoGitState } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import type { GitCommandAction } from '@/types/index'
 
 interface Props {
@@ -10,13 +10,13 @@ interface Props {
 type ForceAction = Extract<GitCommandAction, 'forcePush' | 'forcePushLease'>
 
 export function GitActionsMenu({ onClose, onRequestForce }: Props) {
-  const projectRoot = useFileStore((s) => s.projectRoot)
-  const commandStatus = useGitStore((s) => s.commandStatus)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const { commandStatus } = useRepoGitState(selectedRepo)
   const fetch = useGitStore((s) => s.fetch)
   const pull = useGitStore((s) => s.pull)
   const push = useGitStore((s) => s.push)
 
-  const disabled = commandStatus === 'running' || !projectRoot
+  const disabled = commandStatus === 'running' || !selectedRepo
 
   async function run(action: () => Promise<void>) {
     onClose()
@@ -38,16 +38,16 @@ export function GitActionsMenu({ onClose, onRequestForce }: Props) {
   return (
     <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
       <button type="button" className={itemClass} disabled={disabled}
-        onClick={() => run(() => fetch(projectRoot!))}>
+        onClick={() => run(() => fetch(selectedRepo!))}>
         Fetch
       </button>
       <button type="button" className={itemClass} disabled={disabled}
-        onClick={() => run(() => pull(projectRoot!))}>
+        onClick={() => run(() => pull(selectedRepo!))}>
         Pull
       </button>
       <div className="my-1 border-t border-border" />
       <button type="button" className={itemClass} disabled={disabled}
-        onClick={() => run(() => push(projectRoot!))}>
+        onClick={() => run(() => push(selectedRepo!))}>
         Push
       </button>
       <button type="button" className={`${itemClass} text-red-400`} disabled={disabled}

@@ -2,6 +2,7 @@ import type { Terminal, ILink, ILinkProvider } from '@xterm/xterm'
 import { useEditorStore } from '@/stores/editorStore'
 import { useBrowserStore } from '@/stores/browserStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { toRelativePath } from '@/lib/sendSelectionToAssistant'
 import { openFileAtLocation } from '@/lib/openFileLocation'
 import { buildBrowserPath } from '@/components/Settings/paths'
@@ -47,12 +48,13 @@ export function resolveFileLinkPath(rawPath: string, projectRoot: string, homeDi
 // uncommitted changes — otherwise there's nothing to diff, so callers should
 // fall back to opening the file in the editor instead.
 async function resolveDiffTabPath(absPath: string, projectRoot: string): Promise<string | null> {
-  const relPath = toRelativePath(absPath, projectRoot)
-  if (relPath.startsWith('/')) return null // outside the project root
+  const repoRoot = useGitReposStore.getState().resolveRepoForPath(absPath)
+  if (!repoRoot) return null // outside any known repo
 
-  const status = await window.api.gitStatus(projectRoot)
-  if (status.unstaged.some((f) => f.path === relPath)) return buildGitDiffPath(relPath, false)
-  if (status.staged.some((f) => f.path === relPath)) return buildGitDiffPath(relPath, true)
+  const relPath = toRelativePath(absPath, repoRoot)
+  const status = await window.api.gitStatus(repoRoot)
+  if (status.unstaged.some((f) => f.path === relPath)) return buildGitDiffPath(repoRoot, relPath, false)
+  if (status.staged.some((f) => f.path === relPath)) return buildGitDiffPath(repoRoot, relPath, true)
   return null
 }
 

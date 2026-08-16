@@ -12,12 +12,15 @@ export default defineConfig({
     environment: 'node',
     environmentMatchGlobs: [
       ['src/components/**/__tests__/**/*.test.tsx', 'jsdom'],
+      ['src/__tests__/**/*.test.tsx', 'jsdom'],
     ],
     include: [
       'src/stores/__tests__/**/*.test.ts',
       'src/lib/__tests__/**/*.test.ts',
       'src/components/**/__tests__/**/*.test.ts',
       'src/components/**/__tests__/**/*.test.tsx',
+      'src/__tests__/**/*.test.ts',
+      'src/__tests__/**/*.test.tsx',
       'electron/__tests__/**/*.test.ts'
     ],
     setupFiles: ['./vitest.setup.ts']

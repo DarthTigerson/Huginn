@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useGitStore } from '@/stores/gitStore'
-import { useGitBranchStore } from '@/stores/gitBranchStore'
+import { useGitBranchStore, useRepoBranchState } from '@/stores/gitBranchStore'
 
 interface Props {
   projectRoot: string
@@ -14,10 +14,7 @@ type PaletteItem =
   | { kind: 'create'; label: string }
 
 export function BranchPalette({ projectRoot, onClose }: Props) {
-  const current = useGitBranchStore((s) => s.current)
-  const local = useGitBranchStore((s) => s.local)
-  const remote = useGitBranchStore((s) => s.remote)
-  const loading = useGitBranchStore((s) => s.loading)
+  const { current, local, remote, loading } = useRepoBranchState(projectRoot)
   const load = useGitBranchStore((s) => s.load)
   const checkout = useGitStore((s) => s.checkout)
 

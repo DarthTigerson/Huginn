@@ -4,7 +4,7 @@ import { Sidebar } from '../Sidebar'
 import { useFileStore } from '@/stores/fileStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
 import { buildGitDiffPath, buildGitCommitDiffPath } from '@/components/Git/paths'
 import type { FileNode } from '@/types/index'
 
@@ -36,7 +36,7 @@ beforeEach(() => {
     revealedPath: null,
   })
   useEditorStore.setState({ activeTabPath: null } as any)
-  useGitStore.setState({ ignoredPaths: [] } as any)
+  useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, ignoredPaths: [] } } })
   useSidebarUiStore.setState({ pendingCreate: null, revealRequest: null })
 })
 
@@ -98,7 +98,7 @@ describe('Sidebar — auto-expand for the active diff tab', () => {
   // case is exactly what was silently failing to expand before.
 
   it('expands ancestors for a working-tree diff tab already active when the Files panel mounts', async () => {
-    useEditorStore.setState({ activeTabPath: buildGitDiffPath('src/components/App.tsx', false) } as any)
+    useEditorStore.setState({ activeTabPath: buildGitDiffPath('/proj', 'src/components/App.tsx', false) } as any)
     render(<Sidebar />)
 
     await waitFor(() => {
@@ -112,7 +112,7 @@ describe('Sidebar — auto-expand for the active diff tab', () => {
 
     act(() => {
       useEditorStore.setState({
-        activeTabPath: buildGitCommitDiffPath('abc123', 'src/components/App.tsx'),
+        activeTabPath: buildGitCommitDiffPath('/proj', 'abc123', 'src/components/App.tsx'),
       } as any)
     })
 
