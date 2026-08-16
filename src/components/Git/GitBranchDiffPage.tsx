@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { useFileStore } from '@/stores/fileStore'
-import { useGitStore } from '@/stores/gitStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
+import { useRepoGitState } from '@/stores/gitStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import { useGitBranchDiffStore } from '@/stores/gitBranchDiffStore'
 import type { GitCommit } from '@/types/index'
@@ -231,10 +231,10 @@ interface RowMenuState {
 }
 
 export function GitBranchDiffPage() {
-  const projectRoot = useFileStore((s) => s.projectRoot)
-  const currentBranch = useGitStore((s) => s.branch)
+  const selectedRepo = useGitReposStore((s) => s.selectedRepo)
+  const currentBranch = useRepoGitState(selectedRepo).branch
   const getListDiffTargetBranch = useGitSettingsStore((s) => s.getListDiffTargetBranch)
-  const configuredTarget = projectRoot ? getListDiffTargetBranch(projectRoot) : ''
+  const configuredTarget = selectedRepo ? getListDiffTargetBranch(selectedRepo) : ''
   const {
     branches,
     defaultBranch,
@@ -258,15 +258,15 @@ export function GitBranchDiffPage() {
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
-    if (!projectRoot) return
+    if (!selectedRepo) return
 
     let cancelled = false
     setLoadingBranches(true)
 
     Promise.all([
-      window.api.gitBranches(projectRoot),
-      currentBranch ? Promise.resolve(currentBranch) : window.api.gitBranch(projectRoot),
-      window.api.gitDefaultBranch(projectRoot),
+      window.api.gitBranches(selectedRepo),
+      currentBranch ? Promise.resolve(currentBranch) : window.api.gitBranch(selectedRepo),
+      window.api.gitDefaultBranch(selectedRepo),
     ]).then(([loadedBranches, branch, loadedDefaultBranch]) => {
       if (cancelled) return
       const selectedSource = branch ?? loadedBranches[0] ?? ''
@@ -283,17 +283,17 @@ export function GitBranchDiffPage() {
     return () => {
       cancelled = true
     }
-  }, [projectRoot, currentBranch])
+  }, [selectedRepo, currentBranch])
 
   useEffect(() => {
-    if (!projectRoot || !source || !target || source === target) {
+    if (!selectedRepo || !source || !target || source === target) {
       setCommits([])
       return
     }
 
     let cancelled = false
     setLoadingCommits(true)
-    window.api.gitBranchDiff(projectRoot, source, target).then((result) => {
+    window.api.gitBranchDiff(selectedRepo, source, target).then((result) => {
       if (cancelled) return
       setCommits(result.commits)
       setLoadingCommits(false)
@@ -302,7 +302,7 @@ export function GitBranchDiffPage() {
     return () => {
       cancelled = true
     }
-  }, [projectRoot, source, target])
+  }, [selectedRepo, source, target])
 
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
@@ -385,9 +385,9 @@ export function GitBranchDiffPage() {
           )}
         </div>
 
-        {selectedCommit && projectRoot && (
+        {selectedCommit && selectedRepo && (
           <CommitDetailsPanel
-            cwd={projectRoot}
+            cwd={selectedRepo}
             commit={selectedCommit}
             onClose={() => select(null)}
           />

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react'
 import { GitBranchDiffPage } from '../GitBranchDiffPage'
-import { useFileStore } from '@/stores/fileStore'
+import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore } from '@/stores/gitStore'
 import { useGitBranchDiffStore } from '@/stores/gitBranchDiffStore'
 import type { GitCommit } from '@/types/index'
@@ -23,8 +23,8 @@ beforeEach(() => {
     gitBranchDiff: vi.fn().mockResolvedValue({ source: 'feature-x', target: 'main', commits: [commit] }),
     gitShowStat: vi.fn().mockResolvedValue(['src/App.tsx']),
   }
-  useFileStore.setState({ projectRoot: '/proj' })
-  useGitStore.setState({ branch: 'feature-x' } as any)
+  useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
+  useGitStore.setState({ repos: { '/proj': { branch: 'feature-x' } } } as any)
   useGitBranchDiffStore.setState({
     branches: [],
     defaultBranch: null,
