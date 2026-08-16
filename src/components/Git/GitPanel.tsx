@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { MouseEvent, ReactNode } from 'react'
+import type { MouseEvent } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore, useRepoGitState } from '@/stores/gitStore'
@@ -17,6 +17,7 @@ import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import { RepoOverviewList } from './RepoOverviewList'
+import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
 const pillButtonClass =
   'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
@@ -53,6 +54,117 @@ function DiscardAllIcon() {
       <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
+  )
+}
+
+function RepoSelect({ repos, selectedRepo, onSelect }: {
+  repos: string[]
+  selectedRepo: string | null
+  onSelect: (repo: string) => void
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return repos
+    return repos.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
+  }, [repos, query])
+
+  useEffect(() => {
+    if (!open) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [open])
+
+  function handleSelect(repo: string) {
+    onSelect(repo)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-label="Select repository"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'w-full h-6 rounded border px-1.5 text-xs text-fg flex items-center justify-between gap-1 transition-colors focus:outline-none focus:ring-1 focus:ring-accent/50',
+          open ? 'border-accent/60 bg-accent/10' : 'border-border bg-bg hover:border-fg-subtle',
+        ].join(' ')}
+      >
+        <span className="truncate">{selectedRepo ? selectedRepo.split('/').pop() : 'Select repo'}</span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={['shrink-0 text-fg-subtle transition-transform', open ? 'rotate-180' : ''].join(' ')}
+        >
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-md border border-border bg-popover shadow-2xl shadow-black/40">
+          <div className="border-b border-border p-1.5">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+              placeholder="Find a repo"
+              className="w-full h-6 rounded border border-border bg-bg px-1.5 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setOpen(false)
+                  setQuery('')
+                } else if (e.key === 'Enter' && filtered.length > 0) {
+                  e.preventDefault()
+                  handleSelect(filtered[0])
+                }
+              }}
+            />
+          </div>
+          <div role="listbox" aria-label="Repositories" className="max-h-56 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-fg-subtle">No repos found</div>
+            ) : (
+              filtered.map((repo) => {
+                const selected = repo === selectedRepo
+                return (
+                  <button
+                    key={repo}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => handleSelect(repo)}
+                    className={[
+                      'w-full truncate rounded px-2 py-1.5 text-left text-xs transition-colors',
+                      selected ? 'bg-accent/15 text-fg' : 'text-fg-muted hover:bg-white/[0.06] hover:text-fg',
+                    ].join(' ')}
+                  >
+                    {repo.split('/').pop()}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -200,18 +312,7 @@ export function GitPanel() {
           >
             {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
           </button>
-          <select
-            aria-label="Select repository"
-            value={selectedRepo ?? ''}
-            onChange={(e) => selectRepo(e.target.value)}
-            className="w-full h-6 rounded border border-border bg-bg px-1.5 text-xs text-fg focus:outline-none focus:ring-1 focus:ring-accent/50"
-          >
-            {repos.map((repo) => (
-              <option key={repo} value={repo}>
-                {repo.split('/').pop()}
-              </option>
-            ))}
-          </select>
+          <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
         </div>
       )}
 
@@ -504,29 +605,4 @@ export function GitPanel() {
       )}
     </div>
   )
-}
-
-function ContextMenuButton({ children, danger = false, onClick }: {
-  children: ReactNode
-  danger?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
-        danger
-          ? 'text-red-300 hover:bg-red-500/15 hover:text-red-200'
-          : 'text-fg-muted hover:bg-white/5 hover:text-fg',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  )
-}
-
-function ContextMenuDivider() {
-  return <div className="my-1 h-px bg-border" />
 }

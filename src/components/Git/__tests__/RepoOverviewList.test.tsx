@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { RepoOverviewList } from '../RepoOverviewList'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import type { GitStatus, GitAheadBehind } from '@/types/index'
 
 const repoAStatus: GitStatus = { staged: [{ path: 'a.ts', status: 'M' }], unstaged: [] }
@@ -58,5 +59,21 @@ describe('RepoOverviewList', () => {
     fireEvent.click(screen.getByText('repoB'))
     expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoB')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('right-clicking a row shows a context menu with "Go to File Tree", which requests a reveal and closes the overview', () => {
+    const onClose = vi.fn()
+    render(<RepoOverviewList onClose={onClose} />)
+    fireEvent.contextMenu(screen.getByText('repoB'))
+
+    const item = screen.getByText('Go to File Tree')
+    expect(item).toBeTruthy()
+    fireEvent.click(item)
+
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/repoB' })
+    expect(onClose).toHaveBeenCalled()
+    // Right-click navigates via the file tree, not the git scope — it
+    // shouldn't also change which repo the Git Panel is scoped to.
+    expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoA')
   })
 })

@@ -34,8 +34,10 @@ describe('GitPanel — repo dropdown', () => {
       },
     })
     render(<GitPanel />)
-    const select = screen.getByLabelText('Select repository') as HTMLSelectElement
-    expect(select.value).toBe('/proj/repoA')
+    const trigger = screen.getByLabelText('Select repository')
+    expect(trigger.textContent).toContain('repoA')
+
+    fireEvent.click(trigger)
     expect(screen.getByRole('option', { name: 'repoA' })).toBeTruthy()
     expect(screen.getByRole('option', { name: 'repoB' })).toBeTruthy()
   })
@@ -49,8 +51,30 @@ describe('GitPanel — repo dropdown', () => {
       },
     })
     render(<GitPanel />)
-    fireEvent.change(screen.getByLabelText('Select repository'), { target: { value: '/proj/repoB' } })
+    fireEvent.click(screen.getByLabelText('Select repository'))
+    fireEvent.click(screen.getByRole('option', { name: 'repoB' }))
 
     expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoB')
+  })
+
+  it('filters the repo list as the user types', () => {
+    useGitReposStore.setState({
+      repos: ['/proj/repoA', '/proj/repoB', '/proj/other'],
+      selectedRepo: '/proj/repoA',
+    })
+    useGitStore.setState({
+      repos: {
+        '/proj/repoA': { ...emptyRepoGitState },
+        '/proj/repoB': { ...emptyRepoGitState },
+        '/proj/other': { ...emptyRepoGitState },
+      },
+    })
+    render(<GitPanel />)
+    fireEvent.click(screen.getByLabelText('Select repository'))
+    fireEvent.change(screen.getByPlaceholderText('Find a repo'), { target: { value: 'repo' } })
+
+    expect(screen.getByRole('option', { name: 'repoA' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'repoB' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'other' })).toBeNull()
   })
 })
