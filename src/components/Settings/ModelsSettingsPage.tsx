@@ -8,6 +8,7 @@ import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore
 import { useEditorStore } from '@/stores/editorStore'
 import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { Toggle } from '@/components/ui/Toggle'
+import { Select } from '@/components/ui/Select'
 import type { AssistantKind } from '@/types/api'
 
 const MODEL_TOGGLES: Array<{ id: AssistantKind; label: string; description: string }> = [
@@ -136,21 +137,12 @@ export function ModelsSettingsPage() {
 
           <div>
             <label htmlFor="autocomplete-model" className="text-xs text-fg-muted mb-1.5 block">Model</label>
-            <div className="relative">
-              <select
-                id="autocomplete-model"
-                value={autocompleteModel}
-                onChange={(e) => setAutocompleteModel(e.target.value)}
-                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-              >
-                {AUTOCOMPLETE_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                ▾
-              </span>
-            </div>
+            <Select
+              id="autocomplete-model"
+              value={autocompleteModel}
+              onChange={setAutocompleteModel}
+              options={AUTOCOMPLETE_MODELS.map((m) => ({ value: m.id, label: m.label }))}
+            />
           </div>
         </section>
 
@@ -168,21 +160,12 @@ export function ModelsSettingsPage() {
 
           <div>
             <label htmlFor="inline-edit-model" className="text-xs text-fg-muted mb-1.5 block">Inline Edit Model</label>
-            <div className="relative">
-              <select
-                id="inline-edit-model"
-                value={inlineEditModel}
-                onChange={(e) => setInlineEditModel(e.target.value)}
-                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-              >
-                {AUTOCOMPLETE_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                ▾
-              </span>
-            </div>
+            <Select
+              id="inline-edit-model"
+              value={inlineEditModel}
+              onChange={setInlineEditModel}
+              options={AUTOCOMPLETE_MODELS.map((m) => ({ value: m.id, label: m.label }))}
+            />
           </div>
         </section>
 
@@ -200,21 +183,12 @@ export function ModelsSettingsPage() {
 
           <div>
             <label htmlFor="commit-message-model" className="text-xs text-fg-muted mb-1.5 block">Commit Message Model</label>
-            <div className="relative">
-              <select
-                id="commit-message-model"
-                value={commitMessageModel}
-                onChange={(e) => setCommitMessageModel(e.target.value)}
-                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-              >
-                {AUTOCOMPLETE_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                ▾
-              </span>
-            </div>
+            <Select
+              id="commit-message-model"
+              value={commitMessageModel}
+              onChange={setCommitMessageModel}
+              options={AUTOCOMPLETE_MODELS.map((m) => ({ value: m.id, label: m.label }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

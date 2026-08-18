@@ -1,11 +1,13 @@
 import { useDisplayStore, FONT_PRESETS, type PanelStyle, type FooterContent } from '@/stores/displayStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { Select } from '@/components/ui/Select'
 
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
-  { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
-  { value: 'glossy', label: 'Glossy', description: 'Frosted glass' },
-  { value: 'glass',  label: 'Glass',  description: 'See-through, reveals the background image' },
+  { value: 'matt',   label: 'Matt',          description: 'Solid panels' },
+  { value: 'solid',  label: 'Solid Colours', description: 'Solid panels, bolder dividing lines' },
+  { value: 'glossy', label: 'Glossy',        description: 'Frosted glass' },
+  { value: 'glass',  label: 'Glass',         description: 'See-through, reveals the background image' },
 ]
 
 // More may be added later — see FooterContent's own comment in displayStore.
@@ -34,18 +36,10 @@ const THEME_OPTIONS: ThemeOption[] = [
 
 export function DisplayPage() {
   const {
-    font, panelStyle, footerContent, memoryUsageVisible, backgroundImageVisible,
-    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible,
+    font, panelStyle, footerContent, memoryUsageVisible, backgroundImageVisible, navbarPosition,
+    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible, setNavbarPosition,
   } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
-
-  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFont(e.target.value)
-  }
-
-  const handleFooterContentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFooterContent(e.target.value as FooterContent)
-  }
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -123,8 +117,10 @@ export function DisplayPage() {
                     ].join(' ')}
                   >
                     {/* Visual preview — reflects the real effect: matt is solid theme
-                        colors, glossy is the same theme colors made translucent with
-                        blur (see [data-panel-style="glossy"] in index.css), no color shift */}
+                        colors, solid is the same solid colors with a bolder divider
+                        (see [data-panel-style="solid"] in index.css), glossy is the
+                        same theme colors made translucent with blur (see
+                        [data-panel-style="glossy"] in index.css), no color shift */}
                     <div className="h-14 relative overflow-hidden bg-bg">
                       {opt.value === 'glass' && (
                         <div className="absolute right-1 bottom-0 w-6 h-6 rounded-full bg-accent/70 blur-[3px]" />
@@ -140,6 +136,12 @@ export function DisplayPage() {
                           <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar/20 backdrop-blur-sm" />
                           <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar/25 backdrop-blur-sm border-b border-border/30" />
                           <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel/20 backdrop-blur-sm" />
+                        </>
+                      ) : opt.value === 'solid' ? (
+                        <>
+                          <div className="absolute left-0 top-0 bottom-0 w-7 bg-sidebar border-r-2 border-fg-subtle" />
+                          <div className="absolute left-7 top-0 right-0 h-5 bg-tab-bar border-b-2 border-fg-subtle" />
+                          <div className="absolute left-7 top-5 right-0 bottom-0 bg-panel" />
                         </>
                       ) : (
                         <>
@@ -167,41 +169,22 @@ export function DisplayPage() {
             <div className="flex flex-wrap items-start gap-6">
               <div className="flex-1 min-w-[220px]">
                 <label htmlFor="footer-content-select" className="text-xs text-fg-muted mb-1.5 block">Footer Content</label>
-                <div className="relative">
-                  <select
-                    id="footer-content-select"
-                    value={footerContent}
-                    onChange={handleFooterContentChange}
-                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-                  >
-                    {FOOTER_CONTENT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                    ▾
-                  </span>
-                </div>
+                <Select
+                  id="footer-content-select"
+                  value={footerContent}
+                  onChange={(v) => setFooterContent(v as FooterContent)}
+                  options={FOOTER_CONTENT_OPTIONS}
+                />
               </div>
 
               <div className="flex-1 min-w-[220px]">
-                <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
-                <div className="relative">
-                  <select
-                    value={font}
-                    onChange={handleSelectChange}
-                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-                  >
-                    {FONT_PRESETS.map((preset) => (
-                      <option key={preset.value} value={preset.value} style={{ fontFamily: preset.value }}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                    ▾
-                  </span>
-                </div>
+                <label htmlFor="font-select" className="text-xs text-fg-muted mb-1.5 block">Font</label>
+                <Select
+                  id="font-select"
+                  value={font}
+                  onChange={setFont}
+                  options={FONT_PRESETS.map((preset) => ({ value: preset.value, label: preset.label, style: { fontFamily: preset.value } }))}
+                />
               </div>
             </div>
 
@@ -217,6 +200,12 @@ export function DisplayPage() {
                 description="Show the RAM used/total indicator next to the model dropdown in the title bar."
                 checked={memoryUsageVisible}
                 onChange={setMemoryUsageVisible}
+              />
+              <Toggle
+                label="Navbar on right"
+                description="Move the Explorer/Git/Settings navbar and its panel to the right edge. The Claude navbar and chat panel swap to the left."
+                checked={navbarPosition === 'right'}
+                onChange={(checked) => setNavbarPosition(checked ? 'right' : 'left')}
               />
             </div>
           </section>

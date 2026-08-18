@@ -109,12 +109,13 @@ describe('ModelsSettingsPage autocomplete section', () => {
   it('reflects the current model selection', () => {
     useAutocompleteSettingsStore.setState({ model: 'claude-opus-5' })
     render(<ModelsSettingsPage />)
-    expect((screen.getByLabelText('Model') as HTMLSelectElement).value).toBe('claude-opus-5')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('Opus 5')
   })
 
   it('updates the model when changed', () => {
     render(<ModelsSettingsPage />)
-    fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'claude-sonnet-5' } })
+    fireEvent.click(screen.getByLabelText('Model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Sonnet 5' }))
     expect(useAutocompleteSettingsStore.getState().model).toBe('claude-sonnet-5')
   })
 })
@@ -135,12 +136,13 @@ describe('ModelsSettingsPage inline edit section', () => {
   it('reflects the current model selection', () => {
     useInlineEditSettingsStore.setState({ model: 'claude-opus-5' })
     render(<ModelsSettingsPage />)
-    expect((screen.getByLabelText('Inline Edit Model') as HTMLSelectElement).value).toBe('claude-opus-5')
+    expect(screen.getByLabelText('Inline Edit Model')).toHaveTextContent('Opus 5')
   })
 
   it('updates the model when changed', () => {
     render(<ModelsSettingsPage />)
-    fireEvent.change(screen.getByLabelText('Inline Edit Model'), { target: { value: 'claude-haiku-4-5-20251001' } })
+    fireEvent.click(screen.getByLabelText('Inline Edit Model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Haiku 4.5' }))
     expect(useInlineEditSettingsStore.getState().model).toBe('claude-haiku-4-5-20251001')
   })
 })
@@ -161,7 +163,7 @@ describe('ModelsSettingsPage commit messages section', () => {
   it('reflects the current model selection', () => {
     useCommitMessageSettingsStore.setState({ model: 'claude-opus-5' })
     render(<ModelsSettingsPage />)
-    expect((screen.getByLabelText('Commit Message Model') as HTMLSelectElement).value).toBe('claude-opus-5')
+    expect(screen.getByLabelText('Commit Message Model')).toHaveTextContent('Opus 5')
   })
 
   it('updates the prompt when changed, leaving empty as the default sentinel', () => {

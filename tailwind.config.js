@@ -18,6 +18,7 @@ module.exports = {
         fg:          'var(--color-fg)',
         'fg-muted':  'var(--color-fg-muted)',
         'fg-subtle': 'var(--color-fg-subtle)',
+        'on-accent': 'var(--color-on-accent)',
       }
     }
   },

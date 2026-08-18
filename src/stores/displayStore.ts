@@ -5,6 +5,7 @@ const PANEL_STYLE_KEY = 'huginn:panelStyle'
 const FOOTER_CONTENT_KEY = 'huginn:footerContent'
 const MEMORY_USAGE_VISIBLE_KEY = 'huginn:memoryUsageVisible'
 const BACKGROUND_IMAGE_VISIBLE_KEY = 'huginn:backgroundImageVisible'
+const NAVBAR_POSITION_KEY = 'huginn:navbarPosition'
 
 // Presets are limited to monospace fonts that ship preinstalled with a
 // major OS (macOS: Menlo/Monaco, Windows: Consolas, both: Courier New).
@@ -19,12 +20,17 @@ export const FONT_PRESETS = [
   { label: 'Courier New', value: 'Courier New, monospace' },
 ] as const
 
-export type PanelStyle = 'matt' | 'glossy' | 'glass'
+export type PanelStyle = 'matt' | 'solid' | 'glossy' | 'glass'
 
 // More may be added later (e.g. a combined view) - kept as its own union
 // rather than a boolean so the settings dropdown and FooterMessage's switch
 // don't need reshaping when that happens.
 export type FooterContent = 'hints' | 'clock'
+
+// Which physical side the primary (Explorer/Git/Settings) activity bar and
+// its Sidebar panel render on; the Claude/assistant activity bar and Chat
+// panel always take the opposite side — see App.tsx's mirrored layout.
+export type NavbarPosition = 'left' | 'right'
 
 const DEFAULT_FONT = 'Menlo, monospace'
 
@@ -34,11 +40,13 @@ interface DisplayStore {
   footerContent: FooterContent
   memoryUsageVisible: boolean
   backgroundImageVisible: boolean
+  navbarPosition: NavbarPosition
   setFont: (font: string) => void
   setPanelStyle: (style: PanelStyle) => void
   setFooterContent: (content: FooterContent) => void
   setMemoryUsageVisible: (visible: boolean) => void
   setBackgroundImageVisible: (visible: boolean) => void
+  setNavbarPosition: (position: NavbarPosition) => void
 }
 
 function applyFont(font: string) {
@@ -59,6 +67,8 @@ const initialFooterContent: FooterContent = storedFooterContent === 'clock' ? 'c
 const storedMemoryUsageVisible = localStorage.getItem(MEMORY_USAGE_VISIBLE_KEY)
 const initialMemoryUsageVisible = storedMemoryUsageVisible === null ? true : storedMemoryUsageVisible === 'true'
 const initialBackgroundImageVisible = localStorage.getItem(BACKGROUND_IMAGE_VISIBLE_KEY) === 'true'
+const storedNavbarPosition = localStorage.getItem(NAVBAR_POSITION_KEY)
+const initialNavbarPosition: NavbarPosition = storedNavbarPosition === 'right' ? 'right' : 'left'
 applyFont(initialFont)
 applyPanelStyle(initialPanelStyle)
 
@@ -68,6 +78,7 @@ export const useDisplayStore = create<DisplayStore>((set) => ({
   footerContent: initialFooterContent,
   memoryUsageVisible: initialMemoryUsageVisible,
   backgroundImageVisible: initialBackgroundImageVisible,
+  navbarPosition: initialNavbarPosition,
   setFont: (font) => {
     applyFont(font)
     set({ font })
@@ -87,5 +98,9 @@ export const useDisplayStore = create<DisplayStore>((set) => ({
   setBackgroundImageVisible: (visible) => {
     localStorage.setItem(BACKGROUND_IMAGE_VISIBLE_KEY, String(visible))
     set({ backgroundImageVisible: visible })
+  },
+  setNavbarPosition: (position) => {
+    localStorage.setItem(NAVBAR_POSITION_KEY, position)
+    set({ navbarPosition: position })
   },
 }))

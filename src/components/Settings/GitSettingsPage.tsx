@@ -4,6 +4,7 @@ import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { Select } from '@/components/ui/Select'
 
 function Field({ id, label, value, onChange, placeholder }: {
   id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string
@@ -174,20 +175,15 @@ export function GitSettingsPage() {
             <label htmlFor="git-log-auto-show" className="text-xs text-fg-muted mb-1.5 block">
               Show Git Log terminal
             </label>
-            <div className="relative">
-              <select
-                id="git-log-auto-show"
-                value={gitLogAutoShow}
-                onChange={(e) => setGitLogAutoShow(e.target.value as GitLogAutoShow)}
-                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-              >
-                <option value="always">Every time a command runs</option>
-                <option value="onError">Only when a command fails</option>
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                ▾
-              </span>
-            </div>
+            <Select
+              id="git-log-auto-show"
+              value={gitLogAutoShow}
+              onChange={(v) => setGitLogAutoShow(v as GitLogAutoShow)}
+              options={[
+                { value: 'always', label: 'Every time a command runs' },
+                { value: 'onError', label: 'Only when a command fails' },
+              ]}
+            />
           </div>
         </section>
 
@@ -201,23 +197,16 @@ export function GitSettingsPage() {
               <label htmlFor="list-diff-target-branch" className="text-xs text-fg-muted mb-1.5 block">
                 Default target branch
               </label>
-              <div className="relative">
-                <select
-                  id="list-diff-target-branch"
-                  value={listDiffTarget}
-                  disabled={loadingBranches}
-                  onChange={(e) => setListDiffTargetBranch(projectRoot, e.target.value)}
-                  className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <option value="">Use repo default</option>
-                  {branches.map((branch) => (
-                    <option key={branch} value={branch}>{branch}</option>
-                  ))}
-                </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                  ▾
-                </span>
-              </div>
+              <Select
+                id="list-diff-target-branch"
+                value={listDiffTarget}
+                disabled={loadingBranches}
+                onChange={(v) => setListDiffTargetBranch(projectRoot, v)}
+                options={[
+                  { value: '', label: 'Use repo default' },
+                  ...branches.map((branch) => ({ value: branch, label: branch })),
+                ]}
+              />
               <p className="text-xs text-fg-subtle mt-1.5">
                 Used to compare against the current branch when opening List Diff. Leave as "Use repo default" to fall back to git's own default branch.
               </p>
