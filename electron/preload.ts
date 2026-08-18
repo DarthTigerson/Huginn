@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('git:log:exit', handler)
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
+  gitLogResize: (cols: number, rows: number) => ipcRenderer.send('git:log:resize', cols, rows),
   gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
   gitDefaultBranch: (cwd: string) => ipcRenderer.invoke('git:defaultBranch', cwd),

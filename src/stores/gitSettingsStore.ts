@@ -8,6 +8,14 @@ const KEYS = {
   listDiffTargetBranches:    'huginn:git:listDiffTargetBranches',
   periodicFetchEnabled:      'huginn:git:periodicFetchEnabled',
   periodicFetchIntervalMinutes: 'huginn:git:periodicFetchIntervalMinutes',
+  gitLogAutoShow:            'huginn:git:gitLogAutoShow',
+}
+
+export type GitLogAutoShow = 'always' | 'onError'
+
+function getGitLogAutoShow(key: string, def: GitLogAutoShow): GitLogAutoShow {
+  const v = localStorage.getItem(key)
+  return v === 'always' || v === 'onError' ? v : def
 }
 
 function getBool(key: string, def: boolean): boolean {
@@ -39,6 +47,7 @@ interface GitSettingsStore {
   listDiffTargetBranches: Record<string, string>
   periodicFetchEnabled: boolean
   periodicFetchIntervalMinutes: number
+  gitLogAutoShow: GitLogAutoShow
   setForceSafetyEnabled: (v: boolean) => void
   setCountdownEnabled: (v: boolean) => void
   setCountdownSeconds: (v: number) => void
@@ -47,6 +56,7 @@ interface GitSettingsStore {
   setListDiffTargetBranch: (repoPath: string, branch: string) => void
   setPeriodicFetchEnabled: (v: boolean) => void
   setPeriodicFetchIntervalMinutes: (v: number) => void
+  setGitLogAutoShow: (v: GitLogAutoShow) => void
 }
 
 export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
@@ -57,6 +67,7 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
   listDiffTargetBranches:     getBranchMap(KEYS.listDiffTargetBranches),
   periodicFetchEnabled:       getBool(KEYS.periodicFetchEnabled, true),
   periodicFetchIntervalMinutes: getInt(KEYS.periodicFetchIntervalMinutes, 5),
+  gitLogAutoShow:             getGitLogAutoShow(KEYS.gitLogAutoShow, 'onError'),
 
   setForceSafetyEnabled: (v) => {
     localStorage.setItem(KEYS.forceSafetyEnabled, String(v))
@@ -93,5 +104,9 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
     const clamped = Math.max(1, Math.min(120, v))
     localStorage.setItem(KEYS.periodicFetchIntervalMinutes, String(clamped))
     set({ periodicFetchIntervalMinutes: clamped })
+  },
+  setGitLogAutoShow: (v) => {
+    localStorage.setItem(KEYS.gitLogAutoShow, v)
+    set({ gitLogAutoShow: v })
   },
 }))

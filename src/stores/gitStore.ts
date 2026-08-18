@@ -4,7 +4,12 @@ import { useEditorStore } from './editorStore'
 import { useGitLogStore } from './gitLogStore'
 import { useGitGraphStore } from './gitGraphStore'
 import { useGitBranchStore } from './gitBranchStore'
-import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
+import { useGitSettingsStore } from './gitSettingsStore'
+import { GIT_GRAPH_TAB_PATH, GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
+
+function revealGitLogTab() {
+  useEditorStore.getState().openTab({ path: GIT_LOG_TAB_PATH, content: '', dirty: false })
+}
 
 export interface RepoGitState {
   branch: string | null
@@ -74,8 +79,9 @@ export const useGitStore = create<GitStore>((set, get) => {
   const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
     if (stateFor(cwd).commandStatus === 'running') return
     const id = crypto.randomUUID()
+    const autoShow = useGitSettingsStore.getState().gitLogAutoShow
 
-    useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
+    if (autoShow === 'always') revealGitLogTab()
     useGitLogStore.getState().append(cwd, `\n> git ${describeCommand(action, payload)}\n`)
 
     setRepo(cwd, { commandStatus: 'running' })
@@ -95,6 +101,8 @@ export const useGitStore = create<GitStore>((set, get) => {
           useGitBranchStore.getState().load(cwd)
           get().fetchSilent(cwd)
         }
+      } else if (autoShow === 'onError') {
+        revealGitLogTab()
       }
     })
 
@@ -109,6 +117,7 @@ export const useGitStore = create<GitStore>((set, get) => {
       cleanupExit()
       useGitLogStore.getState().append(cwd, `\nError: ${err instanceof Error ? err.message : String(err)}\n`)
       setRepo(cwd, { commandStatus: 'idle' })
+      if (autoShow === 'onError') revealGitLogTab()
     }
   }
 

@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { spawn } from 'child_process'
+import * as pty from 'node-pty'
 import type { GitCommandAction, GitCheckoutPayload } from '../src/types/index'
 import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getFileAtHead, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote, getStagedDiff, discoverRepos } from './git'
 
@@ -19,35 +19,58 @@ function buildArgs(action: GitCommandAction, payload?: GitCheckoutPayload): stri
   return ['checkout', ref]
 }
 
+function hasValidSize(cols: number, rows: number): boolean {
+  return Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0
+}
+
 export class GitRunner {
-  private runningByWindow = new Map<number, boolean>()
+  private runningByWindow = new Map<number, pty.IPty>()
+  // Persists the Git Terminal's last known size across commands, since each
+  // command spawns a fresh PTY (unlike the long-lived shell PTYs in
+  // pty.ts) and node-pty needs cols/rows up front rather than post-spawn.
+  private sizeByWindow = new Map<number, { cols: number; rows: number }>()
 
   registerHandlers(): void {
     ipcMain.handle('git:runCommand', (event, id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
 
-      if (this.runningByWindow.get(win.id)) {
+      if (this.runningByWindow.has(win.id)) {
         if (!win.isDestroyed()) {
-          win.webContents.send('git:log:data', id, 'A git command is already running.\n')
+          win.webContents.send('git:log:data', id, 'A git command is already running.\r\n')
           win.webContents.send('git:log:exit', id, 1)
         }
         return
       }
 
-      this.runningByWindow.set(win.id, true)
-      const proc = spawn('git', buildArgs(action, payload), { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+      // Spawned via a real PTY (not child_process) so git — and any hooks it
+      // triggers, e.g. lint-on-precommit — see a TTY and keep its normal
+      // color output instead of falling back to plain text.
+      const { cols, rows } = this.sizeByWindow.get(win.id) ?? { cols: 80, rows: 24 }
+      const proc = pty.spawn('git', buildArgs(action, payload), {
+        name: 'xterm-color',
+        cols,
+        rows,
+        cwd,
+        env: process.env as Record<string, string>,
+      })
+      this.runningByWindow.set(win.id, proc)
 
-      proc.stdout.on('data', (chunk: Buffer) => {
-        if (!win.isDestroyed()) win.webContents.send('git:log:data', id, chunk.toString())
+      proc.onData((data) => {
+        if (!win.isDestroyed()) win.webContents.send('git:log:data', id, data)
       })
-      proc.stderr.on('data', (chunk: Buffer) => {
-        if (!win.isDestroyed()) win.webContents.send('git:log:data', id, chunk.toString())
+      proc.onExit(({ exitCode }) => {
+        this.runningByWindow.delete(win.id)
+        if (!win.isDestroyed()) win.webContents.send('git:log:exit', id, exitCode)
       })
-      proc.on('close', (code: number | null) => {
-        this.runningByWindow.set(win.id, false)
-        if (!win.isDestroyed()) win.webContents.send('git:log:exit', id, code ?? 1)
-      })
+    })
+
+    ipcMain.on('git:log:resize', (event, cols: number, rows: number) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win || !hasValidSize(cols, rows)) return
+      const size = { cols: Math.floor(cols), rows: Math.floor(rows) }
+      this.sizeByWindow.set(win.id, size)
+      this.runningByWindow.get(win.id)?.resize(size.cols, size.rows)
     })
 
     // Re-register all existing git handlers (previously in registerGitHandlers)

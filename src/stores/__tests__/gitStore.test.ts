@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useGitStore, useRepoGitState, emptyRepoGitState } from '../gitStore'
+import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
 
 // useRepoGitState is a React hook (it calls the useGitStore hook internally),
 // so it can't be invoked as a bare function outside a component render — doing
@@ -30,6 +31,7 @@ const editorStoreMock = vi.hoisted(() => ({
 const gitGraphLoadMock = vi.hoisted(() => vi.fn())
 const gitBranchLoadMock = vi.hoisted(() => vi.fn())
 const gitLogAppendMock = vi.hoisted(() => vi.fn())
+const gitSettingsStoreMock = vi.hoisted(() => ({ gitLogAutoShow: 'always' as 'always' | 'onError' }))
 
 vi.mock('@/stores/editorStore', () => ({
   useEditorStore: {
@@ -47,6 +49,9 @@ vi.mock('@/stores/gitGraphStore', () => ({
 }))
 vi.mock('@/stores/gitBranchStore', () => ({
   useGitBranchStore: { getState: () => ({ load: gitBranchLoadMock }) },
+}))
+vi.mock('@/stores/gitSettingsStore', () => ({
+  useGitSettingsStore: { getState: () => gitSettingsStoreMock },
 }))
 
 const emptyStatus: GitStatus = { staged: [], unstaged: [] }
@@ -240,6 +245,61 @@ describe('gitStore — command actions', () => {
     await checkoutPromise
     exitCb!('test-uuid', 0)
     expect(gitBranchLoadMock).toHaveBeenCalledWith('/proj')
+  })
+})
+
+describe('gitStore — Git Log auto-show setting', () => {
+  beforeEach(() => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
+    editorStoreMock.openTab.mockClear()
+    vi.mocked(window.api.onGitLogExit).mockClear()
+    vi.mocked(window.api.gitRunCommand).mockClear()
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('test-uuid' as `${string}-${string}-${string}-${string}-${string}`)
+  })
+
+  afterEach(() => {
+    gitSettingsStoreMock.gitLogAutoShow = 'always'
+  })
+
+  it('"always" opens the Git Log tab immediately, before the command finishes', async () => {
+    gitSettingsStoreMock.gitLogAutoShow = 'always'
+    const pushPromise = useGitStore.getState().push('/proj')
+    expect(editorStoreMock.openTab).toHaveBeenCalledWith({ path: GIT_LOG_TAB_PATH, content: '', dirty: false })
+    await pushPromise
+  })
+
+  it('"onError" does not open the tab up front, and stays closed on a successful exit', async () => {
+    gitSettingsStoreMock.gitLogAutoShow = 'onError'
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const pushPromise = useGitStore.getState().push('/proj')
+    expect(editorStoreMock.openTab).not.toHaveBeenCalled()
+    await pushPromise
+    exitCb!('test-uuid', 0)
+    expect(editorStoreMock.openTab).not.toHaveBeenCalled()
+  })
+
+  it('"onError" opens the tab once the command exits with a non-zero code', async () => {
+    gitSettingsStoreMock.gitLogAutoShow = 'onError'
+    let exitCb: ((id: string, code: number) => void) | null = null
+    vi.mocked(window.api.onGitLogExit).mockImplementation((cb) => {
+      exitCb = cb
+      return () => {}
+    })
+    const pushPromise = useGitStore.getState().push('/proj')
+    await pushPromise
+    exitCb!('test-uuid', 1)
+    expect(editorStoreMock.openTab).toHaveBeenCalledWith({ path: GIT_LOG_TAB_PATH, content: '', dirty: false })
+  })
+
+  it('"onError" opens the tab if gitRunCommand itself throws', async () => {
+    gitSettingsStoreMock.gitLogAutoShow = 'onError'
+    vi.mocked(window.api.gitRunCommand).mockRejectedValueOnce(new Error('spawn failed'))
+    await useGitStore.getState().push('/proj')
+    expect(editorStoreMock.openTab).toHaveBeenCalledWith({ path: GIT_LOG_TAB_PATH, content: '', dirty: false })
   })
 })
 

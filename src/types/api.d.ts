@@ -116,6 +116,7 @@ declare global {
       gitRunCommand: (id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => Promise<void>
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
+      gitLogResize: (cols: number, rows: number) => void
       gitGraph: (cwd: string) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
       gitDefaultBranch: (cwd: string) => Promise<string | null>

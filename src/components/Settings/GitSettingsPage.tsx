@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
-import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
 
@@ -33,13 +33,12 @@ export function GitSettingsPage() {
     getListDiffTargetBranch, setListDiffTargetBranch,
     periodicFetchEnabled, setPeriodicFetchEnabled,
     periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
+    gitLogAutoShow, setGitLogAutoShow,
   } = useGitSettingsStore()
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
   const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
-  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
-  const setWordWrapEnabled = useEditorSettingsStore((s) => s.setWordWrapEnabled)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -141,15 +140,32 @@ export function GitSettingsPage() {
           )}
         </section>
 
-        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Git Log</h2>
+          <p className="text-xs text-fg-subtle -mt-1">
+            Every fetch/pull/push/commit/checkout runs in the read-only Git Log terminal.
+            Choose whether it jumps to the front each time or only when a command fails.
+          </p>
 
-          <Toggle
-            label="Word Wrap"
-            description="Wrap long lines instead of scrolling horizontally. Also toggleable with ⌥Z. Shared with the editor."
-            checked={wordWrapEnabled}
-            onChange={setWordWrapEnabled}
-          />
+          <div>
+            <label htmlFor="git-log-auto-show" className="text-xs text-fg-muted mb-1.5 block">
+              Show Git Log terminal
+            </label>
+            <div className="relative">
+              <select
+                id="git-log-auto-show"
+                value={gitLogAutoShow}
+                onChange={(e) => setGitLogAutoShow(e.target.value as GitLogAutoShow)}
+                className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
+              >
+                <option value="always">Every time a command runs</option>
+                <option value="onError">Only when a command fails</option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
+                ▾
+              </span>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
