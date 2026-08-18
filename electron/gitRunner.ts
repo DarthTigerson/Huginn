@@ -96,6 +96,6 @@ export class GitRunner {
     ipcMain.handle('git:showStat', (_e, cwd: string, hash: string) => getGitShowStat(cwd, hash))
     ipcMain.handle('git:fetchSilent', (_e, cwd: string) => fetchRemote(cwd))
     ipcMain.handle('git:stagedDiff', (_e, cwd: string) => getStagedDiff(cwd))
-    ipcMain.handle('git:discoverRepos', (_e, root: string) => discoverRepos(root))
+    ipcMain.handle('git:discoverRepos', (_e, root: string, maxDepth?: number) => discoverRepos(root, maxDepth))
   }
 }

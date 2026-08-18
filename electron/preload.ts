@@ -61,7 +61,8 @@ contextBridge.exposeInMainWorld('api', {
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
   gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,
-  gitDiscoverRepos: (root: string) => ipcRenderer.invoke('git:discoverRepos', root) as Promise<string[]>,
+  gitDiscoverRepos: (root: string, maxDepth?: number) =>
+    ipcRenderer.invoke('git:discoverRepos', root, maxDepth) as Promise<string[]>,
   gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
   onGitChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)

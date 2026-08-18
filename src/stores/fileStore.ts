@@ -3,6 +3,7 @@ import type { FileNode } from '@/types/index'
 import { useEditorStore } from './editorStore'
 import { useGitReposStore } from './gitReposStore'
 import { useGitStore } from './gitStore'
+import { useGitSettingsStore } from './gitSettingsStore'
 
 function setNodeChildren(
   nodes: FileNode[],
@@ -59,17 +60,20 @@ export const useFileStore = create<FileState>((set, get) => {
 
   // Shared by every place a project root gets set (dialog pick, recent
   // project, restore-on-launch, "open in new window"): discovers the repo
-  // set for the new root, tells gitReposStore about it (which
-  // auto-selects), points the git file watcher at whichever repo ends up
-  // selected instead of always the project root, and does a one-time
-  // upfront fetch so the "Show All Repos" overview and the very first
-  // auto-follow switch notice have real data instead of a loading flicker.
+  // set for the new root (recursively, per the configured scan depth),
+  // tells gitReposStore about it (which auto-selects), points the git file
+  // watcher at whichever repo ends up selected instead of always the
+  // project root, and fetches just that one repo up front. The rest stay
+  // unloaded (name-only) until something actually needs them — RepoSelect/
+  // RepoOverviewList fetch on demand — so opening a project with many
+  // nested repos doesn't fire a git status/branch call per repo.
   const discoverAndWatchRepos = async (root: string) => {
-    const repos = await window.api.gitDiscoverRepos(root)
+    const depth = useGitSettingsStore.getState().repoScanDepth
+    const repos = await window.api.gitDiscoverRepos(root, depth)
     useGitReposStore.getState().setRepos(repos)
     const selected = useGitReposStore.getState().selectedRepo
     window.api.gitWatchRoot(selected)
-    await Promise.all(repos.map((repo) => useGitStore.getState().refresh(repo)))
+    if (selected) await useGitStore.getState().refresh(selected)
   }
 
   return {

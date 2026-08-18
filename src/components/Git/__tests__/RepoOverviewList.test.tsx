@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { RepoOverviewList } from '../RepoOverviewList'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
+import { useGitFavoriteReposStore } from '@/stores/gitFavoriteReposStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import type { GitStatus, GitAheadBehind } from '@/types/index'
 
@@ -24,6 +25,7 @@ beforeEach(() => {
       '/proj/repoB': { ...emptyRepoGitState, branch: 'dev', status: repoBStatus, aheadBehind: null },
     },
   })
+  useGitFavoriteReposStore.setState({ favorites: {} })
 })
 
 afterEach(() => {
@@ -59,6 +61,36 @@ describe('RepoOverviewList', () => {
     fireEvent.click(screen.getByText('repoB'))
     expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoB')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('typing in the filter box narrows the list to matching repo names', () => {
+    render(<RepoOverviewList onClose={vi.fn()} />)
+    fireEvent.change(screen.getByPlaceholderText('Find a repo (press / to search)'), { target: { value: 'B' } })
+    expect(screen.queryByText('repoA')).toBeNull()
+    expect(screen.getByText('repoB')).toBeTruthy()
+  })
+
+  it('pressing "/" focuses the filter box when nothing else has focus', () => {
+    const { container } = render(<RepoOverviewList onClose={vi.fn()} />)
+    const root = container.firstElementChild as HTMLElement
+    const input = screen.getByPlaceholderText('Find a repo (press / to search)') as HTMLInputElement
+    fireEvent.keyDown(root, { key: '/' })
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('starring a repo marks it favorite and sorts it to the top of the list', () => {
+    render(<RepoOverviewList onClose={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Favorite repoB'))
+
+    expect(useGitFavoriteReposStore.getState().isFavorite('/proj/repoB')).toBe(true)
+    const rowTexts = screen.getAllByText(/^repo[AB]$/).map((el) => el.textContent)
+    expect(rowTexts).toEqual(['repoB', 'repoA'])
+  })
+
+  it('clicking the star does not also select the repo', () => {
+    render(<RepoOverviewList onClose={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Favorite repoB'))
+    expect(useGitReposStore.getState().selectedRepo).toBe('/proj/repoA')
   })
 
   it('right-clicking a row shows a context menu with "Go to File Tree", which requests a reveal and closes the overview', () => {

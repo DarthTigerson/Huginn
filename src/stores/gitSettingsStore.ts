@@ -9,27 +9,38 @@ const KEYS = {
   periodicFetchEnabled:      'huginn:git:periodicFetchEnabled',
   periodicFetchIntervalMinutes: 'huginn:git:periodicFetchIntervalMinutes',
   gitLogAutoShow:            'huginn:git:gitLogAutoShow',
+  repoScanDepth:             'huginn:git:repoScanDepth',
 }
+
+export const DEFAULT_REPO_SCAN_DEPTH = 4
 
 export type GitLogAutoShow = 'always' | 'onError'
 
+// Store modules get pulled transitively into plenty of node-environment unit
+// tests that have nothing to do with git settings (e.g. anything importing
+// gitStore) and never stub out localStorage — guard the read rather than
+// throw at module-load time and take an unrelated test file down with it.
+function readLocalStorage(key: string): string | null {
+  return typeof localStorage === 'undefined' ? null : localStorage.getItem(key)
+}
+
 function getGitLogAutoShow(key: string, def: GitLogAutoShow): GitLogAutoShow {
-  const v = localStorage.getItem(key)
+  const v = readLocalStorage(key)
   return v === 'always' || v === 'onError' ? v : def
 }
 
 function getBool(key: string, def: boolean): boolean {
-  const v = localStorage.getItem(key)
+  const v = readLocalStorage(key)
   return v === null ? def : v === 'true'
 }
 
 function getInt(key: string, def: number): number {
-  const v = localStorage.getItem(key)
+  const v = readLocalStorage(key)
   return v === null ? def : parseInt(v, 10)
 }
 
 function getBranchMap(key: string): Record<string, string> {
-  const v = localStorage.getItem(key)
+  const v = readLocalStorage(key)
   if (!v) return {}
   try {
     const parsed = JSON.parse(v)
@@ -48,6 +59,7 @@ interface GitSettingsStore {
   periodicFetchEnabled: boolean
   periodicFetchIntervalMinutes: number
   gitLogAutoShow: GitLogAutoShow
+  repoScanDepth: number
   setForceSafetyEnabled: (v: boolean) => void
   setCountdownEnabled: (v: boolean) => void
   setCountdownSeconds: (v: number) => void
@@ -57,6 +69,7 @@ interface GitSettingsStore {
   setPeriodicFetchEnabled: (v: boolean) => void
   setPeriodicFetchIntervalMinutes: (v: number) => void
   setGitLogAutoShow: (v: GitLogAutoShow) => void
+  setRepoScanDepth: (v: number) => void
 }
 
 export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
@@ -68,6 +81,7 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
   periodicFetchEnabled:       getBool(KEYS.periodicFetchEnabled, true),
   periodicFetchIntervalMinutes: getInt(KEYS.periodicFetchIntervalMinutes, 5),
   gitLogAutoShow:             getGitLogAutoShow(KEYS.gitLogAutoShow, 'onError'),
+  repoScanDepth:              getInt(KEYS.repoScanDepth, DEFAULT_REPO_SCAN_DEPTH),
 
   setForceSafetyEnabled: (v) => {
     localStorage.setItem(KEYS.forceSafetyEnabled, String(v))
@@ -108,5 +122,10 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
   setGitLogAutoShow: (v) => {
     localStorage.setItem(KEYS.gitLogAutoShow, v)
     set({ gitLogAutoShow: v })
+  },
+  setRepoScanDepth: (v) => {
+    const clamped = Math.max(1, Math.min(10, Math.round(v)))
+    localStorage.setItem(KEYS.repoScanDepth, String(clamped))
+    set({ repoScanDepth: clamped })
   },
 }))

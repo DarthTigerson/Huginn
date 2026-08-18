@@ -16,7 +16,8 @@ import { FileRow } from './FileRow'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
-import { RepoOverviewList } from './RepoOverviewList'
+import { useGitFavoriteReposStore, sortReposByFavorite } from '@/stores/gitFavoriteReposStore'
+import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
 const pillButtonClass =
@@ -65,12 +66,15 @@ function RepoSelect({ repos, selectedRepo, onSelect }: {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const favorites = useGitFavoriteReposStore((s) => s.favorites)
+  const toggleFavorite = useGitFavoriteReposStore((s) => s.toggleFavorite)
 
   const filtered = useMemo(() => {
+    const sorted = sortReposByFavorite(repos, favorites)
     const needle = query.trim().toLowerCase()
-    if (!needle) return repos
-    return repos.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
-  }, [repos, query])
+    if (!needle) return sorted
+    return sorted.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
+  }, [repos, favorites, query])
 
   useEffect(() => {
     if (!open) return
@@ -144,20 +148,29 @@ function RepoSelect({ repos, selectedRepo, onSelect }: {
             ) : (
               filtered.map((repo) => {
                 const selected = repo === selectedRepo
+                const isFavorite = !!favorites[repo]
                 return (
-                  <button
+                  <div
                     key={repo}
-                    type="button"
                     role="option"
                     aria-selected={selected}
                     onClick={() => handleSelect(repo)}
                     className={[
-                      'w-full truncate rounded px-2 py-1.5 text-left text-xs transition-colors',
+                      'w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs transition-colors cursor-pointer',
                       selected ? 'bg-accent/15 text-fg' : 'text-fg-muted hover:bg-white/[0.06] hover:text-fg',
                     ].join(' ')}
                   >
-                    {repo.split('/').pop()}
-                  </button>
+                    <button
+                      type="button"
+                      aria-label={isFavorite ? `Unfavorite ${repo.split('/').pop()}` : `Favorite ${repo.split('/').pop()}`}
+                      aria-pressed={isFavorite}
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(repo) }}
+                      className={['shrink-0', isFavorite ? 'text-accent' : 'text-fg-subtle hover:text-fg-muted'].join(' ')}
+                    >
+                      <StarIcon filled={isFavorite} />
+                    </button>
+                    <span className="truncate">{repo.split('/').pop()}</span>
+                  </div>
                 )
               })
             )}

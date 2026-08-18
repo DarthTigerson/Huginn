@@ -34,6 +34,7 @@ export function GitSettingsPage() {
     periodicFetchEnabled, setPeriodicFetchEnabled,
     periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
     gitLogAutoShow, setGitLogAutoShow,
+    repoScanDepth, setRepoScanDepth,
   } = useGitSettingsStore()
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
@@ -138,6 +139,28 @@ export function GitSettingsPage() {
               <span className="text-sm text-fg-muted">minutes</span>
             </div>
           )}
+        </section>
+
+        <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
+          <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Multi-Repo</h2>
+          <p className="text-xs text-fg-subtle -mt-1">
+            How many folder levels below the opened project to scan for nested git repos.
+            Scanning stops as soon as a repo is found, so a repo's own submodules aren't listed separately.
+          </p>
+
+          <div className="flex items-center gap-3 pl-1">
+            <label htmlFor="repo-scan-depth" className="text-sm text-fg-muted shrink-0">Scan depth</label>
+            <input
+              id="repo-scan-depth"
+              type="number"
+              min={1}
+              max={10}
+              value={repoScanDepth}
+              onChange={(e) => setRepoScanDepth(parseInt(e.target.value, 10) || 1)}
+              className="w-16 px-2 py-1 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
+            />
+            <span className="text-sm text-fg-muted">levels</span>
+          </div>
         </section>
 
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-3">
