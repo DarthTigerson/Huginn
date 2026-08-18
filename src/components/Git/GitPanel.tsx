@@ -22,11 +22,13 @@ import { FilesIcon } from '@/components/ActivityBar/ActivityBar'
 import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
-const pillButtonClass =
-  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
+// Solid fill matching the Commit button's active look — every action pill in
+// the Git panel (Branch, Fetch, Pull, Push, Graph, List Diff) shares this
+// now, instead of each having its own translucent-gradient-and-ring style.
+const accentSolidColor = 'bg-accent/80 text-bg hover:bg-accent'
 
-const dangerPillButtonClass =
-  'w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-red-500/25 to-red-500/5 text-red-400 ring-1 ring-red-500/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-red-500/60 hover:from-red-500/35 hover:to-red-500/10 active:scale-95'
+const pillButtonClass =
+  `w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${accentSolidColor}`
 
 interface ContextMenuState {
   x: number
@@ -319,6 +321,7 @@ export function GitPanel() {
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
   const [showAllRepos, setShowAllRepos] = useState(false)
   const [commitOptionsOpen, setCommitOptionsOpen] = useState(false)
+  const [pushOptionsOpen, setPushOptionsOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(selectedRepo)
@@ -456,7 +459,7 @@ export function GitPanel() {
               label="Commit"
               disabled={!commitMessage.trim() || status.staged.length === 0}
               onClick={() => selectedRepo && commit(selectedRepo)}
-              colorClassName="bg-accent/80 text-bg"
+              colorClassName={accentSolidColor}
               open={commitOptionsOpen}
               onToggleOptions={() => setCommitOptionsOpen((v) => !v)}
               onCloseOptions={() => setCommitOptionsOpen(false)}
@@ -573,34 +576,40 @@ export function GitPanel() {
             Pull
           </button>
         </div>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            className={pillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => selectedRepo && push(selectedRepo)}
-          >
-            Push
-          </button>
-          <button
-            type="button"
-            title="Force Push"
-            className={dangerPillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => requestForce('forcePush')}
-          >
-            F
-          </button>
-          <button
-            type="button"
-            title="Force Push with Lease"
-            className={dangerPillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => requestForce('forcePushLease')}
-          >
-            L
-          </button>
-        </div>
+        <SplitCommandButton
+          label="Push"
+          disabled={remoteActionDisabled}
+          onClick={() => selectedRepo && push(selectedRepo)}
+          colorClassName={accentSolidColor}
+          open={pushOptionsOpen}
+          onToggleOptions={() => setPushOptionsOpen((v) => !v)}
+          onCloseOptions={() => setPushOptionsOpen(false)}
+          direction="up"
+          optionsChildren={
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                disabled={remoteActionDisabled}
+                onClick={() => { requestForce('forcePush'); setPushOptionsOpen(false) }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Force Push</span>
+                <span className="text-red-400/70">Overwrites the remote branch with your local history.</span>
+              </button>
+              <button
+                type="button"
+                disabled={remoteActionDisabled}
+                onClick={() => { requestForce('forcePushLease'); setPushOptionsOpen(false) }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Force Push with Lease</span>
+                <span className="text-red-400/70">Safer force push — fails if the remote has commits you haven't fetched.</span>
+              </button>
+            </div>
+          }
+        >
+          Push
+        </SplitCommandButton>
         <div className="flex gap-1.5">
           <button
             type="button"
