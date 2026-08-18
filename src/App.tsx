@@ -146,6 +146,8 @@ export default function App() {
   const font = useDisplayStore((s) => s.font)
   const memoryUsageVisible = useDisplayStore((s) => s.memoryUsageVisible)
   const backgroundImageVisible = useDisplayStore((s) => s.backgroundImageVisible)
+  const navbarPosition = useDisplayStore((s) => s.navbarPosition)
+  const mirrored = navbarPosition === 'right'
   const periodicFetchEnabled = useGitSettingsStore((s) => s.periodicFetchEnabled)
   const periodicFetchIntervalMinutes = useGitSettingsStore((s) => s.periodicFetchIntervalMinutes)
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
@@ -638,8 +640,10 @@ export default function App() {
         </div>
       </div>
       <div className="flex flex-1 min-h-0">
+        {(() => {
+          const primaryActivityBar = (
         <ActivityBar
-          side="left"
+          side={mirrored ? 'right' : 'left'}
           groups={[[
             {
               id: 'files',
@@ -728,8 +732,11 @@ export default function App() {
             },
           ]]}
         />
-        <PanelGroup direction="horizontal" className="flex-1">
+          )
+
+          const sidebarPanel = (
           <Panel
+            key="sidebar"
             ref={sidebarPanelRef}
             defaultSize={sidebarSize}
             minSize={SIDEBAR_MIN_SIZE}
@@ -738,7 +745,7 @@ export default function App() {
             collapsedSize={0}
             onCollapse={() => setLeftPanel(null)}
             id="sidebar"
-            order={1}
+            order={mirrored ? 3 : 1}
             onResize={saveSidebarSize}
           >
             {(() => {
@@ -746,29 +753,39 @@ export default function App() {
               return activeLeftPanel === 'files' ? <Sidebar /> : activeLeftPanel === 'git' ? <GitPanel /> : activeLeftPanel === 'docker' ? <DockerPanel /> : activeLeftPanel === 'mobile' ? <MobileDisplayPanel /> : activeLeftPanel === 'graphify' ? <GraphifyPanel /> : <SettingsPanel />
             })()}
           </Panel>
-          <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
+          )
+          const sidebarHandle = (
+          <PanelResizeHandle key="sidebar-handle" className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
+          )
 
-          <Panel id="center" order={2}>
+          const centerPanel = (
+          <Panel key="center" id="center" order={2}>
             <Editor />
           </Panel>
+          )
 
-          <PanelResizeHandle className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
+          const chatHandle = (
+          <PanelResizeHandle key="chat-handle" className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
+          )
+          const chatPanel = (
           <Panel
+            key="chat"
             ref={chatPanelRef}
             defaultSize={chatSize}
             minSize={CHAT_MIN_SIZE}
             maxSize={CHAT_MAX_SIZE}
             collapsible
             id="chat"
-            order={3}
+            order={mirrored ? 1 : 3}
             onResize={saveChatSize}
           >
             <Chat />
           </Panel>
-        </PanelGroup>
-        {projectRoot && (
+          )
+
+          const claudeActivityBar = projectRoot && (
         <ActivityBar
-          side="right"
+          side={mirrored ? 'left' : 'right'}
           showAccent={false}
           dense
           groups={[
@@ -865,7 +882,34 @@ export default function App() {
             ]]
             : []}
         />
-        )}
+          )
+
+          return mirrored ? (
+            <>
+              {claudeActivityBar}
+              <PanelGroup direction="horizontal" className="flex-1">
+                {chatPanel}
+                {chatHandle}
+                {centerPanel}
+                {sidebarHandle}
+                {sidebarPanel}
+              </PanelGroup>
+              {primaryActivityBar}
+            </>
+          ) : (
+            <>
+              {primaryActivityBar}
+              <PanelGroup direction="horizontal" className="flex-1">
+                {sidebarPanel}
+                {sidebarHandle}
+                {centerPanel}
+                {chatHandle}
+                {chatPanel}
+              </PanelGroup>
+              {claudeActivityBar}
+            </>
+          )
+        })()}
       </div>
       <StatusBar />
       {commandPaletteOpen && projectRoot && (

@@ -34,8 +34,8 @@ const THEME_OPTIONS: ThemeOption[] = [
 
 export function DisplayPage() {
   const {
-    font, panelStyle, footerContent, memoryUsageVisible, backgroundImageVisible,
-    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible,
+    font, panelStyle, footerContent, memoryUsageVisible, backgroundImageVisible, navbarPosition,
+    setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible, setNavbarPosition,
   } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
 
@@ -217,6 +217,12 @@ export function DisplayPage() {
                 description="Show the RAM used/total indicator next to the model dropdown in the title bar."
                 checked={memoryUsageVisible}
                 onChange={setMemoryUsageVisible}
+              />
+              <Toggle
+                label="Navbar on right"
+                description="Move the Explorer/Git/Settings navbar and its panel to the right edge. The Claude navbar and chat panel swap to the left."
+                checked={navbarPosition === 'right'}
+                onChange={(checked) => setNavbarPosition(checked ? 'right' : 'left')}
               />
             </div>
           </section>
