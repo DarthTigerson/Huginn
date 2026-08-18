@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useGitReposStore } from '../gitReposStore'
 import { useGitStore, emptyRepoGitState } from '../gitStore'
+import { useGitFavoriteReposStore } from '../gitFavoriteReposStore'
 
 const showMock = vi.hoisted(() => vi.fn())
 vi.mock('@/stores/statusMessageStore', () => ({
@@ -12,6 +13,7 @@ describe('gitReposStore', () => {
     vi.clearAllMocks()
     useGitReposStore.setState({ repos: [], selectedRepo: null, hasExplicitSelection: false })
     useGitStore.setState({ repos: {} })
+    useGitFavoriteReposStore.setState({ favorites: {} })
   })
 
   it('starts with no repos and no selection', () => {
@@ -48,6 +50,26 @@ describe('gitReposStore', () => {
     useGitReposStore.setState({ repos: ['/repoA', '/repoB'], selectedRepo: '/repoB' })
     useGitReposStore.getState().setRepos(['/repoA', '/repoC'])
     expect(useGitReposStore.getState().selectedRepo).toBe('/repoA')
+  })
+
+  it('setRepos defaults to a favorited repo over the alphabetically-first one', () => {
+    useGitFavoriteReposStore.setState({ favorites: { '/parent/repoC': true } })
+    useGitReposStore.getState().setRepos(['/parent/repoA', '/parent/repoB', '/parent/repoC'])
+    expect(useGitReposStore.getState().selectedRepo).toBe('/parent/repoC')
+    expect(useGitReposStore.getState().hasExplicitSelection).toBe(false)
+  })
+
+  it('setRepos still prefers a valid current selection over a favorite', () => {
+    useGitFavoriteReposStore.setState({ favorites: { '/parent/repoC': true } })
+    useGitReposStore.setState({ repos: ['/parent/repoB'], selectedRepo: '/parent/repoB' })
+    useGitReposStore.getState().setRepos(['/parent/repoB', '/parent/repoC'])
+    expect(useGitReposStore.getState().selectedRepo).toBe('/parent/repoB')
+  })
+
+  it('setRepos falls back to the first sorted repo when no favorite is among the discovered repos', () => {
+    useGitFavoriteReposStore.setState({ favorites: { '/parent/repoZ': true } })
+    useGitReposStore.getState().setRepos(['/parent/repoB', '/parent/repoA'])
+    expect(useGitReposStore.getState().selectedRepo).toBe('/parent/repoB')
   })
 
   it('setRepos with an empty list clears the selection', () => {

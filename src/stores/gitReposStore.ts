@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useGitStore } from './gitStore'
 import { useStatusMessageStore } from './statusMessageStore'
+import { useGitFavoriteReposStore } from './gitFavoriteReposStore'
 
 interface GitReposStore {
   repos: string[]
@@ -27,13 +28,16 @@ export const useGitReposStore = create<GitReposStore>((set, get) => ({
   // Called once per project open/reload with the freshly discovered repo
   // list. Keeps the current selection if it's still valid (e.g. a
   // discovery re-run after a repo was added), otherwise falls back to the
-  // first (sorted) repo, or null if there are none. Always resets
-  // hasExplicitSelection — a fresh project open means no repo has been
-  // explicitly chosen for it yet, regardless of what the previous project
-  // left behind.
+  // first favorited repo (a deliberate signal from the user about which
+  // repo they care about), or the first (sorted) repo if none are
+  // favorited, or null if there are none. Always resets hasExplicitSelection
+  // — a fresh project open means no repo has been explicitly chosen for it
+  // yet, regardless of what the previous project left behind.
   setRepos: (repos) => {
     const current = get().selectedRepo
-    const selectedRepo = current && repos.includes(current) ? current : (repos[0] ?? null)
+    const favorites = useGitFavoriteReposStore.getState().favorites
+    const fallback = repos.find((repo) => favorites[repo]) ?? repos[0] ?? null
+    const selectedRepo = current && repos.includes(current) ? current : fallback
     set({ repos, selectedRepo, hasExplicitSelection: false })
   },
 
