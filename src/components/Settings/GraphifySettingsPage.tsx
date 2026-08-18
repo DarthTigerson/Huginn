@@ -27,7 +27,7 @@ export function GraphifySettingsPage() {
 
           <button
             type="button"
-            className="w-full h-8 rounded-full flex items-center justify-center text-xs font-bold tracking-tight bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
+            className="w-full h-8 rounded-full flex items-center justify-center text-xs font-bold tracking-tight bg-accent/80 text-on-accent transition-colors hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
             disabled={!projectRoot || installingSkill}
             onClick={() => projectRoot && installClaudeSkill(projectRoot)}
           >

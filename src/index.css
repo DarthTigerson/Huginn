@@ -10,6 +10,14 @@
 
 /* accent is stored as R G B channels so Tailwind opacity modifiers (bg-accent/20) work */
 
+/* --color-on-accent duplicates each theme's base --color-bg value, but
+   deliberately isn't touched by the glossy/glass overrides below (those
+   only redefine --color-bg itself, for panel translucency). It exists for
+   text placed directly on a solid bg-accent fill (e.g. the Git panel's
+   pill buttons) — using --color-bg there for contrast would otherwise
+   inherit glossy/glass's low-alpha rgba, making the text itself
+   semi-transparent and washing it out against the accent fill. */
+
 [data-theme="claude-dark"] {
   --color-bg:        #1a1a1a;
   --color-panel:     #1e1e1e;
@@ -21,6 +29,7 @@
   --color-fg:        #cccccc;
   --color-fg-muted:  #858585;
   --color-fg-subtle: #555555;
+  --color-on-accent: #1a1a1a;
 }
 
 [data-theme="claude-light"] {
@@ -34,6 +43,7 @@
   --color-fg:        #1e1e1e;
   --color-fg-muted:  #717171;
   --color-fg-subtle: #999999;
+  --color-on-accent: #f3f3f3;
 }
 
 [data-theme="codex-dark"] {
@@ -47,6 +57,7 @@
   --color-fg:        #cccccc;
   --color-fg-muted:  #8a8a8a;
   --color-fg-subtle: #555555;
+  --color-on-accent: #1a1a1a;
 }
 
 [data-theme="codex-light"] {
@@ -60,6 +71,7 @@
   --color-fg:        #24292f;
   --color-fg-muted:  #6e7781;
   --color-fg-subtle: #aaaaaa;
+  --color-on-accent: #fafafa;
 }
 
 [data-theme="thomas-dark"] {
@@ -73,6 +85,7 @@
   --color-fg:        #e8e0d0;
   --color-fg-muted:  #9c9080;
   --color-fg-subtle: #665c4a;
+  --color-on-accent: #1c1712;
 }
 
 [data-theme="thomas-light"] {
@@ -86,6 +99,7 @@
   --color-fg:        #2a2013;
   --color-fg-muted:  #74684f;
   --color-fg-subtle: #a89876;
+  --color-on-accent: #f7f1e0;
 }
 
 /* Luuk hates light mode — "Luuk Light" is a gag theme, identical to
@@ -101,6 +115,7 @@
   --color-fg:        #d4d4d4;
   --color-fg-muted:  #8a8a8a;
   --color-fg-subtle: #525252;
+  --color-on-accent: #0d0d0d;
 }
 
 [data-theme="luuk-light"] {
@@ -114,6 +129,7 @@
   --color-fg:        #d4d4d4;
   --color-fg-muted:  #8a8a8a;
   --color-fg-subtle: #525252;
+  --color-on-accent: #0d0d0d;
 }
 
 /* Ref/branch badge text — the -200/-300-ish pastel shades read fine on a
@@ -179,6 +195,18 @@ body {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Solid Colours panel style — same fully-opaque colors as Matt, just with
+   a stronger --color-border so the sidebar/tab-bar/panel divides read as
+   deliberate hard lines instead of Matt's soft, low-contrast ones. */
+[data-theme="claude-dark"][data-panel-style="solid"]  { --color-border: #5a5a5a; }
+[data-theme="claude-light"][data-panel-style="solid"] { --color-border: #b0b0b0; }
+[data-theme="codex-dark"][data-panel-style="solid"]   { --color-border: #4d4d4d; }
+[data-theme="codex-light"][data-panel-style="solid"]  { --color-border: #9aa5b1; }
+[data-theme="thomas-dark"][data-panel-style="solid"]  { --color-border: #6b5738; }
+[data-theme="thomas-light"][data-panel-style="solid"] { --color-border: #c2ab72; }
+[data-theme="luuk-dark"][data-panel-style="solid"],
+[data-theme="luuk-light"][data-panel-style="solid"]   { --color-border: #484848; }
 
 /* Glossy panel opacity — rgba overrides let native vibrancy show through */
 [data-theme="claude-dark"][data-panel-style="glossy"] {

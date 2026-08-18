@@ -59,13 +59,13 @@ export function GitActionsMenu({ onClose, onRequestForce }: Props) {
   }
 
   const itemClass =
-    'w-full text-left px-3 py-1.5 text-sm transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed'
+    'w-full rounded text-left px-2 py-1.5 text-sm transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed'
 
   return (
-    <div className="absolute bottom-full left-0 mb-1 w-56 max-h-[70vh] overflow-y-auto rounded-lg border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
+    <div className="absolute bottom-full left-0 mb-1 w-56 max-h-[70vh] overflow-y-auto rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50 z-50">
       {repos.length > 1 && favoriteRepos.length > 0 && (
         <>
-          <div className="px-3 pt-1 pb-0.5 text-[0.625rem] font-semibold text-fg-subtle uppercase tracking-wider">
+          <div className="px-2 pt-1 pb-0.5 text-[0.625rem] font-semibold text-fg-subtle uppercase tracking-wider">
             Favorite Repos
           </div>
           {favoriteRepos.map((repo) => (
@@ -78,14 +78,14 @@ export function GitActionsMenu({ onClose, onRequestForce }: Props) {
               {repo.split('/').pop()}
             </button>
           ))}
-          <div className="my-1 border-t border-border" />
+          <div className="my-1 h-px bg-border" />
         </>
       )}
 
       <button type="button" className={itemClass} disabled={!selectedRepo} onClick={handleSwitchBranch}>
         Switch Branch…
       </button>
-      <div className="my-1 border-t border-border" />
+      <div className="my-1 h-px bg-border" />
       <button type="button" className={itemClass} disabled={disabled}
         onClick={() => run(() => fetch(selectedRepo!))}>
         Fetch
@@ -94,7 +94,7 @@ export function GitActionsMenu({ onClose, onRequestForce }: Props) {
         onClick={() => run(() => pull(selectedRepo!))}>
         Pull
       </button>
-      <div className="my-1 border-t border-border" />
+      <div className="my-1 h-px bg-border" />
       <button type="button" className={itemClass} disabled={disabled}
         onClick={() => run(() => push(selectedRepo!))}>
         Push

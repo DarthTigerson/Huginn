@@ -8,7 +8,7 @@ import { buildMarkdownPreviewPath } from '@/components/Viewer/paths'
 // Matches GitPanel's pill button styling so Graphify's controls read as part
 // of the same left-sidebar panel family.
 const pillButtonClass =
-  'w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-accent/80 text-bg transition-colors hover:bg-accent active:scale-95 disabled:opacity-40 disabled:pointer-events-none'
+  'w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-accent/80 text-on-accent transition-colors hover:bg-accent active:scale-95 disabled:opacity-40 disabled:pointer-events-none'
 
 export function GraphifyPanel() {
   const projectRoot = useFileStore((s) => s.projectRoot)

@@ -51,7 +51,7 @@ function ActivityBarButton({ item, showAccent, side, dense }: { item: ActivityBa
         {item.icon}
       </span>
       {item.badge !== undefined && item.badge !== null && item.badge !== '' && (
-        <span className="absolute right-1 bottom-1 min-w-4 h-4 rounded-full bg-accent px-1 text-[0.5625rem] font-bold leading-4 text-bg shadow shadow-black/40">
+        <span className="absolute right-1 bottom-1 min-w-4 h-4 rounded-full bg-accent px-1 text-[0.5625rem] font-bold leading-4 text-on-accent shadow shadow-black/40">
           {item.badge}
         </span>
       )}
