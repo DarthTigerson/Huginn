@@ -1,7 +1,33 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { promisify } from 'util'
+
+const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn() }))
+
+vi.mock('child_process', () => {
+  function execFile(...args: unknown[]) {
+    return execFileMock(...args)
+  }
+  // usagePoller.ts calls this through util.promisify, which only resolves to
+  // { stdout, stderr } (rather than the array node's generic promisify would
+  // produce for a 2-value callback) if the function carries this symbol —
+  // exactly like the real child_process.execFile does.
+  ;(execFile as unknown as Record<symbol, unknown>)[promisify.custom] = (
+    file: string,
+    args: string[],
+    options?: unknown
+  ) =>
+    new Promise((resolve, reject) => {
+      execFileMock(file, args, options, (err: Error | null, stdout: string, stderr: string) => {
+        if (err) reject(err)
+        else resolve({ stdout, stderr })
+      })
+    })
+  return { execFile }
+})
+
 import {
   parseUsageText,
   parseResetAt,
@@ -12,6 +38,7 @@ import {
   ALLOWED_INTERVALS_MS,
   type UsageSnapshot,
 } from '../usagePoller'
+import { _resetClaudePathCacheForTesting } from '../autocomplete'
 
 const SAMPLE_RESULT = `You are currently using your subscription to power your Claude Code usage
 
@@ -200,5 +227,71 @@ describe('UsagePoller', () => {
   it('getLatest returns null before any poll', () => {
     const poller = newPoller()
     expect(poller.getLatest()).toBeNull()
+  })
+})
+
+describe('UsagePoller.poll', () => {
+  let dir: string
+
+  beforeEach(() => {
+    execFileMock.mockReset()
+    _resetClaudePathCacheForTesting()
+  })
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true })
+  })
+
+  function newPoller() {
+    dir = mkdtempSync(join(tmpdir(), 'huginn-usage-poll-test-'))
+    return new UsagePoller(join(dir, 'history.jsonl'), join(dir, 'settings.json'))
+  }
+
+  function lastArg(call: unknown[]) {
+    return call[call.length - 1] as (err: Error | null, stdout: string, stderr?: string) => void
+  }
+
+  it('resolves claude via an interactive login shell, then spawns the resolved path directly', async () => {
+    // A bare non-interactive `-lc` login shell doesn't source ~/.zshrc, so it
+    // can miss PATH entries added by nvm/etc — the exact bug this regression
+    // test guards against. Every other claude-CLI call site in this codebase
+    // (autocomplete, commitMessage, graphify) resolves via the interactive
+    // `-lic` form for this reason; the poller must match.
+    execFileMock.mockImplementation((...call: unknown[]) => {
+      const [file, args] = call as [string, unknown]
+      const cb = lastArg(call)
+      if (Array.isArray(args) && args.includes('command -v claude')) {
+        cb(null, '/Users/thomas/.local/bin/claude', '')
+        return
+      }
+      if (file === '/Users/thomas/.local/bin/claude') {
+        cb(null, JSON.stringify({ result: SAMPLE_RESULT }), '')
+        return
+      }
+      cb(new Error(`unexpected execFile call: ${JSON.stringify(call.slice(0, 2))}`), '', '')
+    })
+
+    const poller = newPoller()
+    await poller.poll()
+
+    const pathResolveCall = execFileMock.mock.calls.find(
+      (c) => Array.isArray(c[1]) && (c[1] as unknown[]).includes('command -v claude')
+    )
+    expect(pathResolveCall?.[1]).toContain('-lic')
+
+    const usageCall = execFileMock.mock.calls.find((c) => c[0] === '/Users/thomas/.local/bin/claude')
+    expect(usageCall?.[1]).toEqual(['/usage', '--output-format', 'json'])
+
+    expect(poller.getLatest()?.sessionPct).toBe(0)
+  })
+
+  it('does not attempt the usage call when claude cannot be resolved on PATH', async () => {
+    execFileMock.mockImplementation((...call: unknown[]) => lastArg(call)(new Error('not found'), '', ''))
+
+    const poller = newPoller()
+    await poller.poll()
+
+    expect(poller.getLatest()).toBeNull()
+    expect(execFileMock).toHaveBeenCalledTimes(1)
   })
 })

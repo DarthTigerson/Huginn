@@ -1,6 +1,7 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'fs'
+import { resolveClaudePath } from './autocomplete'
 
 const execFileAsync = promisify(execFile)
 
@@ -142,7 +143,6 @@ export class UsagePoller {
   private latest: UsageSnapshot | null = null
   private interval: ReturnType<typeof setInterval> | null = null
   private intervalMs = DEFAULT_INTERVAL_MS
-  private readonly shell = process.env.SHELL ?? '/bin/zsh'
 
   constructor(
     private readonly historyFile: string,
@@ -182,9 +182,11 @@ export class UsagePoller {
 
   async poll(): Promise<void> {
     try {
+      const claudePath = await resolveClaudePath()
+      if (!claudePath) return
       const { stdout } = await execFileAsync(
-        this.shell,
-        ['-lc', 'claude /usage --output-format json'],
+        claudePath,
+        ['/usage', '--output-format', 'json'],
         { timeout: 15_000 }
       )
       const jsonLine = stdout.split('\n').find((l) => l.trimStart().startsWith('{'))
