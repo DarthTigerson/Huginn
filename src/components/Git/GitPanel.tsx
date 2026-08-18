@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore, useRepoGitState } from '@/stores/gitStore'
@@ -183,6 +183,85 @@ function RepoSelect({ repos, selectedRepo, onSelect }: {
   )
 }
 
+// A single seamless pill: the main action fills most of the width, a
+// divider-separated chevron segment on the right opens a full-width options
+// panel underneath (or above, via `direction`, for triggers near the bottom
+// of the panel — e.g. a future Push variant — that don't have room below).
+function SplitCommandButton({
+  label,
+  onClick,
+  disabled,
+  colorClassName,
+  open,
+  onToggleOptions,
+  onCloseOptions,
+  direction,
+  children,
+  optionsChildren,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  colorClassName: string
+  open: boolean
+  onToggleOptions: () => void
+  onCloseOptions: () => void
+  direction: 'down' | 'up'
+  children: ReactNode
+  optionsChildren: ReactNode
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) onCloseOptions()
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative flex-1 min-w-0">
+      <div className={['flex h-7 rounded-full overflow-hidden transition-colors', colorClassName].join(' ')}>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {children}
+        </button>
+        <button
+          type="button"
+          aria-label={`${label} options`}
+          aria-haspopup="true"
+          aria-expanded={open}
+          disabled={disabled}
+          onClick={onToggleOptions}
+          className="w-7 shrink-0 flex items-center justify-center border-l border-black/15 transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className={direction === 'up' ? 'rotate-180' : ''}>
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {open && (
+        <div
+          className={[
+            'absolute left-0 right-0 z-30 rounded-md border border-border bg-popover shadow-2xl shadow-black/40 p-2.5',
+            direction === 'down' ? 'top-[calc(100%+4px)]' : 'bottom-[calc(100%+4px)]',
+          ].join(' ')}
+        >
+          {optionsChildren}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function GitPanel() {
   const repos = useGitReposStore((s) => s.repos)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
@@ -239,6 +318,7 @@ export function GitPanel() {
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
   const [showAllRepos, setShowAllRepos] = useState(false)
+  const [commitOptionsOpen, setCommitOptionsOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(selectedRepo)
@@ -372,14 +452,33 @@ export function GitPanel() {
             </div>
             {generateError && <p className="text-xs text-red-400">{generateError}</p>}
             {commitError && <p className="text-xs text-red-400">{commitError}</p>}
-            <button
-              type="button"
+            <SplitCommandButton
+              label="Commit"
               disabled={!commitMessage.trim() || status.staged.length === 0}
               onClick={() => selectedRepo && commit(selectedRepo)}
-              className="w-full h-7 rounded-full flex items-center justify-center text-xs font-semibold bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              colorClassName="bg-accent/80 text-bg"
+              open={commitOptionsOpen}
+              onToggleOptions={() => setCommitOptionsOpen((v) => !v)}
+              onCloseOptions={() => setCommitOptionsOpen(false)}
+              direction="down"
+              optionsChildren={
+                <button
+                  type="button"
+                  disabled={!commitMessage.trim() || status.staged.length === 0}
+                  onClick={() => {
+                    if (!selectedRepo) return
+                    commit(selectedRepo, true)
+                    setCommitOptionsOpen(false)
+                  }}
+                  className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-fg transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="font-mono">Commit --no-verify</span>
+                  <span className="text-fg-subtle">Skip the pre-commit and commit-msg hooks for this commit.</span>
+                </button>
+              }
             >
               Commit
-            </button>
+            </SplitCommandButton>
           </div>
 
           <div className="flex-1 overflow-y-auto py-1">

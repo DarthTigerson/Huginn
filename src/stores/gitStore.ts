@@ -45,7 +45,7 @@ interface GitStore {
   discard: (cwd: string, path: string) => Promise<void>
   discardAll: (cwd: string) => Promise<void>
   setCommitMessage: (cwd: string, message: string) => void
-  commit: (cwd: string) => Promise<void>
+  commit: (cwd: string, noVerify?: boolean) => Promise<void>
   fetch: (cwd: string) => Promise<void>
   pull: (cwd: string) => Promise<void>
   push: (cwd: string) => Promise<void>
@@ -223,9 +223,9 @@ export const useGitStore = create<GitStore>((set, get) => {
 
   setCommitMessage: (cwd, message) => setRepo(cwd, { commitMessage: message, commitError: null }),
 
-  commit: async (cwd) => {
+  commit: async (cwd, noVerify) => {
     const { commitMessage } = stateFor(cwd)
-    const result = await window.api.gitCommit(cwd, commitMessage)
+    const result = await window.api.gitCommit(cwd, commitMessage, noVerify)
     if (result.ok) {
       setRepo(cwd, { commitMessage: '', commitError: null })
       await get().refresh(cwd)

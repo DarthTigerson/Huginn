@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('api', {
   gitUnstageAll: (cwd: string) => ipcRenderer.invoke('git:unstageAll', cwd),
   gitDiscard: (cwd: string, path: string) => ipcRenderer.invoke('git:discard', cwd, path),
   gitDiscardAll: (cwd: string) => ipcRenderer.invoke('git:discardAll', cwd),
-  gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+  gitCommit: (cwd: string, message: string, noVerify?: boolean) =>
+    ipcRenderer.invoke('git:commit', cwd, message, noVerify),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
   gitFileAtHead: (cwd: string, path: string) => ipcRenderer.invoke('git:fileAtHead', cwd, path),

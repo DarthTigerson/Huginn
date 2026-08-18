@@ -170,10 +170,16 @@ describe('gitStore', () => {
   it('commit clears the message and refreshes on success', async () => {
     useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commitMessage: 'fix bug' } } })
     await useGitStore.getState().commit('/proj')
-    expect(window.api.gitCommit).toHaveBeenCalledWith('/proj', 'fix bug')
+    expect(window.api.gitCommit).toHaveBeenCalledWith('/proj', 'fix bug', undefined)
     const state = useGitStore.getState().repos['/proj']
     expect(state.commitMessage).toBe('')
     expect(state.commitError).toBeNull()
+  })
+
+  it('commit passes noVerify through to gitCommit as a one-shot flag', async () => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, commitMessage: 'fix bug' } } })
+    await useGitStore.getState().commit('/proj', true)
+    expect(window.api.gitCommit).toHaveBeenCalledWith('/proj', 'fix bug', true)
   })
 
   it('commit sets commitError and keeps the message on failure', async () => {

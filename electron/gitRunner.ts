@@ -84,7 +84,7 @@ export class GitRunner {
     ipcMain.handle('git:unstageAll', (_e, cwd: string) => unstageAll(cwd))
     ipcMain.handle('git:discard', (_e, cwd: string, path: string) => discardFileChanges(cwd, path))
     ipcMain.handle('git:discardAll', (_e, cwd: string) => discardAllChanges(cwd))
-    ipcMain.handle('git:commit', (_e, cwd: string, message: string) => commit(cwd, message))
+    ipcMain.handle('git:commit', (_e, cwd: string, message: string, noVerify?: boolean) => commit(cwd, message, noVerify))
     ipcMain.handle('git:diff', (_e, cwd: string, path: string, staged: boolean) => getDiffContent(cwd, path, staged))
     ipcMain.handle('git:fileAtHead', (_e, cwd: string, path: string) => getFileAtHead(cwd, path))
     ipcMain.handle('git:commitDiff', (_e, cwd: string, hash: string, path: string) => getCommitDiffContent(cwd, hash, path))

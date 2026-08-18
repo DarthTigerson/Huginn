@@ -109,7 +109,7 @@ declare global {
       gitUnstageAll: (cwd: string) => Promise<void>
       gitDiscard: (cwd: string, path: string) => Promise<void>
       gitDiscardAll: (cwd: string) => Promise<void>
-      gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
+      gitCommit: (cwd: string, message: string, noVerify?: boolean) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
       gitFileAtHead: (cwd: string, path: string) => Promise<string>
       gitCommitDiff: (cwd: string, hash: string, path: string) => Promise<GitDiffContent>

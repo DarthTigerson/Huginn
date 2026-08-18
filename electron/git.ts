@@ -298,10 +298,13 @@ export async function unstageAll(cwd: string): Promise<void> {
 
 export async function commit(
   cwd: string,
-  message: string
+  message: string,
+  noVerify?: boolean
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await execFileAsync('git', ['commit', '-m', message], { cwd })
+    const args = ['commit', '-m', message]
+    if (noVerify) args.push('--no-verify')
+    await execFileAsync('git', args, { cwd })
     return { ok: true }
   } catch (err) {
     const stderr = (err as { stderr?: string }).stderr
