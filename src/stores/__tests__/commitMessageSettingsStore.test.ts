@@ -14,11 +14,11 @@ import { useCommitMessageSettingsStore } from '../commitMessageSettingsStore'
 describe('commitMessageSettingsStore', () => {
   beforeEach(() => {
     Object.keys(store).forEach(k => delete store[k])
-    useCommitMessageSettingsStore.setState({ enabled: false, model: 'claude-sonnet-5', prompt: '' })
+    useCommitMessageSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5', prompt: '' })
   })
 
-  it('defaults to disabled, Sonnet 5, and an empty (default) prompt', () => {
-    expect(useCommitMessageSettingsStore.getState().enabled).toBe(false)
+  it('defaults to enabled, Sonnet 5, and an empty (default) prompt', () => {
+    expect(useCommitMessageSettingsStore.getState().enabled).toBe(true)
     expect(useCommitMessageSettingsStore.getState().model).toBe('claude-sonnet-5')
     expect(useCommitMessageSettingsStore.getState().prompt).toBe('')
   })

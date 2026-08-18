@@ -34,13 +34,23 @@ export interface GitAheadBehind {
   behind: number
 }
 
-export type GitCommandAction = 'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease' | 'checkout'
+export type GitCommandAction =
+  'fetch' | 'pull' | 'push' | 'forcePush' | 'forcePushLease' | 'checkout' | 'publishBranch'
 
 export interface GitCheckoutPayload {
   ref: string
   create: boolean
   track?: string
 }
+
+// git push -u origin <branch> — sets up remote tracking for a branch that
+// has never been pushed before, so a plain `push` afterward has an upstream
+// to push to.
+export interface GitPublishBranchPayload {
+  branch: string
+}
+
+export type GitCommandPayload = GitCheckoutPayload | GitPublishBranchPayload
 
 export interface GitBranchList {
   current: string | null

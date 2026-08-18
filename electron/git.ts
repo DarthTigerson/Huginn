@@ -21,23 +21,45 @@ export interface GitAheadBehind {
   behind: number
 }
 
+const DISCOVER_SKIP_DIRS = new Set(['node_modules'])
+
+export const DEFAULT_REPO_SCAN_DEPTH = 4
+
 // Supports the "open a parent folder containing several sibling repos"
-// devops workflow. Scans immediate children only (no recursive walk) so a
-// vendored submodule or a deeply nested unrelated repo doesn't get picked
-// up — matches the common parent/repoA, parent/repoB layout.
-export async function discoverRepos(root: string): Promise<string[]> {
+// devops workflow, including repos nested more than one level deep (e.g. a
+// packages/ layout). Walks up to maxDepth levels below root, skipping
+// node_modules and dot-directories, and stops descending into any directory
+// once it's identified as a repo itself — so a repo's own submodules don't
+// surface as separate top-level entries.
+export async function discoverRepos(root: string, maxDepth: number = DEFAULT_REPO_SCAN_DEPTH): Promise<string[]> {
   if (existsSync(join(root, '.git'))) return [root]
 
-  try {
-    const entries = await readdir(root, { withFileTypes: true })
-    return entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => join(root, entry.name))
-      .filter((dir) => existsSync(join(dir, '.git')))
-      .sort()
-  } catch {
-    return []
+  const found: string[] = []
+
+  async function walk(dir: string, depthRemaining: number): Promise<void> {
+    if (depthRemaining <= 0) return
+
+    let entries
+    try {
+      entries = await readdir(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+
+    const subdirs = entries.filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && !DISCOVER_SKIP_DIRS.has(entry.name))
+
+    await Promise.all(subdirs.map(async (entry) => {
+      const subdir = join(dir, entry.name)
+      if (existsSync(join(subdir, '.git'))) {
+        found.push(subdir)
+        return
+      }
+      await walk(subdir, depthRemaining - 1)
+    }))
   }
+
+  await walk(root, maxDepth)
+  return found.sort()
 }
 
 export async function getGitBranch(cwd: string): Promise<string | null> {
@@ -276,10 +298,13 @@ export async function unstageAll(cwd: string): Promise<void> {
 
 export async function commit(
   cwd: string,
-  message: string
+  message: string,
+  noVerify?: boolean
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await execFileAsync('git', ['commit', '-m', message], { cwd })
+    const args = ['commit', '-m', message]
+    if (noVerify) args.push('--no-verify')
+    await execFileAsync('git', args, { cwd })
     return { ok: true }
   } catch (err) {
     const stderr = (err as { stderr?: string }).stderr

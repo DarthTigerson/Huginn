@@ -1,37 +1,131 @@
 import { useEffect, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
+import { Terminal as XTerm } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
 import { useRepoGitLogText } from '@/stores/gitLogStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
-import { useThemeStore, XTERM_THEMES } from '@/stores/themeStore'
+import { useThemeStore, XTERM_THEMES, glassXtermTheme } from '@/stores/themeStore'
 import { useDisplayStore } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
-import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
 
+function hasValidSize(cols: number, rows: number): boolean {
+  return cols > 0 && rows > 0
+}
+
+// Read-only: git commands run headless (see gitStore.ts), this just mirrors
+// their output. Unlike TerminalTab there's no PTY to write keystrokes into,
+// so disableStdin keeps the cursor from looking interactive.
 export function GitLogView() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<XTerm | null>(null)
+  const fitRef = useRef<FitAddon | null>(null)
+  const writtenLenRef = useRef(0)
+
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const text = useRepoGitLogText(selectedRepo)
   const theme = useThemeStore((s) => s.theme)
+  const panelStyle = useDisplayStore((s) => s.panelStyle)
   const font = useDisplayStore((s) => s.font)
   const fontSize = useFontSizeStore((s) => s.fontSize)
   const fontSizeOverride = useInstanceFontSizeStore((s) => s.overrides[GIT_LOG_TAB_PATH])
   const effectiveFontSize = fontSizeOverride ?? fontSize
-  const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
-  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const container = containerRef.current
+
+    const xterm = new XTerm({
+      theme: panelStyle === 'glass' ? glassXtermTheme(theme) : XTERM_THEMES[theme],
+      fontFamily: font,
+      fontSize: effectiveFontSize,
+      disableStdin: true,
+      cursorStyle: 'bar',
+      cursorBlink: false,
+      convertEol: true,
+    })
+    const fit = new FitAddon()
+    xterm.loadAddon(fit)
+    xterm.open(container)
+    fit.fit()
+
+    xtermRef.current = xterm
+    fitRef.current = fit
+    writtenLenRef.current = 0
+
+    const observer = new ResizeObserver(() => {
+      fit.fit()
+      if (hasValidSize(xterm.cols, xterm.rows)) window.api.gitLogResize(xterm.cols, xterm.rows)
+    })
+    observer.observe(container)
+
+    return () => {
+      observer.disconnect()
+      xterm.dispose()
+      xtermRef.current = null
+      fitRef.current = null
+    }
+    // Theme/font/fontSize are kept in sync by the effects below without
+    // recreating the terminal — only mount/unmount should tear this down.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // selectedRepo changed: replay that repo's buffer from scratch instead of
+  // diffing against whatever was written for the previous repo.
+  useEffect(() => {
+    const xterm = xtermRef.current
+    if (!xterm) return
+    xterm.reset()
+    writtenLenRef.current = 0
+    if (text) {
+      xterm.write(text)
+      writtenLenRef.current = text.length
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRepo])
+
+  // New output for the currently-displayed repo: write only the delta.
+  useEffect(() => {
+    const xterm = xtermRef.current
+    if (!xterm) return
+    if (text.length >= writtenLenRef.current) {
+      xterm.write(text.slice(writtenLenRef.current))
+    } else {
+      xterm.reset()
+      xterm.write(text)
+    }
+    writtenLenRef.current = text.length
+  }, [text])
+
+  useEffect(() => {
+    if (!xtermRef.current) return
+    xtermRef.current.options.theme = panelStyle === 'glass' ? glassXtermTheme(theme) : XTERM_THEMES[theme]
+  }, [theme, panelStyle])
+
+  useEffect(() => {
+    if (!xtermRef.current || !fitRef.current) return
+    xtermRef.current.options.fontSize = effectiveFontSize
+    fitRef.current.fit()
+    if (hasValidSize(xtermRef.current.cols, xtermRef.current.rows)) {
+      window.api.gitLogResize(xtermRef.current.cols, xtermRef.current.rows)
+    }
+  }, [effectiveFontSize])
+
+  useEffect(() => {
+    if (!xtermRef.current || !fitRef.current) return
+    xtermRef.current.options.fontFamily = font
+    fitRef.current.fit()
+    if (hasValidSize(xtermRef.current.cols, xtermRef.current.rows)) {
+      window.api.gitLogResize(xtermRef.current.cols, xtermRef.current.rows)
+    }
+  }, [font])
 
   // Unshifted CmdOrCtrl+=/-/0 zoom just this panel, mirroring TerminalTab.tsx
-  // and the Monaco editor commands — shifted variants are left unhandled so
-  // they pass through to the app-level global zoom shortcut. Alt+Z mirrors
-  // the same word-wrap toggle the Monaco editor binds, for consistency
-  // across every "look at some text" surface in the app.
+  // — shifted variants are left unhandled so they pass through to the
+  // app-level global zoom shortcut.
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.altKey && !event.metaKey && !event.ctrlKey && event.code === 'KeyZ') {
-      event.preventDefault()
-      useEditorSettingsStore.getState().toggleWordWrap()
-      return
-    }
-
     const isMod = event.metaKey || event.ctrlKey
     if (!isMod || event.shiftKey || event.altKey) return
 
@@ -47,42 +141,13 @@ export function GitLogView() {
     }
   }
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView()
-  }, [text])
-
-  // Reuse the same per-theme palette the real terminal (TerminalTab.tsx) is
-  // themed with — a hardcoded claude/codex-only dark check here used to leave
-  // this looking unthemed (wrong-colored background) for every other theme,
-  // including both thomas variants.
-  const xtermTheme = XTERM_THEMES[theme]
-
   return (
     <div
-      className="h-full overflow-auto p-4 focus:outline-none"
+      className="h-full w-full overflow-hidden bg-bg p-1 focus:outline-none"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      style={{
-        background: xtermTheme.background,
-        color: xtermTheme.foreground,
-        fontFamily: font,
-        fontSize: effectiveFontSize,
-      }}
     >
-      {/* fontSize can't just live on the wrapping div — Tailwind's `text-sm`
-          hardcodes a font-size on <pre> itself, which shadows inheritance
-          from any ancestor, so the zoom state changed but nothing visible
-          moved. Setting it inline here bypasses that. */}
-      <pre
-        className={[
-          'leading-relaxed m-0',
-          wordWrapEnabled ? 'whitespace-pre-wrap break-words' : 'whitespace-pre',
-        ].join(' ')}
-        style={{ fontSize: effectiveFontSize }}
-      >
-        {text || 'No git commands run yet.'}
-      </pre>
-      <div ref={bottomRef} />
+      <div ref={containerRef} className="h-full w-full" />
     </div>
   )
 }

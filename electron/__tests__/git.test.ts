@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { GitCommandAction } from '../../src/types/index'
 
-const { ipcHandlers, spawnMock } = vi.hoisted(() => ({
+const { ipcHandlers, ipcOnHandlers, spawnMock } = vi.hoisted(() => ({
   ipcHandlers: {} as Record<string, (...args: unknown[]) => unknown>,
+  ipcOnHandlers: {} as Record<string, (...args: unknown[]) => unknown>,
   spawnMock: vi.fn(),
 }))
 
@@ -11,19 +12,18 @@ vi.mock('electron', () => ({
     handle: (channel: string, fn: (...args: unknown[]) => unknown) => {
       ipcHandlers[channel] = fn
     },
+    on: (channel: string, fn: (...args: unknown[]) => unknown) => {
+      ipcOnHandlers[channel] = fn
+    },
   },
   BrowserWindow: {
     fromWebContents: (sender: any) => sender,
   },
 }))
 
-vi.mock('child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('child_process')>()
-  return {
-    ...actual,
-    spawn: (...a: unknown[]) => spawnMock(...a),
-  }
-})
+vi.mock('node-pty', () => ({
+  spawn: (...a: unknown[]) => spawnMock(...a),
+}))
 
 import { parsePorcelainStatus } from '../git'
 
@@ -101,15 +101,14 @@ describe('parsePorcelainStatus', () => {
 })
 
 function fakeProc() {
-  const listeners: Record<string, ((...args: unknown[]) => void)[]> = {}
+  const dataCbs: ((data: string) => void)[] = []
+  const exitCbs: ((e: { exitCode: number; signal?: number }) => void)[] = []
   return {
-    stdout: { on: vi.fn((ev: string, cb: (...args: unknown[]) => void) => { (listeners[`stdout:${ev}`] ??= []).push(cb) }) },
-    stderr: { on: vi.fn((ev: string, cb: (...args: unknown[]) => void) => { (listeners[`stderr:${ev}`] ??= []).push(cb) }) },
-    on: vi.fn((ev: string, cb: (...args: unknown[]) => void) => { (listeners[ev] ??= []).push(cb) }),
-    emit(channel: string, ...args: unknown[]) { listeners[channel]?.forEach(cb => cb(...args)) },
-    emitStdout(data: string) { listeners['stdout:data']?.forEach(cb => cb(data)) },
-    emitStderr(data: string) { listeners['stderr:data']?.forEach(cb => cb(data)) },
-    emitClose(code: number) { listeners['close']?.forEach(cb => cb(code)) },
+    onData: vi.fn((cb: (data: string) => void) => { dataCbs.push(cb) }),
+    onExit: vi.fn((cb: (e: { exitCode: number; signal?: number }) => void) => { exitCbs.push(cb) }),
+    emitData(data: string) { dataCbs.forEach(cb => cb(data)) },
+    emitExit(exitCode: number) { exitCbs.forEach(cb => cb({ exitCode })) },
+    resize: vi.fn(),
     kill: vi.fn(),
   }
 }
@@ -152,27 +151,28 @@ describe('GitRunner', () => {
     expect(spawnMock).toHaveBeenCalledWith('git', ['push', '--force-with-lease'], expect.anything())
   })
 
-  it('streams stdout as git:log:data events with the correct id', async () => {
+  it('streams pty output as git:log:data events with the correct id', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
     await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'fetch' as GitCommandAction)
-    proc.emitStdout('Fetching origin\n')
-    expect(sends).toContainEqual({ channel: 'git:log:data', args: ['my-id', 'Fetching origin\n'] })
+    proc.emitData('Fetching origin\r\n')
+    expect(sends).toContainEqual({ channel: 'git:log:data', args: ['my-id', 'Fetching origin\r\n'] })
   })
 
-  it('streams stderr as git:log:data events', async () => {
-    const proc = fakeProc()
-    spawnMock.mockReturnValue(proc)
-    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'pull' as GitCommandAction)
-    proc.emitStderr('remote: Counting objects\n')
-    expect(sends).toContainEqual({ channel: 'git:log:data', args: ['my-id', 'remote: Counting objects\n'] })
-  })
-
-  it('sends git:log:exit with the exit code on close', async () => {
+  it('spawns as a real PTY so git and its hooks keep TTY color output', async () => {
     const proc = fakeProc()
     spawnMock.mockReturnValue(proc)
     await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'push' as GitCommandAction)
-    proc.emitClose(0)
+    expect(spawnMock).toHaveBeenCalledWith(
+      'git', ['push'], expect.objectContaining({ name: 'xterm-color', cwd: '/proj' })
+    )
+  })
+
+  it('sends git:log:exit with the exit code on process exit', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'push' as GitCommandAction)
+    proc.emitExit(0)
     expect(sends).toContainEqual({ channel: 'git:log:exit', args: ['my-id', 0] })
   })
 
@@ -184,6 +184,43 @@ describe('GitRunner', () => {
     const exitEvents = sends.filter(s => s.channel === 'git:log:exit')
     expect(exitEvents).toContainEqual({ channel: 'git:log:exit', args: ['second', 1] })
     expect(spawnMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows a new command to spawn once the previous one exits', async () => {
+    const first = fakeProc()
+    spawnMock.mockReturnValue(first)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'first', '/proj', 'push' as GitCommandAction)
+    first.emitExit(0)
+
+    const second = fakeProc()
+    spawnMock.mockReturnValue(second)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'second', '/proj', 'pull' as GitCommandAction)
+
+    expect(spawnMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('resizes the running pty via git:log:resize', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'my-id', '/proj', 'push' as GitCommandAction)
+    ipcOnHandlers['git:log:resize']({ sender: win }, 100, 40)
+    expect(proc.resize).toHaveBeenCalledWith(100, 40)
+  })
+
+  it('reuses the last size sent via git:log:resize for the next spawn', async () => {
+    const first = fakeProc()
+    spawnMock.mockReturnValue(first)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'first', '/proj', 'push' as GitCommandAction)
+    ipcOnHandlers['git:log:resize']({ sender: win }, 100, 40)
+    first.emitExit(0)
+
+    const second = fakeProc()
+    spawnMock.mockReturnValue(second)
+    await ipcHandlers['git:runCommand']({ sender: win }, 'second', '/proj', 'pull' as GitCommandAction)
+
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      'git', ['pull'], expect.objectContaining({ cols: 100, rows: 40 })
+    )
   })
 
   it('spawns git checkout with just the branch name when switching to an existing local branch', async () => {
@@ -215,6 +252,18 @@ describe('GitRunner', () => {
     )
     expect(spawnMock).toHaveBeenCalledWith(
       'git', ['checkout', '-b', 'feat/x', '--track', 'origin/feat/x'], expect.objectContaining({ cwd: '/proj' })
+    )
+  })
+
+  it('spawns git push --set-upstream origin <branch> for publishBranch', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand'](
+      { sender: win }, 'run-7', '/proj', 'publishBranch' as GitCommandAction,
+      { branch: 'feature-x' }
+    )
+    expect(spawnMock).toHaveBeenCalledWith(
+      'git', ['push', '--set-upstream', 'origin', 'feature-x'], expect.objectContaining({ cwd: '/proj' })
     )
   })
 })

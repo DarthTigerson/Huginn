@@ -27,7 +27,12 @@ describe('sidebarUiStore', () => {
 
   it('requestReveal sets revealRequest to the given path', () => {
     useSidebarUiStore.getState().requestReveal('/proj/src/App.tsx')
-    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/src/App.tsx' })
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/src/App.tsx', expandTarget: undefined })
+  })
+
+  it('requestReveal carries an expandTarget flag through when passed', () => {
+    useSidebarUiStore.getState().requestReveal('/proj/repoA', true)
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/repoA', expandTarget: true })
   })
 
   it('requestReveal creates a fresh object each call, so repeat requests for the same path are still a change', () => {

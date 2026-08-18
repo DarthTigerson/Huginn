@@ -3,6 +3,7 @@ import { useFileStore } from '../fileStore'
 import { useEditorStore } from '../editorStore'
 import { useGitReposStore } from '../gitReposStore'
 import { useGitStore } from '../gitStore'
+import { useGitSettingsStore } from '../gitSettingsStore'
 import type { FileNode } from '@/types/index'
 
 const mockTree: FileNode[] = [
@@ -85,10 +86,17 @@ describe('fileStore', () => {
 
   it('openFolder in the single-repo case discovers just the root and selects it', async () => {
     await useFileStore.getState().openFolder()
-    expect(window.api.gitDiscoverRepos).toHaveBeenCalledWith('/proj')
+    expect(window.api.gitDiscoverRepos).toHaveBeenCalledWith('/proj', 4)
     expect(useGitReposStore.getState().repos).toEqual(['/proj'])
     expect(useGitReposStore.getState().selectedRepo).toBe('/proj')
     expect(window.api.gitWatchRoot).toHaveBeenCalledWith('/proj')
+  })
+
+  it('openFolder passes the configured repo scan depth through to discovery', async () => {
+    useGitSettingsStore.getState().setRepoScanDepth(7)
+    await useFileStore.getState().openFolder()
+    expect(window.api.gitDiscoverRepos).toHaveBeenCalledWith('/proj', 7)
+    useGitSettingsStore.getState().setRepoScanDepth(4)
   })
 
   it('openFolder in the multi-repo case discovers every sibling repo and selects the first', async () => {
@@ -99,13 +107,13 @@ describe('fileStore', () => {
     expect(window.api.gitWatchRoot).toHaveBeenCalledWith('/proj/repoA')
   })
 
-  it('openFolder does an upfront fetch pass for every discovered repo', async () => {
+  it('openFolder only fetches the selected repo up front, leaving the rest unloaded', async () => {
     vi.mocked(window.api.gitDiscoverRepos).mockResolvedValueOnce(['/proj/repoA', '/proj/repoB'])
     await useFileStore.getState().openFolder()
     expect(window.api.gitBranch).toHaveBeenCalledWith('/proj/repoA')
-    expect(window.api.gitBranch).toHaveBeenCalledWith('/proj/repoB')
+    expect(window.api.gitBranch).not.toHaveBeenCalledWith('/proj/repoB')
     expect(useGitStore.getState().repos['/proj/repoA'].branch).toBe('main')
-    expect(useGitStore.getState().repos['/proj/repoB'].branch).toBe('main')
+    expect(useGitStore.getState().repos['/proj/repoB']).toBeUndefined()
   })
 
   it('openFolder with zero discovered repos clears the repo selection', async () => {

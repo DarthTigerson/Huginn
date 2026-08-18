@@ -1,4 +1,4 @@
-import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCheckoutPayload, GitBranchList, GitCommit, GitBranchDiff, SearchMatch } from './index'
+import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehind, GitCommandAction, GitCommandPayload, GitBranchList, GitCommit, GitBranchDiff, SearchMatch } from './index'
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 import type { LatestUsage, UsageSnapshot } from '../../electron/usagePoller'
@@ -109,13 +109,14 @@ declare global {
       gitUnstageAll: (cwd: string) => Promise<void>
       gitDiscard: (cwd: string, path: string) => Promise<void>
       gitDiscardAll: (cwd: string) => Promise<void>
-      gitCommit: (cwd: string, message: string) => Promise<GitCommitResult>
+      gitCommit: (cwd: string, message: string, noVerify?: boolean) => Promise<GitCommitResult>
       gitDiff: (cwd: string, path: string, staged: boolean) => Promise<GitDiffContent>
       gitFileAtHead: (cwd: string, path: string) => Promise<string>
       gitCommitDiff: (cwd: string, hash: string, path: string) => Promise<GitDiffContent>
-      gitRunCommand: (id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => Promise<void>
+      gitRunCommand: (id: string, cwd: string, action: GitCommandAction, payload?: GitCommandPayload) => Promise<void>
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
+      gitLogResize: (cols: number, rows: number) => void
       gitGraph: (cwd: string) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
       gitDefaultBranch: (cwd: string) => Promise<string | null>
@@ -124,7 +125,7 @@ declare global {
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitFetchSilent: (cwd: string) => Promise<boolean>
       gitStagedDiff: (cwd: string) => Promise<string>
-      gitDiscoverRepos: (root: string) => Promise<string[]>
+      gitDiscoverRepos: (root: string, maxDepth?: number) => Promise<string[]>
       gitWatchRoot: (cwd: string | null) => void
       onGitChanged: (cb: (cwd: string) => void) => () => void
 

@@ -1,10 +1,15 @@
 import { create } from 'zustand'
-import type { GitStatus, GitAheadBehind, GitCommandAction, GitCheckoutPayload } from '@/types/index'
+import type { GitStatus, GitAheadBehind, GitCommandAction, GitCommandPayload, GitCheckoutPayload } from '@/types/index'
 import { useEditorStore } from './editorStore'
 import { useGitLogStore } from './gitLogStore'
 import { useGitGraphStore } from './gitGraphStore'
 import { useGitBranchStore } from './gitBranchStore'
-import { GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
+import { useGitSettingsStore } from './gitSettingsStore'
+import { GIT_GRAPH_TAB_PATH, GIT_LOG_TAB_PATH } from '@/components/Settings/paths'
+
+function revealGitLogTab() {
+  useEditorStore.getState().openTab({ path: GIT_LOG_TAB_PATH, content: '', dirty: false })
+}
 
 export interface RepoGitState {
   branch: string | null
@@ -40,22 +45,26 @@ interface GitStore {
   discard: (cwd: string, path: string) => Promise<void>
   discardAll: (cwd: string) => Promise<void>
   setCommitMessage: (cwd: string, message: string) => void
-  commit: (cwd: string) => Promise<void>
+  commit: (cwd: string, noVerify?: boolean) => Promise<void>
   fetch: (cwd: string) => Promise<void>
   pull: (cwd: string) => Promise<void>
   push: (cwd: string) => Promise<void>
   forcePush: (cwd: string) => Promise<void>
   forcePushLease: (cwd: string) => Promise<void>
   checkout: (cwd: string, payload: GitCheckoutPayload) => Promise<void>
+  publishBranch: (cwd: string, branch: string) => Promise<void>
 }
 
-function describeCommand(action: GitCommandAction, payload?: GitCheckoutPayload): string {
+function describeCommand(action: GitCommandAction, payload?: GitCommandPayload): string {
   if (action === 'forcePush') return 'push --force'
   if (action === 'forcePushLease') return 'push --force-with-lease'
-  if (action === 'checkout' && payload) {
+  if (action === 'checkout' && payload && 'ref' in payload) {
     if (payload.track) return `checkout -b ${payload.ref} --track ${payload.track}`
     if (payload.create) return `checkout -b ${payload.ref}`
     return `checkout ${payload.ref}`
+  }
+  if (action === 'publishBranch' && payload && 'branch' in payload) {
+    return `push --set-upstream origin ${payload.branch}`
   }
   return action
 }
@@ -71,11 +80,12 @@ export const useGitStore = create<GitStore>((set, get) => {
     if (graphOpen) await useGitGraphStore.getState().load(cwd)
   }
 
-  const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
+  const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCommandPayload) => {
     if (stateFor(cwd).commandStatus === 'running') return
     const id = crypto.randomUUID()
+    const autoShow = useGitSettingsStore.getState().gitLogAutoShow
 
-    useEditorStore.getState().openTab({ path: 'git-log://Git Log', content: '', dirty: false })
+    if (autoShow === 'always') revealGitLogTab()
     useGitLogStore.getState().append(cwd, `\n> git ${describeCommand(action, payload)}\n`)
 
     setRepo(cwd, { commandStatus: 'running' })
@@ -95,6 +105,8 @@ export const useGitStore = create<GitStore>((set, get) => {
           useGitBranchStore.getState().load(cwd)
           get().fetchSilent(cwd)
         }
+      } else if (autoShow === 'onError') {
+        revealGitLogTab()
       }
     })
 
@@ -109,6 +121,7 @@ export const useGitStore = create<GitStore>((set, get) => {
       cleanupExit()
       useGitLogStore.getState().append(cwd, `\nError: ${err instanceof Error ? err.message : String(err)}\n`)
       setRepo(cwd, { commandStatus: 'idle' })
+      if (autoShow === 'onError') revealGitLogTab()
     }
   }
 
@@ -214,9 +227,9 @@ export const useGitStore = create<GitStore>((set, get) => {
 
   setCommitMessage: (cwd, message) => setRepo(cwd, { commitMessage: message, commitError: null }),
 
-  commit: async (cwd) => {
+  commit: async (cwd, noVerify) => {
     const { commitMessage } = stateFor(cwd)
-    const result = await window.api.gitCommit(cwd, commitMessage)
+    const result = await window.api.gitCommit(cwd, commitMessage, noVerify)
     if (result.ok) {
       setRepo(cwd, { commitMessage: '', commitError: null })
       await get().refresh(cwd)
@@ -232,6 +245,7 @@ export const useGitStore = create<GitStore>((set, get) => {
   forcePush:      (cwd) => runCommand(cwd, 'forcePush'),
   forcePushLease: (cwd) => runCommand(cwd, 'forcePushLease'),
   checkout:       (cwd, payload) => runCommand(cwd, 'checkout', payload),
+  publishBranch:  (cwd, branch) => runCommand(cwd, 'publishBranch', { branch }),
   }
 })
 

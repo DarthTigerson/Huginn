@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import type { GitFileEntry } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitStore, useRepoGitState } from '@/stores/gitStore'
@@ -16,34 +16,25 @@ import { FileRow } from './FileRow'
 import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
-import { RepoOverviewList } from './RepoOverviewList'
+import { useGitFavoriteReposStore, sortReposByFavorite } from '@/stores/gitFavoriteReposStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { FilesIcon, ClaudeIcon } from '@/components/ActivityBar/ActivityBar'
+import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
-const pillButtonClass =
-  'group w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-accent/25 to-accent/5 text-accent ring-1 ring-accent/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-accent/60 hover:from-accent/35 hover:to-accent/10 active:scale-95'
+// Solid fill matching the Commit button's active look — every action pill in
+// the Git panel (Branch, Fetch, Pull, Push, Graph, List Diff) shares this
+// now, instead of each having its own translucent-gradient-and-ring style.
+const accentSolidColor = 'bg-accent/80 text-bg hover:bg-accent'
 
-const dangerPillButtonClass =
-  'w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-gradient-to-br from-red-500/25 to-red-500/5 text-red-400 ring-1 ring-red-500/30 shadow-sm shadow-black/20 transition-all duration-150 hover:ring-red-500/60 hover:from-red-500/35 hover:to-red-500/10 active:scale-95'
+const pillButtonClass =
+  `w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${accentSolidColor}`
 
 interface ContextMenuState {
   x: number
   y: number
   file: GitFileEntry
   staged: boolean
-}
-
-function SparkleIcon({ spinning }: { spinning?: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      className={spinning ? 'animate-spin' : ''}
-    >
-      <path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" fill="currentColor" />
-    </svg>
-  )
 }
 
 function DiscardAllIcon() {
@@ -65,12 +56,15 @@ function RepoSelect({ repos, selectedRepo, onSelect }: {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const favorites = useGitFavoriteReposStore((s) => s.favorites)
+  const toggleFavorite = useGitFavoriteReposStore((s) => s.toggleFavorite)
 
   const filtered = useMemo(() => {
+    const sorted = sortReposByFavorite(repos, favorites)
     const needle = query.trim().toLowerCase()
-    if (!needle) return repos
-    return repos.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
-  }, [repos, query])
+    if (!needle) return sorted
+    return sorted.filter((repo) => (repo.split('/').pop() ?? repo).toLowerCase().includes(needle))
+  }, [repos, favorites, query])
 
   useEffect(() => {
     if (!open) return
@@ -144,24 +138,112 @@ function RepoSelect({ repos, selectedRepo, onSelect }: {
             ) : (
               filtered.map((repo) => {
                 const selected = repo === selectedRepo
+                const isFavorite = !!favorites[repo]
                 return (
-                  <button
+                  <div
                     key={repo}
-                    type="button"
                     role="option"
                     aria-selected={selected}
                     onClick={() => handleSelect(repo)}
                     className={[
-                      'w-full truncate rounded px-2 py-1.5 text-left text-xs transition-colors',
+                      'w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs transition-colors cursor-pointer',
                       selected ? 'bg-accent/15 text-fg' : 'text-fg-muted hover:bg-white/[0.06] hover:text-fg',
                     ].join(' ')}
                   >
-                    {repo.split('/').pop()}
-                  </button>
+                    <button
+                      type="button"
+                      aria-label={isFavorite ? `Unfavorite ${repo.split('/').pop()}` : `Favorite ${repo.split('/').pop()}`}
+                      aria-pressed={isFavorite}
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(repo) }}
+                      className={['shrink-0', isFavorite ? 'text-accent' : 'text-fg-subtle hover:text-fg-muted'].join(' ')}
+                    >
+                      <StarIcon filled={isFavorite} />
+                    </button>
+                    <span className="truncate">{repo.split('/').pop()}</span>
+                  </div>
                 )
               })
             )}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// A single seamless pill: the main action fills most of the width, a
+// divider-separated chevron segment on the right opens a full-width options
+// panel underneath (or above, via `direction`, for triggers near the bottom
+// of the panel — e.g. a future Push variant — that don't have room below).
+function SplitCommandButton({
+  label,
+  onClick,
+  disabled,
+  colorClassName,
+  open,
+  onToggleOptions,
+  onCloseOptions,
+  direction,
+  children,
+  optionsChildren,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  colorClassName: string
+  open: boolean
+  onToggleOptions: () => void
+  onCloseOptions: () => void
+  direction: 'down' | 'up'
+  children: ReactNode
+  optionsChildren: ReactNode
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) onCloseOptions()
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative flex-1 min-w-0">
+      <div className={['flex h-7 rounded-full overflow-hidden transition-colors', colorClassName].join(' ')}>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {children}
+        </button>
+        <button
+          type="button"
+          aria-label={`${label} options`}
+          aria-haspopup="true"
+          aria-expanded={open}
+          disabled={disabled}
+          onClick={onToggleOptions}
+          className="w-7 shrink-0 flex items-center justify-center border-l border-black/15 transition-colors hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className={direction === 'up' ? 'rotate-180' : ''}>
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {open && (
+        <div
+          className={[
+            'absolute left-0 right-0 z-30 rounded-md border border-border bg-popover shadow-2xl shadow-black/40 p-2.5',
+            direction === 'down' ? 'top-[calc(100%+4px)]' : 'bottom-[calc(100%+4px)]',
+          ].join(' ')}
+        >
+          {optionsChildren}
         </div>
       )}
     </div>
@@ -192,6 +274,7 @@ export function GitPanel() {
     fetch: gitFetch,
     pull,
     push,
+    publishBranch,
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
@@ -224,6 +307,8 @@ export function GitPanel() {
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
   const [showAllRepos, setShowAllRepos] = useState(false)
+  const [commitOptionsOpen, setCommitOptionsOpen] = useState(false)
+  const [pushOptionsOpen, setPushOptionsOpen] = useState(false)
 
   useEffect(() => {
     refreshStatus(selectedRepo)
@@ -312,7 +397,21 @@ export function GitPanel() {
           >
             {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
           </button>
-          <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0">
+              <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
+            </div>
+            <button
+              type="button"
+              aria-label="Reveal in File Tree"
+              title="Reveal in File Tree"
+              disabled={!selectedRepo}
+              onClick={() => selectedRepo && useSidebarUiStore.getState().requestReveal(selectedRepo, true)}
+              className="shrink-0 h-6 w-6 rounded border border-border bg-bg flex items-center justify-center text-fg-muted hover:text-fg hover:border-fg-subtle transition-colors disabled:opacity-40 [&_svg]:w-3.5 [&_svg]:h-3.5"
+            >
+              <FilesIcon />
+            </button>
+          </div>
         </div>
       )}
 
@@ -327,30 +426,55 @@ export function GitPanel() {
                 onChange={(e) => selectedRepo && setCommitMessage(selectedRepo, e.target.value)}
                 placeholder="Message"
                 rows={3}
-                className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+                className={[
+                  'w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50',
+                  commitMessageEnabled ? 'pb-8' : '',
+                ].join(' ')}
               />
               {commitMessageEnabled && (
                 <button
                   type="button"
-                  title="Generate commit message from staged changes"
+                  title="Generate commit message from staged changes with Claude"
                   disabled={generatingMessage || status.staged.length === 0}
                   onClick={generateCommitMessage}
-                  className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className={[
+                    'absolute bottom-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                    generatingMessage ? 'animate-pulse' : '',
+                  ].join(' ')}
                 >
-                  <SparkleIcon spinning={generatingMessage} />
+                  <ClaudeIcon />
                 </button>
               )}
             </div>
             {generateError && <p className="text-xs text-red-400">{generateError}</p>}
             {commitError && <p className="text-xs text-red-400">{commitError}</p>}
-            <button
-              type="button"
+            <SplitCommandButton
+              label="Commit"
               disabled={!commitMessage.trim() || status.staged.length === 0}
               onClick={() => selectedRepo && commit(selectedRepo)}
-              className="w-full h-7 rounded-full flex items-center justify-center text-xs font-semibold bg-accent/80 text-bg transition-colors hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              colorClassName={accentSolidColor}
+              open={commitOptionsOpen}
+              onToggleOptions={() => setCommitOptionsOpen((v) => !v)}
+              onCloseOptions={() => setCommitOptionsOpen(false)}
+              direction="down"
+              optionsChildren={
+                <button
+                  type="button"
+                  disabled={!commitMessage.trim() || status.staged.length === 0}
+                  onClick={() => {
+                    if (!selectedRepo) return
+                    commit(selectedRepo, true)
+                    setCommitOptionsOpen(false)
+                  }}
+                  className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-fg transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="font-mono">Commit --no-verify</span>
+                  <span className="text-fg-subtle">Skip the pre-commit and commit-msg hooks for this commit.</span>
+                </button>
+              }
             >
               Commit
-            </button>
+            </SplitCommandButton>
           </div>
 
           <div className="flex-1 overflow-y-auto py-1">
@@ -445,34 +569,53 @@ export function GitPanel() {
             Pull
           </button>
         </div>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            className={pillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => selectedRepo && push(selectedRepo)}
-          >
-            Push
-          </button>
-          <button
-            type="button"
-            title="Force Push"
-            className={dangerPillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => requestForce('forcePush')}
-          >
-            F
-          </button>
-          <button
-            type="button"
-            title="Force Push with Lease"
-            className={dangerPillButtonClass}
-            disabled={remoteActionDisabled}
-            onClick={() => requestForce('forcePushLease')}
-          >
-            L
-          </button>
-        </div>
+        <SplitCommandButton
+          label="Push"
+          disabled={remoteActionDisabled}
+          onClick={() => selectedRepo && push(selectedRepo)}
+          colorClassName={accentSolidColor}
+          open={pushOptionsOpen}
+          onToggleOptions={() => setPushOptionsOpen((v) => !v)}
+          onCloseOptions={() => setPushOptionsOpen(false)}
+          direction="up"
+          optionsChildren={
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                disabled={remoteActionDisabled || !branch}
+                onClick={() => {
+                  if (selectedRepo && branch) publishBranch(selectedRepo, branch)
+                  setPushOptionsOpen(false)
+                }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-fg transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Publish Branch</span>
+                <span className="text-fg-subtle font-mono">git push -u origin {branch ?? '…'}</span>
+                <span className="text-fg-subtle">Push a new branch and set its upstream, so a plain Push works after.</span>
+              </button>
+              <button
+                type="button"
+                disabled={remoteActionDisabled}
+                onClick={() => { requestForce('forcePush'); setPushOptionsOpen(false) }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Force Push</span>
+                <span className="text-red-400/70">Overwrites the remote branch with your local history.</span>
+              </button>
+              <button
+                type="button"
+                disabled={remoteActionDisabled}
+                onClick={() => { requestForce('forcePushLease'); setPushOptionsOpen(false) }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Force Push with Lease</span>
+                <span className="text-red-400/70">Safer force push — fails if the remote has commits you haven't fetched.</span>
+              </button>
+            </div>
+          }
+        >
+          Push
+        </SplitCommandButton>
         <div className="flex gap-1.5">
           <button
             type="button"

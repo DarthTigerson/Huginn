@@ -128,6 +128,8 @@ export function Sidebar() {
         return expandDir(dir)
       })
       if (cancelled) return
+      if (revealRequest.expandTarget) await expandDir(revealRequest.path)
+      if (cancelled) return
       useFileStore.getState().setRevealedPath(revealRequest.path)
       useSidebarUiStore.getState().clearRevealRequest()
       // Wait a frame so the newly-expanded nodes have actually committed to

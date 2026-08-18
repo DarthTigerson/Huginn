@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('api', {
   gitUnstageAll: (cwd: string) => ipcRenderer.invoke('git:unstageAll', cwd),
   gitDiscard: (cwd: string, path: string) => ipcRenderer.invoke('git:discard', cwd, path),
   gitDiscardAll: (cwd: string) => ipcRenderer.invoke('git:discardAll', cwd),
-  gitCommit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+  gitCommit: (cwd: string, message: string, noVerify?: boolean) =>
+    ipcRenderer.invoke('git:commit', cwd, message, noVerify),
   gitDiff: (cwd: string, path: string, staged: boolean) =>
     ipcRenderer.invoke('git:diff', cwd, path, staged),
   gitFileAtHead: (cwd: string, path: string) => ipcRenderer.invoke('git:fileAtHead', cwd, path),
@@ -51,6 +52,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('git:log:exit', handler)
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
+  gitLogResize: (cols: number, rows: number) => ipcRenderer.send('git:log:resize', cols, rows),
   gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
   gitDefaultBranch: (cwd: string) => ipcRenderer.invoke('git:defaultBranch', cwd),
@@ -60,7 +62,8 @@ contextBridge.exposeInMainWorld('api', {
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
   gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,
-  gitDiscoverRepos: (root: string) => ipcRenderer.invoke('git:discoverRepos', root) as Promise<string[]>,
+  gitDiscoverRepos: (root: string, maxDepth?: number) =>
+    ipcRenderer.invoke('git:discoverRepos', root, maxDepth) as Promise<string[]>,
   gitWatchRoot: (cwd: string | null) => ipcRenderer.send('git:watchRoot', cwd),
   onGitChanged: (cb: (cwd: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, cwd: string) => cb(cwd)
