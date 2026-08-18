@@ -18,7 +18,7 @@ import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import { useGitFavoriteReposStore, sortReposByFavorite } from '@/stores/gitFavoriteReposStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
-import { FilesIcon } from '@/components/ActivityBar/ActivityBar'
+import { FilesIcon, ClaudeIcon } from '@/components/ActivityBar/ActivityBar'
 import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
@@ -35,20 +35,6 @@ interface ContextMenuState {
   y: number
   file: GitFileEntry
   staged: boolean
-}
-
-function SparkleIcon({ spinning }: { spinning?: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      className={spinning ? 'animate-spin' : ''}
-    >
-      <path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" fill="currentColor" />
-    </svg>
-  )
 }
 
 function DiscardAllIcon() {
@@ -440,17 +426,23 @@ export function GitPanel() {
                 onChange={(e) => selectedRepo && setCommitMessage(selectedRepo, e.target.value)}
                 placeholder="Message"
                 rows={3}
-                className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 pb-6 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50"
+                className={[
+                  'w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-1 focus:ring-accent/50',
+                  commitMessageEnabled ? 'pb-8' : '',
+                ].join(' ')}
               />
               {commitMessageEnabled && (
                 <button
                   type="button"
-                  title="Generate commit message from staged changes"
+                  title="Generate commit message from staged changes with Claude"
                   disabled={generatingMessage || status.staged.length === 0}
                   onClick={generateCommitMessage}
-                  className="absolute bottom-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded text-fg-muted hover:text-fg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className={[
+                    'absolute bottom-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                    generatingMessage ? 'animate-pulse' : '',
+                  ].join(' ')}
                 >
-                  <SparkleIcon spinning={generatingMessage} />
+                  <ClaudeIcon />
                 </button>
               )}
             </div>

@@ -35,14 +35,14 @@ afterEach(() => {
 })
 
 function generateButton() {
-  return screen.getByTitle('Generate commit message from staged changes')
+  return screen.getByTitle('Generate commit message from staged changes with Claude')
 }
 
 describe('GitPanel — generate commit message', () => {
   it('is hidden when the feature is disabled in settings', () => {
     useCommitMessageSettingsStore.setState({ enabled: false })
     render(<GitPanel />)
-    expect(screen.queryByTitle('Generate commit message from staged changes')).toBeNull()
+    expect(screen.queryByTitle('Generate commit message from staged changes with Claude')).toBeNull()
   })
 
   it('is disabled when nothing is staged', () => {

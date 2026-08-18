@@ -35,7 +35,7 @@ interface CommitMessageSettingsStore {
 }
 
 export const useCommitMessageSettingsStore = create<CommitMessageSettingsStore>((set) => ({
-  enabled: getBool(KEYS.enabled, false),
+  enabled: getBool(KEYS.enabled, true),
   model: getString(KEYS.model, DEFAULT_MODEL),
   prompt: getString(KEYS.prompt, ''),
 
