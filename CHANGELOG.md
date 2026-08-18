@@ -1,5 +1,21 @@
 # Huginn 
 
+## v0.2.1 (2026-08-18)
+- **Favorite repos**: star repos in the Git panel to pin them to the top of the repo list, the footer's quick-switch menu, and the project list's ordering; a repo-scan-depth setting in Settings > Git controls how deep multi-repo discovery looks for nested repos
+- **Publish Branch**: pushes a new branch and sets its upstream (`git push -u origin <branch>`) so a plain Push works afterwards — available from the Git panel and the footer menu
+- **Commit without hooks**: an inline `--no-verify` option skips pre-commit hooks for a single commit
+- **Layout Mirror**: flip which side the sidebar and chat panel render on, from Settings > Display
+- **Solid Colours panel style**: a new option alongside Matt/Glossy/Glass, with bolder dividing lines
+- Git Log terminal visibility is now configurable in Settings > Git — always jump to it on a command, or only when one fails
+- Git panel's Fetch/Pull/Push buttons redesigned as split pills with a chevron for extra actions (Publish Branch, Force Push, etc.); the footer Git menu gained a matching "Switch Branch…" shortcut and favorite-repos quick-switch section
+- A "reveal in file tree" button next to the repo dropdown jumps straight to the selected repo's folder in the sidebar
+- Native dropdowns across Settings (Display, Git, Models) and Mobile Display replaced with a themed dropdown matching the rest of the UI
+- Commit-message generate button now uses the Claude icon
+
+**Bug fixes**
+- Fixed Claude usage stats, the Usage Graph, and AI commit-message generation silently showing no data on some machines — the usage poller now resolves the `claude` CLI the same way (via an interactive login shell) as every other feature that shells out to it, instead of a plain non-interactive shell that can miss PATH entries set up by nvm and similar tools
+
+
 ## v0.2.0 (2026-08-16)
 - **Docker controls**: a new Docker panel (toggle it from the activity bar, enable it first in Settings > Docker) lists your local containers with live status, and lets you start/stop/restart/remove them without leaving Huginn or switching to Docker Desktop; click a container to stream its logs in its own tab
 - **Multi-repo Git support**: opening a folder with several sibling git repos now discovers all of them — a repo dropdown in the Git panel picks which repo the panel, Git Graph, and List Diff are scoped to, and a "Show all repos" overview lists every discovered repo at a glance. The footer and branch palette automatically follow whichever repo the focused editor tab belongs to
