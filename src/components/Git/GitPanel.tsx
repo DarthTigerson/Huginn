@@ -288,6 +288,7 @@ export function GitPanel() {
     fetch: gitFetch,
     pull,
     push,
+    publishBranch,
   } = useGitStore()
   const openTab = useEditorStore((s) => s.openTab)
   const loadGraph = useGitGraphStore((s) => s.load)
@@ -587,6 +588,19 @@ export function GitPanel() {
           direction="up"
           optionsChildren={
             <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                disabled={remoteActionDisabled || !branch}
+                onClick={() => {
+                  if (selectedRepo && branch) publishBranch(selectedRepo, branch)
+                  setPushOptionsOpen(false)
+                }}
+                className="w-full flex flex-col items-start gap-0.5 rounded px-2 py-1.5 text-left text-xs text-fg transition-colors hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="font-semibold">Publish Branch</span>
+                <span className="text-fg-subtle font-mono">git push -u origin {branch ?? '…'}</span>
+                <span className="text-fg-subtle">Push a new branch and set its upstream, so a plain Push works after.</span>
+              </button>
               <button
                 type="button"
                 disabled={remoteActionDisabled}

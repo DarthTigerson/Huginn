@@ -1,9 +1,9 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import * as pty from 'node-pty'
-import type { GitCommandAction, GitCheckoutPayload } from '../src/types/index'
+import type { GitCommandAction, GitCommandPayload, GitCheckoutPayload, GitPublishBranchPayload } from '../src/types/index'
 import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getFileAtHead, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote, getStagedDiff, discoverRepos } from './git'
 
-const ARGS: Record<Exclude<GitCommandAction, 'checkout'>, string[]> = {
+const ARGS: Record<Exclude<GitCommandAction, 'checkout' | 'publishBranch'>, string[]> = {
   fetch:           ['fetch'],
   pull:            ['pull'],
   push:            ['push'],
@@ -11,12 +11,18 @@ const ARGS: Record<Exclude<GitCommandAction, 'checkout'>, string[]> = {
   forcePushLease:  ['push', '--force-with-lease'],
 }
 
-function buildArgs(action: GitCommandAction, payload?: GitCheckoutPayload): string[] {
-  if (action !== 'checkout') return ARGS[action]
-  const { ref, create, track } = payload!
-  if (track) return ['checkout', '-b', ref, '--track', track]
-  if (create) return ['checkout', '-b', ref]
-  return ['checkout', ref]
+function buildArgs(action: GitCommandAction, payload?: GitCommandPayload): string[] {
+  if (action === 'checkout') {
+    const { ref, create, track } = payload as GitCheckoutPayload
+    if (track) return ['checkout', '-b', ref, '--track', track]
+    if (create) return ['checkout', '-b', ref]
+    return ['checkout', ref]
+  }
+  if (action === 'publishBranch') {
+    const { branch } = payload as GitPublishBranchPayload
+    return ['push', '--set-upstream', 'origin', branch]
+  }
+  return ARGS[action]
 }
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -31,7 +37,7 @@ export class GitRunner {
   private sizeByWindow = new Map<number, { cols: number; rows: number }>()
 
   registerHandlers(): void {
-    ipcMain.handle('git:runCommand', (event, id: string, cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
+    ipcMain.handle('git:runCommand', (event, id: string, cwd: string, action: GitCommandAction, payload?: GitCommandPayload) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
 

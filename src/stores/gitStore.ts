@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { GitStatus, GitAheadBehind, GitCommandAction, GitCheckoutPayload } from '@/types/index'
+import type { GitStatus, GitAheadBehind, GitCommandAction, GitCommandPayload, GitCheckoutPayload } from '@/types/index'
 import { useEditorStore } from './editorStore'
 import { useGitLogStore } from './gitLogStore'
 import { useGitGraphStore } from './gitGraphStore'
@@ -52,15 +52,19 @@ interface GitStore {
   forcePush: (cwd: string) => Promise<void>
   forcePushLease: (cwd: string) => Promise<void>
   checkout: (cwd: string, payload: GitCheckoutPayload) => Promise<void>
+  publishBranch: (cwd: string, branch: string) => Promise<void>
 }
 
-function describeCommand(action: GitCommandAction, payload?: GitCheckoutPayload): string {
+function describeCommand(action: GitCommandAction, payload?: GitCommandPayload): string {
   if (action === 'forcePush') return 'push --force'
   if (action === 'forcePushLease') return 'push --force-with-lease'
-  if (action === 'checkout' && payload) {
+  if (action === 'checkout' && payload && 'ref' in payload) {
     if (payload.track) return `checkout -b ${payload.ref} --track ${payload.track}`
     if (payload.create) return `checkout -b ${payload.ref}`
     return `checkout ${payload.ref}`
+  }
+  if (action === 'publishBranch' && payload && 'branch' in payload) {
+    return `push --set-upstream origin ${payload.branch}`
   }
   return action
 }
@@ -76,7 +80,7 @@ export const useGitStore = create<GitStore>((set, get) => {
     if (graphOpen) await useGitGraphStore.getState().load(cwd)
   }
 
-  const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCheckoutPayload) => {
+  const runCommand = async (cwd: string, action: GitCommandAction, payload?: GitCommandPayload) => {
     if (stateFor(cwd).commandStatus === 'running') return
     const id = crypto.randomUUID()
     const autoShow = useGitSettingsStore.getState().gitLogAutoShow
@@ -241,6 +245,7 @@ export const useGitStore = create<GitStore>((set, get) => {
   forcePush:      (cwd) => runCommand(cwd, 'forcePush'),
   forcePushLease: (cwd) => runCommand(cwd, 'forcePushLease'),
   checkout:       (cwd, payload) => runCommand(cwd, 'checkout', payload),
+  publishBranch:  (cwd, branch) => runCommand(cwd, 'publishBranch', { branch }),
   }
 })
 

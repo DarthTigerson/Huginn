@@ -38,11 +38,37 @@ describe('GitPanel — push options (force push)', () => {
     expect(screen.queryByText('Force Push')).toBeNull()
   })
 
-  it('clicking the options chevron opens a panel with Force Push and Force Push with Lease', () => {
+  it('clicking the options chevron opens a panel with Publish Branch, Force Push, and Force Push with Lease', () => {
     render(<GitPanel />)
     fireEvent.click(screen.getByLabelText('Push options'))
+    expect(screen.getByText('Publish Branch')).toBeTruthy()
     expect(screen.getByText('Force Push')).toBeTruthy()
     expect(screen.getByText('Force Push with Lease')).toBeTruthy()
+  })
+
+  it('shows the actual git command for Publish Branch, using the current branch name', () => {
+    render(<GitPanel />)
+    fireEvent.click(screen.getByLabelText('Push options'))
+    expect(screen.getByText('git push -u origin main')).toBeTruthy()
+  })
+
+  it('clicking Publish Branch runs push --set-upstream origin <branch> and closes the panel', () => {
+    render(<GitPanel />)
+    fireEvent.click(screen.getByLabelText('Push options'))
+    fireEvent.click(screen.getByText('Publish Branch'))
+
+    expect(window.api.gitRunCommand).toHaveBeenCalledWith(
+      expect.any(String), '/proj', 'publishBranch', { branch: 'main' }
+    )
+    expect(screen.queryByText('Publish Branch')).toBeNull()
+  })
+
+  it('Publish Branch is disabled when there is no current branch', () => {
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, status: emptyStatus, branch: null } } })
+    render(<GitPanel />)
+    fireEvent.click(screen.getByLabelText('Push options'))
+
+    expect(screen.getByText('Publish Branch').closest('button')).toBeDisabled()
   })
 
   it('clicking Force Push runs a force push and closes the panel (safety off)', () => {

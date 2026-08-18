@@ -254,4 +254,16 @@ describe('GitRunner', () => {
       'git', ['checkout', '-b', 'feat/x', '--track', 'origin/feat/x'], expect.objectContaining({ cwd: '/proj' })
     )
   })
+
+  it('spawns git push --set-upstream origin <branch> for publishBranch', async () => {
+    const proc = fakeProc()
+    spawnMock.mockReturnValue(proc)
+    await ipcHandlers['git:runCommand'](
+      { sender: win }, 'run-7', '/proj', 'publishBranch' as GitCommandAction,
+      { branch: 'feature-x' }
+    )
+    expect(spawnMock).toHaveBeenCalledWith(
+      'git', ['push', '--set-upstream', 'origin', 'feature-x'], expect.objectContaining({ cwd: '/proj' })
+    )
+  })
 })
