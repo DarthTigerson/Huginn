@@ -150,7 +150,7 @@ export function RepoOverviewList({ onClose }: Props) {
   }
 
   function goToFileTree(repo: string) {
-    useSidebarUiStore.getState().requestReveal(repo)
+    useSidebarUiStore.getState().requestReveal(repo, true)
     onClose()
   }
 

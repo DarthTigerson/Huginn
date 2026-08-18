@@ -87,7 +87,29 @@ describe('Sidebar — Reveal in File Tree', () => {
     // Give any (incorrect) async expansion a tick to happen before asserting nothing changed.
     await new Promise((r) => setTimeout(r, 20))
     expect(useFileStore.getState().revealedPath).toBeNull()
-    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/other-proj/App.tsx' })
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/other-proj/App.tsx', expandTarget: undefined })
+  })
+
+  it('does not expand the target itself for a plain (file) reveal request', async () => {
+    render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/proj/src/components/App.tsx') })
+
+    await waitFor(() => {
+      expect(useFileStore.getState().revealedPath).toBe('/proj/src/components/App.tsx')
+    })
+    expect(useFileStore.getState().expandedPaths.has('/proj/src/components/App.tsx')).toBe(false)
+  })
+
+  it('also expands the target directory itself when expandTarget is set — e.g. a repo root from the Git panel', async () => {
+    render(<Sidebar />)
+
+    act(() => { useSidebarUiStore.getState().requestReveal('/proj/src', true) })
+
+    await waitFor(() => {
+      expect(useFileStore.getState().expandedPaths.has('/proj/src')).toBe(true)
+    })
+    expect(window.api.readDir).toHaveBeenCalledWith('/proj/src')
   })
 })
 

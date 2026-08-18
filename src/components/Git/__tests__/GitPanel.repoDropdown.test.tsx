@@ -5,6 +5,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
 import { useGitFavoriteReposStore } from '@/stores/gitFavoriteReposStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 
 beforeEach(() => {
   ;(global as any).window.api = {
@@ -13,6 +14,7 @@ beforeEach(() => {
   }
   useFileStore.setState({ projectRoot: '/proj' })
   useGitFavoriteReposStore.setState({ favorites: {} })
+  useSidebarUiStore.setState({ revealRequest: null })
 })
 
 afterEach(() => {
@@ -95,6 +97,20 @@ describe('GitPanel — repo dropdown', () => {
     expect(useGitFavoriteReposStore.getState().isFavorite('/proj/repoB')).toBe(true)
     const options = screen.getAllByRole('option').map((el) => el.textContent)
     expect(options).toEqual(['repoB', 'repoA'])
+  })
+
+  it('shows a "Reveal in File Tree" button next to the repo dropdown that requests a reveal for the selected repo', () => {
+    useGitReposStore.setState({ repos: ['/proj/repoA', '/proj/repoB'], selectedRepo: '/proj/repoB' })
+    useGitStore.setState({
+      repos: {
+        '/proj/repoA': { ...emptyRepoGitState },
+        '/proj/repoB': { ...emptyRepoGitState },
+      },
+    })
+    render(<GitPanel />)
+    fireEvent.click(screen.getByLabelText('Reveal in File Tree'))
+
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/repoB', expandTarget: true })
   })
 
   it('clicking the star in the dropdown does not select that repo', () => {

@@ -17,6 +17,8 @@ import { ConfirmForcePushModal } from './ConfirmForcePushModal'
 import { useForcePushConfirm } from './useForcePushConfirm'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import { useGitFavoriteReposStore, sortReposByFavorite } from '@/stores/gitFavoriteReposStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { FilesIcon } from '@/components/ActivityBar/ActivityBar'
 import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
 
@@ -325,7 +327,21 @@ export function GitPanel() {
           >
             {showAllRepos ? 'Back to Repo' : 'Show All Repos'}
           </button>
-          <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0">
+              <RepoSelect repos={repos} selectedRepo={selectedRepo} onSelect={selectRepo} />
+            </div>
+            <button
+              type="button"
+              aria-label="Reveal in File Tree"
+              title="Reveal in File Tree"
+              disabled={!selectedRepo}
+              onClick={() => selectedRepo && useSidebarUiStore.getState().requestReveal(selectedRepo, true)}
+              className="shrink-0 h-6 w-6 rounded border border-border bg-bg flex items-center justify-center text-fg-muted hover:text-fg hover:border-fg-subtle transition-colors disabled:opacity-40 [&_svg]:w-3.5 [&_svg]:h-3.5"
+            >
+              <FilesIcon />
+            </button>
+          </div>
         </div>
       )}
 

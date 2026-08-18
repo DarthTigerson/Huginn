@@ -102,7 +102,7 @@ describe('RepoOverviewList', () => {
     expect(item).toBeTruthy()
     fireEvent.click(item)
 
-    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/repoB' })
+    expect(useSidebarUiStore.getState().revealRequest).toEqual({ path: '/proj/repoB', expandTarget: true })
     expect(onClose).toHaveBeenCalled()
     // Right-click navigates via the file tree, not the git scope — it
     // shouldn't also change which repo the Git Panel is scoped to.
