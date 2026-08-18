@@ -1,6 +1,7 @@
 import { useDisplayStore, FONT_PRESETS, type PanelStyle, type FooterContent } from '@/stores/displayStore'
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { Select } from '@/components/ui/Select'
 
 const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
   { value: 'matt',   label: 'Matt',   description: 'Solid panels' },
@@ -38,14 +39,6 @@ export function DisplayPage() {
     setFont, setPanelStyle, setFooterContent, setMemoryUsageVisible, setBackgroundImageVisible, setNavbarPosition,
   } = useDisplayStore()
   const { theme, setTheme, matchSystem, setMatchSystem } = useThemeStore()
-
-  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFont(e.target.value)
-  }
-
-  const handleFooterContentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFooterContent(e.target.value as FooterContent)
-  }
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -167,41 +160,22 @@ export function DisplayPage() {
             <div className="flex flex-wrap items-start gap-6">
               <div className="flex-1 min-w-[220px]">
                 <label htmlFor="footer-content-select" className="text-xs text-fg-muted mb-1.5 block">Footer Content</label>
-                <div className="relative">
-                  <select
-                    id="footer-content-select"
-                    value={footerContent}
-                    onChange={handleFooterContentChange}
-                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-                  >
-                    {FOOTER_CONTENT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                    ▾
-                  </span>
-                </div>
+                <Select
+                  id="footer-content-select"
+                  value={footerContent}
+                  onChange={(v) => setFooterContent(v as FooterContent)}
+                  options={FOOTER_CONTENT_OPTIONS}
+                />
               </div>
 
               <div className="flex-1 min-w-[220px]">
-                <label className="text-xs text-fg-muted mb-1.5 block">Font</label>
-                <div className="relative">
-                  <select
-                    value={font}
-                    onChange={handleSelectChange}
-                    className="w-full appearance-none px-3 py-2.5 pr-9 text-sm bg-bg border border-border rounded-lg text-fg focus:outline-none focus:border-accent/60 transition-colors cursor-pointer"
-                  >
-                    {FONT_PRESETS.map((preset) => (
-                      <option key={preset.value} value={preset.value} style={{ fontFamily: preset.value }}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">
-                    ▾
-                  </span>
-                </div>
+                <label htmlFor="font-select" className="text-xs text-fg-muted mb-1.5 block">Font</label>
+                <Select
+                  id="font-select"
+                  value={font}
+                  onChange={setFont}
+                  options={FONT_PRESETS.map((preset) => ({ value: preset.value, label: preset.label, style: { fontFamily: preset.value } }))}
+                />
               </div>
             </div>
 

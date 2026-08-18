@@ -13,12 +13,13 @@ describe('DisplayPage — footer content + memory usage', () => {
   it('reflects the current footer content selection', () => {
     useDisplayStore.setState({ footerContent: 'clock' })
     render(<DisplayPage />)
-    expect(screen.getByLabelText('Footer Content')).toHaveValue('clock')
+    expect(screen.getByLabelText('Footer Content')).toHaveTextContent('Clock')
   })
 
   it('changing the footer content dropdown updates the store', () => {
     render(<DisplayPage />)
-    fireEvent.change(screen.getByLabelText('Footer Content'), { target: { value: 'clock' } })
+    fireEvent.click(screen.getByLabelText('Footer Content'))
+    fireEvent.click(screen.getByRole('option', { name: 'Clock' }))
     expect(useDisplayStore.getState().footerContent).toBe('clock')
   })
 

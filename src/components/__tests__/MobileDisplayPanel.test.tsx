@@ -100,7 +100,8 @@ describe('MobileDisplayPanel', () => {
     })
     render(<MobileDisplayPanel />)
     const select = await screen.findByLabelText('Pairing network')
-    await user.selectOptions(select, '10.0.0.20')
+    await user.click(select)
+    await user.click(await screen.findByRole('option', { name: 'en5 — 10.0.0.20' }))
     expect(window.api.mobileSelectInterface).toHaveBeenCalledWith('10.0.0.20')
   })
 

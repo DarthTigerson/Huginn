@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMobileStore } from '@/stores/mobileStore'
+import { Select } from '@/components/ui/Select'
 
 function PinDisplay({ pin }: { pin: string }) {
   return (
@@ -174,21 +175,16 @@ export function MobileDisplayPanel() {
         )}
 
         {state.running && state.interfaces.length > 1 && (
-          <label className="flex flex-col gap-1 text-[0.6875rem] text-fg-muted">
+          <div className="flex flex-col gap-1 text-[0.6875rem] text-fg-muted">
             <span className="font-medium uppercase tracking-wider">Pairing network</span>
-            <select
-              aria-label="Pairing network"
+            <Select
+              ariaLabel="Pairing network"
+              compact
               value={state.localIp}
-              onChange={(e) => window.api.mobileSelectInterface(e.target.value)}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-fg font-mono"
-            >
-              {state.interfaces.map((iface) => (
-                <option key={iface.address} value={iface.address}>
-                  {iface.name} — {iface.address}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={(v) => window.api.mobileSelectInterface(v)}
+              options={state.interfaces.map((iface) => ({ value: iface.address, label: `${iface.name} — ${iface.address}` }))}
+            />
+          </div>
         )}
 
         {state.running && state.allowingNewDevice && (
