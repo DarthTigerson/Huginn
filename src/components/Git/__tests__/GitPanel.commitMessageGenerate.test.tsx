@@ -90,4 +90,41 @@ describe('GitPanel — generate commit message', () => {
     await waitFor(() => expect(screen.getByText('Could not generate a commit message')).toBeTruthy())
     expect(useGitStore.getState().repos['/proj'].commitMessage).toBe('wip')
   })
+
+  it('swaps to a looping gif while generating, then reverts to the Claude icon once done', async () => {
+    let resolveGenerate!: (msg: string) => void
+    window.api.commitMessageGenerate = vi.fn(
+      () => new Promise<string>((resolve) => { resolveGenerate = resolve })
+    ) as any
+    render(<GitPanel />)
+
+    expect(generateButton().querySelector('img')).toBeNull()
+
+    fireEvent.click(generateButton())
+    await waitFor(() => expect(generateButton().querySelector('img')).not.toBeNull())
+    expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawd(Dancing|Working)/)
+
+    resolveGenerate('Fix the login bug')
+    await waitFor(() => expect(generateButton().querySelector('img')).toBeNull())
+  })
+
+  it('picks the dancing gif or the working gif depending on the random roll', async () => {
+    window.api.commitMessageGenerate = vi.fn(
+      () => new Promise<string>(() => {}) // never resolves — only the picked gif matters here
+    ) as any
+    const randomSpy = vi.spyOn(Math, 'random')
+
+    randomSpy.mockReturnValue(0)
+    const { unmount } = render(<GitPanel />)
+    fireEvent.click(generateButton())
+    await waitFor(() => expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawdDancing/))
+    unmount()
+
+    randomSpy.mockReturnValue(0.99)
+    render(<GitPanel />)
+    fireEvent.click(generateButton())
+    await waitFor(() => expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawdWorking/))
+
+    randomSpy.mockRestore()
+  })
 })
