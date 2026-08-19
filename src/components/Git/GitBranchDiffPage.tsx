@@ -10,6 +10,7 @@ import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
 import { useInfiniteScroll } from './useInfiniteScroll'
 import { ColumnResizeDivider } from './ColumnResizeDivider'
+import { RefreshIcon } from './RefreshIcon'
 
 const ROW_H = 70
 
@@ -296,6 +297,10 @@ export function GitBranchDiffPage() {
     }
   }, [selectedRepo, currentBranch])
 
+  // Bumped by the refresh button to force a refetch without the source/target
+  // pair itself having changed.
+  const [refreshKey, setRefreshKey] = useState(0)
+
   useEffect(() => {
     if (!selectedRepo || !source || !target || source === target) {
       setCommits([])
@@ -313,7 +318,7 @@ export function GitBranchDiffPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedRepo, source, target])
+  }, [selectedRepo, source, target, refreshKey])
 
   const handleLoadMore = useCallback(() => {
     if (!selectedRepo || !source || !target || source === target) return
@@ -344,9 +349,21 @@ export function GitBranchDiffPage() {
         <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
           Branch Diff
         </span>
-        <span className="text-[0.625rem] text-fg-subtle">
-          {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[0.625rem] text-fg-subtle">
+            {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            disabled={loadingBranches || loadingCommits}
+            aria-label="Refresh"
+            title="Refresh"
+            className="text-fg-muted hover:text-fg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <RefreshIcon className={loadingBranches || loadingCommits ? 'animate-spin' : undefined} />
+          </button>
+        </div>
       </div>
 
       <div className="border-b border-border px-4 py-3 shrink-0">

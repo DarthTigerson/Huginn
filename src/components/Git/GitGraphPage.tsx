@@ -10,6 +10,7 @@ import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
 import { useInfiniteScroll } from './useInfiniteScroll'
 import { ColumnResizeDivider } from './ColumnResizeDivider'
+import { RefreshIcon } from './RefreshIcon'
 
 export const ROW_H = 72
 const LANE_W = 40
@@ -333,17 +334,16 @@ export function GitGraphPage() {
           <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
             Git Graph
           </span>
-          {loading ? (
-            <span className="text-[0.625rem] text-fg-subtle">Loading…</span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => selectedRepo && load(selectedRepo)}
-              className="text-[0.625rem] text-fg-muted hover:text-fg transition-colors"
-            >
-              Refresh
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => selectedRepo && load(selectedRepo)}
+            disabled={loading}
+            aria-label="Refresh"
+            title="Refresh"
+            className="text-fg-muted hover:text-fg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <RefreshIcon className={loading ? 'animate-spin' : undefined} />
+          </button>
         </div>
 
         <div className="flex-1 relative overflow-hidden">
