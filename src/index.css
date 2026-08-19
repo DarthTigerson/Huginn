@@ -409,3 +409,44 @@ body {
   pointer-events: none;
   animation: ee-sail-across 8s linear forwards;
 }
+
+/* Second Konami egg (see NarutoRunEgg / buildNarutoJump in EasterEgg.tsx) —
+   a single naruto leaps right-to-left across a row of static trees
+   (.easter-egg-tree below), landing precisely on each one's branch in turn.
+   Since tree positions are randomized per run, the @keyframes for the jump
+   path can't be static hand-authored CSS — buildNarutoJump() generates it
+   fresh each run from the actual tree coordinates and injects it via a
+   <style> tag; this class only carries what's shared (position, artwork,
+   GPU compositing). animation-name/animation-duration are set per-run via
+   inline style, pointing at that generated keyframes rule. */
+.easter-egg-naruto-solo {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  aspect-ratio: 1448 / 1086;
+  background-image: url('./assets/narutoRun.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 200;
+  pointer-events: none;
+  animation-fill-mode: forwards;
+}
+/* Static landing-point trees — several, spread across the width at fixed
+   (per-run-randomized, see generateTrees() in EasterEgg.tsx) positions and
+   heights. Not animated: they just sit there as the actual targets
+   buildNarutoJump() computes the jump path's landing points from. Behind
+   the naruto z-index so it always renders on top when passing over one,
+   like landing on the branch rather than behind it. The source art's
+   branch juts rightward, matching the direction naruto runs in from. */
+.easter-egg-tree {
+  position: fixed;
+  bottom: 0;
+  aspect-ratio: 1060 / 1484;
+  background-image: url('./assets/narutoTree.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  z-index: 150;
+  pointer-events: none;
+}
