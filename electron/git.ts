@@ -325,32 +325,45 @@ async function showRef(cwd: string, ref: string): Promise<string> {
   }
 }
 
-export async function getGitGraph(cwd: string): Promise<import('../src/types/index').GitCommit[]> {
+// Shared by getGitGraph and getGitBranchDiff/GitGraphPage's loadMore to decide
+// whether another page might exist: a page shorter than this was the last one.
+// Mirror this value in gitGraphStore.ts / gitBranchDiffStore.ts if it changes.
+export const GIT_LOG_PAGE_SIZE = 100
+const GIT_LOG_PRETTY_FORMAT = '%H|%P|%s|%an|%ai|%D'
+
+function parseGitLogOutput(stdout: string): import('../src/types/index').GitCommit[] {
+  return stdout
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const pipeIdx = line.indexOf('|')
+      const hash = line.slice(0, pipeIdx)
+      const rest = line.slice(pipeIdx + 1)
+      const parts = rest.split('|')
+      const parentsRaw = parts[0] ?? ''
+      const subject = parts[1] ?? ''
+      const author = parts[2] ?? ''
+      const date = parts[3] ?? ''
+      const refsRaw = parts[4] ?? ''
+      const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
+      const refs = refsRaw.trim()
+        ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
+        : []
+      return { hash, parents, subject, author, date, refs }
+    })
+}
+
+export async function getGitGraph(
+  cwd: string,
+  offset: number = 0
+): Promise<import('../src/types/index').GitCommit[]> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', '--all', '-n', '100', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      ['log', '--all', '--skip', String(offset), '-n', String(GIT_LOG_PAGE_SIZE), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
       { cwd }
     )
-    return stdout
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const pipeIdx = line.indexOf('|')
-        const hash = line.slice(0, pipeIdx)
-        const rest = line.slice(pipeIdx + 1)
-        const parts = rest.split('|')
-        const parentsRaw = parts[0] ?? ''
-        const subject = parts[1] ?? ''
-        const author = parts[2] ?? ''
-        const date = parts[3] ?? ''
-        const refsRaw = parts[4] ?? ''
-        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
-        const refs = refsRaw.trim()
-          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
-          : []
-        return { hash, parents, subject, author, date, refs }
-      })
+    return parseGitLogOutput(stdout)
   } catch {
     return []
   }
@@ -359,7 +372,8 @@ export async function getGitGraph(cwd: string): Promise<import('../src/types/ind
 export async function getGitBranchDiff(
   cwd: string,
   source: string,
-  target: string
+  target: string,
+  offset: number = 0
 ): Promise<import('../src/types/index').GitBranchDiff> {
   if (!source || !target || source === target) {
     return { source, target, commits: [] }
@@ -368,29 +382,10 @@ export async function getGitBranchDiff(
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', `${target}..${source}`, '-n', '200', '--pretty=format:%H|%P|%s|%an|%ai|%D'],
+      ['log', `${target}..${source}`, '--skip', String(offset), '-n', String(GIT_LOG_PAGE_SIZE), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
       { cwd }
     )
-    const commits = stdout
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const pipeIdx = line.indexOf('|')
-        const hash = line.slice(0, pipeIdx)
-        const rest = line.slice(pipeIdx + 1)
-        const parts = rest.split('|')
-        const parentsRaw = parts[0] ?? ''
-        const subject = parts[1] ?? ''
-        const author = parts[2] ?? ''
-        const date = parts[3] ?? ''
-        const refsRaw = parts[4] ?? ''
-        const parents = parentsRaw.trim() ? parentsRaw.trim().split(' ').filter(Boolean) : []
-        const refs = refsRaw.trim()
-          ? refsRaw.split(',').map((r) => r.trim()).filter(Boolean)
-          : []
-        return { hash, parents, subject, author, date, refs }
-      })
-    return { source, target, commits }
+    return { source, target, commits: parseGitLogOutput(stdout) }
   } catch {
     return { source, target, commits: [] }
   }

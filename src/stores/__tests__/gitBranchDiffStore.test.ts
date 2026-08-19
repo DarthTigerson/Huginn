@@ -16,6 +16,8 @@ describe('gitBranchDiffStore', () => {
       commits: [],
       loadingBranches: false,
       loadingCommits: false,
+      loadingMore: false,
+      hasMore: true,
       selectedHash: null,
     })
   })
@@ -65,5 +67,29 @@ describe('gitBranchDiffStore', () => {
   it('setCommits with no prior selection stays null', () => {
     useGitBranchDiffStore.getState().setCommits([makeCommit('abc')])
     expect(useGitBranchDiffStore.getState().selectedHash).toBeNull()
+  })
+
+  it('setCommits sets hasMore true for a full page, false for a short one', () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => makeCommit(`h${i}`))
+    useGitBranchDiffStore.getState().setCommits(fullPage)
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(true)
+
+    useGitBranchDiffStore.getState().setCommits([makeCommit('only-one')])
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(false)
+  })
+
+  it('appendCommits adds to the existing list and recomputes hasMore off the new page alone', () => {
+    useGitBranchDiffStore.setState({ commits: [makeCommit('a'), makeCommit('b')], loadingMore: true })
+    useGitBranchDiffStore.getState().appendCommits([makeCommit('c')])
+    expect(useGitBranchDiffStore.getState().commits.map((c) => c.hash)).toEqual(['a', 'b', 'c'])
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(false)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(false)
+  })
+
+  it('setLoadingMore toggles loadingMore', () => {
+    useGitBranchDiffStore.getState().setLoadingMore(true)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(true)
+    useGitBranchDiffStore.getState().setLoadingMore(false)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(false)
   })
 })

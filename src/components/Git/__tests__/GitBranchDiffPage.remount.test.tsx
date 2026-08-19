@@ -33,6 +33,8 @@ beforeEach(() => {
     commits: [],
     loadingBranches: false,
     loadingCommits: false,
+    loadingMore: false,
+    hasMore: false,
     selectedHash: null,
   })
 })

@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { GitCommit } from '@/types/index'
 
+// Mirrors GIT_LOG_PAGE_SIZE in electron/git.ts — a page shorter than this is
+// the last one, so a page exactly this long is the signal to keep paging.
+export const GIT_LOG_PAGE_SIZE = 100
+
 // Backs GitBranchDiffPage (List Diff). Previously all of this lived in local
 // useState, which meant opening a file from a commit's changed-files list —
 // backgrounding the List Diff tab — silently reset the source/target branch
@@ -16,6 +20,8 @@ interface GitBranchDiffStore {
   commits: GitCommit[]
   loadingBranches: boolean
   loadingCommits: boolean
+  loadingMore: boolean
+  hasMore: boolean
   selectedHash: string | null
   setBranches: (branches: string[]) => void
   setDefaultBranch: (branch: string | null) => void
@@ -25,7 +31,9 @@ interface GitBranchDiffStore {
   setTarget: (target: string) => void
   setLoadingBranches: (loading: boolean) => void
   setCommits: (commits: GitCommit[]) => void
+  appendCommits: (commits: GitCommit[]) => void
   setLoadingCommits: (loading: boolean) => void
+  setLoadingMore: (loading: boolean) => void
   select: (hash: string | null) => void
 }
 
@@ -37,6 +45,8 @@ export const useGitBranchDiffStore = create<GitBranchDiffStore>((set) => ({
   commits: [],
   loadingBranches: false,
   loadingCommits: false,
+  loadingMore: false,
+  hasMore: true,
   selectedHash: null,
 
   setBranches: (branches) => set({ branches }),
@@ -54,8 +64,17 @@ export const useGitBranchDiffStore = create<GitBranchDiffStore>((set) => ({
   setCommits: (commits) =>
     set((s) => ({
       commits,
+      hasMore: commits.length >= GIT_LOG_PAGE_SIZE,
+      loadingMore: false,
       selectedHash: s.selectedHash && commits.some((c) => c.hash === s.selectedHash) ? s.selectedHash : null,
     })),
+  appendCommits: (commits) =>
+    set((s) => ({
+      commits: [...s.commits, ...commits],
+      hasMore: commits.length >= GIT_LOG_PAGE_SIZE,
+      loadingMore: false,
+    })),
   setLoadingCommits: (loadingCommits) => set({ loadingCommits }),
+  setLoadingMore: (loadingMore) => set({ loadingMore }),
   select: (hash) => set({ selectedHash: hash }),
 }))

@@ -7,6 +7,7 @@ import type { CommitLayout, RowEdge } from './graphLayout'
 import { normalizeRef, formatExactDate, formatRelDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
+import { useInfiniteScroll } from './useInfiniteScroll'
 
 export const ROW_H = 72
 const LANE_W = 40
@@ -284,14 +285,20 @@ interface RowMenuState {
 
 export function GitGraphPage() {
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
-  const { commits, selectedHash, loading } = useRepoGraphState(selectedRepo)
+  const { commits, selectedHash, loading, loadingMore, hasMore } = useRepoGraphState(selectedRepo)
   const load = useGitGraphStore((s) => s.load)
+  const loadMore = useGitGraphStore((s) => s.loadMore)
   const select = useGitGraphStore((s) => s.select)
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
     if (selectedRepo) load(selectedRepo)
   }, [selectedRepo, load])
+
+  const handleLoadMore = useCallback(() => {
+    if (selectedRepo) loadMore(selectedRepo)
+  }, [selectedRepo, loadMore])
+  const sentinelRef = useInfiniteScroll(handleLoadMore, hasMore, loading || loadingMore)
 
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
@@ -342,18 +349,25 @@ export function GitGraphPage() {
               No commits found
             </div>
           ) : (
-            layouts.map((layout, index) => (
-              <GraphRow
-                key={layout.commit.hash}
-                layout={layout}
-                rowIndex={index}
-                graphRailWidth={graphRailWidth}
-                graphLaneCount={graphLaneCount}
-                selected={layout.commit.hash === selectedHash}
-                onClick={() => handleSelect(layout.commit.hash)}
-                onContextMenu={(e) => handleRowContextMenu(e, layout.commit.subject, layout.commit.hash)}
-              />
-            ))
+            <>
+              {layouts.map((layout, index) => (
+                <GraphRow
+                  key={layout.commit.hash}
+                  layout={layout}
+                  rowIndex={index}
+                  graphRailWidth={graphRailWidth}
+                  graphLaneCount={graphLaneCount}
+                  selected={layout.commit.hash === selectedHash}
+                  onClick={() => handleSelect(layout.commit.hash)}
+                  onContextMenu={(e) => handleRowContextMenu(e, layout.commit.subject, layout.commit.hash)}
+                />
+              ))}
+              {hasMore && (
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
+                  {loadingMore ? 'Loading more…' : ''}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

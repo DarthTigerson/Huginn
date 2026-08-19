@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useRepoGitState } from '@/stores/gitStore'
@@ -8,6 +8,7 @@ import type { GitCommit } from '@/types/index'
 import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
+import { useInfiniteScroll } from './useInfiniteScroll'
 
 const ROW_H = 70
 
@@ -243,6 +244,8 @@ export function GitBranchDiffPage() {
     commits,
     loadingBranches,
     loadingCommits,
+    loadingMore,
+    hasMore,
     selectedHash,
     setBranches,
     setDefaultBranch,
@@ -252,7 +255,9 @@ export function GitBranchDiffPage() {
     setTarget,
     setLoadingBranches,
     setCommits,
+    appendCommits,
     setLoadingCommits,
+    setLoadingMore,
     select,
   } = useGitBranchDiffStore()
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
@@ -303,6 +308,15 @@ export function GitBranchDiffPage() {
       cancelled = true
     }
   }, [selectedRepo, source, target])
+
+  const handleLoadMore = useCallback(() => {
+    if (!selectedRepo || !source || !target || source === target) return
+    setLoadingMore(true)
+    window.api.gitBranchDiff(selectedRepo, source, target, commits.length).then((result) => {
+      appendCommits(result.commits)
+    })
+  }, [selectedRepo, source, target, commits.length, setLoadingMore, appendCommits])
+  const sentinelRef = useInfiniteScroll(handleLoadMore, hasMore, loadingBranches || loadingCommits || loadingMore)
 
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
@@ -381,6 +395,11 @@ export function GitBranchDiffPage() {
                   }}
                 />
               ))}
+              {hasMore && (
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
+                  {loadingMore ? 'Loading more…' : ''}
+                </div>
+              )}
             </div>
           )}
         </div>

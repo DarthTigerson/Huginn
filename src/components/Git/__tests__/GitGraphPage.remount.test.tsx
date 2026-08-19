@@ -25,7 +25,9 @@ describe('GitGraphPage — selection survives a tab switch away and back', () =>
       gitShowStat: vi.fn().mockResolvedValue(['src/App.tsx']),
     }
     useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj' })
-    useGitGraphStore.setState({ repos: { '/proj': { commits: [commit], selectedHash: 'abc123def456', loading: false } } })
+    useGitGraphStore.setState({
+      repos: { '/proj': { commits: [commit], selectedHash: 'abc123def456', loading: false, loadingMore: false, hasMore: false } },
+    })
 
     const { unmount } = render(<GitGraphPage />)
     expect(await screen.findByText('Commit Details')).toBeTruthy()
