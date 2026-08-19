@@ -1,5 +1,17 @@
 # Huginn 
 
+## v0.2.2 (2026-08-20)
+- **Search and filter in Git Graph & Branch Diff**: a search bar plus filter dropdowns for branch, tag, and author — search reaches your full commit history, not just what's scrolled into view
+- **Infinite scroll in Git Graph & Branch Diff**: both views now load more commits as you scroll instead of stopping at a fixed page
+- A draggable divider in Git Graph and Branch Diff resizes how much space the ref badges get against the graph/commit list
+- Refresh in Git Graph and Branch Diff is now a spinning icon button instead of a text link
+- **Claude busy indicator**: the Claude icon in the sidebar toggle animates while Claude is actively generating a response, detected automatically from its terminal output
+- The commit-message generate button now plays a fun animation while Claude writes your commit message
+
+**Bug fixes**
+- Fixed Docker showing "not installed" when it's actually installed but just not visible on the restricted PATH Electron apps get when launched from Dock/Finder rather than a terminal — Docker's CLI is now resolved via a login shell, the same way `claude`/`graphify`/language servers already were
+
+
 ## v0.2.1 (2026-08-18)
 - **Favorite repos**: star repos in the Git panel to pin them to the top of the repo list, the footer's quick-switch menu, and the project list's ordering; a repo-scan-depth setting in Settings > Git controls how deep multi-repo discovery looks for nested repos
 - **Publish Branch**: pushes a new branch and sets its upstream (`git push -u origin <branch>`) so a plain Push works afterwards — available from the Git panel and the footer menu
