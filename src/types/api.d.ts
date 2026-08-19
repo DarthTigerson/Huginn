@@ -117,11 +117,11 @@ declare global {
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
       gitLogResize: (cols: number, rows: number) => void
-      gitGraph: (cwd: string, offset?: number) => Promise<GitCommit[]>
+      gitGraph: (cwd: string, offset?: number, limit?: number) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
       gitDefaultBranch: (cwd: string) => Promise<string | null>
       gitBranchList: (cwd: string) => Promise<GitBranchList>
-      gitBranchDiff: (cwd: string, source: string, target: string, offset?: number) => Promise<GitBranchDiff>
+      gitBranchDiff: (cwd: string, source: string, target: string, offset?: number, limit?: number) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitFetchSilent: (cwd: string) => Promise<boolean>
       gitStagedDiff: (cwd: string) => Promise<string>

@@ -53,12 +53,12 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
   gitLogResize: (cols: number, rows: number) => ipcRenderer.send('git:log:resize', cols, rows),
-  gitGraph: (cwd: string, offset?: number) => ipcRenderer.invoke('git:graph', cwd, offset),
+  gitGraph: (cwd: string, offset?: number, limit?: number) => ipcRenderer.invoke('git:graph', cwd, offset, limit),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
   gitDefaultBranch: (cwd: string) => ipcRenderer.invoke('git:defaultBranch', cwd),
   gitBranchList: (cwd: string) => ipcRenderer.invoke('git:branchList', cwd),
-  gitBranchDiff: (cwd: string, source: string, target: string, offset?: number) =>
-    ipcRenderer.invoke('git:branchDiff', cwd, source, target, offset),
+  gitBranchDiff: (cwd: string, source: string, target: string, offset?: number, limit?: number) =>
+    ipcRenderer.invoke('git:branchDiff', cwd, source, target, offset, limit),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
   gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,

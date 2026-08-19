@@ -109,4 +109,58 @@ describe('gitGraphStore', () => {
     await useGitGraphStore.getState().loadMore('/proj')
     expect(gitGraphMock).not.toHaveBeenCalled()
   })
+
+  it('setFilters merges into the existing filters for that repo', () => {
+    useGitGraphStore.setState({ repos: { '/proj': { ...emptyRepoGraphState } } })
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'fix' })
+    useGitGraphStore.getState().setFilters('/proj', { authors: ['Ada'] })
+
+    expect(useGitGraphStore.getState().repos['/proj'].filters).toEqual({
+      searchText: 'fix',
+      branches: [],
+      tags: [],
+      authors: ['Ada'],
+    })
+  })
+
+  it('setFilters triggers exactly one wide fetch on the empty-to-active transition, not on every subsequent change', async () => {
+    useGitGraphStore.setState({ repos: { '/proj': { ...emptyRepoGraphState, commits: mockCommits } } })
+    gitGraphMock.mockResolvedValueOnce(makeCommits(5, 'wide'))
+
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'a' })
+    await Promise.resolve() // flush the wide-fetch microtask
+    await Promise.resolve()
+
+    expect(gitGraphMock).toHaveBeenCalledWith('/proj', 0, 2000)
+    expect(useGitGraphStore.getState().repos['/proj'].wideFetched).toBe(true)
+    expect(useGitGraphStore.getState().repos['/proj'].commits).toHaveLength(5)
+
+    gitGraphMock.mockClear()
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'ab' })
+    expect(gitGraphMock).not.toHaveBeenCalled()
+  })
+
+  it('does not trigger a wide fetch when a filter change keeps filters active or goes back to empty', async () => {
+    useGitGraphStore.setState({
+      repos: { '/proj': { ...emptyRepoGraphState, commits: mockCommits, wideFetched: true, filters: { searchText: 'a', branches: [], tags: [], authors: [] } } },
+    })
+    useGitGraphStore.getState().setFilters('/proj', { searchText: '' })
+    expect(gitGraphMock).not.toHaveBeenCalled()
+    expect(useGitGraphStore.getState().repos['/proj'].filters.searchText).toBe('')
+  })
+
+  it('load resets filters and wideFetched back to defaults', async () => {
+    useGitGraphStore.setState({
+      repos: {
+        '/proj': {
+          ...emptyRepoGraphState,
+          filters: { searchText: 'x', branches: ['main'], tags: [], authors: [] },
+          wideFetched: true,
+        },
+      },
+    })
+    await useGitGraphStore.getState().load('/proj')
+    expect(useGitGraphStore.getState().repos['/proj'].filters).toEqual(emptyRepoGraphState.filters)
+    expect(useGitGraphStore.getState().repos['/proj'].wideFetched).toBe(false)
+  })
 })

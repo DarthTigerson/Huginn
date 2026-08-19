@@ -18,7 +18,7 @@ export const DEFAULT_REPO_SCAN_DEPTH = 4
 // Shared by GitGraphPage and GitBranchDiffPage's refs/pipes column divider.
 export const REFS_COLUMN_MIN_WIDTH = 60
 export const REFS_COLUMN_MAX_WIDTH = 640
-const DEFAULT_REFS_COLUMN_WIDTH = 96
+const DEFAULT_REFS_COLUMN_WIDTH = 180
 
 function clampRefsColumnWidth(v: number): number {
   return Math.round(Math.max(REFS_COLUMN_MIN_WIDTH, Math.min(REFS_COLUMN_MAX_WIDTH, v)))

@@ -355,12 +355,13 @@ function parseGitLogOutput(stdout: string): import('../src/types/index').GitComm
 
 export async function getGitGraph(
   cwd: string,
-  offset: number = 0
+  offset: number = 0,
+  limit: number = GIT_LOG_PAGE_SIZE
 ): Promise<import('../src/types/index').GitCommit[]> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', '--all', '--skip', String(offset), '-n', String(GIT_LOG_PAGE_SIZE), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
+      ['log', '--all', '--skip', String(offset), '-n', String(limit), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
       { cwd }
     )
     return parseGitLogOutput(stdout)
@@ -373,7 +374,8 @@ export async function getGitBranchDiff(
   cwd: string,
   source: string,
   target: string,
-  offset: number = 0
+  offset: number = 0,
+  limit: number = GIT_LOG_PAGE_SIZE
 ): Promise<import('../src/types/index').GitBranchDiff> {
   if (!source || !target || source === target) {
     return { source, target, commits: [] }
@@ -382,7 +384,7 @@ export async function getGitBranchDiff(
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', `${target}..${source}`, '--skip', String(offset), '-n', String(GIT_LOG_PAGE_SIZE), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
+      ['log', `${target}..${source}`, '--skip', String(offset), '-n', String(limit), `--pretty=format:${GIT_LOG_PRETTY_FORMAT}`],
       { cwd }
     )
     return { source, target, commits: parseGitLogOutput(stdout) }

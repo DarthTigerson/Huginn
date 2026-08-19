@@ -41,6 +41,12 @@ describe('getGitGraph paging', () => {
     expect(fromOffset.map((c) => c.subject)).toEqual(['commit 1', 'commit 0', 'init'])
   })
 
+  it('an explicit limit overrides GIT_LOG_PAGE_SIZE, for the wide search fetch', async () => {
+    await createEmptyCommits(root, 4, 'commit')
+    const wide = await getGitGraph(root, 0, 2)
+    expect(wide.map((c) => c.subject)).toEqual(['commit 3', 'commit 2'])
+  })
+
   it(
     'caps a page at GIT_LOG_PAGE_SIZE, and an offset of the previous page length continues from there',
     async () => {
@@ -84,6 +90,12 @@ describe('getGitBranchDiff paging', () => {
     await createEmptyCommits(root, 4, 'feature commit')
     const { commits } = await getGitBranchDiff(root, 'feature', 'base', 2)
     expect(commits.map((c) => c.subject)).toEqual(['feature commit 1', 'feature commit 0'])
+  })
+
+  it('an explicit limit overrides GIT_LOG_PAGE_SIZE, for the wide search fetch', async () => {
+    await createEmptyCommits(root, 4, 'feature commit')
+    const { commits } = await getGitBranchDiff(root, 'feature', 'base', 0, 2)
+    expect(commits.map((c) => c.subject)).toEqual(['feature commit 3', 'feature commit 2'])
   })
 
   it(

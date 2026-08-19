@@ -11,6 +11,9 @@ import { CommitDetailsPanel } from './CommitDetailsPanel'
 import { useInfiniteScroll } from './useInfiniteScroll'
 import { ColumnResizeDivider } from './ColumnResizeDivider'
 import { RefreshIcon } from './RefreshIcon'
+import { CommitFilterBar } from './CommitFilterBar'
+import { filterCommits, hasActiveFilters } from './commitFilter'
+import { SEARCH_FETCH_LIMIT } from '@/stores/gitBranchDiffStore'
 
 const ROW_H = 70
 
@@ -254,6 +257,8 @@ export function GitBranchDiffPage() {
     loadingMore,
     hasMore,
     selectedHash,
+    filters,
+    wideFetched,
     setBranches,
     setDefaultBranch,
     setSourceIfEmpty,
@@ -266,6 +271,9 @@ export function GitBranchDiffPage() {
     setLoadingCommits,
     setLoadingMore,
     select,
+    setFilters,
+    setWideFetched,
+    resetFilters,
   } = useGitBranchDiffStore()
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
@@ -307,6 +315,7 @@ export function GitBranchDiffPage() {
       return
     }
 
+    resetFilters() // a genuinely new source/target pair starts a fresh view
     let cancelled = false
     setLoadingCommits(true)
     window.api.gitBranchDiff(selectedRepo, source, target).then((result) => {
@@ -327,8 +336,36 @@ export function GitBranchDiffPage() {
       appendCommits(result.commits)
     })
   }, [selectedRepo, source, target, commits.length, setLoadingMore, appendCommits])
-  const sentinelRef = useInfiniteScroll(handleLoadMore, hasMore, loadingBranches || loadingCommits || loadingMore)
 
+  const isFiltered = hasActiveFilters(filters)
+  const sentinelRef = useInfiniteScroll(
+    handleLoadMore,
+    hasMore && !isFiltered,
+    loadingBranches || loadingCommits || loadingMore
+  )
+
+  // Fired once, the moment search/filters first go from inactive to active —
+  // replaces the paginated small page with a much deeper fetch so filtering
+  // has real history to search, not just what's scrolled in.
+  const ensureWideFetch = useCallback(() => {
+    if (wideFetched || !selectedRepo || !source || !target || source === target) return
+    setLoadingCommits(true)
+    window.api.gitBranchDiff(selectedRepo, source, target, 0, SEARCH_FETCH_LIMIT).then((result) => {
+      setCommits(result.commits)
+      setWideFetched(true)
+      setLoadingCommits(false)
+    })
+  }, [wideFetched, selectedRepo, source, target, setLoadingCommits, setCommits, setWideFetched])
+
+  function updateFilters(patch: Partial<typeof filters>) {
+    const wasActive = hasActiveFilters(filters)
+    setFilters(patch)
+    if (!wasActive && hasActiveFilters({ ...filters, ...patch })) {
+      ensureWideFetch()
+    }
+  }
+
+  const visibleCommits = useMemo(() => filterCommits(commits, filters), [commits, filters])
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
   const targetOptions = useMemo(
@@ -351,7 +388,11 @@ export function GitBranchDiffPage() {
         </span>
         <div className="flex items-center gap-2">
           <span className="text-[0.625rem] text-fg-subtle">
-            {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
+            {loadingBranches || loadingCommits
+              ? 'Loading...'
+              : isFiltered
+                ? `${visibleCommits.length} of ${commits.length} commits`
+                : `${commits.length} commits`}
           </span>
           <button
             type="button"
@@ -388,6 +429,17 @@ export function GitBranchDiffPage() {
         </div>
       </div>
 
+      {source && target && source !== target && (
+        <CommitFilterBar
+          commits={commits}
+          filters={filters}
+          onSearchTextChange={(searchText) => updateFilters({ searchText })}
+          onBranchesChange={(branches) => updateFilters({ branches })}
+          onTagsChange={(tags) => updateFilters({ tags })}
+          onAuthorsChange={(authors) => updateFilters({ authors })}
+        />
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 relative overflow-hidden">
           <div className="h-full overflow-y-auto">
@@ -399,6 +451,30 @@ export function GitBranchDiffPage() {
               <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
                 Select two branches
               </div>
+            ) : isFiltered ? (
+              visibleCommits.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                  No matching commits
+                </div>
+              ) : (
+                <div>
+                  {visibleCommits.map((commit, index) => (
+                    <CommitRow
+                      key={commit.hash}
+                      commit={commit}
+                      index={index}
+                      total={visibleCommits.length}
+                      selected={commit.hash === selectedHash}
+                      refsColumnWidth={refsColumnWidth}
+                      onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                      }}
+                    />
+                  ))}
+                </div>
+              )
             ) : commits.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
                 No commits between selected branches
@@ -428,7 +504,7 @@ export function GitBranchDiffPage() {
               </div>
             )}
           </div>
-          {commits.length > 0 && (
+          {(isFiltered ? visibleCommits.length > 0 : commits.length > 0) && (
             <ColumnResizeDivider
               width={refsColumnWidth}
               min={REFS_COLUMN_MIN_WIDTH}

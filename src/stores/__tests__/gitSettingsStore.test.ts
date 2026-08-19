@@ -24,7 +24,7 @@ describe('gitSettingsStore', () => {
       listDiffTargetBranches: {},
       periodicFetchEnabled: true,
       periodicFetchIntervalMinutes: 5,
-      refsColumnWidth: 96,
+      refsColumnWidth: 180,
     })
   })
 
@@ -112,8 +112,8 @@ describe('gitSettingsStore', () => {
     expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(120)
   })
 
-  it('refsColumnWidth defaults to 96', () => {
-    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(96)
+  it('refsColumnWidth defaults to 180', () => {
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(180)
   })
 
   it('setRefsColumnWidth persists to localStorage', () => {
