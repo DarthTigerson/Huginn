@@ -20,6 +20,10 @@ interface ClaudeState {
   chatVisible: boolean
   pendingInjection: string | null
   focusToken: number
+  // Whether that assistant's CLI is actively generating (electron/claude.ts
+  // infers this from PTY output timing, filtering out echoes of the user's
+  // own keystrokes — see the ECHO_WINDOW_MS comment there).
+  busyByAssistant: Partial<Record<AssistantKind, boolean>>
   setAssistant: (assistant: AssistantKind) => void
   newSession: (cwd: string) => void
   previousSession: (cwd: string) => void
@@ -33,6 +37,7 @@ interface ClaudeState {
   sendSelection: (text: string) => void
   focusChat: () => void
   consumeInjection: () => void
+  setBusy: (assistant: AssistantKind, busy: boolean) => void
 }
 
 export const useClaudeStore = create<ClaudeState>((set, get) => ({
@@ -46,6 +51,10 @@ export const useClaudeStore = create<ClaudeState>((set, get) => ({
   chatVisible: false,
   pendingInjection: null,
   focusToken: 0,
+  busyByAssistant: {},
+
+  setBusy: (assistant, busy) =>
+    set((s) => ({ busyByAssistant: { ...s.busyByAssistant, [assistant]: busy } })),
 
   setAssistant: (assistant: AssistantKind) => {
     try { localStorage.setItem(ASSISTANT_KEY, assistant) } catch {}

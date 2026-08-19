@@ -34,6 +34,7 @@ import {
   ModelIcon,
   FastIcon,
 } from './components/ActivityBar/ActivityBar'
+import { ClaudeStatusIcon } from './components/ActivityBar/ClaudeStatusIcon'
 import { SettingsPanel } from './components/Settings/SettingsPanel'
 import { GitPanel } from './components/Git/GitPanel'
 import { BranchPalette } from './components/Git/BranchPalette'
@@ -343,6 +344,12 @@ export default function App() {
       if (cwd === useGitReposStore.getState().selectedRepo) {
         useGitStore.getState().refresh(cwd)
       }
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onAssistantBusy((assistant, busy) => {
+      useClaudeStore.getState().setBusy(assistant, busy)
     })
   }, [])
 
@@ -791,7 +798,7 @@ export default function App() {
           groups={[
             [{
               id: assistant,
-              icon: assistantIcon(assistant),
+              icon: assistant === 'claude' ? <ClaudeStatusIcon /> : assistantIcon(assistant),
               title: assistantLabel,
               active: chatVisible,
               disabled: !projectRoot,

@@ -131,6 +131,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('assistant:data', handler)
     return () => ipcRenderer.removeListener('assistant:data', handler)
   },
+  onAssistantBusy: (cb: (assistant: 'claude' | 'codex', busy: boolean) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, assistant: 'claude' | 'codex', busy: boolean) => cb(assistant, busy)
+    ipcRenderer.on('assistant:busy', handler)
+    return () => ipcRenderer.removeListener('assistant:busy', handler)
+  },
 
   mobileStart: () => ipcRenderer.invoke('mobile:start'),
   mobileStop: () => ipcRenderer.invoke('mobile:stop'),

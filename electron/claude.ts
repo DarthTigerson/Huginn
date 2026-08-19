@@ -24,10 +24,26 @@ function hasValidSize(cols: number, rows: number): boolean {
   return Number.isFinite(cols) && Number.isFinite(rows) && cols > 0 && rows > 0
 }
 
+// "Busy" detection for the animated status icon: the PTY's raw output stream
+// can't distinguish the CLI's own generated output from it echoing the
+// user's own keystrokes back to redraw its input box, so a naive "any output
+// = busy" heuristic would show "busy" for the entire time the user is typing
+// a prompt. Instead, output that arrives within ECHO_WINDOW_MS of our own
+// last write to that pty is assumed to be an echo and ignored; output that
+// arrives without a recent write behind it is real generation. Busy clears
+// itself IDLE_TIMEOUT_MS after the last non-echo output, via a timer rather
+// than polling, since "went idle" is a transition that happens purely from
+// time passing with no new event to trigger it.
+export const ECHO_WINDOW_MS = 400
+export const IDLE_TIMEOUT_MS = 1500
+
 interface WindowState {
   procs: Partial<Record<AssistantKind, pty.IPty>>
   procCwd: Partial<Record<AssistantKind, string>>
   activeAssistant: AssistantKind
+  lastInputAt: Partial<Record<AssistantKind, number>>
+  busy: Partial<Record<AssistantKind, boolean>>
+  busyTimers: Partial<Record<AssistantKind, NodeJS.Timeout>>
 }
 
 export class ClaudeManager {
@@ -63,12 +79,25 @@ export class ClaudeManager {
         state.procCwd[selectedAssistant] = cwd
         proc.onData((data) => {
           if (!win.isDestroyed()) win.webContents.send('assistant:data', selectedAssistant, data)
+
+          const now = Date.now()
+          const sinceInput = now - (state.lastInputAt[selectedAssistant] ?? 0)
+          if (sinceInput <= ECHO_WINDOW_MS) return // likely an echo of our own input, not real activity
+
+          this.setBusy(win, state, selectedAssistant, true)
+          clearTimeout(state.busyTimers[selectedAssistant])
+          state.busyTimers[selectedAssistant] = setTimeout(() => {
+            this.setBusy(win, state, selectedAssistant, false)
+          }, IDLE_TIMEOUT_MS)
         })
         proc.onExit(() => {
           if (state.procs[selectedAssistant] === proc) {
             delete state.procs[selectedAssistant]
             delete state.procCwd[selectedAssistant]
           }
+          clearTimeout(state.busyTimers[selectedAssistant])
+          delete state.busyTimers[selectedAssistant]
+          this.setBusy(win, state, selectedAssistant, false)
         })
       } catch {
         if (!win.isDestroyed()) {
@@ -86,6 +115,7 @@ export class ClaudeManager {
       if (!win) return
       const state = this.stateFor(win.id)
       const selectedAssistant = (assistant === 'codex' ? 'codex' : assistant === 'claude' ? 'claude' : state.activeAssistant)
+      state.lastInputAt[selectedAssistant] = Date.now()
       state.procs[selectedAssistant]?.write(data)
     })
 
@@ -98,10 +128,16 @@ export class ClaudeManager {
     })
   }
 
+  private setBusy(win: BrowserWindow, state: WindowState, assistant: AssistantKind, busy: boolean): void {
+    if (state.busy[assistant] === busy) return
+    state.busy[assistant] = busy
+    if (!win.isDestroyed()) win.webContents.send('assistant:busy', assistant, busy)
+  }
+
   private stateFor(winId: number): WindowState {
     let state = this.byWindow.get(winId)
     if (!state) {
-      state = { procs: {}, procCwd: {}, activeAssistant: 'claude' }
+      state = { procs: {}, procCwd: {}, activeAssistant: 'claude', lastInputAt: {}, busy: {}, busyTimers: {} }
       this.byWindow.set(winId, state)
     }
     return state
@@ -110,6 +146,7 @@ export class ClaudeManager {
   disposeWindow(winId: number): void {
     const state = this.byWindow.get(winId)
     if (!state) return
+    Object.values(state.busyTimers).forEach((timer) => clearTimeout(timer))
     Object.values(state.procs).forEach((proc) => proc?.kill())
     this.byWindow.delete(winId)
   }

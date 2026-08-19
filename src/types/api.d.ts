@@ -155,6 +155,7 @@ declare global {
       assistantWrite: (assistant: AssistantKind, data: string) => void
       assistantResize: (assistant: AssistantKind, cols: number, rows: number) => void
       onAssistantData: (cb: (assistant: AssistantKind, data: string) => void) => () => void
+      onAssistantBusy: (cb: (assistant: AssistantKind, busy: boolean) => void) => () => void
 
       onMenuOpenProject: (cb: () => void) => () => void
       getInitialProject: () => Promise<string | null>
