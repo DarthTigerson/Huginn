@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { spawn, type ChildProcessByStdio } from 'child_process'
 import type { Readable } from 'stream'
+import { resolveBinaryPath } from './lsp/shellPath'
 
 type DockerEventsProc = ChildProcessByStdio<null, Readable, Readable>
 
@@ -11,13 +12,17 @@ type DockerEventsProc = ChildProcessByStdio<null, Readable, Readable>
 export class DockerWatcher {
   private proc: DockerEventsProc | null = null
   private watchingWindows = new Set<number>()
+  // Resolving the binary path is async, so a second docker:watch firing
+  // before the first resolution lands could otherwise spawn a duplicate
+  // stream — this flag closes that race.
+  private starting = false
 
   registerHandlers(): void {
     ipcMain.on('docker:watch', (event) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       this.watchingWindows.add(win.id)
-      this.ensureRunning()
+      void this.ensureRunning()
     })
 
     ipcMain.on('docker:unwatch', (event) => {
@@ -28,9 +33,16 @@ export class DockerWatcher {
     })
   }
 
-  private ensureRunning(): void {
-    if (this.proc) return
-    const proc = spawn('docker', ['events', '--format', '{{json .}}'], {
+  private async ensureRunning(): Promise<void> {
+    if (this.proc || this.starting) return
+    this.starting = true
+    // See dockerBin() in docker.ts: Electron GUI launches don't inherit the
+    // shell's PATH, so the bare 'docker' name can fail to resolve even when
+    // Docker Desktop is installed and running.
+    const bin = (await resolveBinaryPath('docker')) ?? 'docker'
+    this.starting = false
+    if (this.proc || this.watchingWindows.size === 0) return
+    const proc = spawn(bin, ['events', '--format', '{{json .}}'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.proc = proc
