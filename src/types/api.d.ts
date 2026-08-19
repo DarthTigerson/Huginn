@@ -117,11 +117,11 @@ declare global {
       onGitLogData: (cb: (id: string, data: string) => void) => () => void
       onGitLogExit: (cb: (id: string, code: number) => void) => () => void
       gitLogResize: (cols: number, rows: number) => void
-      gitGraph: (cwd: string) => Promise<GitCommit[]>
+      gitGraph: (cwd: string, offset?: number, limit?: number) => Promise<GitCommit[]>
       gitBranches: (cwd: string) => Promise<string[]>
       gitDefaultBranch: (cwd: string) => Promise<string | null>
       gitBranchList: (cwd: string) => Promise<GitBranchList>
-      gitBranchDiff: (cwd: string, source: string, target: string) => Promise<GitBranchDiff>
+      gitBranchDiff: (cwd: string, source: string, target: string, offset?: number, limit?: number) => Promise<GitBranchDiff>
       gitShowStat: (cwd: string, hash: string) => Promise<string[]>
       gitFetchSilent: (cwd: string) => Promise<boolean>
       gitStagedDiff: (cwd: string) => Promise<string>
@@ -155,6 +155,7 @@ declare global {
       assistantWrite: (assistant: AssistantKind, data: string) => void
       assistantResize: (assistant: AssistantKind, cols: number, rows: number) => void
       onAssistantData: (cb: (assistant: AssistantKind, data: string) => void) => () => void
+      onAssistantBusy: (cb: (assistant: AssistantKind, busy: boolean) => void) => () => void
 
       onMenuOpenProject: (cb: () => void) => () => void
       getInitialProject: () => Promise<string | null>

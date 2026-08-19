@@ -21,6 +21,10 @@ import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { FilesIcon, ClaudeIcon } from '@/components/ActivityBar/ActivityBar'
 import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
+import clawdDancingGif from '@/assets/clawdDancing.gif'
+import clawdWorkingGif from '@/assets/clawdWorking.gif'
+
+const GENERATING_GIFS = [clawdDancingGif, clawdWorkingGif]
 
 // Solid fill matching the Commit button's active look — every action pill in
 // the Git panel (Branch, Fetch, Pull, Push, Graph, List Diff) shares this
@@ -284,10 +288,12 @@ export function GitPanel() {
   const commitMessagePrompt = useCommitMessageSettingsStore((s) => s.prompt)
   const [generatingMessage, setGeneratingMessage] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [generatingGif, setGeneratingGif] = useState<string | null>(null)
 
   async function generateCommitMessage() {
     if (!selectedRepo) return
     setGeneratingMessage(true)
+    setGeneratingGif(GENERATING_GIFS[Math.floor(Math.random() * GENERATING_GIFS.length)])
     setGenerateError(null)
     try {
       const diff = await window.api.gitStagedDiff(selectedRepo)
@@ -438,11 +444,19 @@ export function GitPanel() {
                   disabled={generatingMessage || status.staged.length === 0}
                   onClick={generateCommitMessage}
                   className={[
-                    'absolute bottom-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
-                    generatingMessage ? 'animate-pulse' : '',
+                    'absolute bottom-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-md border border-transparent transition-colors overflow-hidden',
+                    generatingMessage
+                      ? ''
+                      : 'hover:border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed',
                   ].join(' ')}
                 >
-                  <ClaudeIcon />
+                  {generatingMessage && generatingGif ? (
+                    // Randomly picked per generation in generateCommitMessage() — GIFs
+                    // loop natively, so this just plays until the request resolves.
+                    <img src={generatingGif} alt="Generating…" className="w-full h-full object-contain" />
+                  ) : (
+                    <ClaudeIcon />
+                  )}
                 </button>
               )}
             </div>

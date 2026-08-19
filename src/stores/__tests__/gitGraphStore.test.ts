@@ -23,9 +23,22 @@ const mockCommits: GitCommit[] = [
   { hash: 'abc', parents: [], subject: 'init', author: 'Test', date: '2026-01-01', refs: [] },
 ]
 
+function makeCommits(count: number, prefix: string): GitCommit[] {
+  return Array.from({ length: count }, (_, i) => ({
+    hash: `${prefix}${i}`,
+    parents: [],
+    subject: `${prefix} ${i}`,
+    author: 'Test',
+    date: '2026-01-01',
+    refs: [],
+  }))
+}
+
+const gitGraphMock = vi.fn().mockResolvedValue(mockCommits)
+
 vi.stubGlobal('window', {
   api: {
-    gitGraph: vi.fn().mockResolvedValue(mockCommits),
+    gitGraph: gitGraphMock,
   },
 })
 
@@ -62,5 +75,92 @@ describe('gitGraphStore', () => {
     useGitGraphStore.getState().select('/repoA', 'abc')
     expect(useGitGraphStore.getState().repos['/repoA'].selectedHash).toBe('abc')
     expect(useGitGraphStore.getState().repos['/repoB'].selectedHash).toBeNull()
+  })
+
+  it('load sets hasMore true when a full page comes back, false when it is short', async () => {
+    gitGraphMock.mockResolvedValueOnce(makeCommits(100, 'full'))
+    await useGitGraphStore.getState().load('/proj')
+    expect(useGitGraphStore.getState().repos['/proj'].hasMore).toBe(true)
+
+    gitGraphMock.mockResolvedValueOnce(makeCommits(3, 'short'))
+    await useGitGraphStore.getState().load('/proj')
+    expect(useGitGraphStore.getState().repos['/proj'].hasMore).toBe(false)
+  })
+
+  it('loadMore appends the next page using the current commit count as the offset', async () => {
+    gitGraphMock.mockResolvedValueOnce(makeCommits(100, 'page1'))
+    await useGitGraphStore.getState().load('/proj')
+
+    gitGraphMock.mockResolvedValueOnce(makeCommits(10, 'page2'))
+    const loadMorePromise = useGitGraphStore.getState().loadMore('/proj')
+    expect(useGitGraphStore.getState().repos['/proj'].loadingMore).toBe(true)
+    await loadMorePromise
+
+    expect(gitGraphMock).toHaveBeenLastCalledWith('/proj', 100)
+    expect(useGitGraphStore.getState().repos['/proj'].commits).toHaveLength(110)
+    expect(useGitGraphStore.getState().repos['/proj'].loadingMore).toBe(false)
+    expect(useGitGraphStore.getState().repos['/proj'].hasMore).toBe(false)
+  })
+
+  it('loadMore is a no-op once hasMore is false', async () => {
+    useGitGraphStore.setState({
+      repos: { '/proj': { ...emptyRepoGraphState, commits: mockCommits, hasMore: false } },
+    })
+    await useGitGraphStore.getState().loadMore('/proj')
+    expect(gitGraphMock).not.toHaveBeenCalled()
+  })
+
+  it('setFilters merges into the existing filters for that repo', () => {
+    useGitGraphStore.setState({ repos: { '/proj': { ...emptyRepoGraphState } } })
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'fix' })
+    useGitGraphStore.getState().setFilters('/proj', { authors: ['Ada'] })
+
+    expect(useGitGraphStore.getState().repos['/proj'].filters).toEqual({
+      searchText: 'fix',
+      branches: [],
+      tags: [],
+      authors: ['Ada'],
+    })
+  })
+
+  it('setFilters triggers exactly one wide fetch on the empty-to-active transition, not on every subsequent change', async () => {
+    useGitGraphStore.setState({ repos: { '/proj': { ...emptyRepoGraphState, commits: mockCommits } } })
+    gitGraphMock.mockResolvedValueOnce(makeCommits(5, 'wide'))
+
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'a' })
+    await Promise.resolve() // flush the wide-fetch microtask
+    await Promise.resolve()
+
+    expect(gitGraphMock).toHaveBeenCalledWith('/proj', 0, 2000)
+    expect(useGitGraphStore.getState().repos['/proj'].wideFetched).toBe(true)
+    expect(useGitGraphStore.getState().repos['/proj'].commits).toHaveLength(5)
+
+    gitGraphMock.mockClear()
+    useGitGraphStore.getState().setFilters('/proj', { searchText: 'ab' })
+    expect(gitGraphMock).not.toHaveBeenCalled()
+  })
+
+  it('does not trigger a wide fetch when a filter change keeps filters active or goes back to empty', async () => {
+    useGitGraphStore.setState({
+      repos: { '/proj': { ...emptyRepoGraphState, commits: mockCommits, wideFetched: true, filters: { searchText: 'a', branches: [], tags: [], authors: [] } } },
+    })
+    useGitGraphStore.getState().setFilters('/proj', { searchText: '' })
+    expect(gitGraphMock).not.toHaveBeenCalled()
+    expect(useGitGraphStore.getState().repos['/proj'].filters.searchText).toBe('')
+  })
+
+  it('load resets filters and wideFetched back to defaults', async () => {
+    useGitGraphStore.setState({
+      repos: {
+        '/proj': {
+          ...emptyRepoGraphState,
+          filters: { searchText: 'x', branches: ['main'], tags: [], authors: [] },
+          wideFetched: true,
+        },
+      },
+    })
+    await useGitGraphStore.getState().load('/proj')
+    expect(useGitGraphStore.getState().repos['/proj'].filters).toEqual(emptyRepoGraphState.filters)
+    expect(useGitGraphStore.getState().repos['/proj'].wideFetched).toBe(false)
   })
 })

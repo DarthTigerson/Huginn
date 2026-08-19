@@ -67,3 +67,20 @@ describe('claudeStore.setChatVisible', () => {
     expect(useClaudeStore.getState().chatVisible).toBe(true)
   })
 })
+
+describe('claudeStore.setBusy', () => {
+  beforeEach(() => {
+    useClaudeStore.setState({ busyByAssistant: {} })
+  })
+
+  it('tracks busy state per assistant independently', () => {
+    useClaudeStore.getState().setBusy('claude', true)
+    expect(useClaudeStore.getState().busyByAssistant).toEqual({ claude: true })
+
+    useClaudeStore.getState().setBusy('codex', true)
+    expect(useClaudeStore.getState().busyByAssistant).toEqual({ claude: true, codex: true })
+
+    useClaudeStore.getState().setBusy('claude', false)
+    expect(useClaudeStore.getState().busyByAssistant).toEqual({ claude: false, codex: true })
+  })
+})

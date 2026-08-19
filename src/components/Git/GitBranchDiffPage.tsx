@@ -1,13 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useRepoGitState } from '@/stores/gitStore'
-import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import { useGitSettingsStore, REFS_COLUMN_MIN_WIDTH, REFS_COLUMN_MAX_WIDTH } from '@/stores/gitSettingsStore'
 import { useGitBranchDiffStore } from '@/stores/gitBranchDiffStore'
 import type { GitCommit } from '@/types/index'
 import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
+import { useInfiniteScroll } from './useInfiniteScroll'
+import { ColumnResizeDivider } from './ColumnResizeDivider'
+import { RefreshIcon } from './RefreshIcon'
+import { CommitFilterBar } from './CommitFilterBar'
+import { filterCommits, hasActiveFilters } from './commitFilter'
+import { SEARCH_FETCH_LIMIT } from '@/stores/gitBranchDiffStore'
 
 const ROW_H = 70
 
@@ -151,11 +157,12 @@ function BranchCombobox({ label, value, options, onChange }: {
   )
 }
 
-function CommitRow({ commit, index, total, selected, onClick, onContextMenu }: {
+function CommitRow({ commit, index, total, selected, refsColumnWidth, onClick, onContextMenu }: {
   commit: GitCommit
   index: number
   total: number
   selected: boolean
+  refsColumnWidth: number
   onClick: () => void
   onContextMenu: (event: MouseEvent) => void
 }) {
@@ -167,7 +174,7 @@ function CommitRow({ commit, index, total, selected, onClick, onContextMenu }: {
     <button
       type="button"
       style={{
-        gridTemplateColumns: 'minmax(82px, 0.35fr) 90px minmax(180px, 1.5fr)',
+        gridTemplateColumns: `${refsColumnWidth}px 90px minmax(180px, 1.5fr)`,
         background: selected
           ? 'linear-gradient(90deg, transparent 0%, #2563eb22 35%, #2563eb1c 65%, transparent 100%)'
           : undefined,
@@ -235,6 +242,10 @@ export function GitBranchDiffPage() {
   const currentBranch = useRepoGitState(selectedRepo).branch
   const getListDiffTargetBranch = useGitSettingsStore((s) => s.getListDiffTargetBranch)
   const configuredTarget = selectedRepo ? getListDiffTargetBranch(selectedRepo) : ''
+  const storedRefsColumnWidth = useGitSettingsStore((s) => s.refsColumnWidth)
+  const setRefsColumnWidth = useGitSettingsStore((s) => s.setRefsColumnWidth)
+  const [liveRefsColumnWidth, setLiveRefsColumnWidth] = useState<number | null>(null)
+  const refsColumnWidth = liveRefsColumnWidth ?? storedRefsColumnWidth
   const {
     branches,
     defaultBranch,
@@ -243,7 +254,11 @@ export function GitBranchDiffPage() {
     commits,
     loadingBranches,
     loadingCommits,
+    loadingMore,
+    hasMore,
     selectedHash,
+    filters,
+    wideFetched,
     setBranches,
     setDefaultBranch,
     setSourceIfEmpty,
@@ -252,8 +267,13 @@ export function GitBranchDiffPage() {
     setTarget,
     setLoadingBranches,
     setCommits,
+    appendCommits,
     setLoadingCommits,
+    setLoadingMore,
     select,
+    setFilters,
+    setWideFetched,
+    resetFilters,
   } = useGitBranchDiffStore()
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
@@ -285,12 +305,17 @@ export function GitBranchDiffPage() {
     }
   }, [selectedRepo, currentBranch])
 
+  // Bumped by the refresh button to force a refetch without the source/target
+  // pair itself having changed.
+  const [refreshKey, setRefreshKey] = useState(0)
+
   useEffect(() => {
     if (!selectedRepo || !source || !target || source === target) {
       setCommits([])
       return
     }
 
+    resetFilters() // a genuinely new source/target pair starts a fresh view
     let cancelled = false
     setLoadingCommits(true)
     window.api.gitBranchDiff(selectedRepo, source, target).then((result) => {
@@ -302,8 +327,45 @@ export function GitBranchDiffPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedRepo, source, target])
+  }, [selectedRepo, source, target, refreshKey])
 
+  const handleLoadMore = useCallback(() => {
+    if (!selectedRepo || !source || !target || source === target) return
+    setLoadingMore(true)
+    window.api.gitBranchDiff(selectedRepo, source, target, commits.length).then((result) => {
+      appendCommits(result.commits)
+    })
+  }, [selectedRepo, source, target, commits.length, setLoadingMore, appendCommits])
+
+  const isFiltered = hasActiveFilters(filters)
+  const sentinelRef = useInfiniteScroll(
+    handleLoadMore,
+    hasMore && !isFiltered,
+    loadingBranches || loadingCommits || loadingMore
+  )
+
+  // Fired once, the moment search/filters first go from inactive to active —
+  // replaces the paginated small page with a much deeper fetch so filtering
+  // has real history to search, not just what's scrolled in.
+  const ensureWideFetch = useCallback(() => {
+    if (wideFetched || !selectedRepo || !source || !target || source === target) return
+    setLoadingCommits(true)
+    window.api.gitBranchDiff(selectedRepo, source, target, 0, SEARCH_FETCH_LIMIT).then((result) => {
+      setCommits(result.commits)
+      setWideFetched(true)
+      setLoadingCommits(false)
+    })
+  }, [wideFetched, selectedRepo, source, target, setLoadingCommits, setCommits, setWideFetched])
+
+  function updateFilters(patch: Partial<typeof filters>) {
+    const wasActive = hasActiveFilters(filters)
+    setFilters(patch)
+    if (!wasActive && hasActiveFilters({ ...filters, ...patch })) {
+      ensureWideFetch()
+    }
+  }
+
+  const visibleCommits = useMemo(() => filterCommits(commits, filters), [commits, filters])
   const selectedCommit = commits.find((c) => c.hash === selectedHash) ?? null
 
   const targetOptions = useMemo(
@@ -324,9 +386,25 @@ export function GitBranchDiffPage() {
         <span className="text-[0.625rem] font-semibold text-fg-muted uppercase tracking-wider">
           Branch Diff
         </span>
-        <span className="text-[0.625rem] text-fg-subtle">
-          {loadingBranches || loadingCommits ? 'Loading...' : `${commits.length} commits`}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[0.625rem] text-fg-subtle">
+            {loadingBranches || loadingCommits
+              ? 'Loading...'
+              : isFiltered
+                ? `${visibleCommits.length} of ${commits.length} commits`
+                : `${commits.length} commits`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            disabled={loadingBranches || loadingCommits}
+            aria-label="Refresh"
+            title="Refresh"
+            className="text-fg-muted hover:text-fg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <RefreshIcon className={loadingBranches || loadingCommits ? 'animate-spin' : undefined} />
+          </button>
+        </div>
       </div>
 
       <div className="border-b border-border px-4 py-3 shrink-0">
@@ -351,37 +429,89 @@ export function GitBranchDiffPage() {
         </div>
       </div>
 
+      {source && target && source !== target && (
+        <CommitFilterBar
+          commits={commits}
+          filters={filters}
+          onSearchTextChange={(searchText) => updateFilters({ searchText })}
+          onBranchesChange={(branches) => updateFilters({ branches })}
+          onTagsChange={(tags) => updateFilters({ tags })}
+          onAuthorsChange={(authors) => updateFilters({ authors })}
+        />
+      )}
+
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          {loadingBranches || loadingCommits ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              Loading branch diff...
-            </div>
-          ) : !source || !target ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              Select two branches
-            </div>
-          ) : commits.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              No commits between selected branches
-            </div>
-          ) : (
-            <div>
-              {commits.map((commit, index) => (
-                <CommitRow
-                  key={commit.hash}
-                  commit={commit}
-                  index={index}
-                  total={commits.length}
-                  selected={commit.hash === selectedHash}
-                  onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
-                  }}
-                />
-              ))}
-            </div>
+        <div className="flex-1 relative overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            {loadingBranches || loadingCommits ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                Loading branch diff...
+              </div>
+            ) : !source || !target ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                Select two branches
+              </div>
+            ) : isFiltered ? (
+              visibleCommits.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                  No matching commits
+                </div>
+              ) : (
+                <div>
+                  {visibleCommits.map((commit, index) => (
+                    <CommitRow
+                      key={commit.hash}
+                      commit={commit}
+                      index={index}
+                      total={visibleCommits.length}
+                      selected={commit.hash === selectedHash}
+                      refsColumnWidth={refsColumnWidth}
+                      onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                      }}
+                    />
+                  ))}
+                </div>
+              )
+            ) : commits.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                No commits between selected branches
+              </div>
+            ) : (
+              <div>
+                {commits.map((commit, index) => (
+                  <CommitRow
+                    key={commit.hash}
+                    commit={commit}
+                    index={index}
+                    total={commits.length}
+                    selected={commit.hash === selectedHash}
+                    refsColumnWidth={refsColumnWidth}
+                    onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                    }}
+                  />
+                ))}
+                {hasMore && (
+                  <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
+                    {loadingMore ? 'Loading more…' : ''}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {(isFiltered ? visibleCommits.length > 0 : commits.length > 0) && (
+            <ColumnResizeDivider
+              width={refsColumnWidth}
+              min={REFS_COLUMN_MIN_WIDTH}
+              max={REFS_COLUMN_MAX_WIDTH}
+              onResize={setLiveRefsColumnWidth}
+              onCommit={(w) => { setRefsColumnWidth(w); setLiveRefsColumnWidth(null) }}
+            />
           )}
         </div>
 

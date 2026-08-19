@@ -10,9 +10,19 @@ const KEYS = {
   periodicFetchIntervalMinutes: 'huginn:git:periodicFetchIntervalMinutes',
   gitLogAutoShow:            'huginn:git:gitLogAutoShow',
   repoScanDepth:             'huginn:git:repoScanDepth',
+  refsColumnWidth:           'huginn:git:refsColumnWidth',
 }
 
 export const DEFAULT_REPO_SCAN_DEPTH = 4
+
+// Shared by GitGraphPage and GitBranchDiffPage's refs/pipes column divider.
+export const REFS_COLUMN_MIN_WIDTH = 60
+export const REFS_COLUMN_MAX_WIDTH = 640
+const DEFAULT_REFS_COLUMN_WIDTH = 180
+
+function clampRefsColumnWidth(v: number): number {
+  return Math.round(Math.max(REFS_COLUMN_MIN_WIDTH, Math.min(REFS_COLUMN_MAX_WIDTH, v)))
+}
 
 export type GitLogAutoShow = 'always' | 'onError'
 
@@ -60,6 +70,7 @@ interface GitSettingsStore {
   periodicFetchIntervalMinutes: number
   gitLogAutoShow: GitLogAutoShow
   repoScanDepth: number
+  refsColumnWidth: number
   setForceSafetyEnabled: (v: boolean) => void
   setCountdownEnabled: (v: boolean) => void
   setCountdownSeconds: (v: number) => void
@@ -70,6 +81,7 @@ interface GitSettingsStore {
   setPeriodicFetchIntervalMinutes: (v: number) => void
   setGitLogAutoShow: (v: GitLogAutoShow) => void
   setRepoScanDepth: (v: number) => void
+  setRefsColumnWidth: (v: number) => void
 }
 
 export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
@@ -82,6 +94,7 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
   periodicFetchIntervalMinutes: getInt(KEYS.periodicFetchIntervalMinutes, 5),
   gitLogAutoShow:             getGitLogAutoShow(KEYS.gitLogAutoShow, 'onError'),
   repoScanDepth:              getInt(KEYS.repoScanDepth, DEFAULT_REPO_SCAN_DEPTH),
+  refsColumnWidth:            clampRefsColumnWidth(getInt(KEYS.refsColumnWidth, DEFAULT_REFS_COLUMN_WIDTH)),
 
   setForceSafetyEnabled: (v) => {
     localStorage.setItem(KEYS.forceSafetyEnabled, String(v))
@@ -127,5 +140,10 @@ export const useGitSettingsStore = create<GitSettingsStore>((set, get) => ({
     const clamped = Math.max(1, Math.min(10, Math.round(v)))
     localStorage.setItem(KEYS.repoScanDepth, String(clamped))
     set({ repoScanDepth: clamped })
+  },
+  setRefsColumnWidth: (v) => {
+    const clamped = clampRefsColumnWidth(v)
+    localStorage.setItem(KEYS.refsColumnWidth, String(clamped))
+    set({ refsColumnWidth: clamped })
   },
 }))

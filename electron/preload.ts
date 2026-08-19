@@ -53,12 +53,12 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('git:log:exit', handler)
   },
   gitLogResize: (cols: number, rows: number) => ipcRenderer.send('git:log:resize', cols, rows),
-  gitGraph: (cwd: string) => ipcRenderer.invoke('git:graph', cwd),
+  gitGraph: (cwd: string, offset?: number, limit?: number) => ipcRenderer.invoke('git:graph', cwd, offset, limit),
   gitBranches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
   gitDefaultBranch: (cwd: string) => ipcRenderer.invoke('git:defaultBranch', cwd),
   gitBranchList: (cwd: string) => ipcRenderer.invoke('git:branchList', cwd),
-  gitBranchDiff: (cwd: string, source: string, target: string) =>
-    ipcRenderer.invoke('git:branchDiff', cwd, source, target),
+  gitBranchDiff: (cwd: string, source: string, target: string, offset?: number, limit?: number) =>
+    ipcRenderer.invoke('git:branchDiff', cwd, source, target, offset, limit),
   gitShowStat: (cwd: string, hash: string) => ipcRenderer.invoke('git:showStat', cwd, hash),
   gitFetchSilent: (cwd: string) => ipcRenderer.invoke('git:fetchSilent', cwd),
   gitStagedDiff: (cwd: string) => ipcRenderer.invoke('git:stagedDiff', cwd) as Promise<string>,
@@ -130,6 +130,11 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_: Electron.IpcRendererEvent, assistant: 'claude' | 'codex', data: string) => cb(assistant, data)
     ipcRenderer.on('assistant:data', handler)
     return () => ipcRenderer.removeListener('assistant:data', handler)
+  },
+  onAssistantBusy: (cb: (assistant: 'claude' | 'codex', busy: boolean) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, assistant: 'claude' | 'codex', busy: boolean) => cb(assistant, busy)
+    ipcRenderer.on('assistant:busy', handler)
+    return () => ipcRenderer.removeListener('assistant:busy', handler)
   },
 
   mobileStart: () => ipcRenderer.invoke('mobile:start'),

@@ -24,6 +24,7 @@ describe('gitSettingsStore', () => {
       listDiffTargetBranches: {},
       periodicFetchEnabled: true,
       periodicFetchIntervalMinutes: 5,
+      refsColumnWidth: 180,
     })
   })
 
@@ -109,5 +110,25 @@ describe('gitSettingsStore', () => {
     expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(1)
     setPeriodicFetchIntervalMinutes(500)
     expect(useGitSettingsStore.getState().periodicFetchIntervalMinutes).toBe(120)
+  })
+
+  it('refsColumnWidth defaults to 180', () => {
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(180)
+  })
+
+  it('setRefsColumnWidth persists to localStorage', () => {
+    useGitSettingsStore.getState().setRefsColumnWidth(150)
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(150)
+    expect(store['huginn:git:refsColumnWidth']).toBe('150')
+  })
+
+  it('setRefsColumnWidth clamps to [60, 640] and rounds', () => {
+    const { setRefsColumnWidth } = useGitSettingsStore.getState()
+    setRefsColumnWidth(10)
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(60)
+    setRefsColumnWidth(2000)
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(640)
+    setRefsColumnWidth(120.6)
+    expect(useGitSettingsStore.getState().refsColumnWidth).toBe(121)
   })
 })

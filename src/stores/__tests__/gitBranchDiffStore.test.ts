@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useGitBranchDiffStore } from '../gitBranchDiffStore'
+import { EMPTY_COMMIT_FILTERS } from '@/components/Git/commitFilter'
 import type { GitCommit } from '@/types/index'
 
 function makeCommit(hash: string): GitCommit {
@@ -16,7 +17,11 @@ describe('gitBranchDiffStore', () => {
       commits: [],
       loadingBranches: false,
       loadingCommits: false,
+      loadingMore: false,
+      hasMore: true,
       selectedHash: null,
+      filters: EMPTY_COMMIT_FILTERS,
+      wideFetched: false,
     })
   })
 
@@ -65,5 +70,55 @@ describe('gitBranchDiffStore', () => {
   it('setCommits with no prior selection stays null', () => {
     useGitBranchDiffStore.getState().setCommits([makeCommit('abc')])
     expect(useGitBranchDiffStore.getState().selectedHash).toBeNull()
+  })
+
+  it('setCommits sets hasMore true for a full page, false for a short one', () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => makeCommit(`h${i}`))
+    useGitBranchDiffStore.getState().setCommits(fullPage)
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(true)
+
+    useGitBranchDiffStore.getState().setCommits([makeCommit('only-one')])
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(false)
+  })
+
+  it('appendCommits adds to the existing list and recomputes hasMore off the new page alone', () => {
+    useGitBranchDiffStore.setState({ commits: [makeCommit('a'), makeCommit('b')], loadingMore: true })
+    useGitBranchDiffStore.getState().appendCommits([makeCommit('c')])
+    expect(useGitBranchDiffStore.getState().commits.map((c) => c.hash)).toEqual(['a', 'b', 'c'])
+    expect(useGitBranchDiffStore.getState().hasMore).toBe(false)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(false)
+  })
+
+  it('setLoadingMore toggles loadingMore', () => {
+    useGitBranchDiffStore.getState().setLoadingMore(true)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(true)
+    useGitBranchDiffStore.getState().setLoadingMore(false)
+    expect(useGitBranchDiffStore.getState().loadingMore).toBe(false)
+  })
+
+  it('setFilters merges into the existing filters', () => {
+    useGitBranchDiffStore.getState().setFilters({ searchText: 'fix' })
+    useGitBranchDiffStore.getState().setFilters({ authors: ['Ada'] })
+    expect(useGitBranchDiffStore.getState().filters).toEqual({
+      searchText: 'fix',
+      branches: [],
+      tags: [],
+      authors: ['Ada'],
+    })
+  })
+
+  it('setWideFetched sets the flag', () => {
+    useGitBranchDiffStore.getState().setWideFetched(true)
+    expect(useGitBranchDiffStore.getState().wideFetched).toBe(true)
+  })
+
+  it('resetFilters clears filters and wideFetched back to defaults', () => {
+    useGitBranchDiffStore.setState({
+      filters: { searchText: 'x', branches: ['main'], tags: [], authors: [] },
+      wideFetched: true,
+    })
+    useGitBranchDiffStore.getState().resetFilters()
+    expect(useGitBranchDiffStore.getState().filters).toEqual(EMPTY_COMMIT_FILTERS)
+    expect(useGitBranchDiffStore.getState().wideFetched).toBe(false)
   })
 })

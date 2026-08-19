@@ -1,5 +1,14 @@
 import { create } from 'zustand'
 import type { GitCommit } from '@/types/index'
+import { EMPTY_COMMIT_FILTERS, type CommitFilters } from '@/components/Git/commitFilter'
+
+// Mirrors GIT_LOG_PAGE_SIZE in electron/git.ts — a page shorter than this is
+// the last one, so a page exactly this long is the signal to keep paging.
+export const GIT_LOG_PAGE_SIZE = 100
+
+// The one-off, much larger fetch triggered the moment search/filters first
+// become active — see ensureWideFetch() in GitBranchDiffPage.tsx.
+export const SEARCH_FETCH_LIMIT = 2000
 
 // Backs GitBranchDiffPage (List Diff). Previously all of this lived in local
 // useState, which meant opening a file from a commit's changed-files list —
@@ -16,7 +25,11 @@ interface GitBranchDiffStore {
   commits: GitCommit[]
   loadingBranches: boolean
   loadingCommits: boolean
+  loadingMore: boolean
+  hasMore: boolean
   selectedHash: string | null
+  filters: CommitFilters
+  wideFetched: boolean
   setBranches: (branches: string[]) => void
   setDefaultBranch: (branch: string | null) => void
   setSourceIfEmpty: (source: string) => void
@@ -25,8 +38,13 @@ interface GitBranchDiffStore {
   setTarget: (target: string) => void
   setLoadingBranches: (loading: boolean) => void
   setCommits: (commits: GitCommit[]) => void
+  appendCommits: (commits: GitCommit[]) => void
   setLoadingCommits: (loading: boolean) => void
+  setLoadingMore: (loading: boolean) => void
   select: (hash: string | null) => void
+  setFilters: (patch: Partial<CommitFilters>) => void
+  setWideFetched: (v: boolean) => void
+  resetFilters: () => void
 }
 
 export const useGitBranchDiffStore = create<GitBranchDiffStore>((set) => ({
@@ -37,7 +55,11 @@ export const useGitBranchDiffStore = create<GitBranchDiffStore>((set) => ({
   commits: [],
   loadingBranches: false,
   loadingCommits: false,
+  loadingMore: false,
+  hasMore: true,
   selectedHash: null,
+  filters: EMPTY_COMMIT_FILTERS,
+  wideFetched: false,
 
   setBranches: (branches) => set({ branches }),
   setDefaultBranch: (defaultBranch) => set({ defaultBranch }),
@@ -54,8 +76,20 @@ export const useGitBranchDiffStore = create<GitBranchDiffStore>((set) => ({
   setCommits: (commits) =>
     set((s) => ({
       commits,
+      hasMore: commits.length >= GIT_LOG_PAGE_SIZE,
+      loadingMore: false,
       selectedHash: s.selectedHash && commits.some((c) => c.hash === s.selectedHash) ? s.selectedHash : null,
     })),
+  appendCommits: (commits) =>
+    set((s) => ({
+      commits: [...s.commits, ...commits],
+      hasMore: commits.length >= GIT_LOG_PAGE_SIZE,
+      loadingMore: false,
+    })),
   setLoadingCommits: (loadingCommits) => set({ loadingCommits }),
+  setLoadingMore: (loadingMore) => set({ loadingMore }),
   select: (hash) => set({ selectedHash: hash }),
+  setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
+  setWideFetched: (wideFetched) => set({ wideFetched }),
+  resetFilters: () => set({ filters: EMPTY_COMMIT_FILTERS, wideFetched: false }),
 }))
