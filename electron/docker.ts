@@ -1,7 +1,18 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { resolveBinaryPath } from './lsp/shellPath'
 
 const execFileAsync = promisify(execFile)
+
+// Electron-launched apps (Dock/Finder, not a terminal) don't inherit the
+// interactive shell's PATH, so Docker Desktop's CLI (typically symlinked into
+// /usr/local/bin or /opt/homebrew/bin) can be invisible to a bare execFile
+// even though it's installed and running. Resolve the real path via a login
+// shell first; fall back to the bare name so a genuinely missing binary still
+// ENOENTs (and correctly reports 'not-installed') rather than silently no-op'ing.
+async function dockerBin(): Promise<string> {
+  return (await resolveBinaryPath('docker')) ?? 'docker'
+}
 
 export type DockerStatus = 'not-installed' | 'stopped' | 'running'
 
@@ -25,7 +36,7 @@ export interface DockerActionResult {
 // the daemon isn't running (Docker Desktop/Colima/etc not started).
 export async function checkDockerStatus(): Promise<DockerStatus> {
   try {
-    await execFileAsync('docker', ['info', '--format', '{{.ID}}'], { timeout: 5000 })
+    await execFileAsync(await dockerBin(), ['info', '--format', '{{.ID}}'], { timeout: 5000 })
     return 'running'
   } catch (err) {
     const code = (err as { code?: string }).code
@@ -36,7 +47,7 @@ export async function checkDockerStatus(): Promise<DockerStatus> {
 export async function listContainers(): Promise<DockerContainer[]> {
   try {
     const { stdout } = await execFileAsync(
-      'docker',
+      await dockerBin(),
       ['ps', '-a', '--format', '{{json .}}'],
       { timeout: 5000, maxBuffer: 10 * 1024 * 1024 }
     )
@@ -61,7 +72,7 @@ export async function listContainers(): Promise<DockerContainer[]> {
 
 async function runAction(args: string[]): Promise<DockerActionResult> {
   try {
-    await execFileAsync('docker', args)
+    await execFileAsync(await dockerBin(), args)
     return { ok: true }
   } catch (err) {
     const stderr = (err as { stderr?: string }).stderr

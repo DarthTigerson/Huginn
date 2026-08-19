@@ -10,6 +10,7 @@ import {
   removeContainer,
   openDockerApp,
 } from './docker'
+import { resolveBinaryPath } from './lsp/shellPath'
 
 type DockerLogsProc = ChildProcessByStdio<null, Readable, Readable>
 
@@ -25,12 +26,14 @@ export class DockerRunner {
     ipcMain.handle('docker:removeContainer', (_e, id: string) => removeContainer(id))
     ipcMain.handle('docker:openApp', () => openDockerApp())
 
-    ipcMain.handle('docker:runLogs', (event, streamId: string, containerId: string) => {
+    ipcMain.handle('docker:runLogs', async (event, streamId: string, containerId: string) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       this.stopLogs(streamId)
 
-      const proc = spawn('docker', ['logs', '-f', '--tail', '200', containerId], {
+      const bin = (await resolveBinaryPath('docker')) ?? 'docker'
+      if (win.isDestroyed()) return
+      const proc = spawn(bin, ['logs', '-f', '--tail', '200', containerId], {
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       this.logProcs.set(streamId, proc)

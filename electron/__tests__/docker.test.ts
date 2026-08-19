@@ -1,13 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn() }))
+const { execFileMock, shellResolution } = vi.hoisted(() => ({
+  execFileMock: vi.fn(),
+  // What the login-shell `command -v docker` resolution should yield;
+  // defaults to "not found" so existing tests exercise the bare-name
+  // fallback. Tests can override per-case to exercise the resolved path.
+  shellResolution: { value: null as string | null },
+}))
 
+// dockerBin() (electron/docker.ts) resolves 'docker' via resolveBinaryPath()
+// (electron/lsp/shellPath.ts) before every real docker invocation, so every
+// test in this file drives two execFile calls: the login-shell resolution
+// (args = [shell, ['-lic', 'command -v docker'], cb]) and the actual docker
+// command (args = [bin, dockerArgs, cb]). Route by shape rather than by
+// literal binary name so tests stay agnostic to whether resolution succeeds.
 vi.mock('child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('child_process')>()
   return {
     ...actual,
     execFile: (...args: unknown[]) => {
-      const cb = args[args.length - 1] as (err: unknown, result: { stdout: string; stderr: string }) => void
+      const cb = args[args.length - 1] as (err: unknown, result: unknown) => void
+      const isShellResolution = Array.isArray(args[1]) && (args[1] as unknown[])[0] === '-lic'
+      if (isShellResolution) {
+        if (shellResolution.value) cb(null, shellResolution.value)
+        else cb(new Error('not found'), '')
+        return
+      }
       const result = execFileMock(...args.slice(0, -1))
       if (result instanceof Error) cb(result, { stdout: '', stderr: '' })
       else cb(null, result)
@@ -24,9 +42,14 @@ import {
   removeContainer,
   openDockerApp,
 } from '../docker'
+import { _resetShellPathCacheForTesting } from '../lsp/shellPath'
 
 describe('checkDockerStatus', () => {
-  beforeEach(() => execFileMock.mockReset())
+  beforeEach(() => {
+    execFileMock.mockReset()
+    shellResolution.value = null
+    _resetShellPathCacheForTesting()
+  })
 
   it('returns "running" when docker info succeeds', async () => {
     execFileMock.mockReturnValue({ stdout: 'abc123', stderr: '' })
@@ -47,7 +70,11 @@ describe('checkDockerStatus', () => {
 })
 
 describe('listContainers', () => {
-  beforeEach(() => execFileMock.mockReset())
+  beforeEach(() => {
+    execFileMock.mockReset()
+    shellResolution.value = null
+    _resetShellPathCacheForTesting()
+  })
 
   it('parses newline-delimited JSON rows from docker ps', async () => {
     const row1 = JSON.stringify({ ID: 'a1', Names: 'web', Image: 'nginx', Status: 'Up 2 hours', State: 'running', Ports: '80/tcp' })
@@ -68,7 +95,11 @@ describe('listContainers', () => {
 })
 
 describe('container action commands', () => {
-  beforeEach(() => execFileMock.mockReset())
+  beforeEach(() => {
+    execFileMock.mockReset()
+    shellResolution.value = null
+    _resetShellPathCacheForTesting()
+  })
 
   it('startContainer reports ok on success', async () => {
     execFileMock.mockReturnValue({ stdout: '', stderr: '' })
@@ -95,10 +126,39 @@ describe('container action commands', () => {
   })
 })
 
+describe('dockerBin PATH resolution', () => {
+  beforeEach(() => {
+    execFileMock.mockReset()
+    shellResolution.value = null
+    _resetShellPathCacheForTesting()
+  })
+
+  it('runs docker commands against the login-shell-resolved path when the bare name is not on PATH', async () => {
+    shellResolution.value = '/opt/homebrew/bin/docker\n'
+    execFileMock.mockReturnValue({ stdout: 'abc123', stderr: '' })
+
+    expect(await checkDockerStatus()).toBe('running')
+    expect(execFileMock).toHaveBeenCalledWith('/opt/homebrew/bin/docker', ['info', '--format', '{{.ID}}'], { timeout: 5000 })
+  })
+
+  it('falls back to the bare "docker" name so a genuinely missing binary still reports not-installed', async () => {
+    shellResolution.value = null
+    const err = Object.assign(new Error('spawn docker ENOENT'), { code: 'ENOENT' })
+    execFileMock.mockReturnValue(err)
+
+    expect(await checkDockerStatus()).toBe('not-installed')
+    expect(execFileMock).toHaveBeenCalledWith('docker', ['info', '--format', '{{.ID}}'], { timeout: 5000 })
+  })
+})
+
 describe('openDockerApp', () => {
   const originalPlatform = process.platform
 
-  beforeEach(() => execFileMock.mockReset())
+  beforeEach(() => {
+    execFileMock.mockReset()
+    shellResolution.value = null
+    _resetShellPathCacheForTesting()
+  })
   afterEach(() => Object.defineProperty(process, 'platform', { value: originalPlatform }))
 
   it('opens Docker.app on macOS', async () => {
