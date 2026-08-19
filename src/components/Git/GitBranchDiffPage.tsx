@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useRepoGitState } from '@/stores/gitStore'
-import { useGitSettingsStore } from '@/stores/gitSettingsStore'
+import { useGitSettingsStore, REFS_COLUMN_MIN_WIDTH, REFS_COLUMN_MAX_WIDTH } from '@/stores/gitSettingsStore'
 import { useGitBranchDiffStore } from '@/stores/gitBranchDiffStore'
 import type { GitCommit } from '@/types/index'
 import { normalizeRef, formatExactDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
 import { useInfiniteScroll } from './useInfiniteScroll'
+import { ColumnResizeDivider } from './ColumnResizeDivider'
 
 const ROW_H = 70
 
@@ -152,11 +153,12 @@ function BranchCombobox({ label, value, options, onChange }: {
   )
 }
 
-function CommitRow({ commit, index, total, selected, onClick, onContextMenu }: {
+function CommitRow({ commit, index, total, selected, refsColumnWidth, onClick, onContextMenu }: {
   commit: GitCommit
   index: number
   total: number
   selected: boolean
+  refsColumnWidth: number
   onClick: () => void
   onContextMenu: (event: MouseEvent) => void
 }) {
@@ -168,7 +170,7 @@ function CommitRow({ commit, index, total, selected, onClick, onContextMenu }: {
     <button
       type="button"
       style={{
-        gridTemplateColumns: 'minmax(82px, 0.35fr) 90px minmax(180px, 1.5fr)',
+        gridTemplateColumns: `${refsColumnWidth}px 90px minmax(180px, 1.5fr)`,
         background: selected
           ? 'linear-gradient(90deg, transparent 0%, #2563eb22 35%, #2563eb1c 65%, transparent 100%)'
           : undefined,
@@ -236,6 +238,10 @@ export function GitBranchDiffPage() {
   const currentBranch = useRepoGitState(selectedRepo).branch
   const getListDiffTargetBranch = useGitSettingsStore((s) => s.getListDiffTargetBranch)
   const configuredTarget = selectedRepo ? getListDiffTargetBranch(selectedRepo) : ''
+  const storedRefsColumnWidth = useGitSettingsStore((s) => s.refsColumnWidth)
+  const setRefsColumnWidth = useGitSettingsStore((s) => s.setRefsColumnWidth)
+  const [liveRefsColumnWidth, setLiveRefsColumnWidth] = useState<number | null>(null)
+  const refsColumnWidth = liveRefsColumnWidth ?? storedRefsColumnWidth
   const {
     branches,
     defaultBranch,
@@ -366,41 +372,53 @@ export function GitBranchDiffPage() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          {loadingBranches || loadingCommits ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              Loading branch diff...
-            </div>
-          ) : !source || !target ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              Select two branches
-            </div>
-          ) : commits.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              No commits between selected branches
-            </div>
-          ) : (
-            <div>
-              {commits.map((commit, index) => (
-                <CommitRow
-                  key={commit.hash}
-                  commit={commit}
-                  index={index}
-                  total={commits.length}
-                  selected={commit.hash === selectedHash}
-                  onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
-                  }}
-                />
-              ))}
-              {hasMore && (
-                <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
-                  {loadingMore ? 'Loading more…' : ''}
-                </div>
-              )}
-            </div>
+        <div className="flex-1 relative overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            {loadingBranches || loadingCommits ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                Loading branch diff...
+              </div>
+            ) : !source || !target ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                Select two branches
+              </div>
+            ) : commits.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                No commits between selected branches
+              </div>
+            ) : (
+              <div>
+                {commits.map((commit, index) => (
+                  <CommitRow
+                    key={commit.hash}
+                    commit={commit}
+                    index={index}
+                    total={commits.length}
+                    selected={commit.hash === selectedHash}
+                    refsColumnWidth={refsColumnWidth}
+                    onClick={() => select(selectedHash === commit.hash ? null : commit.hash)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setRowMenu({ x: e.clientX, y: e.clientY, message: commit.subject, hash: commit.hash })
+                    }}
+                  />
+                ))}
+                {hasMore && (
+                  <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
+                    {loadingMore ? 'Loading more…' : ''}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {commits.length > 0 && (
+            <ColumnResizeDivider
+              width={refsColumnWidth}
+              min={REFS_COLUMN_MIN_WIDTH}
+              max={REFS_COLUMN_MAX_WIDTH}
+              onResize={setLiveRefsColumnWidth}
+              onCommit={(w) => { setRefsColumnWidth(w); setLiveRefsColumnWidth(null) }}
+            />
           )}
         </div>
 

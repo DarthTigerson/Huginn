@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useGitGraphStore, useRepoGraphState } from '@/stores/gitGraphStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
+import { useGitSettingsStore, REFS_COLUMN_MIN_WIDTH, REFS_COLUMN_MAX_WIDTH } from '@/stores/gitSettingsStore'
 import { computeLayout } from './graphLayout'
 import type { CommitLayout, RowEdge } from './graphLayout'
 import { normalizeRef, formatExactDate, formatRelDate, refTone } from './commitFormat'
 import { CommitContextMenu } from './CommitContextMenu'
 import { CommitDetailsPanel } from './CommitDetailsPanel'
 import { useInfiniteScroll } from './useInfiniteScroll'
+import { ColumnResizeDivider } from './ColumnResizeDivider'
 
 export const ROW_H = 72
 const LANE_W = 40
@@ -137,12 +139,13 @@ export function orderEdgesForPaint(edges: RowEdge[]): RowEdge[] {
   )
 }
 
-function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, onClick, onContextMenu }: {
+function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, refsColumnWidth, onClick, onContextMenu }: {
   layout: CommitLayout
   rowIndex: number
   selected: boolean
   graphRailWidth: number
   graphLaneCount: number
+  refsColumnWidth: number
   onClick: () => void
   onContextMenu: (event: MouseEvent) => void
 }) {
@@ -159,7 +162,7 @@ function GraphRow({ layout, rowIndex, selected, graphRailWidth, graphLaneCount, 
     <button
       type="button"
       style={{
-        gridTemplateColumns: `minmax(82px, 0.35fr) ${svgW}px minmax(140px, 1.5fr)`,
+        gridTemplateColumns: `${refsColumnWidth}px ${svgW}px minmax(140px, 1.5fr)`,
         background: selected
           ? `linear-gradient(90deg, transparent 0%, ${color}22 35%, ${color}1c 65%, transparent 100%)`
           : undefined,
@@ -289,6 +292,10 @@ export function GitGraphPage() {
   const load = useGitGraphStore((s) => s.load)
   const loadMore = useGitGraphStore((s) => s.loadMore)
   const select = useGitGraphStore((s) => s.select)
+  const storedRefsColumnWidth = useGitSettingsStore((s) => s.refsColumnWidth)
+  const setRefsColumnWidth = useGitSettingsStore((s) => s.setRefsColumnWidth)
+  const [liveRefsColumnWidth, setLiveRefsColumnWidth] = useState<number | null>(null)
+  const refsColumnWidth = liveRefsColumnWidth ?? storedRefsColumnWidth
   const [rowMenu, setRowMenu] = useState<RowMenuState | null>(null)
 
   useEffect(() => {
@@ -339,35 +346,47 @@ export function GitGraphPage() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {loading && commits.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              Loading history…
-            </div>
-          ) : layouts.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
-              No commits found
-            </div>
-          ) : (
-            <>
-              {layouts.map((layout, index) => (
-                <GraphRow
-                  key={layout.commit.hash}
-                  layout={layout}
-                  rowIndex={index}
-                  graphRailWidth={graphRailWidth}
-                  graphLaneCount={graphLaneCount}
-                  selected={layout.commit.hash === selectedHash}
-                  onClick={() => handleSelect(layout.commit.hash)}
-                  onContextMenu={(e) => handleRowContextMenu(e, layout.commit.subject, layout.commit.hash)}
-                />
-              ))}
-              {hasMore && (
-                <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
-                  {loadingMore ? 'Loading more…' : ''}
-                </div>
-              )}
-            </>
+        <div className="flex-1 relative overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            {loading && commits.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                Loading history…
+              </div>
+            ) : layouts.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-sm text-fg-subtle">
+                No commits found
+              </div>
+            ) : (
+              <>
+                {layouts.map((layout, index) => (
+                  <GraphRow
+                    key={layout.commit.hash}
+                    layout={layout}
+                    rowIndex={index}
+                    graphRailWidth={graphRailWidth}
+                    graphLaneCount={graphLaneCount}
+                    refsColumnWidth={refsColumnWidth}
+                    selected={layout.commit.hash === selectedHash}
+                    onClick={() => handleSelect(layout.commit.hash)}
+                    onContextMenu={(e) => handleRowContextMenu(e, layout.commit.subject, layout.commit.hash)}
+                  />
+                ))}
+                {hasMore && (
+                  <div ref={sentinelRef} className="h-10 flex items-center justify-center text-[0.625rem] text-fg-subtle">
+                    {loadingMore ? 'Loading more…' : ''}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {layouts.length > 0 && (
+            <ColumnResizeDivider
+              width={refsColumnWidth}
+              min={REFS_COLUMN_MIN_WIDTH}
+              max={REFS_COLUMN_MAX_WIDTH}
+              onResize={setLiveRefsColumnWidth}
+              onCommit={(w) => { setRefsColumnWidth(w); setLiveRefsColumnWidth(null) }}
+            />
           )}
         </div>
       </div>
