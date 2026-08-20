@@ -69,7 +69,7 @@ export function GitSettingsPage() {
       <h1 className="text-base font-semibold text-fg mb-1">Git</h1>
       <p className="text-sm text-fg-muted mb-8">Safety settings and defaults for git operations.</p>
 
-      <div className="grid grid-cols-1 gap-6 max-w-lg">
+      <div className="grid grid-cols-1 gap-6 max-w-2xl">
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Force Push Safety</h2>
 
