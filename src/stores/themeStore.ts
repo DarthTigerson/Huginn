@@ -279,3 +279,24 @@ export function glassXtermTheme(theme: ThemeId): ITheme {
   const base = XTERM_THEMES[theme]
   return { ...base, background: hexWithAlpha(base.background!, XTERM_GLASS_ALPHA) }
 }
+
+// Swatch metadata for theme pickers (DisplayPage, the setup wizard) — kept
+// here alongside XTERM_THEMES/MONACO_THEMES so the three stay in sync rather
+// than duplicating a hand-picked swatch list per picker.
+export interface ThemeOption {
+  id: ThemeId
+  name: string
+  swatches: string[]
+}
+
+export const THEME_OPTIONS: ThemeOption[] = [
+  { id: 'claude-dark',  name: 'Claude Dark',  swatches: ['#1a1a1a', '#252526', '#1e1e1e', '#d97757', '#3c3c3c'] },
+  { id: 'claude-light', name: 'Claude Light', swatches: ['#f3f3f3', '#ececec', '#ffffff', '#c4613d', '#e0e0e0'] },
+  { id: 'codex-dark',   name: 'Codex Dark',   swatches: ['#1a1a1a', '#1a1a1a', '#202020', '#ffffff', '#333333'] },
+  { id: 'codex-light',  name: 'Codex Light',  swatches: ['#fafafa', '#fafafa', '#ffffff', '#0969da', '#d0d7de'] },
+  { id: 'thomas-dark',  name: 'Thomas Dark',  swatches: ['#1c1712', '#2b2319', '#221c15', '#f5c242', '#4a3d29'] },
+  { id: 'thomas-light', name: 'Thomas Light', swatches: ['#f7f1e0', '#efe6cd', '#fffcf2', '#ad7b00', '#d8c89a'] },
+  // Luuk hates light mode — "Luuk Light" is a gag, identical to "Luuk Dark".
+  { id: 'luuk-dark',    name: 'Luuk Dark',    swatches: ['#0d0d0d', '#111111', '#141414', '#9e9e9e', '#2e2e2e'] },
+  { id: 'luuk-light',   name: 'Luuk Light',   swatches: ['#0d0d0d', '#111111', '#141414', '#9e9e9e', '#2e2e2e'] },
+]

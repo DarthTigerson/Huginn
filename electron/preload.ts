@@ -364,6 +364,16 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('lsp:install:exit', handler)
   },
 
+  onboardingGetStatus: () => ipcRenderer.invoke('onboarding:getStatus'),
+  onboardingMarkComplete: () => ipcRenderer.invoke('onboarding:markComplete'),
+  onboardingReset: () => ipcRenderer.invoke('onboarding:reset'),
+  onboardingDetectCli: (bin: string) => ipcRenderer.invoke('onboarding:detectCli', bin),
+  onboardingGetGitIdentity: () => ipcRenderer.invoke('onboarding:getGitIdentity'),
+  onboardingSetGitIdentity: (name: string, email: string) =>
+    ipcRenderer.invoke('onboarding:setGitIdentity', name, email),
+  onboardingPrimeAutomationPermission: () => ipcRenderer.invoke('onboarding:primeAutomationPermission'),
+  onboardingOpenAutomationSettings: () => ipcRenderer.invoke('onboarding:openAutomationSettings'),
+
   graphifyIsAvailable: () => ipcRenderer.invoke('graphify:isAvailable'),
   graphifyRun: (id: string, cwd: string) => ipcRenderer.invoke('graphify:run', id, cwd),
   graphifyReadGraph: (cwd: string) => ipcRenderer.invoke('graphify:readGraph', cwd),

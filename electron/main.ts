@@ -25,6 +25,7 @@ import { registerRecentProjectsHandlers, readRecents, addRecentProject, clearRec
 import { UpdateChecker } from './updateChecker'
 import { getChangelogForVersion } from './changelog'
 import { getSystemMemoryUsage } from './systemMemory'
+import { registerOnboardingHandlers } from './onboarding'
 
 function registerFsHandlers(): void {
   ipcMain.handle('fs:readDir', (_e, path: string) => buildTree(path))
@@ -549,6 +550,7 @@ app.whenReady().then(() => {
   registerRecentProjectsHandlers()
   registerWindowHandlers()
   registerSystemHandlers()
+  registerOnboardingHandlers()
 
   ptyMgr = new PtyManager()
   ptyMgr.registerHandlers()

@@ -6,6 +6,7 @@ import type { UpdateInfo } from '../../electron/updateChecker'
 import type { GraphifyGraph } from './graphify'
 import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
 import type { DockerStatus, DockerContainer, DockerActionResult } from '../../electron/docker'
+import type { OnboardingStatus, GitIdentity } from '../../electron/onboarding'
 
 export type { LatestUsage, UsageSnapshot, UpdateInfo, DockerStatus, DockerContainer, DockerActionResult }
 
@@ -250,6 +251,15 @@ declare global {
       inlineEditStart: (payload: InlineEditStartPayload) => void
       inlineEditCancel: () => void
       onInlineEditEvent: (cb: (event: InlineEditEvent) => void) => () => void
+
+      onboardingGetStatus: () => Promise<OnboardingStatus>
+      onboardingMarkComplete: () => Promise<void>
+      onboardingReset: () => Promise<void>
+      onboardingDetectCli: (bin: string) => Promise<boolean>
+      onboardingGetGitIdentity: () => Promise<GitIdentity>
+      onboardingSetGitIdentity: (name: string, email: string) => Promise<void>
+      onboardingPrimeAutomationPermission: () => Promise<boolean>
+      onboardingOpenAutomationSettings: () => Promise<void>
 
       graphifyIsAvailable: () => Promise<boolean>
       graphifyRun: (id: string, cwd: string) => Promise<void>

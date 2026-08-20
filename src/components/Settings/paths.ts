@@ -8,6 +8,7 @@ export function isBrowserTab(path: string): boolean { return path.startsWith(BRO
 export function buildBrowserPath(id: string): string { return BROWSER_PREFIX + id }
 export function getBrowserId(path: string): string { return path.slice(BROWSER_PREFIX.length) }
 
+export const GENERAL_SETTINGS_TAB_PATH = 'settings://General'
 export const DISPLAY_TAB_PATH = 'settings://Display'
 export const EDITOR_SETTINGS_TAB_PATH = 'settings://Editor'
 export const GIT_SETTINGS_TAB_PATH = 'settings://Git'

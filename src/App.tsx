@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
 import { UpdateChangelogModal } from './components/UpdateChangelogModal'
+import { SetupWizard } from './components/Onboarding/SetupWizard'
 import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
 import { useHoldToShowShortcuts } from './components/Shortcuts/useHoldToShowShortcuts'
 import { Chat } from './components/Chat/Chat'
@@ -64,6 +65,7 @@ import { useInstanceFontSizeStore } from './stores/instanceFontSizeStore'
 import { useSidebarUiStore } from './stores/sidebarUiStore'
 import { useUpdateStore } from './stores/updateStore'
 import { useChangelogStore } from './stores/changelogStore'
+import { useOnboardingStore } from './stores/onboardingStore'
 import { useBrowserStore } from './stores/browserStore'
 import { useTodoSettingsStore } from './stores/todoSettingsStore'
 import { useJiraSettingsStore } from './stores/jiraSettingsStore'
@@ -429,6 +431,10 @@ export default function App() {
 
   useEffect(() => {
     useChangelogStore.getState().checkPending()
+  }, [])
+
+  useEffect(() => {
+    useOnboardingStore.getState().checkStatus()
   }, [])
 
   useEffect(() => {
@@ -939,6 +945,7 @@ export default function App() {
         <BranchPalette projectRoot={selectedRepo} onClose={() => useSearchStore.getState().closeBranchPalette()} />
       )}
       <UpdateChangelogModal />
+      <SetupWizard />
     </div>
   )
 }
