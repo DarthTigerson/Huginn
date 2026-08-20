@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { ModelsSettingsPage } from '../ModelsSettingsPage'
 import { useAutocompleteSettingsStore } from '@/stores/autocompleteSettingsStore'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
-import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
+import { useBridgeSettingsStore } from '@/stores/bridgeSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
@@ -25,8 +25,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   useAutocompleteSettingsStore.setState({ enabled: true, model: 'claude-haiku-4-5-20251001' })
-  useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
-  useCosmosSettingsStore.setState({ endpoint: '', apiKey: '', modelId: '' })
+  useModelSettingsStore.setState({ enabled: { claude: true, codex: true, bridge: true } })
+  useBridgeSettingsStore.setState({ endpoint: '', apiKey: '', modelId: '' })
   useInlineEditSettingsStore.setState({ enabled: true, model: 'claude-sonnet-5' })
   useUsagePassiveSettingsStore.setState({ enabled: false, initialized: false })
   useCommitMessageSettingsStore.setState({ enabled: false, model: 'claude-sonnet-5', prompt: '' })
@@ -34,7 +34,7 @@ afterEach(() => {
 
 describe('ModelsSettingsPage assistants section', () => {
   it('reflects the current enabled state for each assistant', () => {
-    useModelSettingsStore.setState({ enabled: { claude: true, codex: false, cosmos: true } })
+    useModelSettingsStore.setState({ enabled: { claude: true, codex: false, bridge: true } })
     render(<ModelsSettingsPage />)
     expect(screen.getByRole('switch', { name: 'Codex' })).toHaveAttribute('aria-checked', 'false')
   })
@@ -46,21 +46,21 @@ describe('ModelsSettingsPage assistants section', () => {
   })
 })
 
-describe('ModelsSettingsPage cosmos section', () => {
-  it('is visible when cosmos is enabled', () => {
-    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
+describe('ModelsSettingsPage bridge section', () => {
+  it('is visible when bridge is enabled', () => {
+    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, bridge: true } })
     render(<ModelsSettingsPage />)
     expect(screen.getByLabelText('Endpoint')).toBeTruthy()
   })
 
-  it('is hidden when cosmos is disabled', () => {
-    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: false } })
+  it('is hidden when bridge is disabled', () => {
+    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, bridge: false } })
     render(<ModelsSettingsPage />)
     expect(screen.queryByLabelText('Endpoint')).toBeNull()
   })
 
   it('renders current settings values', () => {
-    useCosmosSettingsStore.setState({ endpoint: 'http://host:8002/v1', apiKey: 'local', modelId: 'test-model' })
+    useBridgeSettingsStore.setState({ endpoint: 'http://host:8002/v1', apiKey: 'local', modelId: 'test-model' })
     render(<ModelsSettingsPage />)
 
     expect((screen.getByLabelText('Endpoint') as HTMLInputElement).value).toBe('http://host:8002/v1')
@@ -71,11 +71,11 @@ describe('ModelsSettingsPage cosmos section', () => {
   it('updates the store when a field changes', () => {
     render(<ModelsSettingsPage />)
     fireEvent.change(screen.getByLabelText('Endpoint'), { target: { value: 'http://new:8002/v1' } })
-    expect(useCosmosSettingsStore.getState().endpoint).toBe('http://new:8002/v1')
+    expect(useBridgeSettingsStore.getState().endpoint).toBe('http://new:8002/v1')
   })
 
   it('shows a success message when the test connection succeeds', async () => {
-    ;(global as any).window.api = { ...baseWindowApi(), cosmosTestConnection: vi.fn().mockResolvedValue({ ok: true }) }
+    ;(global as any).window.api = { ...baseWindowApi(), bridgeTestConnection: vi.fn().mockResolvedValue({ ok: true }) }
     render(<ModelsSettingsPage />)
 
     fireEvent.click(screen.getByText('Test Connection'))
@@ -84,7 +84,7 @@ describe('ModelsSettingsPage cosmos section', () => {
   })
 
   it('shows an error message when the test connection fails', async () => {
-    ;(global as any).window.api = { ...baseWindowApi(), cosmosTestConnection: vi.fn().mockResolvedValue({ ok: false, error: 'HTTP 401' }) }
+    ;(global as any).window.api = { ...baseWindowApi(), bridgeTestConnection: vi.fn().mockResolvedValue({ ok: false, error: 'HTTP 401' }) }
     render(<ModelsSettingsPage />)
 
     fireEvent.click(screen.getByText('Test Connection'))

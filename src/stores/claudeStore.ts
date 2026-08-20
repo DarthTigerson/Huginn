@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { AssistantKind } from '@/types/api'
 
 const ASSISTANT_KEY = 'huginn-last-assistant'
-const VALID: AssistantKind[] = ['claude', 'codex', 'cosmos']
+const VALID: AssistantKind[] = ['claude', 'codex', 'bridge']
 
 function readStoredAssistant(): AssistantKind {
   try {

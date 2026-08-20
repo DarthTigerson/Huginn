@@ -1,10 +1,10 @@
 import { create } from 'zustand'
-import { useCosmosSettingsStore } from './cosmosSettingsStore'
-import type { CosmosEvent, CosmosMessage } from '@/types/api'
+import { useBridgeSettingsStore } from './bridgeSettingsStore'
+import type { BridgeEvent, BridgeMessage } from '@/types/api'
 
-const AGENT_MODE_KEY = 'huginn:cosmos:agentMode'
-const CURRENT_SESSION_KEY = 'huginn:cosmos:current'
-const SESSIONS_KEY = 'huginn:cosmos:sessions'
+const AGENT_MODE_KEY = 'huginn:bridge:agentMode'
+const CURRENT_SESSION_KEY = 'huginn:bridge:current'
+const SESSIONS_KEY = 'huginn:bridge:sessions'
 
 function newSessionId(): string {
   return `huginn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
@@ -12,12 +12,12 @@ function newSessionId(): string {
 
 export interface StoredSession {
   id: string
-  messages: CosmosChatMessage[]
+  messages: BridgeChatMessage[]
   timestamp: number
   title: string
 }
 
-function loadCurrentSession(): { id: string; messages: CosmosChatMessage[] } | null {
+function loadCurrentSession(): { id: string; messages: BridgeChatMessage[] } | null {
   try {
     const raw = localStorage.getItem(CURRENT_SESSION_KEY)
     return raw ? JSON.parse(raw) : null
@@ -31,7 +31,7 @@ function loadStoredSessions(): StoredSession[] {
   } catch { return [] }
 }
 
-function persistCurrentSession(id: string, messages: CosmosChatMessage[]) {
+function persistCurrentSession(id: string, messages: BridgeChatMessage[]) {
   try { localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify({ id, messages })) } catch {}
 }
 
@@ -45,7 +45,7 @@ function saveSessionToHistory(session: StoredSession) {
   } catch {}
 }
 
-export interface CosmosToolCallBlock {
+export interface BridgeToolCallBlock {
   id: string
   name: string
   args: Record<string, unknown>
@@ -53,10 +53,10 @@ export interface CosmosToolCallBlock {
   result?: string
 }
 
-export interface CosmosChatMessage {
+export interface BridgeChatMessage {
   role: 'user' | 'assistant'
   content: string
-  toolCalls?: CosmosToolCallBlock[]
+  toolCalls?: BridgeToolCallBlock[]
 }
 
 function getAgentMode(): boolean {
@@ -67,13 +67,13 @@ function getAgentMode(): boolean {
   }
 }
 
-function toWireMessages(messages: CosmosChatMessage[]): CosmosMessage[] {
+function toWireMessages(messages: BridgeChatMessage[]): BridgeMessage[] {
   return messages.map((m) => ({ role: m.role, content: m.content }))
 }
 
-interface CosmosStore {
-  messages: CosmosChatMessage[]
-  previousMessages: CosmosChatMessage[]
+interface BridgeStore {
+  messages: BridgeChatMessage[]
+  previousMessages: BridgeChatMessage[]
   sessionId: string
   sessions: StoredSession[]
   showSessionPicker: boolean
@@ -97,7 +97,7 @@ interface CosmosStore {
 
 const _saved = loadCurrentSession()
 
-export const useCosmosStore = create<CosmosStore>((set, get) => ({
+export const useBridgeStore = create<BridgeStore>((set, get) => ({
   messages: _saved?.messages ?? [],
   previousMessages: [],
   sessionId: _saved?.id ?? newSessionId(),
@@ -108,12 +108,12 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
   draftInput: '',
 
   sendMessage: (cwd, text) => {
-    const userMessage: CosmosChatMessage = { role: 'user', content: text }
+    const userMessage: BridgeChatMessage = { role: 'user', content: text }
     const messages = [...get().messages, userMessage]
     set({ messages, streaming: true })
 
-    const settings = useCosmosSettingsStore.getState()
-    window.api.cosmosSend(cwd, toWireMessages(messages), get().agentMode, {
+    const settings = useBridgeSettingsStore.getState()
+    window.api.bridgeSend(cwd, toWireMessages(messages), get().agentMode, {
       endpoint: settings.endpoint,
       apiKey: settings.apiKey,
       modelId: settings.modelId,
@@ -129,8 +129,8 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
     const messages = [...history, { role: 'user' as const, content: target.content }]
     set({ messages, streaming: true })
 
-    const settings = useCosmosSettingsStore.getState()
-    window.api.cosmosSend(cwd, toWireMessages(messages), get().agentMode, {
+    const settings = useBridgeSettingsStore.getState()
+    window.api.bridgeSend(cwd, toWireMessages(messages), get().agentMode, {
       endpoint: settings.endpoint,
       apiKey: settings.apiKey,
       modelId: settings.modelId,
@@ -168,15 +168,15 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
     set({ agentMode: next })
   },
 
-  approveToolCall: (id) => window.api.cosmosApprove(id),
-  rejectToolCall: (id) => window.api.cosmosReject(id),
+  approveToolCall: (id) => window.api.bridgeApprove(id),
+  rejectToolCall: (id) => window.api.bridgeReject(id),
   cancel: () => {
-    window.api.cosmosCancel()
+    window.api.bridgeCancel()
     set({ streaming: false })
   },
 
   initEventListener: () => {
-    return window.api.onCosmosEvent((event: CosmosEvent) => {
+    return window.api.onBridgeEvent((event: BridgeEvent) => {
       handleEvent(event, set, get)
     })
   },
@@ -186,16 +186,16 @@ export const useCosmosStore = create<CosmosStore>((set, get) => ({
     set((s) => ({ draftInput: s.draftInput ? `${s.draftInput}\n${text}` : text })),
 }))
 
-function ensureAssistantMessage(messages: CosmosChatMessage[]): CosmosChatMessage[] {
+function ensureAssistantMessage(messages: BridgeChatMessage[]): BridgeChatMessage[] {
   const last = messages[messages.length - 1]
   if (last && last.role === 'assistant') return messages
   return [...messages, { role: 'assistant', content: '' }]
 }
 
 function handleEvent(
-  event: CosmosEvent,
-  set: (partial: Partial<CosmosStore>) => void,
-  get: () => CosmosStore
+  event: BridgeEvent,
+  set: (partial: Partial<BridgeStore>) => void,
+  get: () => BridgeStore
 ): void {
   const messages = ensureAssistantMessage(get().messages)
   const last = { ...messages[messages.length - 1] }

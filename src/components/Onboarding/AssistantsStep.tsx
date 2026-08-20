@@ -5,7 +5,7 @@ import type { AssistantKind } from '@/types/api'
 const MODEL_TOGGLES: Array<{ id: AssistantKind; label: string; description: string }> = [
   { id: 'claude', label: 'Claude', description: 'Claude Code CLI, run as a terminal panel.' },
   { id: 'codex', label: 'Codex', description: 'OpenAI Codex CLI, run as a terminal panel.' },
-  { id: 'cosmos', label: 'Cosmos', description: 'Any OpenAI-compatible local LLM endpoint.' },
+  { id: 'bridge', label: 'Bridge', description: 'Any OpenAI-compatible local LLM endpoint.' },
 ]
 
 export function AssistantsStep() {

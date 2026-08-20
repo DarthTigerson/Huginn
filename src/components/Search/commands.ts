@@ -98,11 +98,11 @@ export const COMMANDS: Command[] = [
     action: () => useClaudeStore.getState().setAssistant('claude'),
   },
   {
-    id: 'switch-to-cosmos',
-    label: 'Switch to Cosmos',
-    description: 'Use Cosmos as the AI assistant',
+    id: 'switch-to-bridge',
+    label: 'Switch to Bridge',
+    description: 'Use Bridge as the AI assistant',
     keywords: ['assistant', 'model'],
-    condition: () => useClaudeStore.getState().assistant !== 'cosmos',
-    action: () => useClaudeStore.getState().setAssistant('cosmos'),
+    condition: () => useClaudeStore.getState().assistant !== 'bridge',
+    action: () => useClaudeStore.getState().setAssistant('bridge'),
   },
 ]

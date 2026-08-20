@@ -25,7 +25,7 @@ import {
   BrowserIcon,
   ClaudeIcon,
   CodexIcon,
-  CosmosIcon,
+  BridgeIcon,
   NewSessionIcon,
   PreviousSessionIcon,
   CompactIcon,
@@ -49,8 +49,8 @@ import { RecentProjectsPalette } from './components/Search/RecentProjectsPalette
 import { SearchModal } from './components/Search/SearchModal'
 import { useFileStore } from './stores/fileStore'
 import { useClaudeStore } from './stores/claudeStore'
-import { useCosmosStore } from './stores/cosmosStore'
-import { useCosmosSettingsStore } from './stores/cosmosSettingsStore'
+import { useBridgeStore } from './stores/bridgeStore'
+import { useBridgeSettingsStore } from './stores/bridgeSettingsStore'
 import { useModelSettingsStore } from './stores/modelSettingsStore'
 import { useGitStore, useRepoGitState } from './stores/gitStore'
 import { useGitReposStore } from './stores/gitReposStore'
@@ -79,11 +79,11 @@ import type { AssistantKind } from './types/api'
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
   { id: 'claude', label: 'Claude Code' },
   { id: 'codex', label: 'Codex' },
-  { id: 'cosmos', label: 'Cosmos' },
+  { id: 'bridge', label: 'Bridge' },
 ]
 
 function assistantIcon(kind: AssistantKind) {
-  return kind === 'claude' ? <ClaudeIcon /> : kind === 'codex' ? <CodexIcon /> : <CosmosIcon />
+  return kind === 'claude' ? <ClaudeIcon /> : kind === 'codex' ? <CodexIcon /> : <BridgeIcon />
 }
 
 const TODO_BROWSER_ID = 'todo-external'
@@ -135,9 +135,9 @@ export default function App() {
   const branchPaletteOpen = useSearchStore((s) => s.branchPaletteOpen)
   const chatPanelRef = useRef<ImperativePanelHandle>(null)
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null)
-  const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'
-  const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Cosmos Session'
-  const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : assistant === 'codex' ? 'Resume Latest Codex Session' : 'Restore Previous Cosmos Session'
+  const assistantLabel = assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Bridge'
+  const newSessionTitle = assistant === 'claude' ? 'New Claude Session' : assistant === 'codex' ? 'New Codex Session' : 'New Bridge Session'
+  const previousSessionTitle = assistant === 'claude' ? 'Continue Claude Session' : assistant === 'codex' ? 'Resume Latest Codex Session' : 'Restore Previous Bridge Session'
   const uncommittedChangeCount = new Set([
     ...gitStatus.staged.map((file) => file.path),
     ...gitStatus.unstaged.map((file) => file.path),
@@ -229,7 +229,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    useCosmosSettingsStore.getState().init()
+    useBridgeSettingsStore.getState().init()
     useMobileStore.getState().init()
   }, [])
 
@@ -358,7 +358,7 @@ export default function App() {
   useEffect(() => {
     // Catches file changes made outside the app's own UI — Finder, an
     // external editor, a build script, `mkdir`/`touch` in a terminal, an
-    // agent (Claude/Codex/Cosmos) editing files directly — which the app's
+    // agent (Claude/Codex/Bridge) editing files directly — which the app's
     // own create/rename/delete actions already refresh for, but nothing else
     // does. Also refreshes the Git Panel's staged/unstaged list: a content
     // edit only touches the working tree, never `.git/*`, so GitWatcher's
@@ -585,7 +585,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const unsub = useCosmosStore.getState().initEventListener()
+    const unsub = useBridgeStore.getState().initEventListener()
     return unsub
   }, [])
 
@@ -819,7 +819,7 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => {
                   if (!projectRoot) return
-                  if (assistant === 'cosmos') useCosmosStore.getState().newSession()
+                  if (assistant === 'bridge') useBridgeStore.getState().newSession()
                   else useClaudeStore.getState().newSession(projectRoot)
                 },
               },
@@ -831,7 +831,7 @@ export default function App() {
                 disabled: !projectRoot,
                 onClick: () => {
                   if (!projectRoot) return
-                  if (assistant === 'cosmos') useCosmosStore.getState().openSessionPicker()
+                  if (assistant === 'bridge') useBridgeStore.getState().openSessionPicker()
                   else useClaudeStore.getState().previousSession(projectRoot)
                 },
               },

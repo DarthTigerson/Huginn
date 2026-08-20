@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useCosmosStore, type CosmosToolCallBlock } from '@/stores/cosmosStore'
+import { useBridgeStore, type BridgeToolCallBlock } from '@/stores/bridgeStore'
 import { useClaudeStore } from '@/stores/claudeStore'
-import { useCosmosAgentModeShortcut } from './useCosmosAgentModeShortcut'
+import { useBridgeAgentModeShortcut } from './useBridgeAgentModeShortcut'
 
-function ToolCallBlock({ block }: { block: CosmosToolCallBlock }) {
+function ToolCallBlock({ block }: { block: BridgeToolCallBlock }) {
   const [expanded, setExpanded] = useState(block.status === 'pending-approval')
-  const approveToolCall = useCosmosStore((s) => s.approveToolCall)
-  const rejectToolCall = useCosmosStore((s) => s.rejectToolCall)
+  const approveToolCall = useBridgeStore((s) => s.approveToolCall)
+  const rejectToolCall = useBridgeStore((s) => s.rejectToolCall)
 
   const statusLabel = {
     'pending-approval': 'Waiting for approval',
@@ -98,18 +98,18 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-export function CosmosChat({ cwd }: { cwd: string }) {
-  useCosmosAgentModeShortcut()
-  const messages = useCosmosStore((s) => s.messages)
-  const agentMode = useCosmosStore((s) => s.agentMode)
-  const streaming = useCosmosStore((s) => s.streaming)
-  const sendMessage = useCosmosStore((s) => s.sendMessage)
-  const regenerate = useCosmosStore((s) => s.regenerate)
-  const toggleAgentMode = useCosmosStore((s) => s.toggleAgentMode)
-  const cancel = useCosmosStore((s) => s.cancel)
-  const input = useCosmosStore((s) => s.draftInput)
-  const setInput = useCosmosStore((s) => s.setDraftInput)
-  const appendDraftInput = useCosmosStore((s) => s.appendDraftInput)
+export function BridgeChat({ cwd }: { cwd: string }) {
+  useBridgeAgentModeShortcut()
+  const messages = useBridgeStore((s) => s.messages)
+  const agentMode = useBridgeStore((s) => s.agentMode)
+  const streaming = useBridgeStore((s) => s.streaming)
+  const sendMessage = useBridgeStore((s) => s.sendMessage)
+  const regenerate = useBridgeStore((s) => s.regenerate)
+  const toggleAgentMode = useBridgeStore((s) => s.toggleAgentMode)
+  const cancel = useBridgeStore((s) => s.cancel)
+  const input = useBridgeStore((s) => s.draftInput)
+  const setInput = useBridgeStore((s) => s.setDraftInput)
+  const appendDraftInput = useBridgeStore((s) => s.appendDraftInput)
   const focusToken = useClaudeStore((s) => s.focusToken)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -203,7 +203,7 @@ export function CosmosChat({ cwd }: { cwd: string }) {
               onSubmit(e)
             }
           }}
-          placeholder="Message Cosmos…"
+          placeholder="Message Bridge…"
           rows={2}
           className="w-full resize-none rounded border border-border bg-panel px-2 py-1.5 text-sm text-fg outline-none focus:border-accent"
         />

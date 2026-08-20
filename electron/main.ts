@@ -13,7 +13,7 @@ import { DockerWatcher } from './dockerWatcher'
 import { FileWatcher } from './fileWatcher'
 import { MobileServer } from './mobile'
 import { UsageManager } from './usageManager'
-import { CosmosManager } from './cosmos'
+import { BridgeManager } from './bridge'
 import { AutocompleteManager } from './autocomplete'
 import { InlineEditManager } from './inlineEdit'
 import { CommitMessageManager } from './commitMessage'
@@ -168,7 +168,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     gitWatcher.disposeWindow(win.id)
     dockerWatcher.disposeWindow(win.id)
     fileWatcher.disposeWindow(win.id)
-    cosmosMgr.disposeWindow(win.id)
+    bridgeMgr.disposeWindow(win.id)
     browserViewMgr.disposeWindow(win.id)
     autocompleteMgr.disposeWindow(win.id)
     inlineEditMgr.disposeWindow(win.id)
@@ -207,10 +207,10 @@ async function openProjectInNewWindow(path: string): Promise<void> {
 
 app.name = 'Huginn'
 
-function registerCosmosSettingsHandlers(): void {
-  const settingsPath = join(app.getPath('userData'), 'cosmos-settings.json')
+function registerBridgeSettingsHandlers(): void {
+  const settingsPath = join(app.getPath('userData'), 'bridge-settings.json')
 
-  ipcMain.handle('cosmos:getSettings', async () => {
+  ipcMain.handle('bridge:getSettings', async () => {
     try {
       const data = await readFile(settingsPath, 'utf-8')
       return JSON.parse(data)
@@ -219,7 +219,7 @@ function registerCosmosSettingsHandlers(): void {
     }
   })
 
-  ipcMain.handle('cosmos:setSettings', async (_e, settings: { endpoint: string; apiKey: string; modelId: string }) => {
+  ipcMain.handle('bridge:setSettings', async (_e, settings: { endpoint: string; apiKey: string; modelId: string }) => {
     try {
       await writeFile(settingsPath, JSON.stringify(settings), 'utf-8')
     } catch {}
@@ -526,7 +526,7 @@ let claudeMgr: ClaudeManager
 let gitWatcher: GitWatcher
 let dockerWatcher: DockerWatcher
 let fileWatcher: FileWatcher
-let cosmosMgr: CosmosManager
+let bridgeMgr: BridgeManager
 let browserViewMgr: BrowserViewManager
 let autocompleteMgr: AutocompleteManager
 let inlineEditMgr: InlineEditManager
@@ -544,7 +544,7 @@ app.whenReady().then(() => {
   }
 
   registerFsHandlers()
-  registerCosmosSettingsHandlers()
+  registerBridgeSettingsHandlers()
   registerDevtoolsHandlers()
   registerSessionHandlers()
   registerRecentProjectsHandlers()
@@ -569,8 +569,8 @@ app.whenReady().then(() => {
   dockerWatcher.registerHandlers()
   fileWatcher = new FileWatcher()
   fileWatcher.registerHandlers()
-  cosmosMgr = new CosmosManager()
-  cosmosMgr.registerHandlers()
+  bridgeMgr = new BridgeManager()
+  bridgeMgr.registerHandlers()
   browserViewMgr = new BrowserViewManager()
   browserViewMgr.registerHandlers()
   autocompleteMgr = new AutocompleteManager()

@@ -15,13 +15,13 @@ const { localStorageStore } = vi.hoisted(() => {
 describe('modelSettingsStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, cosmos: true } })
+    useModelSettingsStore.setState({ enabled: { claude: true, codex: true, bridge: true } })
   })
 
   it('defaults to only claude enabled on first launch (no stored preference)', async () => {
     vi.resetModules()
     const { useModelSettingsStore: freshStore } = await import('../modelSettingsStore')
-    expect(freshStore.getState().enabled).toEqual({ claude: true, codex: false, cosmos: false })
+    expect(freshStore.getState().enabled).toEqual({ claude: true, codex: false, bridge: false })
   })
 
   it('disables a model', () => {
@@ -37,14 +37,14 @@ describe('modelSettingsStore', () => {
 
   it('refuses to disable the last remaining enabled model', () => {
     useModelSettingsStore.getState().setEnabled('codex', false)
-    useModelSettingsStore.getState().setEnabled('cosmos', false)
+    useModelSettingsStore.getState().setEnabled('bridge', false)
     // Only 'claude' left enabled — disabling it would leave nothing selectable.
     useModelSettingsStore.getState().setEnabled('claude', false)
     expect(useModelSettingsStore.getState().enabled.claude).toBe(true)
   })
 
   it('persists changes to localStorage', () => {
-    useModelSettingsStore.getState().setEnabled('cosmos', false)
-    expect(JSON.parse(localStorage.getItem('huginn:enabledModels')!)).toMatchObject({ cosmos: false })
+    useModelSettingsStore.getState().setEnabled('bridge', false)
+    expect(JSON.parse(localStorage.getItem('huginn:enabledModels')!)).toMatchObject({ bridge: false })
   })
 })

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useModelSettingsStore } from '@/stores/modelSettingsStore'
 import { useAutocompleteSettingsStore, AUTOCOMPLETE_MODELS } from '@/stores/autocompleteSettingsStore'
-import { useCosmosSettingsStore } from '@/stores/cosmosSettingsStore'
+import { useBridgeSettingsStore } from '@/stores/bridgeSettingsStore'
 import { useInlineEditSettingsStore } from '@/stores/inlineEditSettingsStore'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
 import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore'
@@ -14,7 +14,7 @@ import type { AssistantKind } from '@/types/api'
 const MODEL_TOGGLES: Array<{ id: AssistantKind; label: string; description: string }> = [
   { id: 'claude', label: 'Claude', description: 'Show Claude Code in the model dropdown.' },
   { id: 'codex', label: 'Codex', description: 'Show Codex in the model dropdown.' },
-  { id: 'cosmos', label: 'Cosmos', description: 'Show Cosmos in the model dropdown.' },
+  { id: 'bridge', label: 'Bridge', description: 'Show Bridge in the model dropdown.' },
 ]
 
 function Field({ id, label, value, onChange, type = 'text' }: {
@@ -34,15 +34,15 @@ function Field({ id, label, value, onChange, type = 'text' }: {
   )
 }
 
-function CosmosConnectionSection() {
-  const { endpoint, apiKey, modelId, setEndpoint, setApiKey, setModelId } = useCosmosSettingsStore()
+function BridgeConnectionSection() {
+  const { endpoint, apiKey, modelId, setEndpoint, setApiKey, setModelId } = useBridgeSettingsStore()
   const [testState, setTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [testError, setTestError] = useState('')
 
   const runTest = async () => {
     setTestState('testing')
     setTestError('')
-    const result = await window.api.cosmosTestConnection({ endpoint, apiKey, modelId })
+    const result = await window.api.bridgeTestConnection({ endpoint, apiKey, modelId })
     if (result.ok) {
       setTestState('ok')
     } else {
@@ -53,11 +53,11 @@ function CosmosConnectionSection() {
 
   return (
     <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
-      <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Cosmos</h2>
+      <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Bridge</h2>
 
-      <Field id="cosmos-endpoint" label="Endpoint" value={endpoint} onChange={setEndpoint} />
-      <Field id="cosmos-apikey" label="API Key" value={apiKey} onChange={setApiKey} />
-      <Field id="cosmos-model" label="Model ID" value={modelId} onChange={setModelId} />
+      <Field id="bridge-endpoint" label="Endpoint" value={endpoint} onChange={setEndpoint} />
+      <Field id="bridge-apikey" label="API Key" value={apiKey} onChange={setApiKey} />
+      <Field id="bridge-model" label="Model ID" value={modelId} onChange={setModelId} />
 
       <div className="flex items-center gap-3">
         <button
@@ -121,7 +121,7 @@ export function ModelsSettingsPage() {
           ))}
         </section>
 
-        {enabledModels.cosmos && <CosmosConnectionSection />}
+        {enabledModels.bridge && <BridgeConnectionSection />}
 
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
