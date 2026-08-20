@@ -4,7 +4,7 @@ export function DoneStep() {
       <h1 className="text-lg font-semibold text-fg">All set</h1>
       <p className="text-sm text-fg-muted max-w-sm">
         Open a project to get started. You can revisit any of this later in Settings — including
-        replaying this wizard from Settings → General.
+        running this wizard again from Settings → General.
       </p>
     </div>
   )

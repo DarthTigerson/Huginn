@@ -25,7 +25,7 @@ export function GeneralSettingsPage() {
             }}
             className="self-start h-8 px-3 rounded border border-border text-sm text-fg hover:border-fg-subtle transition-colors disabled:opacity-50"
           >
-            Replay Setup Wizard
+            Run Setup Wizard
           </button>
         </section>
       </div>

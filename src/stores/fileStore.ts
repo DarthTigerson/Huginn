@@ -38,6 +38,7 @@ interface FileState {
   collapseAll: () => void
   select: (path: string) => void
   openRecentProject: (root: string) => Promise<void>
+  closeProject: () => void
 }
 
 export const useFileStore = create<FileState>((set, get) => {
@@ -165,5 +166,17 @@ export const useFileStore = create<FileState>((set, get) => {
   // the moment the user next interacts with the tree.
   setRevealedPath: (path: string) => set({ revealedPath: path }),
   clearRevealedPath: () => set({ revealedPath: null }),
+
+  // "Soft" reset — drops back to the Select-a-project screen for this
+  // window only. Deliberately leaves LAST_ROOT_KEY untouched, so a normal
+  // relaunch still restores whatever project was open; this is just for
+  // things like re-running the setup wizard against a clean slate.
+  closeProject: () => {
+    window.api.fsWatchRoot(null)
+    window.api.gitWatchRoot(null)
+    useGitReposStore.getState().setRepos([])
+    useEditorStore.getState().resetForNewProject()
+    set({ projectRoot: null, tree: [], selectedPath: null, expandedPaths: new Set(), revealedPath: null })
+  },
   }
 })

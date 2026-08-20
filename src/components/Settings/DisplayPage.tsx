@@ -1,14 +1,7 @@
-import { useDisplayStore, FONT_PRESETS, type PanelStyle, type FooterContent } from '@/stores/displayStore'
+import { useDisplayStore, FONT_PRESETS, PANEL_STYLE_OPTIONS, type FooterContent } from '@/stores/displayStore'
 import { useThemeStore, THEME_OPTIONS } from '@/stores/themeStore'
 import { Toggle } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
-
-const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
-  { value: 'matt',   label: 'Matt',          description: 'Solid panels' },
-  { value: 'solid',  label: 'Solid Colours', description: 'Solid panels, bolder dividing lines' },
-  { value: 'glossy', label: 'Glossy',        description: 'Frosted glass' },
-  { value: 'glass',  label: 'Glass',         description: 'See-through, reveals the background image' },
-]
 
 // More may be added later — see FooterContent's own comment in displayStore.
 const FOOTER_CONTENT_OPTIONS: { value: FooterContent; label: string }[] = [

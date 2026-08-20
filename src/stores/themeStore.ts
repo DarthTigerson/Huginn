@@ -13,6 +13,8 @@ interface ThemeStore {
   matchSystem: boolean
   setTheme: (theme: ThemeId) => void
   setMatchSystem: (matchSystem: boolean) => void
+  setFamily: (family: string) => void
+  setVariant: (dark: boolean) => void
 }
 
 const STORAGE_KEY = 'huginn:theme'
@@ -23,7 +25,7 @@ function applyTheme(theme: ThemeId) {
   localStorage.setItem(STORAGE_KEY, theme)
 }
 
-function familyOf(theme: ThemeId): string {
+export function familyOf(theme: ThemeId): string {
   return theme.replace(/-(dark|light)$/, '')
 }
 
@@ -57,6 +59,24 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
     } else {
       set({ matchSystem })
     }
+  },
+  // Switches only the color family (Claude/Codex/Thomas/Luuk), preserving
+  // whether the current variant is light or dark — including "follow
+  // system," which setTheme() would otherwise always turn off.
+  setFamily: (family) => {
+    const { theme, matchSystem } = get()
+    const dark = matchSystem ? systemDarkQuery.matches : theme.endsWith('-dark')
+    const next = variantFor(family, dark)
+    applyTheme(next)
+    set({ theme: next })
+  },
+  // Explicit light/dark pick, preserving the current family. Like setTheme,
+  // an explicit choice here always turns off "follow system."
+  setVariant: (dark) => {
+    const next = variantFor(familyOf(get().theme), dark)
+    applyTheme(next)
+    localStorage.setItem(MATCH_SYSTEM_STORAGE_KEY, 'false')
+    set({ theme: next, matchSystem: false })
   },
 }))
 

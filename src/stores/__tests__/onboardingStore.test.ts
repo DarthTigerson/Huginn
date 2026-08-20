@@ -14,16 +14,19 @@ const { api } = vi.hoisted(() => {
     onboardingGetStatus: vi.fn(),
     onboardingMarkComplete: vi.fn().mockResolvedValue(undefined),
     onboardingReset: vi.fn().mockResolvedValue(undefined),
+    fsWatchRoot: vi.fn(),
+    gitWatchRoot: vi.fn(),
   }
   ;(globalThis as any).window = { api }
   return { api }
 })
 
 import { useOnboardingStore, ONBOARDING_STEPS } from '../onboardingStore'
+import { useFileStore } from '../fileStore'
 
 describe('ONBOARDING_STEPS', () => {
   it('includes the macOS-only permissions step when isMac is true', () => {
-    expect(ONBOARDING_STEPS).toEqual(['welcome', 'theme', 'assistants', 'cli', 'git', 'permissions', 'done'])
+    expect(ONBOARDING_STEPS).toEqual(['welcome', 'theme', 'assistants', 'git', 'permissions', 'done'])
   })
 })
 
@@ -78,5 +81,12 @@ describe('onboardingStore', () => {
     expect(api.onboardingReset).toHaveBeenCalled()
     expect(useOnboardingStore.getState().open).toBe(true)
     expect(useOnboardingStore.getState().stepIndex).toBe(0)
+  })
+
+  it('replay() soft-resets the IDE, dropping back to the project picker', async () => {
+    useFileStore.setState({ projectRoot: '/some/project', tree: [{ name: 'a', path: '/some/project/a', isDirectory: false }] })
+    await useOnboardingStore.getState().replay()
+    expect(useFileStore.getState().projectRoot).toBeNull()
+    expect(useFileStore.getState().tree).toHaveLength(0)
   })
 })

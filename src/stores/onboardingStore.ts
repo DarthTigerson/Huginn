@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { isMac } from '@/lib/platform'
+import { useFileStore } from '@/stores/fileStore'
 
-export type OnboardingStepId = 'welcome' | 'theme' | 'assistants' | 'cli' | 'git' | 'permissions' | 'done'
+export type OnboardingStepId = 'welcome' | 'theme' | 'assistants' | 'git' | 'permissions' | 'done'
 
 // Automation/AppleEvents priming is a macOS-only concept (Linux has no TCC),
 // so that step is simply absent from the flow there rather than shown and
@@ -10,7 +11,6 @@ export const ONBOARDING_STEPS: OnboardingStepId[] = [
   'welcome',
   'theme',
   'assistants',
-  'cli',
   'git',
   ...(isMac ? (['permissions'] as const) : []),
   'done',
@@ -56,6 +56,9 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
 
   replay: async () => {
     await window.api.onboardingReset()
+    // Soft reset: drop back to the project picker so the wizard runs
+    // against a clean slate, same as a genuine first launch.
+    useFileStore.getState().closeProject()
     set({ open: true, stepIndex: 0 })
   },
 }))
