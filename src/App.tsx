@@ -156,9 +156,16 @@ export default function App() {
   const activeTabPath = useEditorStore((s) => s.activeTabPath)
   const todoEnabled = useTodoSettingsStore((s) => s.enabled)
   const jiraEnabled = useJiraSettingsStore((s) => s.enabled)
-  const jiraUrl = useJiraSettingsStore((s) => s.externalUrl)
+  // Re-derives whenever externalUrl or projectUrls changes, since getEffectiveUrl
+  // itself isn't reactive state — subscribing to those two directly (rather than
+  // to a derived value computed inside the selector) keeps this correct.
+  useJiraSettingsStore((s) => s.externalUrl)
+  useJiraSettingsStore((s) => s.projectUrls)
+  const jiraUrl = useJiraSettingsStore.getState().getEffectiveUrl(projectRoot)
   const jiraReady = jiraEnabled && jiraUrl.trim() !== ''
-  const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
+  useGitRemoteSettingsStore((s) => s.externalUrl)
+  useGitRemoteSettingsStore((s) => s.projectUrls)
+  const gitRemoteUrl = useGitRemoteSettingsStore.getState().getEffectiveUrl(projectRoot)
   const gitRemoteReady = gitRemoteUrl.trim() !== ''
   const gitRemoteProvider = detectGitRemoteProvider(gitRemoteUrl)
   const dockerEnabled = useDockerSettingsStore((s) => s.enabled)
@@ -192,7 +199,7 @@ export default function App() {
   // Mirrors openTodo() above — same fixed-tab-id, empty-URL-falls-back-to-
   // settings, closeSidePanelOnOpen behavior.
   function openJira() {
-    const url = useJiraSettingsStore.getState().externalUrl
+    const url = useJiraSettingsStore.getState().getEffectiveUrl(projectRoot)
     if (!url) {
       useEditorStore.getState().openTab({ path: JIRA_SETTINGS_TAB_PATH, content: '', dirty: false })
       return
@@ -206,7 +213,7 @@ export default function App() {
   // the Git settings page (a dedicated section) rather than its own tab, so
   // the empty-URL fallback opens that instead of a page of its own.
   function openGitRemote() {
-    const url = useGitRemoteSettingsStore.getState().externalUrl
+    const url = useGitRemoteSettingsStore.getState().getEffectiveUrl(projectRoot)
     if (!url) {
       useEditorStore.getState().openTab({ path: GIT_SETTINGS_TAB_PATH, content: '', dirty: false })
       return

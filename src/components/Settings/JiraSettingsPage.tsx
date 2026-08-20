@@ -1,4 +1,5 @@
 import { useJiraSettingsStore } from '@/stores/jiraSettingsStore'
+import { useFileStore } from '@/stores/fileStore'
 import { Toggle } from '@/components/ui/Toggle'
 
 function Field({ id, label, value, onChange, placeholder }: {
@@ -25,8 +26,11 @@ export function JiraSettingsPage() {
   const setEnabled = useJiraSettingsStore((s) => s.setEnabled)
   const externalUrl = useJiraSettingsStore((s) => s.externalUrl)
   const setExternalUrl = useJiraSettingsStore((s) => s.setExternalUrl)
+  const projectUrls = useJiraSettingsStore((s) => s.projectUrls)
+  const setProjectUrl = useJiraSettingsStore((s) => s.setProjectUrl)
   const closeSidePanelOnOpen = useJiraSettingsStore((s) => s.closeSidePanelOnOpen)
   const setCloseSidePanelOnOpen = useJiraSettingsStore((s) => s.setCloseSidePanelOnOpen)
+  const projectRoot = useFileStore((s) => s.projectRoot)
 
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
@@ -51,11 +55,21 @@ export function JiraSettingsPage() {
 
           <Field
             id="jira-external-url"
-            label="URL"
+            label="Default URL"
             value={externalUrl}
             onChange={setExternalUrl}
             placeholder="https://your-team.atlassian.net"
           />
+
+          {projectRoot && (
+            <Field
+              id="jira-project-url"
+              label="This project's URL"
+              value={projectUrls[projectRoot] ?? ''}
+              onChange={(v) => setProjectUrl(projectRoot, v)}
+              placeholder={externalUrl || 'Same as default URL above'}
+            />
+          )}
 
           <Toggle
             label="Close side panel when opening"
