@@ -36,6 +36,8 @@ import {
   isUsageGraphTab,
   isTodoBoardTab,
   getTodoBoardProjectId,
+  isTodoNewTab,
+  getTodoNewProjectId,
   isTerminalTab,
   getTerminalId,
   isBrowserTab,
@@ -70,6 +72,7 @@ import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
 import { UsageGraphPage } from '@/components/UsagePanel/UsageGraphPage'
 import { TodoBoardPage } from '@/components/Todo/TodoBoardPage'
+import { TodoNewPage } from '@/components/Todo/TodoNewPage'
 import {
   isImagePreviewTab,
   parseImagePreviewPath,
@@ -237,6 +240,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isUsageGraph = !!activeTab && isUsageGraphTab(activeTab.path)
   const isTodoBoard = !!activeTab && isTodoBoardTab(activeTab.path)
+  const isTodoNew = !!activeTab && isTodoNewTab(activeTab.path)
   const isDockerLogs = !!activeTab && isDockerLogsTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
   const isMarkdownPreview = !!activeTab && isMarkdownPreviewTab(activeTab.path)
@@ -247,7 +251,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
-    !isGraphifyGraph && !isUsageGraph && !isTodoBoard && !isDockerLogs && !isImagePreview && !isMarkdownPreview
+    !isGraphifyGraph && !isUsageGraph && !isTodoBoard && !isTodoNew && !isDockerLogs && !isImagePreview && !isMarkdownPreview
 
   function activatePane() {
     setActivePane(paneId)
@@ -406,6 +410,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <UsageGraphPage />
         ) : isTodoBoard ? (
           <TodoBoardPage key={activeTab.path} projectId={getTodoBoardProjectId(activeTab.path)} />
+        ) : isTodoNew ? (
+          <TodoNewPage key={activeTab.path} projectId={getTodoNewProjectId(activeTab.path)} />
         ) : isDockerLogs ? (
           <DockerLogsPage path={activeTab.path} />
         ) : isGitBranchDiff ? (

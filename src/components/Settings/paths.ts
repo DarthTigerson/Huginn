@@ -56,3 +56,8 @@ export function isTodoBoardTab(path: string): boolean { return path.startsWith(T
 export function buildTodoBoardPath(projectId: string): string { return TODO_BOARD_PREFIX + projectId }
 export function getTodoBoardProjectId(path: string): string { return path.slice(TODO_BOARD_PREFIX.length) }
 
+const TODO_NEW_PREFIX = 'todo-new://'
+export function isTodoNewTab(path: string): boolean { return path.startsWith(TODO_NEW_PREFIX) }
+export function buildTodoNewPath(projectId: string): string { return TODO_NEW_PREFIX + projectId }
+export function getTodoNewProjectId(path: string): string { return path.slice(TODO_NEW_PREFIX.length) }
+

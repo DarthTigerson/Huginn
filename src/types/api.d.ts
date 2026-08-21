@@ -97,7 +97,8 @@ export interface Todo {
   attachments: string[]
   status: TodoStatus
   archived: boolean
-  labels: TodoLabel[]
+  label: TodoLabel | null
+  tags: string[]
   prUrl: string | null
   comments: TodoComment[]
   createdAt: number
@@ -109,7 +110,8 @@ export interface TodoUpdatePatch {
   description?: string
   attachments?: string[]
   status?: TodoStatus
-  labels?: TodoLabel[]
+  label?: TodoLabel | null
+  tags?: string[]
   prUrl?: string | null
 }
 

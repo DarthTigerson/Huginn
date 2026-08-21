@@ -18,14 +18,21 @@ export function TodoCard({
     >
       <span className="text-[0.65rem] font-mono text-fg-subtle">{todo.id}</span>
       <p className="text-sm text-fg">{todo.title}</p>
-      {todo.labels.length > 0 && (
+      {(todo.label || todo.tags.length > 0) && (
         <div className="flex flex-wrap gap-1">
-          {todo.labels.map((label) => (
+          {todo.label && (
             <span
-              key={label}
-              className={`text-[0.6rem] px-1.5 py-0.5 rounded border ${TODO_LABEL_META[label].className}`}
+              className={`text-[0.6rem] px-1.5 py-0.5 rounded border ${TODO_LABEL_META[todo.label].className}`}
             >
-              {TODO_LABEL_META[label].text}
+              {TODO_LABEL_META[todo.label].text}
+            </span>
+          )}
+          {todo.tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[0.6rem] px-1.5 py-0.5 rounded border border-border text-fg-subtle"
+            >
+              {tag}
             </span>
           ))}
         </div>

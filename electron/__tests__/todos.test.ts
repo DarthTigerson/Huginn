@@ -83,10 +83,30 @@ describe('todos', () => {
         attachments: [],
         status: 'backlog',
         archived: false,
-        labels: [],
+        label: null,
+        tags: [],
         prUrl: null,
         comments: [],
       })
+    })
+
+    it('updateTodo can set tags', async () => {
+      const project = (await handlers['todos:createProject']({}, 'Huginn', 'H')) as any
+      const todo = (await handlers['todos:createTodo']({}, project.id, 'First')) as any
+      const updated = (await handlers['todos:updateTodo']({}, todo.id, { tags: ['frontend', 'urgent'] })) as any
+
+      expect(updated.tags).toEqual(['frontend', 'urgent'])
+    })
+
+    it('updateTodo can set and clear the label', async () => {
+      const project = (await handlers['todos:createProject']({}, 'Huginn', 'H')) as any
+      const todo = (await handlers['todos:createTodo']({}, project.id, 'First')) as any
+
+      const labeled = (await handlers['todos:updateTodo']({}, todo.id, { label: 'bug' })) as any
+      expect(labeled.label).toBe('bug')
+
+      const cleared = (await handlers['todos:updateTodo']({}, todo.id, { label: null })) as any
+      expect(cleared.label).toBeNull()
     })
 
     it('listTodos returns only todos for the given project', async () => {
@@ -142,6 +162,53 @@ describe('todos', () => {
       const updated = (await handlers['todos:addComment']({}, todo.id, 'Looks good')) as any
 
       expect(updated.comments[0].attachments).toEqual([])
+    })
+  })
+
+  describe('backward compatibility', () => {
+    function seedLegacyTodo(overrides: Record<string, unknown> = {}) {
+      const legacyTodo = {
+        id: 'H-1',
+        projectId: 'p1',
+        title: 'Old ticket',
+        description: '',
+        attachments: [],
+        status: 'backlog',
+        archived: false,
+        labels: [],
+        prUrl: null,
+        comments: [],
+        createdAt: 1,
+        updatedAt: 1,
+        // no `tags` field — simulates data written before tags existed
+        ...overrides,
+      }
+      fsState.files.set(
+        '/fake/userData/todos.json',
+        JSON.stringify({
+          projects: [{ id: 'p1', name: 'Huginn', key: 'H', nextNumber: 2, createdAt: 1 }],
+          todos: [legacyTodo],
+        })
+      )
+    }
+
+    it('normalizes todos persisted before the tags field existed', async () => {
+      seedLegacyTodo()
+      const todos = (await handlers['todos:listTodos']({}, 'p1')) as any[]
+      expect(todos[0].tags).toEqual([])
+    })
+
+    it('migrates the old `labels` array to the new single `label` field', async () => {
+      seedLegacyTodo({ labels: ['bug'] })
+      const todos = (await handlers['todos:listTodos']({}, 'p1')) as any[]
+      expect(todos[0].label).toBe('bug')
+      expect(todos[0].labels).toBeUndefined()
+    })
+
+    it('migrates an empty legacy `labels` array to a null label', async () => {
+      seedLegacyTodo({ labels: [] })
+      const todos = (await handlers['todos:listTodos']({}, 'p1')) as any[]
+      expect(todos[0].label).toBeNull()
     })
   })
 

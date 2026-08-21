@@ -18,7 +18,8 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
     attachments: [],
     status: 'backlog',
     archived: false,
-    labels: [],
+    label: null,
+    tags: [],
     prUrl: null,
     comments: [],
     createdAt: 1,
@@ -40,6 +41,7 @@ beforeEach(() => {
   addCommentMock.mockReset().mockResolvedValue(makeTodo())
   saveAttachmentMock.mockReset().mockResolvedValue('att-1')
   useTodoStore.setState({
+    todosByProject: {},
     updateTodo: updateTodoMock,
     archiveTodo: archiveTodoMock,
     deleteTodo: deleteTodoMock,
@@ -67,16 +69,16 @@ describe('TodoDetailModal', () => {
     expect(updateTodoMock).not.toHaveBeenCalled()
   })
 
-  it('toggles a label on and off', () => {
+  it('selecting a label calls updateTodo with the single label', () => {
     render(<TodoDetailModal todo={makeTodo()} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Bug' }))
-    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { labels: ['bug'] })
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'bug' } })
+    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { label: 'bug' })
   })
 
-  it('removes an already-applied label when clicked again', () => {
-    render(<TodoDetailModal todo={makeTodo({ labels: ['bug'] })} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Bug' }))
-    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { labels: [] })
+  it('selecting "No label" clears an already-applied label', () => {
+    render(<TodoDetailModal todo={makeTodo({ label: 'bug' })} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: '' } })
+    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { label: null })
   })
 
   it('saves the PR/MR URL on blur', () => {
@@ -131,6 +133,25 @@ describe('TodoDetailModal', () => {
       expect(deleteTodoMock).toHaveBeenCalledWith('H-1')
       expect(onClose).toHaveBeenCalled()
     })
+  })
+
+  it('adding a tag calls updateTodo with the new tags array', () => {
+    render(<TodoDetailModal todo={makeTodo()} onClose={vi.fn()} />)
+    const input = screen.getByLabelText('Tags')
+    fireEvent.change(input, { target: { value: 'frontend' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { tags: ['frontend'] })
+  })
+
+  it('suggests tags already used elsewhere in the same project', () => {
+    useTodoStore.setState({
+      todosByProject: { p1: [makeTodo({ id: 'H-2', tags: ['frontend'] })] },
+    })
+    render(<TodoDetailModal todo={makeTodo()} onClose={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'front' } })
+
+    expect(screen.getByRole('button', { name: 'frontend' })).toBeInTheDocument()
   })
 
   it('pasting an image into the description uploads it and adds it to the todo’s attachments', async () => {

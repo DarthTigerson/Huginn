@@ -29,7 +29,8 @@ export interface Todo {
   attachments: string[]
   status: TodoStatus
   archived: boolean
-  labels: TodoLabel[]
+  label: TodoLabel | null
+  tags: string[]
   prUrl: string | null
   comments: TodoComment[]
   createdAt: number
@@ -52,9 +53,21 @@ function attachmentsDir(): string {
 async function readTodosData(): Promise<TodosData> {
   try {
     const data = await readFile(todosPath(), 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data) as { projects: TodoProject[]; todos: unknown[] }
+    return { projects: parsed.projects, todos: parsed.todos.map(normalizeTodo) }
   } catch {
     return { projects: [], todos: [] }
+  }
+}
+
+// Migrates records persisted under an older shape so old data doesn't crash
+// consumers that assume the current Todo shape. Self-heals on the next write.
+function normalizeTodo(raw: unknown): Todo {
+  const { labels, ...todo } = raw as Todo & { labels?: TodoLabel[] }
+  return {
+    ...todo,
+    tags: todo.tags ?? [],
+    label: todo.label !== undefined ? todo.label : (labels?.[0] ?? null),
   }
 }
 
@@ -108,7 +121,8 @@ async function createTodo(projectId: string, title: string): Promise<Todo> {
     attachments: [],
     status: 'backlog',
     archived: false,
-    labels: [],
+    label: null,
+    tags: [],
     prUrl: null,
     comments: [],
     createdAt: now,
@@ -121,7 +135,7 @@ async function createTodo(projectId: string, title: string): Promise<Todo> {
 }
 
 type TodoPatch = Partial<
-  Pick<Todo, 'title' | 'description' | 'attachments' | 'status' | 'labels' | 'prUrl'>
+  Pick<Todo, 'title' | 'description' | 'attachments' | 'status' | 'label' | 'tags' | 'prUrl'>
 >
 
 async function updateTodo(id: string, patch: TodoPatch): Promise<Todo> {

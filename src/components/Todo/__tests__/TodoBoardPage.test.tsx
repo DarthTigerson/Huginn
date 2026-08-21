@@ -1,8 +1,10 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { TodoBoardPage } from '../TodoBoardPage'
 import { useTodoStore } from '@/stores/todoStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { buildTodoNewPath } from '@/components/Settings/paths'
 import type { Todo, TodoProject } from '@/types/api'
 
 afterEach(() => {
@@ -20,7 +22,8 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
     attachments: [],
     status: 'backlog',
     archived: false,
-    labels: [],
+    label: null,
+    tags: [],
     prUrl: null,
     comments: [],
     createdAt: 1,
@@ -30,15 +33,15 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
 }
 
 const loadTodosMock = vi.fn()
-const createTodoMock = vi.fn()
 const updateTodoMock = vi.fn()
 const archiveTodoMock = vi.fn()
+const openTabMock = vi.fn()
 
 beforeEach(() => {
   loadTodosMock.mockReset()
-  createTodoMock.mockReset().mockResolvedValue(makeTodo())
   updateTodoMock.mockReset().mockResolvedValue(makeTodo())
   archiveTodoMock.mockReset().mockResolvedValue(makeTodo())
+  openTabMock.mockReset()
   useTodoStore.setState({
     projects: [project],
     todosByProject: {
@@ -49,10 +52,10 @@ beforeEach(() => {
       ],
     },
     loadTodos: loadTodosMock,
-    createTodo: createTodoMock,
     updateTodo: updateTodoMock,
     archiveTodo: archiveTodoMock,
   })
+  useEditorStore.setState({ openTab: openTabMock })
   ;(global as any).window.api = {
     todosReadAttachmentDataUrl: vi.fn().mockResolvedValue('data:image/png;base64,AAA'),
   }
@@ -76,16 +79,20 @@ describe('TodoBoardPage', () => {
     expect(screen.queryByText('Old and done')).not.toBeInTheDocument()
   })
 
-  it('creates a new todo from the input and clears it', async () => {
-    render(<TodoBoardPage projectId="p1" />)
-    const input = screen.getByLabelText('New todo title')
-    fireEvent.change(input, { target: { value: 'New task' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
-
-    await waitFor(() => {
-      expect(createTodoMock).toHaveBeenCalledWith('p1', 'New task')
+  it('renders tag chips on a card that has tags', () => {
+    useTodoStore.setState({
+      todosByProject: { p1: [makeTodo({ id: 'H-1', title: 'Fix bug', tags: ['frontend', 'urgent'] })] },
     })
-    expect(input).toHaveValue('')
+    render(<TodoBoardPage projectId="p1" />)
+    expect(screen.getByText('frontend')).toBeInTheDocument()
+    expect(screen.getByText('urgent')).toBeInTheDocument()
+  })
+
+  it('the floating New todo button opens the new-todo page as a tab', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'New todo' }))
+
+    expect(openTabMock).toHaveBeenCalledWith({ path: buildTodoNewPath('p1'), content: '', dirty: false })
   })
 
   it('clicking a card opens its detail modal', () => {

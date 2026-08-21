@@ -1,23 +1,12 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { useTodoStore } from '@/stores/todoStore'
+import { useTodoStore, EMPTY_TODOS } from '@/stores/todoStore'
+import { getProjectTags } from '@/lib/todoTags'
 import { AttachmentThumbnails } from './AttachmentThumbnails'
 import { TODO_LABELS, TODO_LABEL_META } from './labels'
-import { extractPastedImageFiles, readFileAsDataUrl } from '@/lib/attachmentPaste'
+import { TodoTagInput } from './TodoTagInput'
+import { inputClass, uploadPastedImages } from './todoFormShared'
 import type { Todo, TodoLabel } from '@/types/api'
-
-const inputClass =
-  'bg-panel border border-border rounded px-2 py-1.5 text-sm text-fg focus:outline-none focus:border-accent'
-
-async function uploadPastedImages(
-  clipboardData: DataTransfer | null,
-  saveAttachment: (dataUrl: string) => Promise<string>
-): Promise<string[]> {
-  const files = extractPastedImageFiles(clipboardData)
-  if (files.length === 0) return []
-  const dataUrls = await Promise.all(files.map(readFileAsDataUrl))
-  return Promise.all(dataUrls.map((dataUrl) => saveAttachment(dataUrl)))
-}
 
 export function TodoDetailModal({ todo, onClose }: { todo: Todo; onClose: () => void }) {
   const updateTodo = useTodoStore((s) => s.updateTodo)
@@ -25,6 +14,8 @@ export function TodoDetailModal({ todo, onClose }: { todo: Todo; onClose: () => 
   const deleteTodo = useTodoStore((s) => s.deleteTodo)
   const addComment = useTodoStore((s) => s.addComment)
   const saveAttachment = useTodoStore((s) => s.saveAttachment)
+  const projectTodos = useTodoStore((s) => s.todosByProject[todo.projectId] ?? EMPTY_TODOS)
+  const tagSuggestions = getProjectTags(projectTodos)
 
   const [title, setTitle] = useState(todo.title)
   const [description, setDescription] = useState(todo.description)
@@ -33,11 +24,8 @@ export function TodoDetailModal({ todo, onClose }: { todo: Todo; onClose: () => 
   const [commentAttachments, setCommentAttachments] = useState<string[]>([])
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-  function toggleLabel(label: TodoLabel) {
-    const labels = todo.labels.includes(label)
-      ? todo.labels.filter((l) => l !== label)
-      : [...todo.labels, label]
-    updateTodo(todo.id, { labels })
+  function handleLabelChange(value: string) {
+    updateTodo(todo.id, { label: value === '' ? null : (value as TodoLabel) })
   }
 
   async function handleDescriptionPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -93,23 +81,28 @@ export function TodoDetailModal({ todo, onClose }: { todo: Todo; onClose: () => 
           />
         </label>
 
-        <div className="flex gap-1.5">
-          {TODO_LABELS.map((label) => {
-            const active = todo.labels.includes(label)
-            return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => toggleLabel(label)}
-                className={`text-xs px-2 py-1 rounded border ${
-                  active ? TODO_LABEL_META[label].className : 'border-border text-fg-subtle'
-                }`}
-              >
+        <label htmlFor="todo-label" className="flex flex-col gap-1 text-xs text-fg-muted">
+          Label
+          <select
+            id="todo-label"
+            value={todo.label ?? ''}
+            onChange={(e) => handleLabelChange(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">No label</option>
+            {TODO_LABELS.map((label) => (
+              <option key={label} value={label}>
                 {TODO_LABEL_META[label].text}
-              </button>
-            )
-          })}
-        </div>
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <TodoTagInput
+          tags={todo.tags}
+          suggestions={tagSuggestions}
+          onChange={(tags) => updateTodo(todo.id, { tags })}
+        />
 
         <label htmlFor="todo-description" className="flex flex-col gap-1 text-xs text-fg-muted">
           Description
