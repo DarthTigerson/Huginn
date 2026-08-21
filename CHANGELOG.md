@@ -1,5 +1,13 @@
 # Huginn 
 
+## v0.2.3 (2026-08-22)
+- **First-launch setup wizard**: new installs now walk through theme (including panel style and background image), assistants (Claude/Codex/Bridge, with the CLI check built into this step), git identity, and macOS permissions before landing in the app
+- Renamed the "Cosmos" assistant to "Bridge" throughout the app, matching its existing name in docs
+- **Per-project URL overrides**: Jira and Git remote links can now be set per-project instead of only globally
+- Claude's animated "working" indicator (activity bar icon and the commit-message generate button) now draws from a shared pool of gifs instead of a single one
+- Widened the Git settings page layout
+
+
 ## v0.2.2 (2026-08-20)
 - **Search and filter in Git Graph & Branch Diff**: a search bar plus filter dropdowns for branch, tag, and author — search reaches your full commit history, not just what's scrolled into view
 - **Infinite scroll in Git Graph & Branch Diff**: both views now load more commits as you scroll instead of stopping at a fixed page

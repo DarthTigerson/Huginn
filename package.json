@@ -1,6 +1,6 @@
 {
   "name": "huginn",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A Claude-native IDE",
   "author": "Thomas Bonnici",
   "license": "MIT",
