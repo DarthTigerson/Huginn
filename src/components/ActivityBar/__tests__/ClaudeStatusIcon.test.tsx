@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import { ClaudeStatusIcon } from '../ClaudeStatusIcon'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { CLAUDE_WORKING_GIFS } from '@/assets/claudeGifs'
 
 beforeEach(() => {
   useClaudeStore.setState({ busyByAssistant: {} })
@@ -26,7 +27,7 @@ describe('ClaudeStatusIcon', () => {
 
     act(() => useClaudeStore.getState().setBusy('claude', true))
     expect(container.querySelector('svg')).toBeNull()
-    expect(container.querySelector('img')?.getAttribute('src')).toMatch(/clawd(Dancing|Working)/)
+    expect(CLAUDE_WORKING_GIFS).toContain(container.querySelector('img')?.getAttribute('src'))
 
     act(() => useClaudeStore.getState().setBusy('claude', false))
     expect(container.querySelector('img')).toBeNull()
@@ -40,11 +41,13 @@ describe('ClaudeStatusIcon', () => {
 
     const { container } = render(<ClaudeStatusIcon />)
     act(() => useClaudeStore.getState().setBusy('claude', true))
-    expect(container.querySelector('img')?.getAttribute('src')).toMatch(/clawdDancing/)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(CLAUDE_WORKING_GIFS[0])
 
-    randomSpy.mockReturnValue(0.99) // second gif, for the next roll
+    randomSpy.mockReturnValue(0.99) // last gif, for the next roll
     act(() => vi.advanceTimersByTime(60_000))
-    expect(container.querySelector('img')?.getAttribute('src')).toMatch(/clawdWorking/)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      CLAUDE_WORKING_GIFS[CLAUDE_WORKING_GIFS.length - 1]
+    )
   })
 
   it('does not track other assistants\' busy state', () => {
