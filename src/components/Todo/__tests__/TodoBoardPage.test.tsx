@@ -1,0 +1,115 @@
+/// <reference types="@testing-library/jest-dom" />
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { TodoBoardPage } from '../TodoBoardPage'
+import { useTodoStore } from '@/stores/todoStore'
+import type { Todo, TodoProject } from '@/types/api'
+
+afterEach(() => {
+  cleanup()
+})
+
+const project: TodoProject = { id: 'p1', name: 'Huginn', key: 'H', nextNumber: 3, createdAt: 1 }
+
+function makeTodo(overrides: Partial<Todo> = {}): Todo {
+  return {
+    id: 'H-1',
+    projectId: 'p1',
+    title: 'Fix bug',
+    description: '',
+    attachments: [],
+    status: 'backlog',
+    archived: false,
+    labels: [],
+    prUrl: null,
+    comments: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  }
+}
+
+const loadTodosMock = vi.fn()
+const createTodoMock = vi.fn()
+const updateTodoMock = vi.fn()
+const archiveTodoMock = vi.fn()
+
+beforeEach(() => {
+  loadTodosMock.mockReset()
+  createTodoMock.mockReset().mockResolvedValue(makeTodo())
+  updateTodoMock.mockReset().mockResolvedValue(makeTodo())
+  archiveTodoMock.mockReset().mockResolvedValue(makeTodo())
+  useTodoStore.setState({
+    projects: [project],
+    todosByProject: {
+      p1: [
+        makeTodo({ id: 'H-1', title: 'Fix bug', status: 'backlog' }),
+        makeTodo({ id: 'H-2', title: 'Ship feature', status: 'in_progress' }),
+        makeTodo({ id: 'H-3', title: 'Old and done', status: 'done', archived: true }),
+      ],
+    },
+    loadTodos: loadTodosMock,
+    createTodo: createTodoMock,
+    updateTodo: updateTodoMock,
+    archiveTodo: archiveTodoMock,
+  })
+  ;(global as any).window.api = {
+    todosReadAttachmentDataUrl: vi.fn().mockResolvedValue('data:image/png;base64,AAA'),
+  }
+})
+
+describe('TodoBoardPage', () => {
+  it('loads todos for the project on mount', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    expect(loadTodosMock).toHaveBeenCalledWith('p1')
+  })
+
+  it('shows the project name in the header', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    expect(screen.getByText('Huginn')).toBeInTheDocument()
+  })
+
+  it('places each non-archived todo under its status column', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    expect(screen.getByText('Fix bug')).toBeInTheDocument()
+    expect(screen.getByText('Ship feature')).toBeInTheDocument()
+    expect(screen.queryByText('Old and done')).not.toBeInTheDocument()
+  })
+
+  it('creates a new todo from the input and clears it', async () => {
+    render(<TodoBoardPage projectId="p1" />)
+    const input = screen.getByLabelText('New todo title')
+    fireEvent.change(input, { target: { value: 'New task' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => {
+      expect(createTodoMock).toHaveBeenCalledWith('p1', 'New task')
+    })
+    expect(input).toHaveValue('')
+  })
+
+  it('clicking a card opens its detail modal', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    fireEvent.click(screen.getByText('Fix bug'))
+    expect(screen.getByLabelText('Title')).toHaveValue('Fix bug')
+  })
+
+  it('changing a card status select calls updateTodo', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    fireEvent.change(screen.getByDisplayValue('Backlog'), { target: { value: 'done' } })
+    expect(updateTodoMock).toHaveBeenCalledWith('H-1', { status: 'done' })
+  })
+
+  it('switching to Archive view shows archived todos instead of the board', () => {
+    render(<TodoBoardPage projectId="p1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+
+    expect(screen.getByText('Old and done')).toBeInTheDocument()
+    expect(screen.queryByText('Fix bug')).not.toBeInTheDocument()
+  })
+
+  it('does not crash when opening a project that has no todosByProject entry yet', () => {
+    useTodoStore.setState({ projects: [project], todosByProject: {} })
+    expect(() => render(<TodoBoardPage projectId="p1" />)).not.toThrow()
+  })
+})
