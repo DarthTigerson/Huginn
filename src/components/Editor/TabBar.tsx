@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useBrowserStore } from '@/stores/browserStore'
+import { useTodoStore } from '@/stores/todoStore'
 import { FileIcon } from '@/components/Sidebar/FileIcon'
-import { isTerminalTab, isBrowserTab, getBrowserId } from '@/components/Settings/paths'
+import { isTerminalTab, isBrowserTab, getBrowserId, isTodoBoardTab, getTodoBoardProjectId, isTodoNewTab, getTodoNewProjectId } from '@/components/Settings/paths'
 import { orderTabsForDisplay, truncateTabLabel } from './tabDisplay'
 import { TabContextMenu } from './TabContextMenu'
 import { useTabContextMenuStore } from '@/stores/tabContextMenuStore'
@@ -11,6 +12,7 @@ import { useTabDragStore } from '@/stores/tabDragStore'
 export function TabBar({ paneId }: { paneId: string }) {
   const tabs = useEditorStore((s) => s.tabs)
   const browserTabs = useBrowserStore((s) => s.tabs)
+  const todoProjects = useTodoStore((s) => s.projects)
   const paneTabs = useEditorStore((s) => s.paneTabs)
   const paneTabLists = useEditorStore((s) => s.paneTabLists)
   const pinnedPaths = useEditorStore((s) => s.pinnedPaths)
@@ -60,7 +62,11 @@ export function TabBar({ paneId }: { paneId: string }) {
           ? 'Terminal'
           : isBrowserTab(tab.path)
             ? (browserTabs[getBrowserId(tab.path)]?.title || 'New Tab')
-            : (tab.path.split('/').pop() ?? tab.path)
+            : isTodoBoardTab(tab.path)
+              ? (todoProjects.find((p) => p.id === getTodoBoardProjectId(tab.path))?.name || 'To Do')
+              : isTodoNewTab(tab.path)
+                ? `New — ${todoProjects.find((p) => p.id === getTodoNewProjectId(tab.path))?.name || 'To Do'}`
+                : (tab.path.split('/').pop() ?? tab.path)
         const isActive = activePath === tab.path
         const isDragging = draggedPath === tab.path
         const isDropTarget = dropTarget?.path === tab.path && draggedPath !== tab.path
