@@ -21,10 +21,7 @@ import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { FilesIcon, ClaudeIcon } from '@/components/ActivityBar/ActivityBar'
 import { RepoOverviewList, StarIcon } from './RepoOverviewList'
 import { ContextMenuButton, ContextMenuDivider } from './ContextMenu'
-import clawdDancingGif from '@/assets/clawdDancing.gif'
-import clawdWorkingGif from '@/assets/clawdWorking.gif'
-
-const GENERATING_GIFS = [clawdDancingGif, clawdWorkingGif]
+import { pickClaudeGif } from '@/assets/claudeGifs'
 
 // Solid fill matching the Commit button's active look — every action pill in
 // the Git panel (Branch, Fetch, Pull, Push, Graph, List Diff) shares this
@@ -293,7 +290,7 @@ export function GitPanel() {
   async function generateCommitMessage() {
     if (!selectedRepo) return
     setGeneratingMessage(true)
-    setGeneratingGif(GENERATING_GIFS[Math.floor(Math.random() * GENERATING_GIFS.length)])
+    setGeneratingGif(pickClaudeGif())
     setGenerateError(null)
     try {
       const diff = await window.api.gitStagedDiff(selectedRepo)

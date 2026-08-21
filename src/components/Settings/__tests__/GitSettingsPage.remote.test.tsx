@@ -15,20 +15,36 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useGitRemoteSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false })
+  useGitRemoteSettingsStore.setState({ externalUrl: '', projectUrls: {}, closeSidePanelOnOpen: false })
 })
 
 describe('GitSettingsPage — Git Remote section', () => {
   it('reflects the currently configured URL', () => {
     useGitRemoteSettingsStore.setState({ externalUrl: 'https://github.com/acme/widgets' })
     render(<GitSettingsPage />)
-    expect(screen.getByLabelText('URL')).toHaveValue('https://github.com/acme/widgets')
+    expect(screen.getByLabelText('Default URL')).toHaveValue('https://github.com/acme/widgets')
   })
 
   it('updates the store as the user types', () => {
     render(<GitSettingsPage />)
-    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://gitlab.com/acme/widgets' } })
+    fireEvent.change(screen.getByLabelText('Default URL'), { target: { value: 'https://gitlab.com/acme/widgets' } })
     expect(useGitRemoteSettingsStore.getState().externalUrl).toBe('https://gitlab.com/acme/widgets')
+  })
+
+  it('does not show a per-project URL field when no project is open', () => {
+    render(<GitSettingsPage />)
+    expect(screen.queryByLabelText("This project's URL")).not.toBeInTheDocument()
+  })
+
+  it('shows and updates a per-project URL override when a project is open', async () => {
+    useFileStore.setState({ projectRoot: '/repo/a' })
+    render(<GitSettingsPage />)
+    // Settle the branches-fetch effect this projectRoot also triggers, so its
+    // resulting state update doesn't land outside this test's act() scope.
+    const field = await screen.findByLabelText("This project's URL")
+    expect(field).toHaveValue('')
+    fireEvent.change(field, { target: { value: 'https://gitlab.com/acme/widgets-fork' } })
+    expect(useGitRemoteSettingsStore.getState().projectUrls['/repo/a']).toBe('https://gitlab.com/acme/widgets-fork')
   })
 
   it('reflects the current closeSidePanelOnOpen state', () => {

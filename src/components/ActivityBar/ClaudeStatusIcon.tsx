@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useClaudeStore } from '@/stores/claudeStore'
 import { ClaudeIcon } from './ActivityBar'
-import clawdDancingGif from '@/assets/clawdDancing.gif'
-import clawdWorkingGif from '@/assets/clawdWorking.gif'
+import { pickClaudeGif } from '@/assets/claudeGifs'
 
-const WORKING_GIFS = [clawdDancingGif, clawdWorkingGif]
 const CYCLE_INTERVAL_MS = 60_000
-
-function pickGif(): string {
-  return WORKING_GIFS[Math.floor(Math.random() * WORKING_GIFS.length)]
-}
 
 // Swaps the static Claude logo for a randomly-picked looping gif whenever
 // electron/claude.ts reports Claude as busy (see its ECHO_WINDOW_MS comment
@@ -24,8 +18,8 @@ export function ClaudeStatusIcon() {
       setGif(null)
       return
     }
-    setGif(pickGif())
-    const interval = setInterval(() => setGif(pickGif()), CYCLE_INTERVAL_MS)
+    setGif(pickClaudeGif())
+    const interval = setInterval(() => setGif(pickClaudeGif()), CYCLE_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [busy])
 

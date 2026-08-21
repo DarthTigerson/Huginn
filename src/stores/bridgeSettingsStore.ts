@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 
 const KEYS = {
-  endpoint: 'huginn:cosmos:endpoint',
-  apiKey:   'huginn:cosmos:apiKey',
-  modelId:  'huginn:cosmos:modelId',
+  endpoint: 'huginn:bridge:endpoint',
+  apiKey:   'huginn:bridge:apiKey',
+  modelId:  'huginn:bridge:modelId',
 }
 
 function getString(key: string, def: string): string {
@@ -18,11 +18,11 @@ type StoredSettings = { endpoint: string; apiKey: string; modelId: string }
 
 function saveToFile(settings: StoredSettings): void {
   try {
-    window.api.cosmosSetSettings(settings).catch(() => {})
+    window.api.bridgeSetSettings(settings).catch(() => {})
   } catch {}
 }
 
-interface CosmosSettingsStore {
+interface BridgeSettingsStore {
   endpoint: string
   apiKey: string
   modelId: string
@@ -32,14 +32,14 @@ interface CosmosSettingsStore {
   init: () => Promise<void>
 }
 
-export const useCosmosSettingsStore = create<CosmosSettingsStore>((set, get) => ({
+export const useBridgeSettingsStore = create<BridgeSettingsStore>((set, get) => ({
   endpoint: getString(KEYS.endpoint, ''),
   apiKey:   getString(KEYS.apiKey, ''),
   modelId:  getString(KEYS.modelId, ''),
 
   init: async () => {
     try {
-      const fromFile = await window.api.cosmosGetSettings()
+      const fromFile = await window.api.bridgeGetSettings()
       if (fromFile && (fromFile.endpoint || fromFile.apiKey || fromFile.modelId)) {
         set({ endpoint: fromFile.endpoint, apiKey: fromFile.apiKey, modelId: fromFile.modelId })
         localStorage.setItem(KEYS.endpoint, fromFile.endpoint)

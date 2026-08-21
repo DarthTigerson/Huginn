@@ -1,40 +1,40 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { CosmosChat } from '../CosmosChat'
-import { useCosmosStore } from '@/stores/cosmosStore'
+import { BridgeChat } from '../BridgeChat'
+import { useBridgeStore } from '@/stores/bridgeStore'
 import { useClaudeStore } from '@/stores/claudeStore'
 
 beforeEach(() => {
   ;(global as any).window.api = {
     ...(global as any).window.api,
-    onCosmosEvent: vi.fn(() => () => {}),
-    cosmosSend: vi.fn(),
-    cosmosApprove: vi.fn(),
-    cosmosReject: vi.fn(),
-    cosmosCancel: vi.fn(),
+    onBridgeEvent: vi.fn(() => () => {}),
+    bridgeSend: vi.fn(),
+    bridgeApprove: vi.fn(),
+    bridgeReject: vi.fn(),
+    bridgeCancel: vi.fn(),
   }
-  useCosmosStore.setState({ messages: [], previousMessages: [], streaming: false, agentMode: false, draftInput: '' })
+  useBridgeStore.setState({ messages: [], previousMessages: [], streaming: false, agentMode: false, draftInput: '' })
   useClaudeStore.setState({ pendingInjection: null, focusToken: 0 })
 })
 
 afterEach(() => cleanup())
 
-describe('CosmosChat', () => {
+describe('BridgeChat', () => {
   it('renders user and assistant message bubbles', () => {
-    useCosmosStore.setState({
+    useBridgeStore.setState({
       messages: [
         { role: 'user', content: 'hello' },
         { role: 'assistant', content: 'hi there' },
       ],
     })
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.getByText('hello')).toBeTruthy()
     expect(screen.getByText('hi there')).toBeTruthy()
   })
 
   it('renders a pending-approval tool-call block with Approve/Reject buttons', () => {
-    useCosmosStore.setState({
+    useBridgeStore.setState({
       messages: [
         {
           role: 'assistant',
@@ -43,7 +43,7 @@ describe('CosmosChat', () => {
         },
       ],
     })
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.getByText('write_file')).toBeTruthy()
     expect(screen.getByText('Approve')).toBeTruthy()
@@ -51,7 +51,7 @@ describe('CosmosChat', () => {
   })
 
   it('calls approveToolCall when Approve is clicked', () => {
-    useCosmosStore.setState({
+    useBridgeStore.setState({
       messages: [
         {
           role: 'assistant',
@@ -60,65 +60,65 @@ describe('CosmosChat', () => {
         },
       ],
     })
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
     fireEvent.click(screen.getByText('Approve'))
-    expect((global as any).window.api.cosmosApprove).toHaveBeenCalledWith('call_1')
+    expect((global as any).window.api.bridgeApprove).toHaveBeenCalledWith('call_1')
   })
 
   it('sends a message on submit and clears the input', () => {
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
-    const input = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    const input = screen.getByPlaceholderText('Message Bridge…') as HTMLTextAreaElement
     fireEvent.change(input, { target: { value: 'do the thing' } })
     fireEvent.submit(input.closest('form')!)
 
-    expect((global as any).window.api.cosmosSend).toHaveBeenCalled()
+    expect((global as any).window.api.bridgeSend).toHaveBeenCalled()
     expect(input.value).toBe('')
   })
 
   it('shows an Agent Mode: On indicator when agentMode is true', () => {
-    useCosmosStore.setState({ agentMode: true })
-    render(<CosmosChat cwd="/project" />)
+    useBridgeStore.setState({ agentMode: true })
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.getByText('Agent Mode: On')).toBeTruthy()
   })
 
   it('shows an Agent Mode: Off indicator when agentMode is false', () => {
-    useCosmosStore.setState({ agentMode: false })
-    render(<CosmosChat cwd="/project" />)
+    useBridgeStore.setState({ agentMode: false })
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.getByText('Agent Mode: Off')).toBeTruthy()
   })
 
   it('toggles agentMode when the indicator is clicked', () => {
-    useCosmosStore.setState({ agentMode: false })
-    render(<CosmosChat cwd="/project" />)
+    useBridgeStore.setState({ agentMode: false })
+    render(<BridgeChat cwd="/project" />)
 
     fireEvent.click(screen.getByText('Agent Mode: Off'))
 
-    expect(useCosmosStore.getState().agentMode).toBe(true)
+    expect(useBridgeStore.getState().agentMode).toBe(true)
   })
 
   it('does not show a Stop button when not streaming', () => {
-    useCosmosStore.setState({ streaming: false })
-    render(<CosmosChat cwd="/project" />)
+    useBridgeStore.setState({ streaming: false })
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.queryByText('Stop')).toBeNull()
   })
 
   it('shows a Stop button while streaming that calls cancel()', () => {
-    useCosmosStore.setState({ streaming: true })
-    render(<CosmosChat cwd="/project" />)
+    useBridgeStore.setState({ streaming: true })
+    render(<BridgeChat cwd="/project" />)
 
     fireEvent.click(screen.getByText('Stop'))
 
-    expect((global as any).window.api.cosmosCancel).toHaveBeenCalled()
-    expect(useCosmosStore.getState().streaming).toBe(false)
+    expect((global as any).window.api.bridgeCancel).toHaveBeenCalled()
+    expect(useBridgeStore.getState().streaming).toBe(false)
   })
 
   it('defaults a pending-approval tool call to expanded, showing its args without an extra click', () => {
-    useCosmosStore.setState({
+    useBridgeStore.setState({
       messages: [
         {
           role: 'assistant',
@@ -127,13 +127,13 @@ describe('CosmosChat', () => {
         },
       ],
     })
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.getByText(/hello world/)).toBeTruthy()
   })
 
   it('does not expand a non-pending tool call by default', () => {
-    useCosmosStore.setState({
+    useBridgeStore.setState({
       messages: [
         {
           role: 'assistant',
@@ -142,42 +142,42 @@ describe('CosmosChat', () => {
         },
       ],
     })
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
     expect(screen.queryByText(/hello world/)).toBeNull()
   })
 
   it('injects a pendingInjection into the draft input and focuses the textarea', () => {
-    useCosmosStore.setState({ draftInput: 'existing question' })
+    useBridgeStore.setState({ draftInput: 'existing question' })
     useClaudeStore.setState({
       pendingInjection: 'In src/foo.ts (line 1):\n```ts\ncode\n```',
       focusToken: 1,
     })
 
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
-    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    const textarea = screen.getByPlaceholderText('Message Bridge…') as HTMLTextAreaElement
     expect(textarea.value).toBe('existing question\nIn src/foo.ts (line 1):\n```ts\ncode\n```')
     expect(useClaudeStore.getState().pendingInjection).toBeNull()
     expect(document.activeElement).toBe(textarea)
   })
 
   it('does not inject anything when focusToken is still at its initial value', () => {
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
-    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    const textarea = screen.getByPlaceholderText('Message Bridge…') as HTMLTextAreaElement
     expect(textarea.value).toBe('')
   })
 
   it('does not steal focus on remount when focusToken was already bumped by an earlier mount', () => {
-    // Simulates: an earlier Cmd+L press happened while some other CosmosChat instance was
+    // Simulates: an earlier Cmd+L press happened while some other BridgeChat instance was
     // mounted (bumping focusToken and consuming the injection), then the user switches away
-    // and back to the Cosmos tab, remounting CosmosChat with that already-stale token.
+    // and back to the Bridge tab, remounting BridgeChat with that already-stale token.
     useClaudeStore.setState({ pendingInjection: null, focusToken: 5 })
 
-    render(<CosmosChat cwd="/project" />)
+    render(<BridgeChat cwd="/project" />)
 
-    const textarea = screen.getByPlaceholderText('Message Cosmos…') as HTMLTextAreaElement
+    const textarea = screen.getByPlaceholderText('Message Bridge…') as HTMLTextAreaElement
     expect(textarea.value).toBe('')
     expect(document.activeElement).not.toBe(textarea)
   })

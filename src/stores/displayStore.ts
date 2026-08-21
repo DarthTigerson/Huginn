@@ -22,6 +22,15 @@ export const FONT_PRESETS = [
 
 export type PanelStyle = 'matt' | 'solid' | 'glossy' | 'glass'
 
+// Shared between DisplayPage and the setup wizard's theme step, so both
+// pickers stay in sync rather than duplicating this list.
+export const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; description: string }[] = [
+  { value: 'matt',   label: 'Matt',          description: 'Solid panels' },
+  { value: 'solid',  label: 'Solid Colours', description: 'Solid panels, bolder dividing lines' },
+  { value: 'glossy', label: 'Glossy',        description: 'Frosted glass' },
+  { value: 'glass',  label: 'Glass',         description: 'See-through, reveals the background image' },
+]
+
 // More may be added later (e.g. a combined view) - kept as its own union
 // rather than a boolean so the settings dropdown and FooterMessage's switch
 // don't need reshaping when that happens.

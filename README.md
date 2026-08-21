@@ -11,7 +11,7 @@ display.
 
 > **Not affiliated with Anthropic or OpenAI.** Huginn integrates the Claude
 > Code CLI and the OpenAI Codex CLI as terminal agents, and includes a panel
-> for connecting to any OpenAI-compatible local LLM endpoint ("Cosmos"). It
+> for connecting to any OpenAI-compatible local LLM endpoint ("Bridge"). It
 > is an independent, unofficial project — "Claude" and "Codex" are
 > trademarks of their respective owners.
 
@@ -26,7 +26,7 @@ switching between a browser, a terminal, and an editor.
 
 - **Editor** — Monaco-based code editing with syntax highlighting and themes
 - **Agent panels** — run Claude Code and Codex CLI as first-class panels,
-  plus a "Cosmos" panel for any OpenAI-compatible local LLM endpoint
+  plus a "Bridge" panel for any OpenAI-compatible local LLM endpoint
 - **Git panel** — log/graph view, stage & commit, push/pull, all without
   leaving the app
 - **Integrated terminal** — a real shell (via `node-pty`) alongside the

@@ -18,7 +18,7 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { CosmosManager } from '../cosmos'
+import { BridgeManager } from '../bridge'
 
 function sseStream(chunks: string[]): Response {
   const encoder = new TextEncoder()
@@ -38,16 +38,16 @@ function sseStream(chunks: string[]): Response {
 
 const SETTINGS = { endpoint: 'http://169.254.238.138:8002/v1', apiKey: 'local', modelId: 'test-model' }
 
-describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
+describe('BridgeManager bridge:send (text-only, no tool calls)', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
   function setup() {
     const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
-    return { win, sendHandler: handlers['cosmos:send'] }
+    return { win, sendHandler: handlers['bridge:send'] }
   }
 
   it('streams text-delta events from content chunks and ends with done', async () => {
@@ -61,7 +61,7 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
 
     await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toEqual([
       { type: 'text-delta', delta: 'Hel' },
       { type: 'text-delta', delta: 'lo' },
@@ -75,8 +75,8 @@ describe('CosmosManager cosmos:send (text-only, no tool calls)', () => {
 
     await sendHandler({ sender: win }, { cwd: '/project', messages: [{ role: 'user', content: 'hi' }], agentMode: false, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
-    expect(events).toEqual([{ type: 'error', message: 'Cosmos request failed: 500' }])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
+    expect(events).toEqual([{ type: 'error', message: 'Bridge request failed: 500' }])
   })
 
   it('posts to {endpoint}/chat/completions with the configured model and Authorization header', async () => {
@@ -103,12 +103,12 @@ import { mkdtemp, mkdir, writeFile as writeFileFs, readFile as readFileFs, rm } 
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-describe('CosmosManager tool calls', () => {
+describe('BridgeManager tool calls', () => {
   let root: string
 
   beforeEach(async () => {
     vi.restoreAllMocks()
-    root = await mkdtemp(join(tmpdir(), 'cosmos-'))
+    root = await mkdtemp(join(tmpdir(), 'bridge-'))
   })
 
   afterEach(async () => {
@@ -117,9 +117,9 @@ describe('CosmosManager tool calls', () => {
 
   function setup() {
     const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
-    return { win, sendHandler: handlers['cosmos:send'], approveHandler: handlers['cosmos:approve'], rejectHandler: handlers['cosmos:reject'] }
+    return { win, sendHandler: handlers['bridge:send'], approveHandler: handlers['bridge:approve'], rejectHandler: handlers['bridge:reject'] }
   }
 
   function toolCallStream(name: string, args: Record<string, unknown>): Response {
@@ -151,7 +151,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hi')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-call', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
     expect(events).toContainEqual({ type: 'text-delta', delta: 'done' })
@@ -170,7 +170,7 @@ describe('CosmosManager tool calls', () => {
     const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
-      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
@@ -178,7 +178,7 @@ describe('CosmosManager tool calls', () => {
     await runPromise
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
   })
 
@@ -193,7 +193,7 @@ describe('CosmosManager tool calls', () => {
     const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
-      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
@@ -203,7 +203,7 @@ describe('CosmosManager tool calls', () => {
     expect(await readFileFs(target, 'utf-8')).toBe('hi')
   })
 
-  it('cosmos:cancel while a tool call is awaiting approval rejects it and stops the loop', async () => {
+  it('bridge:cancel while a tool call is awaiting approval rejects it and stops the loop', async () => {
     const { win, sendHandler } = setup()
     const target = join(root, 'out.txt')
     const fetchMock = vi.fn()
@@ -214,15 +214,15 @@ describe('CosmosManager tool calls', () => {
     const runPromise = sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'write it' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
-      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
       expect(events).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: target, content: 'hi' } })
     })
 
-    handlers['cosmos:cancel']({ sender: win })
+    handlers['bridge:cancel']({ sender: win })
     await runPromise
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -230,15 +230,15 @@ describe('CosmosManager tool calls', () => {
   it('run_command executes and captures stdout', async () => {
     const { win, sendHandler } = setup()
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(toolCallStream('run_command', { command: 'echo hello-cosmos' }))
+      .mockResolvedValueOnce(toolCallStream('run_command', { command: 'echo hello-bridge' }))
       .mockResolvedValueOnce(finalTextStream('ran it'))
     vi.stubGlobal('fetch', fetchMock)
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'run it' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
-    expect(result.result).toContain('hello-cosmos')
+    expect(result.result).toContain('hello-bridge')
   })
 
   it('stops and emits an error after 40 tool-call rounds', async () => {
@@ -249,8 +249,8 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'loop forever' }], agentMode: true, settings: SETTINGS })
 
     expect(fetchMock).toHaveBeenCalledTimes(40)
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
-    expect(events[events.length - 1]).toEqual({ type: 'error', message: 'Cosmos hit the 40 tool-call round limit for this turn' })
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
+    expect(events[events.length - 1]).toEqual({ type: 'error', message: 'Bridge hit the 40 tool-call round limit for this turn' })
   })
 
   it('edit_file replaces a unique old_string with new_string', async () => {
@@ -265,7 +265,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hello there\nfoo bar\n')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
   })
 
@@ -281,7 +281,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('hello world\n')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: `old_string not found in ${target}`, isError: true })
   })
 
@@ -297,7 +297,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('dup\ndup\n')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({
       type: 'tool-result',
       id: 'call_1',
@@ -317,7 +317,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('fresh')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
   })
 
@@ -333,7 +333,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'create it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('already here')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({
       type: 'tool-result',
       id: 'call_1',
@@ -353,7 +353,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line1\nline2\nline3\n', isError: false })
   })
 
@@ -368,7 +368,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'read it' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual({ type: 'tool-result', id: 'call_1', result: 'line2\nline3', isError: false })
   })
 
@@ -382,7 +382,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'search it' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
     expect(JSON.parse(result.result)).toEqual([{ path: join(root, 'a.txt'), line: 1, col: 1, text: 'needle here' }])
   })
@@ -400,7 +400,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
     const parsed = JSON.parse(result.result)
     expect(parsed.matches.sort()).toEqual([join(root, 'a.ts'), join(root, 'sub', 'c.ts')].sort())
@@ -417,7 +417,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find files' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
     expect(result.isError).toBe(false)
     const parsed = JSON.parse(result.result)
@@ -437,7 +437,7 @@ describe('CosmosManager tool calls', () => {
 
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'find ts files' }], agentMode: true, settings: SETTINGS })
 
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     const result = events.find((e: any) => e.type === 'tool-result')
     expect(result.isError).toBe(false)
     const parsed = JSON.parse(result.result)
@@ -456,7 +456,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'edit it' }], agentMode: true, settings: SETTINGS })
 
     expect(await readFileFs(target, 'utf-8')).toBe('const a = $&bar;\n')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
   })
 
@@ -475,7 +475,7 @@ describe('CosmosManager tool calls', () => {
 
     expect(await readFileFs(from, 'utf-8')).toBe('source content')
     expect(await readFileFs(to, 'utf-8')).toBe('destination content')
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
   })
 
@@ -491,7 +491,7 @@ describe('CosmosManager tool calls', () => {
     await sendHandler({ sender: win }, { cwd: root, messages: [{ role: 'user', content: 'delete it' }], agentMode: true, settings: SETTINGS })
 
     await expect(readFileFs(target, 'utf-8')).rejects.toThrow()
-    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const events = win.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(events).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: false }))
   })
 
@@ -512,13 +512,13 @@ describe('CosmosManager tool calls', () => {
   })
 
   it('two windows awaiting approval on the same tool-call id are independent: approving window B does not resolve window A', async () => {
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
     const winA = { id: 301, isDestroyed: () => false, webContents: { send: vi.fn() } }
     const winB = { id: 302, isDestroyed: () => false, webContents: { send: vi.fn() } }
-    const sendHandler = handlers['cosmos:send']
-    const approveHandler = handlers['cosmos:approve']
-    const rejectHandler = handlers['cosmos:reject']
+    const sendHandler = handlers['bridge:send']
+    const approveHandler = handlers['bridge:approve']
+    const rejectHandler = handlers['bridge:reject']
     const targetA = join(root, 'winA.txt')
     const targetB = join(root, 'winB.txt')
 
@@ -541,8 +541,8 @@ describe('CosmosManager tool calls', () => {
     const runB = sendHandler({ sender: winB }, { cwd: root, messages: [{ role: 'user', content: 'write B' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
-      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
-      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
+      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
       expect(eventsA).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetA, content: 'A' } })
       expect(eventsB).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetB, content: 'B' } })
     })
@@ -553,7 +553,7 @@ describe('CosmosManager tool calls', () => {
     await runB
 
     expect(await readFileFs(targetB, 'utf-8')).toBe('B')
-    const eventsAAfterBApproved = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const eventsAAfterBApproved = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(eventsAAfterBApproved.some((e: any) => e.type === 'tool-result')).toBe(false)
     await expect(readFileFs(targetA, 'utf-8')).rejects.toThrow()
 
@@ -564,12 +564,12 @@ describe('CosmosManager tool calls', () => {
   })
 
   it('disposeWindow rejects and clears only the disposed window\'s pending approval, leaving another window\'s conversation untouched', async () => {
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
     const winA = { id: 401, isDestroyed: () => false, webContents: { send: vi.fn() } }
     const winB = { id: 402, isDestroyed: () => false, webContents: { send: vi.fn() } }
-    const sendHandler = handlers['cosmos:send']
-    const approveHandler = handlers['cosmos:approve']
+    const sendHandler = handlers['bridge:send']
+    const approveHandler = handlers['bridge:approve']
     const targetA = join(root, 'disposeA.txt')
     const targetB = join(root, 'disposeB.txt')
 
@@ -588,8 +588,8 @@ describe('CosmosManager tool calls', () => {
     const runB = sendHandler({ sender: winB }, { cwd: root, messages: [{ role: 'user', content: 'dispose B' }], agentMode: false, settings: SETTINGS })
 
     await vi.waitFor(() => {
-      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
-      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+      const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
+      const eventsB = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
       expect(eventsA).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetA, content: 'A' } })
       expect(eventsB).toContainEqual({ type: 'need-approval', id: 'call_1', name: 'write_file', args: { path: targetB, content: 'B' } })
     })
@@ -597,11 +597,11 @@ describe('CosmosManager tool calls', () => {
     manager.disposeWindow(winA.id)
     await runA
 
-    const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const eventsA = winA.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(eventsA).toContainEqual(expect.objectContaining({ type: 'tool-result', id: 'call_1', isError: true }))
     await expect(readFileFs(targetA, 'utf-8')).rejects.toThrow()
 
-    const eventsBAfterDispose = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'cosmos:event').map((c: any[]) => c[1])
+    const eventsBAfterDispose = winB.webContents.send.mock.calls.filter((c: any[]) => c[0] === 'bridge:event').map((c: any[]) => c[1])
     expect(eventsBAfterDispose.some((e: any) => e.type === 'tool-result')).toBe(false)
 
     approveHandler({ sender: winB }, 'call_1')
@@ -610,14 +610,14 @@ describe('CosmosManager tool calls', () => {
   })
 })
 
-describe('CosmosManager system prompt', () => {
+describe('BridgeManager system prompt', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   function setup() {
     const win = { id: 1, isDestroyed: () => false, webContents: { send: vi.fn() } }
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
-    return { win, sendHandler: handlers['cosmos:send'] }
+    return { win, sendHandler: handlers['bridge:send'] }
   }
 
   it('prepends the tool-priority system message when none is present', async () => {
@@ -650,13 +650,13 @@ describe('CosmosManager system prompt', () => {
   })
 })
 
-describe('CosmosManager cosmos:testConnection', () => {
+describe('BridgeManager bridge:testConnection', () => {
   beforeEach(() => vi.restoreAllMocks())
 
   function setup() {
-    const manager = new CosmosManager()
+    const manager = new BridgeManager()
     manager.registerHandlers()
-    return handlers['cosmos:testConnection']
+    return handlers['bridge:testConnection']
   }
 
   it('returns ok:true when the endpoint responds with 200', async () => {

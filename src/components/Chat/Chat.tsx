@@ -9,7 +9,7 @@ import { useThemeStore, XTERM_THEMES, glassXtermTheme, type ThemeId } from '@/st
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useInstanceFontSizeStore } from '@/stores/instanceFontSizeStore'
 import { useDisplayStore, type PanelStyle } from '@/stores/displayStore'
-import { CosmosChat } from './CosmosChat'
+import { BridgeChat } from './BridgeChat'
 import { UsagePanel } from '@/components/UsagePanel/UsagePanel'
 import { isShiftEnterKeydown, SHIFT_ENTER_SEQUENCE } from './shiftEnterSequence'
 import { wrapBracketedPaste } from '@/lib/sendSelectionToAssistant'
@@ -69,7 +69,7 @@ export function Chat() {
   }, [assistant])
 
   useEffect(() => {
-    if (!projectRoot || !containerRef.current || assistant === 'cosmos') return
+    if (!projectRoot || !containerRef.current || assistant === 'bridge') return
 
     const container = containerRef.current
 
@@ -174,7 +174,7 @@ export function Chat() {
   }, [projectRoot, assistant])
 
   useEffect(() => {
-    if (assistant === 'cosmos') return
+    if (assistant === 'bridge') return
     const terminal = terminalsRef.current[assistant]
     if (!terminal) return
 
@@ -231,7 +231,7 @@ export function Chat() {
 
     const observer = new ResizeObserver(() => {
       const activeAssistant = activeAssistantRef.current
-      if (activeAssistant === 'cosmos') return
+      if (activeAssistant === 'bridge') return
       const activeTerminal = terminalsRef.current[activeAssistant]
       if (!activeTerminal) return
 
@@ -286,18 +286,18 @@ export function Chat() {
           <div
             ref={containerRef}
             className="flex-1 overflow-hidden p-1"
-            style={{ display: assistant === 'cosmos' ? 'none' : 'block' }}
+            style={{ display: assistant === 'bridge' ? 'none' : 'block' }}
           />
-          {assistant === 'cosmos' && (
+          {assistant === 'bridge' && (
             <div className="flex-1 overflow-hidden">
-              <CosmosChat cwd={projectRoot} />
+              <BridgeChat cwd={projectRoot} />
             </div>
           )}
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center px-6">
           <p className="text-xs text-fg-muted text-center leading-relaxed">
-            Open a folder to start {assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Cosmos'}
+            Open a folder to start {assistant === 'claude' ? 'Claude Code' : assistant === 'codex' ? 'Codex' : 'Bridge'}
           </p>
         </div>
       )}

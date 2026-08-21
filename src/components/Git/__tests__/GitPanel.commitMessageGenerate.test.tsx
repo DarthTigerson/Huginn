@@ -5,6 +5,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
 import { useCommitMessageSettingsStore } from '@/stores/commitMessageSettingsStore'
+import { CLAUDE_WORKING_GIFS } from '@/assets/claudeGifs'
 import type { GitStatus } from '@/types/index'
 
 const staged: GitStatus = {
@@ -102,13 +103,13 @@ describe('GitPanel — generate commit message', () => {
 
     fireEvent.click(generateButton())
     await waitFor(() => expect(generateButton().querySelector('img')).not.toBeNull())
-    expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawd(Dancing|Working)/)
+    expect(CLAUDE_WORKING_GIFS).toContain(generateButton().querySelector('img')?.getAttribute('src'))
 
     resolveGenerate('Fix the login bug')
     await waitFor(() => expect(generateButton().querySelector('img')).toBeNull())
   })
 
-  it('picks the dancing gif or the working gif depending on the random roll', async () => {
+  it('picks a gif from the pool depending on the random roll', async () => {
     window.api.commitMessageGenerate = vi.fn(
       () => new Promise<string>(() => {}) // never resolves — only the picked gif matters here
     ) as any
@@ -117,13 +118,19 @@ describe('GitPanel — generate commit message', () => {
     randomSpy.mockReturnValue(0)
     const { unmount } = render(<GitPanel />)
     fireEvent.click(generateButton())
-    await waitFor(() => expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawdDancing/))
+    await waitFor(() =>
+      expect(generateButton().querySelector('img')?.getAttribute('src')).toBe(CLAUDE_WORKING_GIFS[0])
+    )
     unmount()
 
     randomSpy.mockReturnValue(0.99)
     render(<GitPanel />)
     fireEvent.click(generateButton())
-    await waitFor(() => expect(generateButton().querySelector('img')?.getAttribute('src')).toMatch(/clawdWorking/))
+    await waitFor(() =>
+      expect(generateButton().querySelector('img')?.getAttribute('src')).toBe(
+        CLAUDE_WORKING_GIFS[CLAUDE_WORKING_GIFS.length - 1]
+      )
+    )
 
     randomSpy.mockRestore()
   })

@@ -137,7 +137,7 @@ export function CodexIcon() {
   )
 }
 
-export function CosmosIcon() {
+export function BridgeIcon() {
   return (
     <svg width="1.125rem" height="1.125rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="12" y="2" width="14.14" height="14.14" rx="2" transform="rotate(45 12 2)" fill="#D97757" />

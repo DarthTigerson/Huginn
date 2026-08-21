@@ -15,7 +15,7 @@ import { useJiraSettingsStore } from '../jiraSettingsStore'
 describe('jiraSettingsStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useJiraSettingsStore.setState({ externalUrl: '', closeSidePanelOnOpen: false, enabled: true })
+    useJiraSettingsStore.setState({ externalUrl: '', projectUrls: {}, closeSidePanelOnOpen: false, enabled: true })
   })
 
   it('defaults to an empty URL', () => {
@@ -26,6 +26,27 @@ describe('jiraSettingsStore', () => {
     useJiraSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
     expect(useJiraSettingsStore.getState().externalUrl).toBe('https://team.atlassian.net/jira/board')
     expect(localStorageStore['huginn:jira:externalUrl']).toBe('https://team.atlassian.net/jira/board')
+  })
+
+  it('getEffectiveUrl falls back to the global URL when no project override is set', () => {
+    useJiraSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
+    expect(useJiraSettingsStore.getState().getEffectiveUrl('/repo/a')).toBe('https://team.atlassian.net/jira/board')
+  })
+
+  it('setProjectUrl overrides the global URL for that project only', () => {
+    useJiraSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
+    useJiraSettingsStore.getState().setProjectUrl('/repo/a', 'https://other-team.atlassian.net/jira/board')
+    expect(useJiraSettingsStore.getState().getEffectiveUrl('/repo/a')).toBe('https://other-team.atlassian.net/jira/board')
+    expect(useJiraSettingsStore.getState().getEffectiveUrl('/repo/b')).toBe('https://team.atlassian.net/jira/board')
+    expect(localStorageStore['huginn:jira:projectUrls']).toBe(JSON.stringify({ '/repo/a': 'https://other-team.atlassian.net/jira/board' }))
+  })
+
+  it('setProjectUrl with an empty value clears the override, falling back to global again', () => {
+    useJiraSettingsStore.getState().setExternalUrl('https://team.atlassian.net/jira/board')
+    useJiraSettingsStore.getState().setProjectUrl('/repo/a', 'https://other-team.atlassian.net/jira/board')
+    useJiraSettingsStore.getState().setProjectUrl('/repo/a', '')
+    expect(useJiraSettingsStore.getState().getEffectiveUrl('/repo/a')).toBe('https://team.atlassian.net/jira/board')
+    expect(useJiraSettingsStore.getState().projectUrls).toEqual({})
   })
 
   it('defaults closeSidePanelOnOpen to false', () => {

@@ -178,18 +178,18 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('update:upToDate', handler)
   },
 
-  cosmosSend: (cwd: string, messages: unknown[], agentMode: boolean, settings: unknown) =>
-    ipcRenderer.send('cosmos:send', { cwd, messages, agentMode, settings }),
-  cosmosApprove: (toolCallId: string) => ipcRenderer.send('cosmos:approve', toolCallId),
-  cosmosReject: (toolCallId: string) => ipcRenderer.send('cosmos:reject', toolCallId),
-  cosmosCancel: () => ipcRenderer.send('cosmos:cancel'),
-  cosmosTestConnection: (settings: unknown) => ipcRenderer.invoke('cosmos:testConnection', settings),
-  cosmosGetSettings: () => ipcRenderer.invoke('cosmos:getSettings'),
-  cosmosSetSettings: (settings: unknown) => ipcRenderer.invoke('cosmos:setSettings', settings),
-  onCosmosEvent: (cb: (event: import('./cosmos').CosmosEvent) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, event: import('./cosmos').CosmosEvent) => cb(event)
-    ipcRenderer.on('cosmos:event', handler)
-    return () => ipcRenderer.removeListener('cosmos:event', handler)
+  bridgeSend: (cwd: string, messages: unknown[], agentMode: boolean, settings: unknown) =>
+    ipcRenderer.send('bridge:send', { cwd, messages, agentMode, settings }),
+  bridgeApprove: (toolCallId: string) => ipcRenderer.send('bridge:approve', toolCallId),
+  bridgeReject: (toolCallId: string) => ipcRenderer.send('bridge:reject', toolCallId),
+  bridgeCancel: () => ipcRenderer.send('bridge:cancel'),
+  bridgeTestConnection: (settings: unknown) => ipcRenderer.invoke('bridge:testConnection', settings),
+  bridgeGetSettings: () => ipcRenderer.invoke('bridge:getSettings'),
+  bridgeSetSettings: (settings: unknown) => ipcRenderer.invoke('bridge:setSettings', settings),
+  onBridgeEvent: (cb: (event: import('./bridge').BridgeEvent) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, event: import('./bridge').BridgeEvent) => cb(event)
+    ipcRenderer.on('bridge:event', handler)
+    return () => ipcRenderer.removeListener('bridge:event', handler)
   },
 
   onMenuOpenProject: (cb: () => void) => {
@@ -363,6 +363,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('lsp:install:exit', handler)
     return () => ipcRenderer.removeListener('lsp:install:exit', handler)
   },
+
+  onboardingGetStatus: () => ipcRenderer.invoke('onboarding:getStatus'),
+  onboardingMarkComplete: () => ipcRenderer.invoke('onboarding:markComplete'),
+  onboardingReset: () => ipcRenderer.invoke('onboarding:reset'),
+  onboardingDetectCli: (bin: string) => ipcRenderer.invoke('onboarding:detectCli', bin),
+  onboardingGetGitIdentity: () => ipcRenderer.invoke('onboarding:getGitIdentity'),
+  onboardingSetGitIdentity: (name: string, email: string) =>
+    ipcRenderer.invoke('onboarding:setGitIdentity', name, email),
+  onboardingPrimeAutomationPermission: () => ipcRenderer.invoke('onboarding:primeAutomationPermission'),
+  onboardingOpenAutomationSettings: () => ipcRenderer.invoke('onboarding:openAutomationSettings'),
 
   graphifyIsAvailable: () => ipcRenderer.invoke('graphify:isAvailable'),
   graphifyRun: (id: string, cwd: string) => ipcRenderer.invoke('graphify:run', id, cwd),

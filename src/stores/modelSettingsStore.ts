@@ -2,8 +2,8 @@ import { create } from 'zustand'
 import type { AssistantKind } from '@/types/api'
 
 const STORAGE_KEY = 'huginn:enabledModels'
-const ALL_MODELS: AssistantKind[] = ['claude', 'codex', 'cosmos']
-const DEFAULT_ENABLED: Record<AssistantKind, boolean> = { claude: true, codex: false, cosmos: false }
+const ALL_MODELS: AssistantKind[] = ['claude', 'codex', 'bridge']
+const DEFAULT_ENABLED: Record<AssistantKind, boolean> = { claude: true, codex: false, bridge: false }
 
 function loadEnabled(): Record<AssistantKind, boolean> {
   try {

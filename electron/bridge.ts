@@ -8,37 +8,38 @@ import { minimatch } from 'minimatch'
 
 const execFileAsync = promisify(execFile)
 
-export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
+export type BridgeRole = 'system' | 'user' | 'assistant' | 'tool'
 
-export interface CosmosToolCall {
+export interface BridgeToolCall {
   id: string
   type: 'function'
   function: { name: string; arguments: string }
 }
 
-export interface CosmosMessage {
-  role: CosmosRole
+export interface BridgeMessage {
+  role: BridgeRole
   content: string | null
-  tool_calls?: CosmosToolCall[]
+  tool_calls?: BridgeToolCall[]
   tool_call_id?: string
 }
 
-export interface CosmosSettings {
+export interface BridgeSettings {
   endpoint: string
   apiKey: string
   modelId: string
   sessionId?: string
 }
 
-export interface CosmosSendPayload {
+export interface BridgeSendPayload {
   cwd: string
-  messages: CosmosMessage[]
+  messages: BridgeMessage[]
   agentMode: boolean
-  settings: CosmosSettings
+  settings: BridgeSettings
 }
 
-export type CosmosEvent =
+export type BridgeEvent =
   | { type: 'text-delta'; delta: string }
+  | { type: 'content-replace'; content: string }
   | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'need-approval'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool-result'; id: string; result: string; isError: boolean }
@@ -71,7 +72,7 @@ function parseSSEChunk(raw: string): StreamChunk | null {
   }
 }
 
-export const COSMOS_TOOLS = [
+export const BRIDGE_TOOLS = [
   {
     type: 'function',
     function: {
@@ -270,7 +271,7 @@ async function buildSystemPrompt(cwd: string): Promise<string> {
     lastCommit = logResult.stdout.trim()
   } catch {}
 
-  return `You are Cosmos, an AI coding assistant running inside a local IDE. You have DIRECT access to the user's machine through function/tool calls.
+  return `You are Bridge, an AI coding assistant running inside a local IDE. You have DIRECT access to the user's machine through function/tool calls.
 
 Project directory: ${cwd}${branch ? `\nCurrent branch: ${branch}` : ''}${lastCommit ? `\nLast commit: ${lastCommit}` : ''}
 
@@ -339,13 +340,13 @@ interface ToolExecutionResult {
   isError: boolean
 }
 
-export class CosmosManager {
+export class BridgeManager {
   private controllerByWindow = new Map<number, AbortController>()
   private pendingApprovalsByWindow = new Map<number, Map<string, (approved: boolean) => void>>()
   private cancelledByWindow = new Map<number, boolean>()
 
   registerHandlers(): void {
-    ipcMain.on('cosmos:send', (event, payload: CosmosSendPayload) => {
+    ipcMain.on('bridge:send', (event, payload: BridgeSendPayload) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       // Returning the promise (instead of `void`-discarding it) is what lets
@@ -354,7 +355,7 @@ export class CosmosManager {
       return this.runConversation(win, payload)
     })
 
-    ipcMain.on('cosmos:cancel', (event) => {
+    ipcMain.on('bridge:cancel', (event) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       this.controllerByWindow.get(win.id)?.abort()
@@ -366,7 +367,7 @@ export class CosmosManager {
       approvals.clear()
     })
 
-    ipcMain.on('cosmos:approve', (event, toolCallId: string) => {
+    ipcMain.on('bridge:approve', (event, toolCallId: string) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       const approvals = this.approvalsFor(win.id)
@@ -374,7 +375,7 @@ export class CosmosManager {
       approvals.delete(toolCallId)
     })
 
-    ipcMain.on('cosmos:reject', (event, toolCallId: string) => {
+    ipcMain.on('bridge:reject', (event, toolCallId: string) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win) return
       const approvals = this.approvalsFor(win.id)
@@ -382,7 +383,7 @@ export class CosmosManager {
       approvals.delete(toolCallId)
     })
 
-    ipcMain.handle('cosmos:testConnection', async (_event, settings: CosmosSettings) => {
+    ipcMain.handle('bridge:testConnection', async (_event, settings: BridgeSettings) => {
       try {
         const response = await fetch(`${settings.endpoint}/models`, {
           headers: { Authorization: `Bearer ${settings.apiKey}` },
@@ -404,11 +405,11 @@ export class CosmosManager {
     return approvals
   }
 
-  private emit(win: BrowserWindow, event: CosmosEvent): void {
-    if (!win.isDestroyed()) win.webContents.send('cosmos:event', event)
+  private emit(win: BrowserWindow, event: BridgeEvent): void {
+    if (!win.isDestroyed()) win.webContents.send('bridge:event', event)
   }
 
-  private async runConversation(win: BrowserWindow, payload: CosmosSendPayload): Promise<void> {
+  private async runConversation(win: BrowserWindow, payload: BridgeSendPayload): Promise<void> {
     // Captured once, before any `await`, so every subsequent Map lookup in this
     // conversation (including inside streamOneCompletion/awaitApproval) keys off
     // the window identity as it was when the conversation started — not a
@@ -457,7 +458,7 @@ export class CosmosManager {
       if (this.cancelledByWindow.get(winId)) return
     }
 
-    this.emit(win, { type: 'error', message: `Cosmos hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
+    this.emit(win, { type: 'error', message: `Bridge hit the ${MAX_TOOL_ROUNDS} tool-call round limit for this turn` })
   }
 
   private awaitApproval(win: BrowserWindow, winId: number, call: PendingToolCall): Promise<boolean> {
@@ -597,8 +598,8 @@ export class CosmosManager {
   private async streamOneCompletion(
     win: BrowserWindow,
     winId: number,
-    messages: CosmosMessage[],
-    settings: CosmosSettings
+    messages: BridgeMessage[],
+    settings: BridgeSettings
   ): Promise<{ content: string; toolCalls: PendingToolCall[] } | null> {
     const controller = new AbortController()
     this.controllerByWindow.set(winId, controller)
@@ -609,25 +610,25 @@ export class CosmosManager {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${settings.apiKey}`,
       }
-      if (settings.sessionId) reqHeaders['X-Cosmos-Session-ID'] = settings.sessionId
+      if (settings.sessionId) reqHeaders['X-Bridge-Session-ID'] = settings.sessionId
       response = await fetch(`${settings.endpoint}/chat/completions`, {
         method: 'POST',
         headers: reqHeaders,
-        body: JSON.stringify({ model: settings.modelId, messages, tools: COSMOS_TOOLS, stream: true }),
+        body: JSON.stringify({ model: settings.modelId, messages, tools: BRIDGE_TOOLS, stream: true }),
         signal: controller.signal,
       })
     } catch (err) {
-      this.emit(win, { type: 'error', message: `Cosmos request failed: ${(err as Error).message}` })
+      this.emit(win, { type: 'error', message: `Bridge request failed: ${(err as Error).message}` })
       return null
     }
 
     if (!response.ok) {
-      this.emit(win, { type: 'error', message: `Cosmos request failed: ${response.status}` })
+      this.emit(win, { type: 'error', message: `Bridge request failed: ${response.status}` })
       return null
     }
 
     if (!response.body) {
-      this.emit(win, { type: 'error', message: 'Cosmos response had no body' })
+      this.emit(win, { type: 'error', message: 'Bridge response had no body' })
       return null
     }
 
@@ -667,7 +668,7 @@ export class CosmosManager {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        this.emit(win, { type: 'error', message: `Cosmos stream error: ${(err as Error).message}` })
+        this.emit(win, { type: 'error', message: `Bridge stream error: ${(err as Error).message}` })
       }
       return null
     }

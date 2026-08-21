@@ -6,10 +6,11 @@ import type { UpdateInfo } from '../../electron/updateChecker'
 import type { GraphifyGraph } from './graphify'
 import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
 import type { DockerStatus, DockerContainer, DockerActionResult } from '../../electron/docker'
+import type { OnboardingStatus, GitIdentity } from '../../electron/onboarding'
 
 export type { LatestUsage, UsageSnapshot, UpdateInfo, DockerStatus, DockerContainer, DockerActionResult }
 
-export type AssistantKind = 'claude' | 'codex' | 'cosmos'
+export type AssistantKind = 'claude' | 'codex' | 'bridge'
 
 export interface SessionData {
   layout: unknown
@@ -44,22 +45,22 @@ export interface MobileState {
   devices: MobileDevice[]
 }
 
-export type CosmosRole = 'system' | 'user' | 'assistant' | 'tool'
+export type BridgeRole = 'system' | 'user' | 'assistant' | 'tool'
 
-export interface CosmosToolCall {
+export interface BridgeToolCall {
   id: string
   type: 'function'
   function: { name: string; arguments: string }
 }
 
-export interface CosmosMessage {
-  role: CosmosRole
+export interface BridgeMessage {
+  role: BridgeRole
   content: string | null
-  tool_calls?: CosmosToolCall[]
+  tool_calls?: BridgeToolCall[]
   tool_call_id?: string
 }
 
-export interface CosmosSettings {
+export interface BridgeSettings {
   endpoint: string
   apiKey: string
   modelId: string
@@ -70,7 +71,7 @@ export interface RecentProject {
   lastOpened: number
 }
 
-export type CosmosEvent =
+export type BridgeEvent =
   | { type: 'text-delta'; delta: string }
   | { type: 'content-replace'; content: string }
   | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
@@ -203,14 +204,14 @@ declare global {
       onUpdateUpToDate: (cb: (version: string) => void) => () => void
       getChangelogForVersion: (version: string) => Promise<string | null>
 
-      cosmosSend: (cwd: string, messages: CosmosMessage[], agentMode: boolean, settings: CosmosSettings) => void
-      cosmosApprove: (toolCallId: string) => void
-      cosmosReject: (toolCallId: string) => void
-      cosmosCancel: () => void
-      cosmosTestConnection: (settings: CosmosSettings) => Promise<{ ok: boolean; error?: string }>
-      cosmosGetSettings: () => Promise<CosmosSettings | null>
-      cosmosSetSettings: (settings: CosmosSettings) => Promise<void>
-      onCosmosEvent: (cb: (event: CosmosEvent) => void) => () => void
+      bridgeSend: (cwd: string, messages: BridgeMessage[], agentMode: boolean, settings: BridgeSettings) => void
+      bridgeApprove: (toolCallId: string) => void
+      bridgeReject: (toolCallId: string) => void
+      bridgeCancel: () => void
+      bridgeTestConnection: (settings: BridgeSettings) => Promise<{ ok: boolean; error?: string }>
+      bridgeGetSettings: () => Promise<BridgeSettings | null>
+      bridgeSetSettings: (settings: BridgeSettings) => Promise<void>
+      onBridgeEvent: (cb: (event: BridgeEvent) => void) => () => void
 
       devtoolsAttach: (targetId: number, hostId: number) => Promise<void>
       devtoolsDetach: (targetId: number) => Promise<void>
@@ -250,6 +251,15 @@ declare global {
       inlineEditStart: (payload: InlineEditStartPayload) => void
       inlineEditCancel: () => void
       onInlineEditEvent: (cb: (event: InlineEditEvent) => void) => () => void
+
+      onboardingGetStatus: () => Promise<OnboardingStatus>
+      onboardingMarkComplete: () => Promise<void>
+      onboardingReset: () => Promise<void>
+      onboardingDetectCli: (bin: string) => Promise<boolean>
+      onboardingGetGitIdentity: () => Promise<GitIdentity>
+      onboardingSetGitIdentity: (name: string, email: string) => Promise<void>
+      onboardingPrimeAutomationPermission: () => Promise<boolean>
+      onboardingOpenAutomationSettings: () => Promise<void>
 
       graphifyIsAvailable: () => Promise<boolean>
       graphifyRun: (id: string, cwd: string) => Promise<void>

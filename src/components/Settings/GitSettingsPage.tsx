@@ -39,6 +39,8 @@ export function GitSettingsPage() {
   } = useGitSettingsStore()
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
+  const gitRemoteProjectUrls = useGitRemoteSettingsStore((s) => s.projectUrls)
+  const setGitRemoteProjectUrl = useGitRemoteSettingsStore((s) => s.setProjectUrl)
   const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
 
@@ -69,7 +71,7 @@ export function GitSettingsPage() {
       <h1 className="text-base font-semibold text-fg mb-1">Git</h1>
       <p className="text-sm text-fg-muted mb-8">Safety settings and defaults for git operations.</p>
 
-      <div className="grid grid-cols-1 gap-6 max-w-lg">
+      <div className="grid grid-cols-1 gap-6 max-w-2xl">
         <section className="rounded-xl border border-border/60 p-4 flex flex-col gap-5">
           <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Force Push Safety</h2>
 
@@ -223,11 +225,21 @@ export function GitSettingsPage() {
 
           <Field
             id="git-remote-external-url"
-            label="URL"
+            label="Default URL"
             value={gitRemoteUrl}
             onChange={setGitRemoteUrl}
             placeholder="https://github.com/your-org/your-repo"
           />
+
+          {projectRoot && (
+            <Field
+              id="git-remote-project-url"
+              label="This project's URL"
+              value={gitRemoteProjectUrls[projectRoot] ?? ''}
+              onChange={(v) => setGitRemoteProjectUrl(projectRoot, v)}
+              placeholder={gitRemoteUrl || 'Same as default URL above'}
+            />
+          )}
 
           <Toggle
             label="Close side panel when opening"

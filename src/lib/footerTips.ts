@@ -10,7 +10,7 @@ export const FOOTER_TIPS: string[] = [
   '⌘L sends your selection to Claude, or opens chat',
   '⌘F finds in the current file, ⌘⇧F finds across the whole project',
   '⌘T opens a new terminal tab',
-  '⇧⇥ toggles Cosmos agent mode',
+  '⇧⇥ toggles Bridge agent mode',
   '⌘⇧T reopens the last closed tab',
   '⌘, opens Preferences',
   'Right-click a file in the sidebar for more options',

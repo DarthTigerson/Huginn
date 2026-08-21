@@ -246,4 +246,30 @@ describe('fileStore', () => {
     await useFileStore.getState().openProjectAt('/other-proj')
     expect(localStorage.getItem('huginn:lastProjectRoot')).toBeNull()
   })
+
+  it('closeProject drops back to the no-project state', async () => {
+    await useFileStore.getState().openFolder()
+    useFileStore.getState().closeProject()
+    const { projectRoot, tree, selectedPath, expandedPaths } = useFileStore.getState()
+    expect(projectRoot).toBeNull()
+    expect(tree).toHaveLength(0)
+    expect(selectedPath).toBeNull()
+    expect(expandedPaths.size).toBe(0)
+  })
+
+  it('closeProject clears tabs, repos, and unwatches fs/git', async () => {
+    await useFileStore.getState().openFolder()
+    useEditorStore.getState().openTab({ path: '/proj/a.ts', content: '', dirty: false })
+    useFileStore.getState().closeProject()
+    expect(useEditorStore.getState().tabs).toHaveLength(0)
+    expect(useGitReposStore.getState().repos).toEqual([])
+    expect(window.api.fsWatchRoot).toHaveBeenCalledWith(null)
+    expect(window.api.gitWatchRoot).toHaveBeenCalledWith(null)
+  })
+
+  it('closeProject leaves the persisted last-project preference alone (soft reset only)', async () => {
+    await useFileStore.getState().openFolder()
+    useFileStore.getState().closeProject()
+    expect(localStorage.getItem('huginn:lastProjectRoot')).toBe('/proj')
+  })
 })
