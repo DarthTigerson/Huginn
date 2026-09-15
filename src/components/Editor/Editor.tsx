@@ -32,6 +32,7 @@ import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelection
 import { computeLineChanges } from '@/lib/lineDiff'
 import { getLastFocusedEditor, setLastFocusedEditor } from '@/lib/lastFocusedEditor'
 import { notifyNoteChanged } from '@/lib/notifySettingChanged'
+import { attachBlameAnnotations } from './blameAnnotations'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { EditorContextMenu } from './EditorContextMenu'
@@ -394,6 +395,12 @@ function EditorPane({ paneId }: { paneId: string }) {
   // to reach into onMount's own closure state.
   const gutterDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
   const refreshGutterRef = useRef<() => void>(() => {})
+  // End-of-line git-blame annotations (src/components/Editor/blameAnnotations.ts).
+  // Fully self-contained: attachBlameAnnotations owns its own Monaco
+  // decoration collection, this just needs a handle to refresh/dispose it
+  // on the same triggers as the gutter decorations above.
+  const refreshBlameRef = useRef<() => void>(() => {})
+  const blameHandleRef = useRef<{ dispose: () => void } | null>(null)
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -458,6 +465,7 @@ function EditorPane({ paneId }: { paneId: string }) {
         setDiffRefreshTick((t) => t + 1)
         // HEAD moved (commit/checkout/stage) - the cached blob is stale.
         refreshGutterRef.current()
+        refreshBlameRef.current()
       }
     })
     return () => {
@@ -868,11 +876,23 @@ function EditorPane({ paneId }: { paneId: string }) {
                   applyGutterDecorations()
                 }
 
+                if (activeTab) {
+                  const blameRepoRoot = useGitReposStore.getState().resolveRepoForPath(activeTab.path)
+                  if (blameRepoRoot) {
+                    const blameRelPath = toRelativePath(activeTab.path, blameRepoRoot)
+                    const blame = attachBlameAnnotations(editor, monaco, { repoRoot: blameRepoRoot, relPath: blameRelPath })
+                    blameHandleRef.current = blame
+                    refreshBlameRef.current = blame.refresh
+                  }
+                }
+
                 editor.onDidDispose(() => {
                   cancelled = true
                   if (debounceTimer) clearTimeout(debounceTimer)
                   setEditorContextMenu(null)
                   if (getLastFocusedEditor() === editor) setLastFocusedEditor(null)
+                  blameHandleRef.current?.dispose()
+                  blameHandleRef.current = null
                 })
 
                 applyGutterDecorations()
