@@ -22,7 +22,7 @@ import { BrowserViewManager } from './browserViews'
 import { LanguageServerManager } from './lsp/manager'
 import {
   listAllFiles, searchText, buildTree, readImageDataUrl,
-  readTextFile, pathExists, getHomeDir, writeFile as fsWriteFile, mkdir, renamePath, trashPath,
+  readTextFile, pathExists, getHomeDir, writeFile as fsWriteFile, mkdir, renamePath, trashPath, revealInFinder,
   copyInto, moveInto,
 } from './fsOps'
 import { writeClipboardFiles, readClipboardFiles } from './fileClipboard'
@@ -52,6 +52,7 @@ function registerFsHandlers(): void {
   ipcMain.handle('fs:moveInto', (_e, source: string, destDir: string) => moveInto(source, destDir))
   ipcMain.handle('clipboard:writeFiles', (_e, paths: string[], mode: 'copy' | 'cut') => writeClipboardFiles(paths, mode))
   ipcMain.handle('clipboard:readFiles', () => readClipboardFiles())
+  ipcMain.handle('fs:revealInFinder', (_e, path: string) => revealInFinder(path))
   ipcMain.handle('fs:listAllFiles', (_e, root: string) => listAllFiles(root))
   ipcMain.handle('fs:searchText', (_e, root: string, query: string, caseSensitive: boolean) =>
     searchText(root, query, caseSensitive)

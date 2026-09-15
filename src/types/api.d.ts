@@ -163,6 +163,7 @@ declare global {
       writeClipboardFiles: (paths: string[], mode: 'copy' | 'cut') => Promise<void>
       readClipboardFiles: () => Promise<{ paths: string[]; mode: 'copy' | 'cut' } | null>
       pathForFile: (file: File) => string
+      revealInFinder: (path: string) => Promise<void>
       listAllFiles: (root: string) => Promise<string[]>
       searchText: (root: string, query: string, caseSensitive: boolean) => Promise<SearchMatch[]>
       searchStart: (searchId: string, root: string, options: SearchOptions) => void
