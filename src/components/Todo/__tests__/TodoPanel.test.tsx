@@ -64,6 +64,20 @@ describe('TodoPanel', () => {
     expect(names).toEqual(['Bonnici Portfolio', 'Link Platform', 'Snajja Maltin', 'vIDE', 'vIDE Sync'])
   })
 
+  it('sizes every key to the longest key so project names line up', async () => {
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'Test', key: 'T', nextNumber: 1, createdAt: 1 },
+        { id: 'p2', name: 'vIDE Site', key: 'VSITE', nextNumber: 1, createdAt: 2 },
+      ]),
+    })
+    render(<TodoPanel />)
+    await waitFor(() => screen.getByText('VSITE'))
+
+    expect(screen.getByText('T')).toHaveStyle({ width: '5ch' })
+    expect(screen.getByText('VSITE')).toHaveStyle({ width: '5ch' })
+  })
+
   it('clicking a project opens its Kanban board tab', async () => {
     mockApi({
       todosListProjects: vi.fn().mockResolvedValue([

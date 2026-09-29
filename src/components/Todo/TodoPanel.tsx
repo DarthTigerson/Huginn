@@ -16,6 +16,9 @@ export function TodoPanel() {
     () => [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })),
     [projects],
   )
+  // Keys are monospace, so sizing the key column to the longest key in `ch`
+  // lines every project name up at the same x.
+  const keyColumnWidth = `${Math.max(0, ...projects.map((p) => p.key.length))}ch`
   const loadProjects = useTodoStore((s) => s.loadProjects)
   const lastOpenedProjectId = useTodoStore((s) => s.lastOpenedProjectId)
   const setLastOpenedProject = useTodoStore((s) => s.setLastOpenedProject)
@@ -91,7 +94,9 @@ export function TodoPanel() {
                   : 'border-transparent hover:bg-white/5',
               ].join(' ')}
             >
-              <span className="text-xs font-mono text-fg-subtle shrink-0">{project.key}</span>
+              <span className="text-xs font-mono text-fg-subtle shrink-0" style={{ width: keyColumnWidth }}>
+                {project.key}
+              </span>
               <span className="text-sm text-fg truncate">{project.name}</span>
             </button>
           ))
