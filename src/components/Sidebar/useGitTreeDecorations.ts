@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGitStore } from '@/stores/gitStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
+import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 import {
   buildFileGitDecorations,
   buildFolderGitAggregates,
@@ -25,11 +26,19 @@ export interface GitTreeDecorations {
 // watcher-driven one in App.tsx). The two useMemo calls then only re-run
 // when that status data — or the discovered repo list itself — actually
 // changes, not on unrelated re-renders of this hook's caller.
+//
+// With Settings > General > File Tree set to Off, the selector reads no repo
+// status at all (always an empty list), so git changes never re-render the
+// tree and the maps stay empty.
 export function useGitTreeDecorations(): GitTreeDecorations {
+  const enabled = useGeneralSettingsStore((s) => s.fileTreeGitStatus !== 'off')
   const repoRoots = useGitReposStore((s) => s.repos)
-  const statuses = useGitStore(useShallow((s) => repoRoots.map((repo) => s.repos[repo]?.status)))
+  const statuses = useGitStore(useShallow((s) => (enabled ? repoRoots.map((repo) => s.repos[repo]?.status) : [])))
 
-  const files = useMemo(() => buildFileGitDecorations(repoRoots, statuses), [repoRoots, statuses])
+  const files = useMemo(
+    () => buildFileGitDecorations(enabled ? repoRoots : [], statuses),
+    [enabled, repoRoots, statuses],
+  )
   const folders = useMemo(() => buildFolderGitAggregates(files), [files])
 
   return { files, folders }

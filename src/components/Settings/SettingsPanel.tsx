@@ -3,13 +3,13 @@ import { useEditorStore } from '@/stores/editorStore'
 import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 import { getBiggestPaneId } from '@/lib/paneLayout'
 import {
-  GENERAL_SETTINGS_TAB_PATH, DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH,
+  GENERAL_SETTINGS_TAB_PATH, DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, FILE_TREE_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH, CLAUDE_SETTINGS_TAB_PATH, BRIDGE_SETTINGS_TAB_PATH, GRAPHIFY_SETTINGS_TAB_PATH,
   JIRA_SETTINGS_TAB_PATH, DOCKER_SETTINGS_TAB_PATH, MOBILE_SETTINGS_TAB_PATH, NOTES_SETTINGS_TAB_PATH,
   TODO_SETTINGS_TAB_PATH, LLAMA_SETTINGS_TAB_PATH,
 } from './paths'
 import {
-  SettingsIcon, EditorIcon, DisplaySettingsIcon, ClaudeIcon, BridgeIcon, GitIcon, DockerIcon,
+  SettingsIcon, EditorIcon, DisplaySettingsIcon, FilesIcon, ClaudeIcon, BridgeIcon, GitIcon, DockerIcon,
   BrowserIcon, JiraIcon, GraphIcon, PhoneIcon, NotesIcon, TodoIcon, LlamaIcon,
 } from '@/components/ActivityBar/ActivityBar'
 
@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
       { path: GENERAL_SETTINGS_TAB_PATH, label: 'General', icon: <SettingsIcon /> },
       { path: EDITOR_SETTINGS_TAB_PATH, label: 'Editor', icon: <EditorIcon /> },
       { path: DISPLAY_TAB_PATH, label: 'Display', icon: <DisplaySettingsIcon /> },
+      { path: FILE_TREE_SETTINGS_TAB_PATH, label: 'File Tree', icon: <FilesIcon /> },
     ],
   },
   {

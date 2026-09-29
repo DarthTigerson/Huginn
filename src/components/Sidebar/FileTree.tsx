@@ -20,6 +20,7 @@ import { isIgnoredPath } from '@/lib/gitIgnore'
 import { FileIcon, FolderIcon } from './FileIcon'
 import { isExternalFileDrag } from './treeUtils'
 import { useGitTreeDecorations } from './useGitTreeDecorations'
+import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 
 export type TreePromptKind = 'file' | 'directory' | 'rename'
 
@@ -102,6 +103,8 @@ export function FileTree({
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const ignoredPaths = useRepoGitState(selectedRepo).ignoredPaths
   const { files: fileGitDecorations, folders: folderGitAggregates } = useGitTreeDecorations()
+  // Settings > General > File Tree: 'letter' keeps names their normal colour.
+  const colourGitNames = useGeneralSettingsStore((s) => s.fileTreeGitStatus === 'letterAndColour')
   const { activeTabPath, openTab, openTabInPane, openTabInNewSplitPane } = useEditorStore()
   // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path (that's
   // what git status/git show hand back, and what getDiffContent's own
@@ -251,7 +254,7 @@ export function FileTree({
                 ) : (
                   <FileIcon name={node.name} />
                 )}
-                <span className={`truncate flex-1 min-w-0 ${gitDecoration ? gitDecoration.textClass : 'text-fg'}`}>
+                <span className={`truncate flex-1 min-w-0 ${gitDecoration && colourGitNames ? gitDecoration.textClass : 'text-fg'}`}>
                   {node.name}
                 </span>
                 {!node.isDirectory && gitDecoration && (
