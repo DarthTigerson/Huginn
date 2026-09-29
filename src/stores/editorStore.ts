@@ -199,7 +199,6 @@ interface EditorState {
   paneTabLists: Record<string, string[]>
   openTab: (tab: Tab) => void
   openScratchTab: (paneId?: string) => void
-  renameTabPath: (oldPath: string, newPath: string) => void
   openTabInPane: (tab: Tab, paneId: string) => void
   openTabAfter: (tab: Tab, afterPath: string) => void
   closeTabInPane: (paneId: string, path: string) => void
@@ -285,39 +284,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   openScratchTab: (paneId?: string) => {
     const tab = { path: buildScratchPath(crypto.randomUUID()), content: '', dirty: false }
     get().openTabInPane(tab, paneId ?? get().activePaneId)
-  },
-
-  // Re-keys a tab in place after a scratch buffer is saved to a real file.
-  // Closing and reopening would be simpler but would drop the tab to the end
-  // of its pane's list and lose which pane it was in; the path is the key in
-  // tabs, paneTabs, paneTabLists, activeTabPath and pinnedPaths, so every one
-  // of them has to move together.
-  renameTabPath: (oldPath: string, newPath: string) => {
-    const before = get()
-    if (oldPath === newPath || !before.tabs.some((t) => t.path === oldPath)) return
-    // Saving a scratch buffer over a file that is already open would otherwise
-    // leave two tabs claiming the same path — duplicate React keys, and
-    // closing one while tabs.find() resolves the other. The file on disk is
-    // about to be overwritten either way (the save dialog asked), so the
-    // stale tab showing its old contents is the one that goes.
-    if (before.tabs.some((t) => t.path === newPath)) before.closeTabEverywhere(newPath)
-
-    set((state) => {
-      const pinnedPaths = new Set(state.pinnedPaths)
-      if (pinnedPaths.delete(oldPath)) pinnedPaths.add(newPath)
-      const swap = (p: string) => (p === oldPath ? newPath : p)
-      return {
-        tabs: state.tabs.map((t) => (t.path === oldPath ? { ...t, path: newPath } : t)),
-        activeTabPath: state.activeTabPath === oldPath ? newPath : state.activeTabPath,
-        paneTabs: Object.fromEntries(
-          Object.entries(state.paneTabs).map(([pid, p]) => [pid, p === oldPath ? newPath : p])
-        ),
-        paneTabLists: Object.fromEntries(
-          Object.entries(state.paneTabLists).map(([pid, list]) => [pid, list.map(swap)])
-        ),
-        pinnedPaths,
-      }
-    })
   },
 
   // Like openTab, but lets the caller pick which pane a genuinely-new tab
@@ -465,17 +431,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (paneId) state.closeTabInPane(paneId, path)
   },
 
-  replaceTabPath: (oldPath, newPath) => set((state) => ({
-    tabs: state.tabs.map((t) => t.path === oldPath ? { ...t, path: newPath } : t),
-    activeTabPath: state.activeTabPath === oldPath ? newPath : state.activeTabPath,
-    paneTabs: Object.fromEntries(
-      Object.entries(state.paneTabs).map(([id, p]) => [id, p === oldPath ? newPath : p])
-    ),
-    paneTabLists: Object.fromEntries(
-      Object.entries(state.paneTabLists).map(([id, list]) => [id, list.map((p) => p === oldPath ? newPath : p)])
-    ),
-    pinnedPaths: new Set([...state.pinnedPaths].map((p) => p === oldPath ? newPath : p)),
-  })),
+  // Re-keys a tab in place (a saved scratch buffer, a newly created Llama
+  // model). Closing and reopening would drop the tab to the end of its pane's
+  // list and lose which pane it was in; the path is the key in tabs, paneTabs,
+  // paneTabLists, activeTabPath and pinnedPaths, so all of them move together.
+  replaceTabPath: (oldPath, newPath) => {
+    const before = get()
+    if (oldPath === newPath || !before.tabs.some((t) => t.path === oldPath)) return
+    // A tab already open at the destination would leave two tabs claiming one
+    // path — duplicate React keys, and a close that removes the wrong one.
+    // For a scratch Save As the file is about to be overwritten anyway (the
+    // save dialog asked), so the stale tab showing its old contents goes.
+    if (before.tabs.some((t) => t.path === newPath)) before.closeTabEverywhere(newPath)
+
+    set((state) => ({
+      tabs: state.tabs.map((t) => t.path === oldPath ? { ...t, path: newPath } : t),
+      activeTabPath: state.activeTabPath === oldPath ? newPath : state.activeTabPath,
+      paneTabs: Object.fromEntries(
+        Object.entries(state.paneTabs).map(([id, p]) => [id, p === oldPath ? newPath : p])
+      ),
+      paneTabLists: Object.fromEntries(
+        Object.entries(state.paneTabLists).map(([id, list]) => [id, list.map((p) => p === oldPath ? newPath : p)])
+      ),
+      pinnedPaths: new Set([...state.pinnedPaths].map((p) => p === oldPath ? newPath : p)),
+    }))
+  },
 
   closeActiveTab: () => {
     const { activePaneId, paneTabs, closeTabInPane } = get()

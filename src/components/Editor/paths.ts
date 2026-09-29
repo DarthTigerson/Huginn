@@ -3,7 +3,7 @@
 // isReadOnlyTab, which are for tabs that host something other than a text
 // editor. The id keeps several scratch tabs distinct, since the path is the
 // tab's identity everywhere in editorStore. Saving one rewrites its path to
-// the chosen file (see renameTabPath), after which it is an ordinary tab.
+// the chosen file (see replaceTabPath), after which it is an ordinary tab.
 const SCRATCH_PREFIX = 'scratch://'
 
 export function isScratchTab(path: string): boolean { return path.startsWith(SCRATCH_PREFIX) }

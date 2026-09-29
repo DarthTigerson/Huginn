@@ -19,8 +19,9 @@ export function ConfirmDiscardScratchModal({ count, onConfirm, onClose }: Props)
         {one ? 'Discard unsaved file?' : `Discard ${count} unsaved files?`}
       </h2>
       <p className="text-sm text-fg-muted mb-2">
-        {one ? 'This file has never been saved.' : `${count} of these files have never been saved.`}
-        {' '}Their contents will be lost and cannot be recovered.
+        {one
+          ? 'This file has never been saved. Its contents will be lost and cannot be recovered.'
+          : `${count} of these files have never been saved. Their contents will be lost and cannot be recovered.`}
       </p>
       <div className="flex items-center justify-end gap-3 mt-3">
         <button
@@ -35,7 +36,7 @@ export function ConfirmDiscardScratchModal({ count, onConfirm, onClose }: Props)
           onClick={onConfirm}
           className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
         >
-          Delete permanently
+          Discard
         </button>
       </div>
     </Modal>

@@ -77,4 +77,16 @@ describe('saveActiveTab — scratch tab Save As', () => {
     await saveActiveTab({ allowCreateMissing: false })
     expect(api.pathExists).not.toHaveBeenCalled()
   })
+
+  // Auto-save calls with allowCreateMissing: false. It must not open a Save
+  // dialog every time the user pauses typing in a scratch tab.
+  it('does nothing on an auto-save — no dialog, no write', async () => {
+    await saveActiveTab({ allowCreateMissing: false })
+
+    expect(api.saveFileDialog).not.toHaveBeenCalled()
+    expect(api.writeFile).not.toHaveBeenCalled()
+    const tab = useEditorStore.getState().tabs[0]
+    expect(tab.path).toBe(SCRATCH)
+    expect(tab.dirty).toBe(true)
+  })
 })

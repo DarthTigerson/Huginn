@@ -102,9 +102,17 @@ import { useGraphifyAutoBuild } from './hooks/useGraphifyAutoBuild'
 import { useNotesStore } from './stores/notesStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
 import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
-import { countUnsaved } from './lib/unsavedState'
+import { countUnsaved, type UnsavedState } from './lib/unsavedState'
+import type { Tab } from './types/index'
 import { useDiscardScratchStore, requestCloseTab } from './stores/discardScratchStore'
 import { ConfirmDiscardScratchModal } from './components/Editor/ConfirmDiscardScratchModal'
+import { buildTerminalPath, buildBrowserPath, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, USAGE_GRAPH_TAB_PATH } from './components/Settings/paths'
+import { TodoPanel } from './components/Todo/TodoPanel'
+import { NotesPanel } from './components/Notes/NotesPanel'
+import { LlamaPanel } from './components/Llama/LlamaPanel'
+import { useNotificationSoundSettingsStore, playNotificationSound } from './stores/notificationSoundSettingsStore'
+import { useConfigRepoStore } from './stores/configRepoStore'
+import type { AssistantKind } from './types/api'
 
 // Rendered once at the app root rather than per-TabBar: Cmd+W is handled here,
 // and the prompt has to appear whichever route asked to close the tab.
@@ -125,14 +133,6 @@ function DiscardScratchPromptHost() {
     />
   )
 }
-import type { Tab } from './types/index'
-import { buildTerminalPath, buildBrowserPath, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, USAGE_GRAPH_TAB_PATH } from './components/Settings/paths'
-import { TodoPanel } from './components/Todo/TodoPanel'
-import { NotesPanel } from './components/Notes/NotesPanel'
-import { LlamaPanel } from './components/Llama/LlamaPanel'
-import { useNotificationSoundSettingsStore, playNotificationSound } from './stores/notificationSoundSettingsStore'
-import { useConfigRepoStore } from './stores/configRepoStore'
-import type { AssistantKind } from './types/api'
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
   { id: 'claude', label: 'Claude Code' },
@@ -705,10 +705,17 @@ export default function App() {
 
   // Keeps the main process's per-window tally current so its 'close' handler
   // — which is synchronous and can't ask the renderer anything — knows whether
-  // to warn. Pushed on every tab change rather than only on edit, since
-  // closing or saving a tab changes the answer too.
+  // to warn. Recounted on every tab change, since closing or saving a tab
+  // changes the answer too, but only sent when the counts actually move:
+  // tab content lives in `tabs`, so every keystroke lands here.
   useEffect(() => {
-    const push = (tabs: Tab[]) => window.api.setUnsavedState(countUnsaved(tabs))
+    let last: UnsavedState | null = null
+    const push = (tabs: Tab[]) => {
+      const next = countUnsaved(tabs)
+      if (last && last.dirty === next.dirty && last.neverSaved === next.neverSaved) return
+      last = next
+      window.api.setUnsavedState(next)
+    }
     push(useEditorStore.getState().tabs)
     return useEditorStore.subscribe((state, prev) => {
       if (state.tabs !== prev.tabs) push(state.tabs)

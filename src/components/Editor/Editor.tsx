@@ -118,19 +118,22 @@ import { isScratchTab } from './paths'
 // would mean standing up Monaco in jsdom to exercise a few lines of plain
 // async logic.
 export async function saveActiveTab({ allowCreateMissing }: { allowCreateMissing: boolean }) {
-  const { tabs, activeTabPath, markSaved, setTabMissing, renameTabPath } = useEditorStore.getState()
+  const { tabs, activeTabPath, markSaved, setTabMissing, replaceTabPath } = useEditorStore.getState()
   const tab = tabs.find((t) => t.path === activeTabPath)
   if (!tab || isReadOnlyTab(tab)) return
 
   // A scratch tab has no file behind it yet, so Save means Save As. Cancelling
   // the dialog returns null and must leave the tab exactly as it was — still
-  // scratch, still dirty — rather than quietly marking it saved.
+  // scratch, still dirty — rather than quietly marking it saved. Only an
+  // explicit Cmd+S (allowCreateMissing) gets here: auto-save must never pop a
+  // Save dialog every time the user pauses typing.
   if (isScratchTab(tab.path)) {
+    if (!allowCreateMissing) return
     const targetPath = await window.api.saveFileDialog(useFileStore.getState().projectRoot ?? undefined)
     if (!targetPath) return
     const savedContent = tab.content
     await window.api.writeFile(targetPath, savedContent)
-    renameTabPath(tab.path, targetPath)
+    replaceTabPath(tab.path, targetPath)
     markSaved(targetPath, savedContent)
     await afterSaveRefresh(targetPath)
     return
@@ -247,7 +250,7 @@ export function Editor() {
   }, [])
 
   useEffect(() => {
-    if (!autoSaveEnabled || !activeTab?.dirty || isReadOnlyTab(activeTab)) return
+    if (!autoSaveEnabled || !activeTab?.dirty || isReadOnlyTab(activeTab) || isScratchTab(activeTab.path)) return
 
     const timeout = setTimeout(() => {
       saveActiveTab({ allowCreateMissing: false })

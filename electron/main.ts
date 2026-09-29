@@ -68,13 +68,13 @@ function registerFsHandlers(): void {
     })
     return result.canceled ? null : result.filePaths[0]
   })
-  // "Save As" for a scratch tab — the renderer has no file path to write to
-  // until the user picks one. Returns null on cancel, same as the two above,
-  // so a cancelled save is indistinguishable from never having asked.
   ipcMain.on('window:setUnsavedState', (event, state: UnsavedState) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win) unsavedByWindow.set(win.id, state)
   })
+  // "Save As" for a scratch tab — the renderer has no file path to write to
+  // until the user picks one. Returns null on cancel, same as the two above,
+  // so a cancelled save is indistinguishable from never having asked.
   ipcMain.handle('dialog:saveFile', async (_e, opts: { defaultPath?: string }) => {
     const result = await dialog.showSaveDialog({ defaultPath: opts?.defaultPath })
     return result.canceled || !result.filePath ? null : result.filePath
@@ -165,6 +165,9 @@ const unsavedByWindow = new Map<number, UnsavedState>()
 // Windows whose close the user has already confirmed, so the second pass
 // through the handler below lets it through instead of re-prompting.
 const confirmedClose = new Set<number>()
+// Windows with the unsaved-work prompt already up. A second Cmd+Q or close
+// click while it is showing would otherwise stack another dialog on top.
+const promptingClose = new Set<number>()
 // e.preventDefault() in a 'close' handler cancels an in-flight app.quit()
 // outright, so a Cmd+Q with unsaved work would close the one window that
 // prompted and leave the app running. Tracked here so a confirmed close can
@@ -219,6 +222,8 @@ function createWindow(projectRoot?: string): BrowserWindow {
     if (!unsaved || (unsaved.dirty === 0 && unsaved.neverSaved === 0)) return
 
     e.preventDefault()
+    if (promptingClose.has(win.id)) return
+    promptingClose.add(win.id)
     const lines: string[] = []
     if (unsaved.neverSaved > 0) {
       lines.push(`${unsaved.neverSaved} file${unsaved.neverSaved === 1 ? ' has' : 's have'} never been saved and cannot be recovered.`)
@@ -231,11 +236,14 @@ function createWindow(projectRoot?: string): BrowserWindow {
       buttons: ['Cancel', 'Close anyway'],
       defaultId: 0,
       cancelId: 0,
-      // Closing the last window now quits (see 'window-all-closed' below), so
-      // promising only a window close would be a lie in the common case.
-      message: windows.size > 1 ? 'Close this window?' : 'Quit vIDE?',
+      // Closing the last window also quits on Linux (see 'window-all-closed'
+      // below); on macOS the app stays resident, so it is only a window close.
+      message: quitting || (windows.size === 1 && process.platform !== 'darwin')
+        ? 'Quit vIDE?'
+        : 'Close this window?',
       detail: lines.join('\n'),
     }).then(({ response }) => {
+      promptingClose.delete(win.id)
       if (response !== 1) {
         quitting = false
         return
@@ -253,6 +261,7 @@ function createWindow(projectRoot?: string): BrowserWindow {
     windows.delete(win.id)
     unsavedByWindow.delete(win.id)
     confirmedClose.delete(win.id)
+    promptingClose.delete(win.id)
     windowProjectRoots.delete(win.id)
     ptyMgr.disposeWindow(win.id)
     claudeMgr.disposeWindow(win.id)
@@ -782,10 +791,6 @@ app.whenReady().then(async () => {
   })
 })
 
-// Quits on every platform, including macOS. The usual macOS convention is to
-// stay resident with no windows and wait for a dock click, but vIDE is a
-// one-window-per-project tool: leaving an invisible app running after the
-// window is closed just means quitting a second time.
 app.on('window-all-closed', () => {
-  app.quit()
+  if (process.platform !== 'darwin') app.quit()
 })

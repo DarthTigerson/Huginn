@@ -92,11 +92,11 @@ describe('TabBar — scratch tabs', () => {
   })
 })
 
-describe('editorStore — renameTabPath', () => {
+describe('editorStore — replaceTabPath', () => {
   it('re-keys the tab in place across tabs, panes, active path and pins', () => {
     setup('saved me')
     useEditorStore.setState({ pinnedPaths: new Set([SCRATCH]) })
-    useEditorStore.getState().renameTabPath(SCRATCH, '/project/notes.md')
+    useEditorStore.getState().replaceTabPath(SCRATCH, '/project/notes.md')
 
     const s = useEditorStore.getState()
     expect(s.tabs.map((t) => t.path)).toEqual([REAL, '/project/notes.md'])
@@ -112,15 +112,15 @@ describe('editorStore — renameTabPath', () => {
   it('leaves the store alone for an unknown path', () => {
     setup('')
     const before = useEditorStore.getState().tabs
-    useEditorStore.getState().renameTabPath('/nope', '/other')
+    useEditorStore.getState().replaceTabPath('/nope', '/other')
     expect(useEditorStore.getState().tabs).toBe(before)
   })
 })
 
-describe('editorStore — renameTabPath collisions', () => {
+describe('editorStore — replaceTabPath collisions', () => {
   it('drops an already-open tab at the destination instead of duplicating the path', () => {
     setup('saved me')
-    useEditorStore.getState().renameTabPath(SCRATCH, REAL)
+    useEditorStore.getState().replaceTabPath(SCRATCH, REAL)
 
     const s = useEditorStore.getState()
     expect(s.tabs.filter((t) => t.path === REAL)).toHaveLength(1)
