@@ -48,6 +48,20 @@ describe('TabContextMenu — file tab', () => {
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
   })
 
+  it('Close Others closes every other tab but this one', () => {
+    resetStores()
+    render(<TabContextMenu x={10} y={10} paneId="pane-1" path="/a.ts" onRequestClose={defaultRequestClose} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close Others' }))
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts'])
+  })
+
+  it('disables Close Others when there is nothing else to close', () => {
+    resetStores()
+    useEditorStore.setState({ pinnedPaths: new Set(['/b.ts']) })
+    render(<TabContextMenu x={10} y={10} paneId="pane-1" path="/a.ts" onRequestClose={defaultRequestClose} onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Close Others' })).toBeDisabled()
+  })
+
   it('shows Close All Saved when autosave is off, hides it when autosave is on', () => {
     resetStores()
     const { rerender } = render(<TabContextMenu x={10} y={10} paneId="pane-1" path="/a.ts" onRequestClose={defaultRequestClose} onClose={() => {}} />)

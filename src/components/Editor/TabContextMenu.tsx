@@ -8,7 +8,7 @@ import { isBrowserTab, getBrowserId, buildBrowserPath } from '@/components/Setti
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { diffFilePathForTab, filePathForTab } from './breadcrumbPath'
 import { useFileExists } from './useFileExists'
-import { requestCloseAllTabs } from '@/stores/discardScratchStore'
+import { requestCloseAllTabs, requestCloseOtherTabs } from '@/stores/discardScratchStore'
 import { openFileInTree } from '@/lib/openFileInTree'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { isMac } from '@/lib/platform'
@@ -104,7 +104,7 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
 
   const {
     closeSavedTabs, togglePin, splitPaneForTab, moveTabToAdjacentPane,
-    pinnedPaths, layout, paneTabLists,
+    pinnedPaths, layout, paneTabLists, tabs,
   } = useEditorStore()
   const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
   const fullscreenId = useBrowserStore((s) => s.fullscreenId)
@@ -135,6 +135,7 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
   // Revealing needs the file on disk (a diff tab's file may have been deleted).
   const realFileExists = useFileExists(realFilePath)
   const isPinned = pinnedPaths.has(path)
+  const hasOthersToClose = tabs.some((t) => t.path !== path && !pinnedPaths.has(t.path))
   const paneList = paneTabLists[paneId] ?? []
   const canSplit = paneList.length >= 2
 
@@ -192,6 +193,7 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
       )}
 
       <MenuButton onClick={withClose(() => onRequestClose(path))}>Close</MenuButton>
+      <MenuButton disabled={!hasOthersToClose} onClick={withClose(() => requestCloseOtherTabs(path))}>Close Others</MenuButton>
       <MenuButton onClick={withClose(requestCloseAllTabs)}>Close All</MenuButton>
       {!autoSaveEnabled && (
         <MenuButton onClick={withClose(closeSavedTabs)}>Close All Saved</MenuButton>

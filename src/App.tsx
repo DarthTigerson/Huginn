@@ -122,10 +122,11 @@ function DiscardScratchPromptHost() {
   if (!pending) return null
   return (
     <ConfirmDiscardScratchModal
-      count={pending.kind === 'all' ? pending.count : 1}
+      count={pending.kind === 'tab' ? 1 : pending.count}
       onConfirm={() => {
         const store = useEditorStore.getState()
         if (pending.kind === 'all') store.closeAllTabs()
+        else if (pending.kind === 'others') store.closeOtherTabs(pending.keepPath)
         else store.closeTabInPane(pending.paneId, pending.path)
         clear()
       }}
