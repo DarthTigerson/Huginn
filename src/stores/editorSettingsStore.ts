@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { notifySettingChanged } from '../lib/notifySettingChanged'
 
 const KEYS = {
   autoSaveEnabled: 'vide:editor:autoSaveEnabled',
@@ -6,9 +7,14 @@ const KEYS = {
   changeAllOccurrencesInMenu: 'vide:editor:changeAllOccurrencesInMenu',
   openInBiggestPane: 'vide:editor:openInBiggestPane',
   markdownOpenMode: 'vide:editor:markdownOpenMode',
+  // Git blame settings live on Settings > Git, so they use the vide:git: prefix
+  // to sync in vIDE Sync's Git category rather than General (vide:editor:).
+  blameAnnotationsEnabled: 'vide:git:blameAnnotationsEnabled',
+  blameDisplayMode: 'vide:git:blameDisplayMode',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
+export type BlameDisplayMode = 'editor' | 'footer'
 
 function getBool(key: string, def: boolean): boolean {
   const value = localStorage.getItem(key)
@@ -39,6 +45,14 @@ interface EditorSettingsStore {
   // actions always ignore this and do exactly what they say.
   markdownOpenMode: MarkdownOpenMode
   setMarkdownOpenMode: (value: MarkdownOpenMode) => void
+  // Current-line git-blame annotation (end-of-line author/date/summary,
+  // GitLens-style) - on by default, matching the feature's original
+  // always-on behavior.
+  blameAnnotationsEnabled: boolean
+  setBlameAnnotationsEnabled: (value: boolean) => void
+  // Where current-line blame shows: end of the line in the editor, or the footer.
+  blameDisplayMode: BlameDisplayMode
+  setBlameDisplayMode: (value: BlameDisplayMode) => void
 }
 
 export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
@@ -77,5 +91,22 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setMarkdownOpenMode: (value) => {
     localStorage.setItem(KEYS.markdownOpenMode, value)
     set({ markdownOpenMode: value })
+  },
+
+  blameAnnotationsEnabled: getBool(KEYS.blameAnnotationsEnabled, true),
+
+  setBlameAnnotationsEnabled: (value) => {
+    localStorage.setItem(KEYS.blameAnnotationsEnabled, String(value))
+    set({ blameAnnotationsEnabled: value })
+    notifySettingChanged()
+  },
+
+  // Footer by default; only an explicitly saved 'editor' choice keeps it in-line.
+  blameDisplayMode: localStorage.getItem(KEYS.blameDisplayMode) === 'editor' ? 'editor' : 'footer',
+
+  setBlameDisplayMode: (value) => {
+    localStorage.setItem(KEYS.blameDisplayMode, value)
+    set({ blameDisplayMode: value })
+    notifySettingChanged()
   },
 }))

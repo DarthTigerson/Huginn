@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import * as pty from 'node-pty'
 import type { GitCommandAction, GitCommandPayload } from '../src/types/index'
 import { buildGitArgs, gitEnvFor } from './gitArgs'
-import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getFileAtHead, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote, getStagedDiff, discoverRepos } from './git'
+import { getGitBranch, getGitBranches, getDefaultBranch, getBranchList, getAheadBehind, getGitStatus, stageFiles, unstageFiles, stageAll, unstageAll, commit, discardFileChanges, discardAllChanges, getDiffContent, getFileAtHead, getCommitDiffContent, getGitGraph, getGitBranchDiff, getGitShowStat, getIgnoredPaths, fetchRemote, getStagedDiff, discoverRepos, getFileBlame } from './git'
 import { getMobileBroadcaster } from './mobile'
 
 function hasValidSize(cols: number, rows: number): boolean {
@@ -87,5 +87,6 @@ export class GitRunner {
     ipcMain.handle('git:fetchSilent', (_e, cwd: string) => fetchRemote(cwd))
     ipcMain.handle('git:stagedDiff', (_e, cwd: string) => getStagedDiff(cwd))
     ipcMain.handle('git:discoverRepos', (_e, root: string, maxDepth?: number) => discoverRepos(root, maxDepth))
+    ipcMain.handle('git:blame', (_e, cwd: string, path: string) => getFileBlame(cwd, path))
   }
 }

@@ -32,6 +32,7 @@ const { api, storage } = vi.hoisted(() => {
 
 import { useConfigRepoStore } from '../configRepoStore'
 import { notifySettingChanged } from '../../lib/notifySettingChanged'
+import { useEditorSettingsStore } from '../editorSettingsStore'
 
 const ALL_CATS = {
   general: true, models: true, git: true, docker: true,
@@ -187,6 +188,37 @@ describe('models category — bridge and model keys synced (SYNC-21)', () => {
     expect(payload.models?.['vide:bridge:endpoint']).toBe('http://127.0.0.1:8080/v1')
     expect(payload.models?.['vide:bridge:apiKey']).toBe('sk-test')
     expect(payload.models?.['vide:enabledModels']).toBe('["claude-opus-4-8"]')
+  })
+})
+
+describe('git category — git blame settings synced with the Git page they live on', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    storage.clear()
+    resetStore()
+  })
+  afterEach(() => {
+    useConfigRepoStore.setState({ enabled: false, status: 'idle' })
+  })
+
+  it('puts the blame toggle and "Show blame in" choice in the git payload', async () => {
+    useEditorSettingsStore.getState().setBlameAnnotationsEnabled(false)
+    useEditorSettingsStore.getState().setBlameDisplayMode('editor')
+
+    await useConfigRepoStore.getState().push()
+    const payload = api.configRepoPush.mock.calls.at(-1)![0] as Record<string, Record<string, string>>
+    expect(Object.values(payload.git ?? {})).toEqual(expect.arrayContaining(['false', 'editor']))
+    expect(Object.keys(payload.git ?? {}).filter((k) => /blame/i.test(k))).toHaveLength(2)
+    expect(Object.keys(payload.general ?? {}).filter((k) => /blame/i.test(k))).toHaveLength(0)
+  })
+
+  it('still syncs them when only the Git category is on', async () => {
+    useConfigRepoStore.setState({ categories: { ...ALL_CATS, general: false } })
+    useEditorSettingsStore.getState().setBlameDisplayMode('editor')
+
+    await useConfigRepoStore.getState().push()
+    const payload = api.configRepoPush.mock.calls.at(-1)![0] as Record<string, Record<string, string>>
+    expect(Object.values(payload.git ?? {})).toContain('editor')
   })
 })
 

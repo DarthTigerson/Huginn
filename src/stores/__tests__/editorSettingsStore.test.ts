@@ -9,7 +9,10 @@ const { store } = vi.hoisted(() => {
   return { store }
 })
 
+vi.mock('../../lib/notifySettingChanged', () => ({ notifySettingChanged: vi.fn() }))
+
 import { useEditorSettingsStore } from '../editorSettingsStore'
+import { notifySettingChanged } from '../../lib/notifySettingChanged'
 
 describe('editorSettingsStore', () => {
   beforeEach(() => {
@@ -25,6 +28,27 @@ describe('editorSettingsStore', () => {
     expect(useEditorSettingsStore.getState().autoSaveEnabled).toBe(false)
     expect(useEditorSettingsStore.getState().wordWrapEnabled).toBe(false)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(false)
+  })
+
+  it('has git blame on and shown in the footer by default', () => {
+    expect(useEditorSettingsStore.getState().blameAnnotationsEnabled).toBe(true)
+    expect(useEditorSettingsStore.getState().blameDisplayMode).toBe('footer')
+  })
+
+  it('keeps a saved choice to show blame in the editor', async () => {
+    store['vide:git:blameDisplayMode'] = 'editor'
+    vi.resetModules()
+    const { useEditorSettingsStore: fresh } = await import('../editorSettingsStore')
+    expect(fresh.getState().blameDisplayMode).toBe('editor')
+  })
+
+  it('saves the blame settings under the git sync prefix and pushes them to vIDE Sync', () => {
+    vi.mocked(notifySettingChanged).mockClear()
+    useEditorSettingsStore.getState().setBlameAnnotationsEnabled(false)
+    useEditorSettingsStore.getState().setBlameDisplayMode('editor')
+    expect(store['vide:git:blameAnnotationsEnabled']).toBe('false')
+    expect(store['vide:git:blameDisplayMode']).toBe('editor')
+    expect(notifySettingChanged).toHaveBeenCalledTimes(2)
   })
 
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {

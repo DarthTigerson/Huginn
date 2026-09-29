@@ -3,6 +3,7 @@ import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useEditorSettingsStore, type BlameDisplayMode } from '@/stores/editorSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
 import { Section, Row, TextField } from './SettingsLayout'
@@ -28,6 +29,10 @@ export function GitSettingsPage() {
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
   const gitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.openInBiggestPane)
   const setGitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.setOpenInBiggestPane)
+  const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
+  const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
+  const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
+  const setBlameDisplayMode = useEditorSettingsStore((s) => s.setBlameDisplayMode)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -153,6 +158,35 @@ export function GitSettingsPage() {
             />
             <span className="text-sm text-fg-muted">levels</span>
           </div>
+        </Row>
+      </Section>
+
+      <Section label="Blame">
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Git Blame Annotations"
+            description="Show the last commit's author, date, and summary at the end of the current line, GitLens-style."
+            checked={blameAnnotationsEnabled}
+            onChange={setBlameAnnotationsEnabled}
+          />
+
+          {blameAnnotationsEnabled && (
+            <div className="mt-3 pl-4 border-l border-border/40 max-w-xs">
+              <label htmlFor="blame-display-mode" className="text-xs text-fg-muted mb-1.5 block">
+                Show blame in
+              </label>
+              <Select
+                id="blame-display-mode"
+                value={blameDisplayMode}
+                onChange={(v) => setBlameDisplayMode(v as BlameDisplayMode)}
+                options={[
+                  { value: 'footer', label: 'Footer' },
+                  { value: 'editor', label: 'Editor (end of current line)' },
+                ]}
+              />
+            </div>
+          )}
         </Row>
       </Section>
 
