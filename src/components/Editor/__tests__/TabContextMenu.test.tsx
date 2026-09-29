@@ -11,6 +11,8 @@ import { buildImagePreviewPath } from '@/components/Viewer/paths'
 import { usePanelRequestStore } from '@/stores/panelRequestStore'
 
 function resetStores() {
+  // The menu checks the tab's file exists before offering the reveal actions.
+  ;(global as any).window.api = { pathExists: vi.fn().mockResolvedValue(true) }
   useEditorStore.setState({
     tabs: [
       { path: '/a.ts', content: '', dirty: false },
@@ -171,7 +173,6 @@ describe('TabContextMenu — diff tabs', () => {
   it('does not offer Open File on a plain file tab', () => {
     setup('/proj/src/a.ts')
     expect(screen.queryByRole('button', { name: 'Open File' })).not.toBeInTheDocument()
-    expect(pathExists).not.toHaveBeenCalled()
   })
 
   it('Copy File Path copies the real file path, not the internal diff tab path', () => {

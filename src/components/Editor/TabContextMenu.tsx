@@ -10,6 +10,8 @@ import { diffFilePathForTab, filePathForTab } from './breadcrumbPath'
 import { useFileExists } from './useFileExists'
 import { requestCloseAllTabs } from '@/stores/discardScratchStore'
 import { openFileInTree } from '@/lib/openFileInTree'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { isMac } from '@/lib/platform'
 
 const DIRECTIONS: { direction: PaneDirection; label: string }[] = [
   { direction: 'right', label: 'Right' },
@@ -130,6 +132,8 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
   const diffFilePath = diffFilePathForTab(path)
   const diffFileExists = useFileExists(diffFilePath)
   const realFilePath = filePathForTab(path)
+  // Revealing needs the file on disk (a diff tab's file may have been deleted).
+  const realFileExists = useFileExists(realFilePath)
   const isPinned = pinnedPaths.has(path)
   const paneList = paneTabLists[paneId] ?? []
   const canSplit = paneList.length >= 2
@@ -226,6 +230,19 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
         <>
           <MenuDivider />
           <MenuButton onClick={withClose(() => copyToClipboard(realFilePath))}>Copy File Path</MenuButton>
+          {realFileExists && (
+            <>
+              <MenuButton onClick={withClose(() => useSidebarUiStore.getState().requestReveal(realFilePath))}>
+                Reveal in File Tree
+              </MenuButton>
+              {/* Mac-only here: on Linux the file manager varies, and "Finder" would be the wrong name. */}
+              {isMac && (
+                <MenuButton onClick={withClose(() => void window.api.revealInFinder(realFilePath))}>
+                  Reveal in Finder
+                </MenuButton>
+              )}
+            </>
+          )}
         </>
       )}
     </div>,
