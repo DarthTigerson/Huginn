@@ -3,6 +3,7 @@ import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
 import { Section, Row, TextField } from './SettingsLayout'
@@ -28,6 +29,8 @@ export function GitSettingsPage() {
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
   const gitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.openInBiggestPane)
   const setGitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.setOpenInBiggestPane)
+  const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
+  const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -153,6 +156,18 @@ export function GitSettingsPage() {
             />
             <span className="text-sm text-fg-muted">levels</span>
           </div>
+        </Row>
+      </Section>
+
+      <Section label="Blame">
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Git Blame Annotations"
+            description="Show the last commit's author, date, and summary at the end of the current line, GitLens-style."
+            checked={blameAnnotationsEnabled}
+            onChange={setBlameAnnotationsEnabled}
+          />
         </Row>
       </Section>
 
