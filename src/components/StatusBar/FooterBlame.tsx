@@ -1,9 +1,10 @@
 import { useFooterBlameStore } from '@/stores/footerBlameStore'
+import { BlameDetailsPanel } from '@/components/Git/BlameDetailsPanel'
 
 // Current-line git blame in the footer (Settings > Git > Blame: Footer), next
 // to the branch. Inline it's just author + message (the message truncates to
-// fit); hovering opens a panel with the author, exact date/time and the full
-// commit message, styled like TodoTrashPage's hover labels.
+// fit); hovering opens BlameDetailsPanel with the author, exact date/time and
+// the full commit message.
 export function FooterBlame({ showDivider }: { showDivider: boolean }) {
   const blame = useFooterBlameStore((s) => s.blame)
   if (!blame) return null
@@ -25,24 +26,7 @@ export function FooterBlame({ showDivider }: { showDivider: boolean }) {
           )}
         </span>
       </span>
-      {blame.kind === 'commit' && (
-        <div
-          role="tooltip"
-          aria-label="Blame details"
-          className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 w-max max-w-md rounded bg-black/90 px-3 py-2 text-xs text-gray-200 opacity-0 transition-opacity duration-100 delay-150 group-hover:opacity-100"
-        >
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <dt className="text-gray-400">Author</dt>
-            <dd>{blame.author}</dd>
-            <dt className="text-gray-400">Date</dt>
-            <dd className="tabular-nums">
-              {blame.date} <span className="text-gray-400">({blame.relDate})</span>
-            </dd>
-            <dt className="text-gray-400">Message</dt>
-            <dd className="whitespace-pre-wrap break-words">{blame.summary}</dd>
-          </dl>
-        </div>
-      )}
+      {blame.kind === 'commit' && <BlameDetailsPanel {...blame} placement="above" />}
     </span>
   )
 }

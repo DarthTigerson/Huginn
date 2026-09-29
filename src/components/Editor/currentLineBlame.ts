@@ -1,10 +1,14 @@
 import type * as Monaco from 'monaco-editor'
+import { createElement } from 'react'
+import { flushSync } from 'react-dom'
+import { createRoot, type Root } from 'react-dom/client'
 import type { GitBlameLine } from '@/types/index'
 import { getFileBlame } from '@/lib/gitBlame'
 import { formatRelDate, formatExactDate } from '@/components/Git/commitFormat'
 import { buildLiveToHeadLineMap, type LineOrigin } from '@/lib/blameLineMap'
 import { useFooterBlameStore, type FooterBlame } from '@/stores/footerBlameStore'
 import type { BlameDisplayMode } from '@/stores/editorSettingsStore'
+import { BlameDetailsPanel } from '@/components/Git/BlameDetailsPanel'
 
 // Current-line git-blame annotation, shown only for the cursor's line and updated as it moves (GitLens-style).
 // Blame is keyed by HEAD line numbers; buildLiveToHeadLineMap (blameLineMap.ts) remaps them since uncommitted edits shift lines apart.
@@ -15,12 +19,10 @@ import type { BlameDisplayMode } from '@/stores/editorSettingsStore'
 // the installed and CDN-loaded monaco-editor versions match and the decoration shape matches Monaco's own
 // types). Content widgets are the same mechanism inlineEditMonaco.ts already relies on, and do render correctly.
 
-const MAX_SUMMARY_LENGTH = 60
 const WIDGET_ID = 'vide.currentLineBlame'
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text
-}
+// Roughly the hover panel's height: a cursor line closer than this to the top
+// of the editor opens the panel downward so it isn't cut off.
+const PANEL_FLIP_THRESHOLD_PX = 90
 
 function buildBlameIndex(lines: GitBlameLine[]): Map<number, GitBlameLine> {
   const index = new Map<number, GitBlameLine>()
@@ -28,16 +30,16 @@ function buildBlameIndex(lines: GitBlameLine[]): Map<number, GitBlameLine> {
   return index
 }
 
-function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: string; footer: FooterBlame } {
+// Same shape for both display modes. The summary is never cut here - the
+// footer and the in-editor text each truncate to their own width in CSS.
+function toLineBlame(line: GitBlameLine): FooterBlame {
   const iso = new Date(line.authorTime * 1000).toISOString()
-  const when = formatRelDate(iso)
-  const shortHash = line.hash.slice(0, 7)
-  const summary = line.summary || '(no commit message)'
   return {
-    content: `${line.author}, ${when} • ${truncate(summary, MAX_SUMMARY_LENGTH)}`,
-    hoverValue: `${summary}\n${line.author} — ${formatExactDate(iso)}\n${shortHash}`,
-    // Full, untruncated summary - the footer truncates to its own width.
-    footer: { kind: 'commit', author: line.author, summary, date: formatExactDate(iso), relDate: when },
+    kind: 'commit',
+    author: line.author,
+    summary: line.summary || '(no commit message)',
+    date: formatExactDate(iso),
+    relDate: formatRelDate(iso),
   }
 }
 
@@ -65,8 +67,22 @@ export function attachCurrentLineBlame(
   let blameByHeadLine: Map<number, GitBlameLine> | null = null
   let lineOriginMap: Map<number, LineOrigin> | null = null
 
+  // In-editor look matches the footer: accent author + " • message" (no time),
+  // with BlameDetailsPanel on hover. The panel lives outside the truncating
+  // text span so it isn't clipped, and is a React root since it's shared JSX.
   const domNode = document.createElement('span')
-  domNode.className = 'git-blame-annotation'
+  domNode.className = 'git-blame-annotation group relative'
+  const textEl = document.createElement('span')
+  textEl.dataset.blameText = ''
+  textEl.className = 'inline-block max-w-[50ch] truncate align-bottom'
+  const authorEl = document.createElement('span')
+  authorEl.dataset.blameAuthor = ''
+  authorEl.className = 'text-accent'
+  const restEl = document.createTextNode('')
+  textEl.append(authorEl, restEl)
+  const panelHost = document.createElement('span')
+  domNode.append(textEl, panelHost)
+  let panelRoot: Root | null = null
   let widgetLine = 1
   let widgetColumn = 1
   let widgetVisible = false
@@ -81,6 +97,8 @@ export function attachCurrentLineBlame(
             preference: [monaco.editor.ContentWidgetPositionPreference.EXACT],
           }
         : null,
+    // Lets the hover panel spill past the editor's edges instead of being clipped.
+    allowEditorOverflow: true,
   }
   if (display === 'editor') editor.addContentWidget(widget)
 
@@ -93,13 +111,31 @@ export function attachCurrentLineBlame(
     else if (!blame) store.release(footerOwner)
   }
 
-  function show(line: number, column: number, text: string, hoverValue: string, footer: FooterBlame) {
-    if (display === 'footer') {
-      publishToFooter(footer)
+  function renderPanel(blame: FooterBlame, line: number, column: number) {
+    panelRoot ??= createRoot(panelHost)
+    const root = panelRoot
+    if (blame.kind !== 'commit') {
+      flushSync(() => root.render(null))
       return
     }
-    domNode.textContent = text
-    domNode.title = hoverValue
+    const top = editor.getScrolledVisiblePosition({ lineNumber: line, column })?.top ?? Infinity
+    const placement = top < PANEL_FLIP_THRESHOLD_PX ? 'below' : 'above'
+    flushSync(() => root.render(createElement(BlameDetailsPanel, { ...blame, placement })))
+  }
+
+  function show(line: number, column: number, blame: FooterBlame) {
+    if (display === 'footer') {
+      publishToFooter(blame)
+      return
+    }
+    if (blame.kind === 'commit') {
+      authorEl.textContent = blame.author
+      restEl.textContent = ` • ${blame.summary}`
+    } else {
+      authorEl.textContent = ''
+      restEl.textContent = 'Uncommitted change'
+    }
+    renderPanel(blame, line, column)
     widgetLine = line
     widgetColumn = column
     widgetVisible = true
@@ -136,7 +172,7 @@ export function attachCurrentLineBlame(
     }
     const col = model.getLineMaxColumn(line)
     if (origin.kind === 'uncommitted') {
-      show(line, col, 'Uncommitted change', '', { kind: 'uncommitted' })
+      show(line, col, { kind: 'uncommitted' })
       return
     }
     const blameLine = blameByHeadLine.get(origin.headLine)
@@ -144,8 +180,7 @@ export function attachCurrentLineBlame(
       hide()
       return
     }
-    const { content, hoverValue, footer } = formatBlameLine(blameLine)
-    show(line, col, content, hoverValue, footer)
+    show(line, col, toLineBlame(blameLine))
   }
 
   async function loadAll(force: boolean) {
@@ -186,8 +221,10 @@ export function attachCurrentLineBlame(
     refresh: () => loadAll(true),
     dispose: () => {
       cancelled = true
-      if (display === 'editor') editor.removeContentWidget(widget)
-      else useFooterBlameStore.getState().release(footerOwner)
+      if (display === 'editor') {
+        editor.removeContentWidget(widget)
+        panelRoot?.unmount()
+      } else useFooterBlameStore.getState().release(footerOwner)
     },
   }
 }

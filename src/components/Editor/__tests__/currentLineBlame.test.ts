@@ -1,3 +1,4 @@
+/// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { GitBlameLine } from '@/types/index'
 
@@ -39,7 +40,13 @@ function makeFakeEditor(initialContent: string) {
   const selectionListeners: Array<(e: { selection: typeof selection }) => void> = []
   const focusListeners: Array<() => void> = []
   let focused = false
-  let widget: { getDomNode: () => { textContent: string | null }; getPosition: () => { position: { lineNumber: number; column: number } } | null } | null = null
+  let widget: {
+    getDomNode: () => HTMLElement
+    getPosition: () => { position: { lineNumber: number; column: number } } | null
+    allowEditorOverflow?: boolean
+  } | null = null
+  // Pixel offset of the cursor line from the top of the editor viewport.
+  let lineTop = 300
 
   const editor = {
     getModel: () => ({
@@ -56,6 +63,7 @@ function makeFakeEditor(initialContent: string) {
     },
     getSelection: () => selection,
     hasTextFocus: () => focused,
+    getScrolledVisiblePosition: () => ({ top: lineTop, left: 0, height: 18 }),
     onDidFocusEditorText: (cb: () => void) => {
       focusListeners.push(cb)
       return { dispose: () => {} }
@@ -73,12 +81,26 @@ function makeFakeEditor(initialContent: string) {
     editor,
     monaco,
     // Reads what's currently shown, the same way Monaco itself would: via
-    // the widget's own getPosition()/getDomNode(), not internal state.
+    // the widget's own getPosition()/getDomNode(), not internal state. Only
+    // the inline text - the hover panel is read separately via hoverPanel().
     currentAnnotation(): { line: number; text: string } | null {
       if (!widget) return null
       const pos = widget.getPosition()
       if (!pos) return null
-      return { line: pos.position.lineNumber, text: widget.getDomNode().textContent ?? '' }
+      const textEl = widget.getDomNode().querySelector('[data-blame-text]')
+      return { line: pos.position.lineNumber, text: textEl?.textContent ?? '' }
+    },
+    hoverPanel(): HTMLElement | null {
+      return widget?.getDomNode().querySelector('[role="tooltip"]') ?? null
+    },
+    authorEl(): HTMLElement | null {
+      return widget?.getDomNode().querySelector('[data-blame-author]') ?? null
+    },
+    widgetAllowsOverflow(): boolean {
+      return !!widget?.allowEditorOverflow
+    },
+    setLineTop(px: number) {
+      lineTop = px
     },
     // Simulates the user clicking into this editor (e.g. switching panes).
     focus() {
@@ -125,7 +147,7 @@ function makeFakeEditor(initialContent: string) {
 describe('attachCurrentLineBlame', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    ;(global as any).window = { api: { gitFileAtHead: vi.fn() } }
+    ;(window as any).api = { gitFileAtHead: vi.fn() }
   })
 
   afterEach(() => {
@@ -207,12 +229,83 @@ describe('attachCurrentLineBlame', () => {
   })
 })
 
+describe('attachCurrentLineBlame — in-editor look', () => {
+  const headContent = 'line one\nline two\nline three\n'
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(window as any).api = { gitFileAtHead: vi.fn() }
+    ;(window.api.gitFileAtHead as any).mockResolvedValue(headContent)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  async function attachWith(lines: GitBlameLine[]) {
+    ;(getFileBlame as any).mockResolvedValue({ headCommit: 'deadbeef', lines })
+    const fake = makeFakeEditor(headContent)
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt' })
+    await vi.runAllTimersAsync()
+    return fake
+  }
+
+  it('shows author and message without the time, like the footer', async () => {
+    const fake = await attachWith([blameLine({ line: 1, author: 'Grace Hopper', summary: 'Teach the compiler' })])
+    fake.moveCursorTo(1)
+    expect(fake.currentAnnotation()!.text).toBe('Grace Hopper • Teach the compiler')
+  })
+
+  it('colours only the author with the theme accent', async () => {
+    const fake = await attachWith([blameLine({ line: 1, author: 'Grace Hopper' })])
+    fake.moveCursorTo(1)
+    expect(fake.authorEl()).toHaveTextContent('Grace Hopper')
+    expect(fake.authorEl()!.className).toContain('text-accent')
+  })
+
+  it('keeps the full message (CSS cuts it to width, not the code)', async () => {
+    const longSummary = 'B'.repeat(120)
+    const fake = await attachWith([blameLine({ line: 1, summary: longSummary })])
+    fake.moveCursorTo(1)
+    expect(fake.currentAnnotation()!.text).toContain(longSummary)
+  })
+
+  it('has a hover panel with author, date and time, and the full message', async () => {
+    const fake = await attachWith([blameLine({ line: 1, author: 'Grace Hopper', summary: 'Teach the compiler' })])
+    fake.moveCursorTo(1)
+    const panel = fake.hoverPanel()
+    expect(panel).not.toBeNull()
+    expect(panel).toHaveTextContent('Grace Hopper')
+    expect(panel).toHaveTextContent(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)
+    expect(panel).toHaveTextContent('Teach the compiler')
+    expect(fake.widgetAllowsOverflow()).toBe(true)
+  })
+
+  it('opens the panel downward near the top of the editor, upward otherwise', async () => {
+    const fake = await attachWith([blameLine({ line: 1 }), blameLine({ line: 2 })])
+    fake.setLineTop(5)
+    fake.moveCursorTo(1)
+    expect(fake.hoverPanel()!.dataset.placement).toBe('below')
+    fake.setLineTop(300)
+    fake.moveCursorTo(2)
+    expect(fake.hoverPanel()!.dataset.placement).toBe('above')
+  })
+
+  it('shows no hover panel for an uncommitted line', async () => {
+    const fake = await attachWith([blameLine({ line: 1 })])
+    fake.editContentAndMoveCursorTo('brand new line\n' + headContent, 1)
+    expect(fake.currentAnnotation()!.text).toBe('Uncommitted change')
+    expect(fake.hoverPanel()).toBeNull()
+  })
+})
+
 describe('attachCurrentLineBlame — footer mode', () => {
   const headContent = 'line one\nline two\nline three\n'
 
   beforeEach(() => {
     vi.useFakeTimers()
-    ;(global as any).window = { api: { gitFileAtHead: vi.fn() } }
+    ;(window as any).api = { gitFileAtHead: vi.fn() }
     useFooterBlameStore.setState({ blame: null, owner: null })
     ;(getFileBlame as any).mockResolvedValue({
       headCommit: 'deadbeef',
