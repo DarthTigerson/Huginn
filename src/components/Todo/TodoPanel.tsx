@@ -8,6 +8,7 @@ import { NewTodoProjectModal } from './NewTodoProjectModal'
 import { RenameTodoProjectModal } from './RenameTodoProjectModal'
 import { TrashTodoProjectModal } from './TrashTodoProjectModal'
 import { TodoProjectMenu } from './TodoContextMenu'
+import { pillButtonClass } from '@/components/ui/pillButton'
 import { sortTodoProjects } from '@/lib/todoProjectSort'
 import { TODO_COLUMNS, groupTodosByStatus } from '@/lib/todoBoard'
 import type { TodoProject } from '@/types/api'
@@ -153,14 +154,16 @@ export function TodoPanel() {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => openTab({ path: TODO_TRASH_TAB_PATH, content: '', dirty: false })}
-        className="h-9 px-3 border-t border-border shrink-0 flex items-center justify-between text-fg-muted hover:text-fg hover:bg-white/5"
-      >
-        <span className="text-xs font-semibold uppercase tracking-wider">Trash</span>
-        {trashedCount > 0 && <span className="text-xs font-mono text-fg-subtle">{trashedCount}</span>}
-      </button>
+      <div className="p-2 border-t border-border shrink-0">
+        <button
+          type="button"
+          onClick={() => openTab({ path: TODO_TRASH_TAB_PATH, content: '', dirty: false })}
+          className={`${pillButtonClass} gap-1.5`}
+        >
+          Trash
+          {trashedCount > 0 && <span className="opacity-70">{trashedCount}</span>}
+        </button>
+      </div>
 
       {modalOpen && <NewTodoProjectModal onClose={() => setModalOpen(false)} />}
 

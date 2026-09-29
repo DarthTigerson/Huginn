@@ -26,11 +26,7 @@ import { pickClaudeGif } from '@/assets/claudeGifs'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitOpenReposStore } from '@/stores/gitOpenReposStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
-
-// Solid fill matching the Commit button's active look — every action pill in
-// the Git panel (Branch, Fetch, Pull, Push, Graph, List Diff) shares this
-// now, instead of each having its own translucent-gradient-and-ring style.
-const accentSolidColor = 'bg-accent/80 text-on-accent hover:bg-accent'
+import { accentSolidColor, pillButtonClass } from '@/components/ui/pillButton'
 
 // Unpushed commits turn the Push pill amber instead of the shared accent
 // fill — amber-400/500 is already this codebase's "needs your attention"
@@ -38,9 +34,6 @@ const accentSolidColor = 'bg-accent/80 text-on-accent hover:bg-accent'
 // badge), so it reads as a nag without introducing a new colour. Only the
 // Push pill takes it; the rest of the row stays on accent.
 const pendingPushColor = 'bg-amber-500/80 text-black hover:bg-amber-500'
-
-const pillButtonClass =
-  `w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${accentSolidColor}`
 
 interface ContextMenuState {
   x: number
