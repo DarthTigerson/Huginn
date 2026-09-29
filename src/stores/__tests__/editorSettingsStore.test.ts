@@ -27,6 +27,18 @@ describe('editorSettingsStore', () => {
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(false)
   })
 
+  it('has git blame on and shown in the footer by default', () => {
+    expect(useEditorSettingsStore.getState().blameAnnotationsEnabled).toBe(true)
+    expect(useEditorSettingsStore.getState().blameDisplayMode).toBe('footer')
+  })
+
+  it('keeps a saved choice to show blame in the editor', async () => {
+    store['vide:editor:blameDisplayMode'] = 'editor'
+    vi.resetModules()
+    const { useEditorSettingsStore: fresh } = await import('../editorSettingsStore')
+    expect(fresh.getState().blameDisplayMode).toBe('editor')
+  })
+
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
     useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)

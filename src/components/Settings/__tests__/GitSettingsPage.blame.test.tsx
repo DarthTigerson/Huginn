@@ -15,7 +15,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useEditorSettingsStore.setState({ blameAnnotationsEnabled: true, blameDisplayMode: 'editor' })
+  useEditorSettingsStore.setState({ blameAnnotationsEnabled: true, blameDisplayMode: 'footer' })
 })
 
 describe('GitSettingsPage — Blame section', () => {
@@ -31,10 +31,18 @@ describe('GitSettingsPage — Blame section', () => {
     expect(screen.queryByLabelText('Show blame in')).not.toBeInTheDocument()
   })
 
-  it('switches blame to the footer', () => {
+  it('lists Footer as the first option', () => {
     render(<GitSettingsPage />)
     fireEvent.click(screen.getByLabelText('Show blame in'))
-    fireEvent.click(screen.getByText('Footer'))
-    expect(useEditorSettingsStore.getState().blameDisplayMode).toBe('footer')
+    const labels = screen.getAllByRole('option').map((o) => o.textContent)
+    expect(labels).toEqual(['Footer', 'Editor (end of current line)'])
+  })
+
+  it('switches blame to the editor', () => {
+    useEditorSettingsStore.setState({ blameDisplayMode: 'footer' })
+    render(<GitSettingsPage />)
+    fireEvent.click(screen.getByLabelText('Show blame in'))
+    fireEvent.click(screen.getByRole('option', { name: 'Editor (end of current line)' }))
+    expect(useEditorSettingsStore.getState().blameDisplayMode).toBe('editor')
   })
 })

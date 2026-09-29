@@ -97,7 +97,8 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
     set({ blameAnnotationsEnabled: value })
   },
 
-  blameDisplayMode: localStorage.getItem(KEYS.blameDisplayMode) === 'footer' ? 'footer' : 'editor',
+  // Footer by default; only an explicitly saved 'editor' choice keeps it in-line.
+  blameDisplayMode: localStorage.getItem(KEYS.blameDisplayMode) === 'editor' ? 'editor' : 'footer',
 
   setBlameDisplayMode: (value) => {
     localStorage.setItem(KEYS.blameDisplayMode, value)

@@ -181,8 +181,8 @@ export function GitSettingsPage() {
                 value={blameDisplayMode}
                 onChange={(v) => setBlameDisplayMode(v as BlameDisplayMode)}
                 options={[
-                  { value: 'editor', label: 'Editor (end of current line)' },
                   { value: 'footer', label: 'Footer' },
+                  { value: 'editor', label: 'Editor (end of current line)' },
                 ]}
               />
             </div>
