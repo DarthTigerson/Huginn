@@ -33,6 +33,7 @@ import { computeLineChanges } from '@/lib/lineDiff'
 import { getLastFocusedEditor, setLastFocusedEditor } from '@/lib/lastFocusedEditor'
 import { notifyNoteChanged } from '@/lib/notifySettingChanged'
 import { attachCurrentLineBlame } from './currentLineBlame'
+import { useFooterBlameStore } from '@/stores/footerBlameStore'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { EditorContextMenu } from './EditorContextMenu'
@@ -407,19 +408,19 @@ function EditorPane({ paneId }: { paneId: string }) {
   // re-check when the setting flips back on after being off at mount time.
   const ensureBlameAttachedRef = useRef<() => void>(() => {})
   const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
+  const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
 
-  // Reacts to the Settings toggle live: turning it off disposes any already-
-  // attached blame widget immediately; turning it back on re-runs the same
-  // attach attempt normal mount/retry triggers use (ensureBlameAttached
-  // itself bails out early while the setting is off).
+  // Reacts to the Settings toggle and "Show blame in" dropdown live: any
+  // already-attached blame is disposed, then re-attached in the new mode via
+  // the same attach attempt normal mount/retry triggers use
+  // (ensureBlameAttached itself bails out early while the setting is off).
   useEffect(() => {
-    if (blameAnnotationsEnabled) {
-      ensureBlameAttachedRef.current()
-    } else if (blameHandleRef.current) {
+    if (blameHandleRef.current) {
       blameHandleRef.current.dispose()
       blameHandleRef.current = null
     }
-  }, [blameAnnotationsEnabled])
+    if (blameAnnotationsEnabled) ensureBlameAttachedRef.current()
+  }, [blameAnnotationsEnabled, blameDisplayMode])
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -902,7 +903,11 @@ function EditorPane({ paneId }: { paneId: string }) {
                   const blameRepoRoot = useGitReposStore.getState().resolveRepoForPath(activeTab.path)
                   if (!blameRepoRoot) return
                   const blameRelPath = toRelativePath(activeTab.path, blameRepoRoot)
-                  const blame = attachCurrentLineBlame(editor, monaco, { repoRoot: blameRepoRoot, relPath: blameRelPath })
+                  const blame = attachCurrentLineBlame(editor, monaco, {
+                    repoRoot: blameRepoRoot,
+                    relPath: blameRelPath,
+                    display: useEditorSettingsStore.getState().blameDisplayMode,
+                  })
                   blameHandleRef.current = blame
                   refreshBlameRef.current = blame.refresh
                 }
@@ -911,6 +916,11 @@ function EditorPane({ paneId }: { paneId: string }) {
                 ensureBlameAttached()
                 // Retry on selection change too - repo discovery may still be in flight at mount, and only content edits retried this before.
                 editor.onDidChangeCursorSelection(() => ensureBlameAttached())
+                // Focusing a pane with no blame (file outside any repo, or blame off) clears the
+                // footer, so it never keeps showing another pane's blame for the wrong file.
+                editor.onDidFocusEditorText(() => {
+                  if (!blameHandleRef.current) useFooterBlameStore.setState({ blame: null, owner: null })
+                })
 
                 editor.onDidDispose(() => {
                   cancelled = true

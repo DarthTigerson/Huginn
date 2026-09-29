@@ -7,6 +7,7 @@ vi.mock('@/lib/gitBlame', () => ({
 
 import { getFileBlame } from '@/lib/gitBlame'
 import { attachCurrentLineBlame } from '../currentLineBlame'
+import { useFooterBlameStore } from '@/stores/footerBlameStore'
 
 function blameLine(overrides: Partial<GitBlameLine> = {}): GitBlameLine {
   return {
@@ -36,6 +37,8 @@ function makeFakeEditor(initialContent: string) {
   let selection: FakeSelection = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1, positionLineNumber: 1 }
   const contentListeners: Array<() => void> = []
   const selectionListeners: Array<(e: { selection: typeof selection }) => void> = []
+  const focusListeners: Array<() => void> = []
+  let focused = false
   let widget: { getDomNode: () => { textContent: string | null }; getPosition: () => { position: { lineNumber: number; column: number } } | null } | null = null
 
   const editor = {
@@ -52,6 +55,11 @@ function makeFakeEditor(initialContent: string) {
       return { dispose: () => {} }
     },
     getSelection: () => selection,
+    hasTextFocus: () => focused,
+    onDidFocusEditorText: (cb: () => void) => {
+      focusListeners.push(cb)
+      return { dispose: () => {} }
+    },
     addContentWidget: (w: typeof widget) => { widget = w },
     removeContentWidget: (w: typeof widget) => { if (widget === w) widget = null },
     layoutContentWidget: (_w: typeof widget) => {},
@@ -72,6 +80,14 @@ function makeFakeEditor(initialContent: string) {
       if (!pos) return null
       return { line: pos.position.lineNumber, text: widget.getDomNode().textContent ?? '' }
     },
+    // Simulates the user clicking into this editor (e.g. switching panes).
+    focus() {
+      focused = true
+      for (const cb of focusListeners) cb()
+    },
+    blur() {
+      focused = false
+    },
     // Simulates the user clicking/arrow-keying to a new line with no edit.
     moveCursorTo(line: number) {
       selection = { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1, positionLineNumber: line }
@@ -83,6 +99,11 @@ function makeFakeEditor(initialContent: string) {
       content = newContent
       for (const cb of contentListeners) cb()
       selection = { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1, positionLineNumber: line }
+      for (const cb of selectionListeners) cb({ selection })
+    },
+    // Simulates dragging a selection across several full lines.
+    selectLines(from: number, to: number) {
+      selection = { startLineNumber: from, startColumn: 1, endLineNumber: to, endColumn: 5, positionLineNumber: to }
       for (const cb of selectionListeners) cb({ selection })
     },
     // Simulates a triple-click / "select line" drag: Monaco reports this as
@@ -183,5 +204,95 @@ describe('attachCurrentLineBlame', () => {
     const shown = fake.currentAnnotation()
     expect(shown!.line).toBe(2)
     expect(shown!.text).toContain('Grace Hopper')
+  })
+})
+
+describe('attachCurrentLineBlame — footer mode', () => {
+  const headContent = 'line one\nline two\nline three\n'
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(global as any).window = { api: { gitFileAtHead: vi.fn() } }
+    useFooterBlameStore.setState({ blame: null, owner: null })
+    ;(getFileBlame as any).mockResolvedValue({
+      headCommit: 'deadbeef',
+      lines: [
+        blameLine({ line: 1, author: 'Ada Lovelace' }),
+        blameLine({ line: 2, author: 'Grace Hopper', summary: 'Teach the compiler' }),
+        blameLine({ line: 3, author: 'Margaret Hamilton' }),
+      ],
+    })
+    ;(window.api.gitFileAtHead as any).mockResolvedValue(headContent)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('sends the focused editor\'s current-line blame to the footer instead of drawing it in the editor', async () => {
+    const fake = makeFakeEditor(headContent)
+    fake.focus()
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+
+    fake.moveCursorTo(2)
+
+    expect(fake.currentAnnotation()).toBeNull()
+    const blame = useFooterBlameStore.getState().blame
+    expect(blame?.text).toContain('Grace Hopper')
+    expect(blame?.hover).toContain('Teach the compiler')
+  })
+
+  it('ignores cursor moves in an editor that does not have focus', async () => {
+    const fake = makeFakeEditor(headContent)
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+
+    fake.moveCursorTo(2)
+
+    expect(useFooterBlameStore.getState().blame).toBeNull()
+  })
+
+  it('switches the footer to another pane when that pane gains focus', async () => {
+    const left = makeFakeEditor(headContent)
+    const right = makeFakeEditor(headContent)
+    left.focus()
+    attachCurrentLineBlame(left.editor as any, left.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    attachCurrentLineBlame(right.editor as any, right.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+    left.moveCursorTo(1)
+    right.moveCursorTo(3)
+    expect(useFooterBlameStore.getState().blame?.text).toContain('Ada Lovelace')
+
+    left.blur()
+    right.focus()
+
+    expect(useFooterBlameStore.getState().blame?.text).toContain('Margaret Hamilton')
+  })
+
+  it('clears the footer when a multi-line selection has no single blame', async () => {
+    const fake = makeFakeEditor(headContent)
+    fake.focus()
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+    fake.moveCursorTo(2)
+
+    fake.selectLines(1, 3)
+
+    expect(useFooterBlameStore.getState().blame).toBeNull()
+  })
+
+  it('clears the footer when the editor is disposed', async () => {
+    const fake = makeFakeEditor(headContent)
+    fake.focus()
+    const handle = attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+    fake.moveCursorTo(2)
+    expect(useFooterBlameStore.getState().blame).not.toBeNull()
+
+    handle.dispose()
+
+    expect(useFooterBlameStore.getState().blame).toBeNull()
   })
 })

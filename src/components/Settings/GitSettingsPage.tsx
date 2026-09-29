@@ -3,7 +3,7 @@ import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
-import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
+import { useEditorSettingsStore, type BlameDisplayMode } from '@/stores/editorSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
 import { Section, Row, TextField } from './SettingsLayout'
@@ -31,6 +31,8 @@ export function GitSettingsPage() {
   const setGitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.setOpenInBiggestPane)
   const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
   const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
+  const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
+  const setBlameDisplayMode = useEditorSettingsStore((s) => s.setBlameDisplayMode)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -168,6 +170,23 @@ export function GitSettingsPage() {
             checked={blameAnnotationsEnabled}
             onChange={setBlameAnnotationsEnabled}
           />
+
+          {blameAnnotationsEnabled && (
+            <div className="mt-3 pl-4 border-l border-border/40 max-w-xs">
+              <label htmlFor="blame-display-mode" className="text-xs text-fg-muted mb-1.5 block">
+                Show blame in
+              </label>
+              <Select
+                id="blame-display-mode"
+                value={blameDisplayMode}
+                onChange={(v) => setBlameDisplayMode(v as BlameDisplayMode)}
+                options={[
+                  { value: 'editor', label: 'Editor (end of current line)' },
+                  { value: 'footer', label: 'Footer' },
+                ]}
+              />
+            </div>
+          )}
         </Row>
       </Section>
 

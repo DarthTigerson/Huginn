@@ -3,6 +3,8 @@ import type { GitBlameLine } from '@/types/index'
 import { getFileBlame } from '@/lib/gitBlame'
 import { formatRelDate, formatExactDate } from '@/components/Git/commitFormat'
 import { buildLiveToHeadLineMap, type LineOrigin } from '@/lib/blameLineMap'
+import { useFooterBlameStore, type FooterBlame } from '@/stores/footerBlameStore'
+import type { BlameDisplayMode } from '@/stores/editorSettingsStore'
 
 // Current-line git-blame annotation, shown only for the cursor's line and updated as it moves (GitLens-style).
 // Blame is keyed by HEAD line numbers; buildLiveToHeadLineMap (blameLineMap.ts) remaps them since uncommitted edits shift lines apart.
@@ -26,7 +28,7 @@ function buildBlameIndex(lines: GitBlameLine[]): Map<number, GitBlameLine> {
   return index
 }
 
-function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: string } {
+function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: string; author: string } {
   const iso = new Date(line.authorTime * 1000).toISOString()
   const when = formatRelDate(iso)
   const shortHash = line.hash.slice(0, 7)
@@ -34,12 +36,15 @@ function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: str
   return {
     content: `${line.author}, ${when} • ${truncate(summary, MAX_SUMMARY_LENGTH)}`,
     hoverValue: `${summary}\n${line.author} — ${formatExactDate(iso)}\n${shortHash}`,
+    author: line.author,
   }
 }
 
 export interface CurrentLineBlameOptions {
   repoRoot: string
   relPath: string
+  // Where the blame is shown (Settings > Git > Blame); defaults to 'editor'.
+  display?: BlameDisplayMode
 }
 
 export interface CurrentLineBlameHandle {
@@ -49,11 +54,10 @@ export interface CurrentLineBlameHandle {
   dispose: () => void
 }
 
-// Always-on when a repo can be resolved for the file - no settings toggle.
 export function attachCurrentLineBlame(
   editor: Monaco.editor.IStandaloneCodeEditor,
   monaco: typeof import('monaco-editor'),
-  { repoRoot, relPath }: CurrentLineBlameOptions
+  { repoRoot, relPath, display = 'editor' }: CurrentLineBlameOptions
 ): CurrentLineBlameHandle {
   let cancelled = false
   let headContent: string | null = null
@@ -77,9 +81,22 @@ export function attachCurrentLineBlame(
           }
         : null,
   }
-  editor.addContentWidget(widget)
+  if (display === 'editor') editor.addContentWidget(widget)
 
-  function show(line: number, column: number, text: string, hoverValue: string) {
+  // Footer mode: only the focused pane writes to the footer, so split panes
+  // don't fight over it. This mount's own object is its owner token.
+  const footerOwner = {}
+  function publishToFooter(blame: FooterBlame | null) {
+    const store = useFooterBlameStore.getState()
+    if (editor.hasTextFocus()) store.publish(footerOwner, blame)
+    else if (!blame) store.release(footerOwner)
+  }
+
+  function show(line: number, column: number, text: string, hoverValue: string, author?: string) {
+    if (display === 'footer') {
+      publishToFooter({ text, hover: hoverValue, author })
+      return
+    }
     domNode.textContent = text
     domNode.title = hoverValue
     widgetLine = line
@@ -89,6 +106,10 @@ export function attachCurrentLineBlame(
   }
 
   function hide() {
+    if (display === 'footer') {
+      publishToFooter(null)
+      return
+    }
     if (!widgetVisible) return
     widgetVisible = false
     editor.layoutContentWidget(widget)
@@ -122,8 +143,8 @@ export function attachCurrentLineBlame(
       hide()
       return
     }
-    const { content, hoverValue } = formatBlameLine(blameLine)
-    show(line, col, content, hoverValue)
+    const { content, hoverValue, author } = formatBlameLine(blameLine)
+    show(line, col, content, hoverValue, author)
   }
 
   async function loadAll(force: boolean) {
@@ -155,13 +176,17 @@ export function attachCurrentLineBlame(
 
   editor.onDidChangeCursorSelection((e) => render(e.selection))
 
+  // Clicking into another pane hands the footer over to that pane's blame.
+  if (display === 'footer') editor.onDidFocusEditorText(() => render(editor.getSelection()))
+
   loadAll(false)
 
   return {
     refresh: () => loadAll(true),
     dispose: () => {
       cancelled = true
-      editor.removeContentWidget(widget)
+      if (display === 'editor') editor.removeContentWidget(widget)
+      else useFooterBlameStore.getState().release(footerOwner)
     },
   }
 }

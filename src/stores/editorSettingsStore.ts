@@ -7,9 +7,11 @@ const KEYS = {
   openInBiggestPane: 'vide:editor:openInBiggestPane',
   markdownOpenMode: 'vide:editor:markdownOpenMode',
   blameAnnotationsEnabled: 'vide:editor:blameAnnotationsEnabled',
+  blameDisplayMode: 'vide:editor:blameDisplayMode',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
+export type BlameDisplayMode = 'editor' | 'footer'
 
 function getBool(key: string, def: boolean): boolean {
   const value = localStorage.getItem(key)
@@ -45,6 +47,9 @@ interface EditorSettingsStore {
   // always-on behavior.
   blameAnnotationsEnabled: boolean
   setBlameAnnotationsEnabled: (value: boolean) => void
+  // Where current-line blame shows: end of the line in the editor, or the footer.
+  blameDisplayMode: BlameDisplayMode
+  setBlameDisplayMode: (value: BlameDisplayMode) => void
 }
 
 export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
@@ -90,5 +95,12 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setBlameAnnotationsEnabled: (value) => {
     localStorage.setItem(KEYS.blameAnnotationsEnabled, String(value))
     set({ blameAnnotationsEnabled: value })
+  },
+
+  blameDisplayMode: localStorage.getItem(KEYS.blameDisplayMode) === 'footer' ? 'footer' : 'editor',
+
+  setBlameDisplayMode: (value) => {
+    localStorage.setItem(KEYS.blameDisplayMode, value)
+    set({ blameDisplayMode: value })
   },
 }))

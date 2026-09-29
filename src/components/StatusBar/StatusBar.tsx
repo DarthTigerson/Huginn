@@ -15,6 +15,7 @@ import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
 import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
 import { AUTOCOMPLETE_FORCE_DISABLED } from '@/lib/autocompleteEffectiveState'
 import { useConfigRepoStore } from '@/stores/configRepoStore'
+import { useFooterBlameStore } from '@/stores/footerBlameStore'
 import { FooterMessage } from './FooterMessage'
 import { NotificationPanel } from './NotificationPanel'
 import { NotificationCompactToggle } from './NotificationCompactToggle'
@@ -51,6 +52,7 @@ export function StatusBar() {
   const autocompleteActive = autocompleteEnabled && !autocompletePaused
   const autocompleteVisible = !AUTOCOMPLETE_FORCE_DISABLED && autocompleteEnabled
   const [autocompleteMenuOpen, setAutocompleteMenuOpen] = useState(false)
+  const footerBlame = useFooterBlameStore((s) => s.blame)
 
   useEffect(() => {
     if (!gitMenuOpen) return
@@ -78,49 +80,69 @@ export function StatusBar() {
       <GitActivityBar />
       <NotificationPanel />
       <FooterMessage />
-      {showBranch ? (
-        <div className="relative min-w-0">
-          <span
-            className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
-            onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
-          >
-            <GitIcon
-              className={[
-                'w-3 h-3 shrink-0 transition-colors',
-                gitBusy ? 'text-accent animate-pulse' : '',
-              ].join(' ')}
-            />
-            {selectedRepoName && (
-              <>
-                <span className="font-bold text-fg truncate shrink-0">{selectedRepoName}</span>
-                <span className="text-fg-subtle shrink-0">›</span>
-              </>
+      {/* Branch, then current-line blame (Settings > Git > Blame: Footer), which truncates first. */}
+      <div className="flex items-center gap-3 min-w-0">
+        {showBranch && (
+          <div className="relative min-w-0 shrink-0 max-w-[60%]">
+            <span
+              className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
+              onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
+            >
+              <GitIcon
+                className={[
+                  'w-3 h-3 shrink-0 transition-colors',
+                  gitBusy ? 'text-accent animate-pulse' : '',
+                ].join(' ')}
+              />
+              {selectedRepoName && (
+                <>
+                  <span className="font-bold text-fg truncate shrink-0">{selectedRepoName}</span>
+                  <span className="text-fg-subtle shrink-0">›</span>
+                </>
+              )}
+              <span className="truncate">{branch}</span>
+              {commandStatus === 'running' ? (
+                <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>
+              ) : (
+                aheadBehind && (
+                  <span className="flex items-center gap-1.5 tabular-nums ml-1.5 shrink-0">
+                    <span>↓{aheadBehind.behind}</span>
+                    <span>↑{aheadBehind.ahead}</span>
+                  </span>
+                )
+              )}
+            </span>
+            {gitMenuOpen && (
+              <GitActionsMenu
+                onClose={() => setGitMenuOpen(false)}
+                onRequestForce={requestForce}
+                onRequestResetToHead={requestResetToHead}
+                onRequestUndoCommit={requestUndoCommit}
+                onRequestHardReset={requestHardReset}
+              />
             )}
-            <span className="truncate">{branch}</span>
-            {commandStatus === 'running' ? (
-              <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>
-            ) : (
-              aheadBehind && (
-                <span className="flex items-center gap-1.5 tabular-nums ml-1.5 shrink-0">
-                  <span>↓{aheadBehind.behind}</span>
-                  <span>↑{aheadBehind.ahead}</span>
-                </span>
-              )
-            )}
-          </span>
-          {gitMenuOpen && (
-            <GitActionsMenu
-              onClose={() => setGitMenuOpen(false)}
-              onRequestForce={requestForce}
-              onRequestResetToHead={requestResetToHead}
-              onRequestUndoCommit={requestUndoCommit}
-              onRequestHardReset={requestHardReset}
-            />
-          )}
-        </div>
-      ) : (
-        <span />
-      )}
+          </div>
+        )}
+        {footerBlame && (
+          <>
+            {showBranch && <span className="w-px h-3 bg-border shrink-0" />}
+            <span
+              data-testid="footer-blame"
+              title={footerBlame.hover || undefined}
+              className="truncate min-w-0 text-xs text-fg-subtle cursor-default"
+            >
+              {footerBlame.author && footerBlame.text.startsWith(footerBlame.author) ? (
+                <>
+                  <span className="text-fg-muted">{footerBlame.author}</span>
+                  {footerBlame.text.slice(footerBlame.author.length)}
+                </>
+              ) : (
+                footerBlame.text
+              )}
+            </span>
+          </>
+        )}
+      </div>
       {forceAction && selectedRepo && (
         <ConfirmForcePushModal action={forceAction} cwd={selectedRepo} onClose={closeForce} />
       )}
