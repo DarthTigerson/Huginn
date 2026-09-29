@@ -47,6 +47,23 @@ describe('TodoPanel', () => {
     })
   })
 
+  it('lists projects alphabetically by name, case-insensitively', async () => {
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'Snajja Maltin', key: 'SM', nextNumber: 1, createdAt: 1 },
+        { id: 'p2', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 2 },
+        { id: 'p3', name: 'Bonnici Portfolio', key: 'BP', nextNumber: 1, createdAt: 3 },
+        { id: 'p4', name: 'vIDE Sync', key: 'SYNC', nextNumber: 1, createdAt: 4 },
+        { id: 'p5', name: 'Link Platform', key: 'LP', nextNumber: 1, createdAt: 5 },
+      ]),
+    })
+    render(<TodoPanel />)
+    await waitFor(() => screen.getByText('Snajja Maltin'))
+
+    const names = screen.getAllByRole('button', { pressed: false }).map((b) => b.lastChild?.textContent)
+    expect(names).toEqual(['Bonnici Portfolio', 'Link Platform', 'Snajja Maltin', 'vIDE', 'vIDE Sync'])
+  })
+
   it('clicking a project opens its Kanban board tab', async () => {
     mockApi({
       todosListProjects: vi.fn().mockResolvedValue([

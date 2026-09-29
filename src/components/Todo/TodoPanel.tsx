@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTodoStore } from '@/stores/todoStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
@@ -12,6 +12,10 @@ import type { TodoProject } from '@/types/api'
 
 export function TodoPanel() {
   const projects = useTodoStore((s) => s.projects)
+  const sortedProjects = useMemo(
+    () => [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })),
+    [projects],
+  )
   const loadProjects = useTodoStore((s) => s.loadProjects)
   const lastOpenedProjectId = useTodoStore((s) => s.lastOpenedProjectId)
   const setLastOpenedProject = useTodoStore((s) => s.setLastOpenedProject)
@@ -73,7 +77,7 @@ export function TodoPanel() {
         {projects.length === 0 ? (
           <p className="p-3 text-sm text-fg-subtle">No projects yet.</p>
         ) : (
-          projects.map((project) => (
+          sortedProjects.map((project) => (
             <button
               key={project.id}
               type="button"
