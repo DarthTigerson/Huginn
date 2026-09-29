@@ -1,11 +1,10 @@
 import { create } from 'zustand'
 
-export interface FooterBlame {
-  text: string
-  hover: string
-  // Set when text starts with the author's name, so the footer can emphasise it.
-  author?: string
-}
+// The footer lays these out itself (author + message inline, full details in a
+// hover panel), so it gets the raw parts rather than the editor's one-line text.
+export type FooterBlame =
+  | { kind: 'commit'; author: string; summary: string; date: string; relDate: string }
+  | { kind: 'uncommitted' }
 
 // Current-line git blame shown in the StatusBar when Settings > Git > Blame is
 // set to "Footer". Each editor pane's attachCurrentLineBlame publishes under

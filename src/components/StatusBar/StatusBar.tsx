@@ -15,11 +15,11 @@ import { useAutocompleteSessionStore } from '@/stores/autocompleteSessionStore'
 import { useAutocompleteStatusStore } from '@/stores/autocompleteStatusStore'
 import { AUTOCOMPLETE_FORCE_DISABLED } from '@/lib/autocompleteEffectiveState'
 import { useConfigRepoStore } from '@/stores/configRepoStore'
-import { useFooterBlameStore } from '@/stores/footerBlameStore'
 import { FooterMessage } from './FooterMessage'
 import { NotificationPanel } from './NotificationPanel'
 import { NotificationCompactToggle } from './NotificationCompactToggle'
 import { GitActivityBar } from './GitActivityBar'
+import { FooterBlame } from './FooterBlame'
 
 export function StatusBar() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
@@ -52,7 +52,6 @@ export function StatusBar() {
   const autocompleteActive = autocompleteEnabled && !autocompletePaused
   const autocompleteVisible = !AUTOCOMPLETE_FORCE_DISABLED && autocompleteEnabled
   const [autocompleteMenuOpen, setAutocompleteMenuOpen] = useState(false)
-  const footerBlame = useFooterBlameStore((s) => s.blame)
 
   useEffect(() => {
     if (!gitMenuOpen) return
@@ -123,26 +122,7 @@ export function StatusBar() {
             )}
           </div>
         )}
-        {/* Shrinks before the branch does and clips to nothing (divider included) when there's no room. */}
-        {footerBlame && (
-          <span className="flex items-center gap-3 min-w-0 overflow-hidden shrink-[9999]">
-            {showBranch && <span className="w-px h-3 bg-border shrink-0" />}
-            <span
-              data-testid="footer-blame"
-              title={footerBlame.hover || undefined}
-              className="truncate min-w-0 text-xs text-accent/70 cursor-default"
-            >
-              {footerBlame.author && footerBlame.text.startsWith(footerBlame.author) ? (
-                <>
-                  <span className="text-accent">{footerBlame.author}</span>
-                  {footerBlame.text.slice(footerBlame.author.length)}
-                </>
-              ) : (
-                footerBlame.text
-              )}
-            </span>
-          </span>
-        )}
+        <FooterBlame showDivider={showBranch} />
       </div>
       {forceAction && selectedRepo && (
         <ConfirmForcePushModal action={forceAction} cwd={selectedRepo} onClose={closeForce} />

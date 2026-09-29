@@ -28,7 +28,7 @@ function buildBlameIndex(lines: GitBlameLine[]): Map<number, GitBlameLine> {
   return index
 }
 
-function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: string; author: string } {
+function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: string; footer: FooterBlame } {
   const iso = new Date(line.authorTime * 1000).toISOString()
   const when = formatRelDate(iso)
   const shortHash = line.hash.slice(0, 7)
@@ -36,7 +36,8 @@ function formatBlameLine(line: GitBlameLine): { content: string; hoverValue: str
   return {
     content: `${line.author}, ${when} • ${truncate(summary, MAX_SUMMARY_LENGTH)}`,
     hoverValue: `${summary}\n${line.author} — ${formatExactDate(iso)}\n${shortHash}`,
-    author: line.author,
+    // Full, untruncated summary - the footer truncates to its own width.
+    footer: { kind: 'commit', author: line.author, summary, date: formatExactDate(iso), relDate: when },
   }
 }
 
@@ -92,9 +93,9 @@ export function attachCurrentLineBlame(
     else if (!blame) store.release(footerOwner)
   }
 
-  function show(line: number, column: number, text: string, hoverValue: string, author?: string) {
+  function show(line: number, column: number, text: string, hoverValue: string, footer: FooterBlame) {
     if (display === 'footer') {
-      publishToFooter({ text, hover: hoverValue, author })
+      publishToFooter(footer)
       return
     }
     domNode.textContent = text
@@ -135,7 +136,7 @@ export function attachCurrentLineBlame(
     }
     const col = model.getLineMaxColumn(line)
     if (origin.kind === 'uncommitted') {
-      show(line, col, 'Uncommitted change', '')
+      show(line, col, 'Uncommitted change', '', { kind: 'uncommitted' })
       return
     }
     const blameLine = blameByHeadLine.get(origin.headLine)
@@ -143,8 +144,8 @@ export function attachCurrentLineBlame(
       hide()
       return
     }
-    const { content, hoverValue, author } = formatBlameLine(blameLine)
-    show(line, col, content, hoverValue, author)
+    const { content, hoverValue, footer } = formatBlameLine(blameLine)
+    show(line, col, content, hoverValue, footer)
   }
 
   async function loadAll(force: boolean) {

@@ -239,9 +239,38 @@ describe('attachCurrentLineBlame — footer mode', () => {
     fake.moveCursorTo(2)
 
     expect(fake.currentAnnotation()).toBeNull()
-    const blame = useFooterBlameStore.getState().blame
-    expect(blame?.text).toContain('Grace Hopper')
-    expect(blame?.hover).toContain('Teach the compiler')
+    expect(useFooterBlameStore.getState().blame).toMatchObject({
+      kind: 'commit',
+      author: 'Grace Hopper',
+      summary: 'Teach the compiler',
+    })
+  })
+
+  it('sends the full commit message to the footer, not the editor\'s shortened one', async () => {
+    const longSummary = 'A'.repeat(120)
+    ;(getFileBlame as any).mockResolvedValue({
+      headCommit: 'deadbeef',
+      lines: [blameLine({ line: 1, summary: longSummary })],
+    })
+    const fake = makeFakeEditor(headContent)
+    fake.focus()
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+
+    fake.moveCursorTo(1)
+
+    expect(useFooterBlameStore.getState().blame).toMatchObject({ summary: longSummary })
+  })
+
+  it('reports an uncommitted line to the footer as uncommitted', async () => {
+    const fake = makeFakeEditor(headContent)
+    fake.focus()
+    attachCurrentLineBlame(fake.editor as any, fake.monaco as any, { repoRoot: '/repo', relPath: 'f.txt', display: 'footer' })
+    await vi.runAllTimersAsync()
+
+    fake.editContentAndMoveCursorTo('brand new line\n' + headContent, 1)
+
+    expect(useFooterBlameStore.getState().blame).toEqual({ kind: 'uncommitted' })
   })
 
   it('ignores cursor moves in an editor that does not have focus', async () => {
@@ -263,12 +292,12 @@ describe('attachCurrentLineBlame — footer mode', () => {
     await vi.runAllTimersAsync()
     left.moveCursorTo(1)
     right.moveCursorTo(3)
-    expect(useFooterBlameStore.getState().blame?.text).toContain('Ada Lovelace')
+    expect(useFooterBlameStore.getState().blame).toMatchObject({ author: 'Ada Lovelace' })
 
     left.blur()
     right.focus()
 
-    expect(useFooterBlameStore.getState().blame?.text).toContain('Margaret Hamilton')
+    expect(useFooterBlameStore.getState().blame).toMatchObject({ author: 'Margaret Hamilton' })
   })
 
   it('clears the footer when a multi-line selection has no single blame', async () => {
