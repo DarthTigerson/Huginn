@@ -67,8 +67,9 @@ export function attachCurrentLineBlame(
   let blameByHeadLine: Map<number, GitBlameLine> | null = null
   let lineOriginMap: Map<number, LineOrigin> | null = null
 
-  // In-editor look matches the footer: accent author + " • message" (no time),
-  // with BlameDetailsPanel on hover. The panel lives outside the truncating
+  // In-editor look matches the footer's layout - author + " • message" (no time),
+  // with BlameDetailsPanel on hover - but all in the subtle blame colour: an
+  // accent author competes with the code's syntax colours. The panel lives outside the truncating
   // text span so it isn't clipped, and is a React root since it's shared JSX.
   const domNode = document.createElement('span')
   domNode.className = 'git-blame-annotation group relative'
@@ -77,12 +78,15 @@ export function attachCurrentLineBlame(
   textEl.className = 'inline-block max-w-[50ch] truncate align-bottom'
   const authorEl = document.createElement('span')
   authorEl.dataset.blameAuthor = ''
-  authorEl.className = 'text-accent'
   const restEl = document.createTextNode('')
   textEl.append(authorEl, restEl)
   const panelHost = document.createElement('span')
   domNode.append(textEl, panelHost)
   let panelRoot: Root | null = null
+  // Opens the hover panel where the mouse is along the blame, not at its start.
+  domNode.addEventListener('mousemove', (e) => {
+    domNode.style.setProperty('--blame-panel-x', `${e.clientX - domNode.getBoundingClientRect().left}px`)
+  })
   let widgetLine = 1
   let widgetColumn = 1
   let widgetVisible = false

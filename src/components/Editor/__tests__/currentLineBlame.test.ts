@@ -257,11 +257,11 @@ describe('attachCurrentLineBlame — in-editor look', () => {
     expect(fake.currentAnnotation()!.text).toBe('Grace Hopper • Teach the compiler')
   })
 
-  it('colours only the author with the theme accent', async () => {
+  it('keeps the author the same subtle colour as the message (no accent in the editor)', async () => {
     const fake = await attachWith([blameLine({ line: 1, author: 'Grace Hopper' })])
     fake.moveCursorTo(1)
     expect(fake.authorEl()).toHaveTextContent('Grace Hopper')
-    expect(fake.authorEl()!.className).toContain('text-accent')
+    expect(fake.authorEl()!.className).not.toContain('text-accent')
   })
 
   it('keeps the full message (CSS cuts it to width, not the code)', async () => {
@@ -290,6 +290,18 @@ describe('attachCurrentLineBlame — in-editor look', () => {
     fake.setLineTop(300)
     fake.moveCursorTo(2)
     expect(fake.hoverPanel()!.dataset.placement).toBe('above')
+  })
+
+  it('lines the hover panel up with the mouse instead of the start of the blame', async () => {
+    const fake = await attachWith([blameLine({ line: 1 })])
+    fake.moveCursorTo(1)
+    const node = fake.hoverPanel()!.closest('.git-blame-annotation') as HTMLElement
+    node.getBoundingClientRect = () => ({ left: 100 } as DOMRect)
+
+    node.dispatchEvent(new MouseEvent('mousemove', { clientX: 260 }))
+
+    expect(node.style.getPropertyValue('--blame-panel-x')).toBe('160px')
+    expect(fake.hoverPanel()!.style.left).toBe('var(--blame-panel-x, 0px)')
   })
 
   it('shows no hover panel for an uncommitted line', async () => {
