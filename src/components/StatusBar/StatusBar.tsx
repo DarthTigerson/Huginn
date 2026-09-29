@@ -83,7 +83,7 @@ export function StatusBar() {
       {/* Branch, then current-line blame (Settings > Git > Blame: Footer), which truncates first. */}
       <div className="flex items-center gap-3 min-w-0">
         {showBranch && (
-          <div className="relative min-w-0 shrink-0 max-w-[60%]">
+          <div className="relative min-w-0">
             <span
               className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
               onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
@@ -123,8 +123,9 @@ export function StatusBar() {
             )}
           </div>
         )}
+        {/* Shrinks before the branch does and clips to nothing (divider included) when there's no room. */}
         {footerBlame && (
-          <>
+          <span className="flex items-center gap-3 min-w-0 overflow-hidden shrink-[9999]">
             {showBranch && <span className="w-px h-3 bg-border shrink-0" />}
             <span
               data-testid="footer-blame"
@@ -140,7 +141,7 @@ export function StatusBar() {
                 footerBlame.text
               )}
             </span>
-          </>
+          </span>
         )}
       </div>
       {forceAction && selectedRepo && (
