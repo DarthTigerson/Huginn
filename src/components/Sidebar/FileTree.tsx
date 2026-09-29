@@ -19,6 +19,8 @@ import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
 import { isIgnoredPath } from '@/lib/gitIgnore'
 import { FileIcon, FolderIcon } from './FileIcon'
 import { isExternalFileDrag } from './treeUtils'
+import { useGitTreeDecorations } from './useGitTreeDecorations'
+import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 
 export type TreePromptKind = 'file' | 'directory' | 'rename'
 
@@ -100,6 +102,9 @@ export function FileTree({
   const revealedPath = useFileStore((s) => s.revealedPath)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const ignoredPaths = useRepoGitState(selectedRepo).ignoredPaths
+  const { files: fileGitDecorations, folders: folderGitAggregates } = useGitTreeDecorations()
+  // Settings > General > File Tree: 'letter' keeps names their normal colour.
+  const colourGitNames = useGeneralSettingsStore((s) => s.fileTreeGitStatus === 'letterAndColour')
   const { activeTabPath, openTab, openTabInPane, openTabInNewSplitPane } = useEditorStore()
   // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path (that's
   // what git status/git show hand back, and what getDiffContent's own
@@ -183,6 +188,13 @@ export function FileTree({
       )}
       {nodes.map((node) => {
         const ignored = !!selectedRepo && isIgnoredPath(node.path, selectedRepo, ignoredPaths)
+        // Folders show the dominant color of whatever's changed inside them
+        // (an aggregate, so no single-letter badge); files show their own
+        // status's color + letter directly. Both come from the same
+        // memoized per-repo lookup — no recompute or tree walk per row.
+        const gitDecoration = node.isDirectory
+          ? folderGitAggregates.get(node.path)
+          : fileGitDecorations.get(node.path)
         return (
           <li key={node.path}>
             {prompt?.kind === 'rename' && prompt.node?.path === node.path ? (
@@ -242,9 +254,22 @@ export function FileTree({
                 ) : (
                   <FileIcon name={node.name} />
                 )}
-                <span className="truncate text-fg">
+                <span className={`truncate flex-1 min-w-0 ${gitDecoration && colourGitNames ? gitDecoration.textClass : 'text-fg'}`}>
                   {node.name}
                 </span>
+                {!node.isDirectory && gitDecoration && (
+                  <span className={`shrink-0 text-xs font-semibold ${gitDecoration.textClass}`}>
+                    {gitDecoration.letter}
+                  </span>
+                )}
+                {/* Folders have no letter, so a dot marks changes inside (in both Letter modes). */}
+                {node.isDirectory && gitDecoration && (
+                  <span
+                    data-git-folder-dot
+                    aria-hidden
+                    className={`shrink-0 mr-0.5 h-1.5 w-1.5 rounded-full bg-current ${gitDecoration.textClass}`}
+                  />
+                )}
               </button>
             )}
             {node.isDirectory && expandedPaths.has(node.path) && node.children && (

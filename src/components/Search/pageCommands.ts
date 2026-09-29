@@ -8,6 +8,7 @@ import {
   GIT_BRANCH_DIFF_TAB_PATH,
   GENERAL_SETTINGS_TAB_PATH,
   DISPLAY_TAB_PATH,
+  FILE_TREE_SETTINGS_TAB_PATH,
   EDITOR_SETTINGS_TAB_PATH,
   GIT_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
@@ -36,6 +37,7 @@ export interface SettingsPage {
 // pageCommands.test.ts fails if a page is added there and not here.
 export const SETTINGS_PAGES: SettingsPage[] = [
   { id: 'settings-display', label: 'Settings: Display', path: DISPLAY_TAB_PATH, description: 'Theme, panel style', keywords: ['theme', 'appearance', 'colour', 'color'] },
+  { id: 'settings-file-tree', label: 'Settings: File Tree', path: FILE_TREE_SETTINGS_TAB_PATH, description: 'Git status letters and colours', keywords: ['explorer', 'git', 'status', 'badge', 'decorations'] },
   { id: 'settings-editor', label: 'Settings: Editor', path: EDITOR_SETTINGS_TAB_PATH, description: 'Font size, auto-save', keywords: ['font', 'autosave', 'editor'] },
   { id: 'settings-git', label: 'Settings: Git', path: GIT_SETTINGS_TAB_PATH, description: 'Remote, identity', keywords: ['remote', 'origin', 'identity'] },
   { id: 'settings-general', label: 'Settings: General', path: GENERAL_SETTINGS_TAB_PATH, keywords: [] },

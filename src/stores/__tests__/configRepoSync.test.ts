@@ -33,6 +33,7 @@ const { api, storage } = vi.hoisted(() => {
 import { useConfigRepoStore } from '../configRepoStore'
 import { notifySettingChanged } from '../../lib/notifySettingChanged'
 import { useEditorSettingsStore } from '../editorSettingsStore'
+import { useGeneralSettingsStore } from '../generalSettingsStore'
 
 const ALL_CATS = {
   general: true, models: true, git: true, docker: true,
@@ -219,6 +220,36 @@ describe('git category — git blame settings synced with the Git page they live
     await useConfigRepoStore.getState().push()
     const payload = api.configRepoPush.mock.calls.at(-1)![0] as Record<string, Record<string, string>>
     expect(Object.values(payload.git ?? {})).toContain('editor')
+  })
+})
+
+describe('general category — file tree git status setting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    storage.clear()
+    resetStore()
+  })
+  afterEach(() => {
+    useConfigRepoStore.setState({ enabled: false, status: 'idle' })
+  })
+
+  it('puts the Settings > File Tree choice in the general payload', async () => {
+    useGeneralSettingsStore.getState().setFileTreeGitStatus('letter')
+
+    await useConfigRepoStore.getState().push()
+    const payload = api.configRepoPush.mock.calls.at(-1)![0] as Record<string, Record<string, string>>
+    expect(payload.general?.['vide:general:fileTreeGitStatus']).toBe('letter')
+  })
+
+  it('schedules a sync push when the choice changes', async () => {
+    vi.useFakeTimers()
+    try {
+      useGeneralSettingsStore.getState().setFileTreeGitStatus('off')
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(api.configRepoPush).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
