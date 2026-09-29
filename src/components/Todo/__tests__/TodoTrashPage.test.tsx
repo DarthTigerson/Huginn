@@ -60,12 +60,15 @@ describe('TodoTrashPage', () => {
     mockApi([newer])
     render(<TodoTrashPage />)
 
-    const backlog = await screen.findByTitle('Backlog')
-    expect(backlog).toHaveTextContent('2')
-    expect(screen.getByTitle('Todo')).toHaveTextContent('0')
-    expect(screen.getByTitle('In Progress')).toHaveTextContent('1')
-    expect(screen.getByTitle('Done')).toHaveTextContent('0')
-    expect(screen.getByTitle('Archived')).toHaveTextContent('1')
+    await screen.findByRole('tooltip', { name: 'Backlog' })
+    const countFor = (name: string) =>
+      screen.getByRole('tooltip', { name }).parentElement!.firstChild!.textContent
+    expect(countFor('Backlog')).toBe('2')
+    expect(countFor('Todo')).toBe('0')
+    expect(countFor('In Progress')).toBe('1')
+    expect(countFor('Done')).toBe('0')
+    expect(countFor('Archived')).toBe('1')
+    expect(document.querySelector('[title]')).toBeNull()
     expect(screen.queryByText(/todos?$/)).not.toBeInTheDocument()
   })
 

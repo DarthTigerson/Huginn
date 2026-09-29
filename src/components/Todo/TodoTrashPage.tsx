@@ -89,16 +89,22 @@ export function TodoTrashPage() {
                 <span className="text-xs font-mono text-fg-subtle shrink-0">{project.key}</span>
                 <span className="flex-1 text-sm text-fg truncate">{project.name}</span>
                 {row && (
-                  <span className="text-xs font-mono text-fg-subtle shrink-0">
+                  <span className="mr-5 text-xs font-mono text-fg-subtle shrink-0">
                     {row.map((count, i) => (
                       <span key={COUNT_TITLES[i]}>
                         {i > 0 && <span className="px-1 opacity-50">|</span>}
+                        {/* Name-only hover label in the activity-bar tooltip style. */}
                         <span
-                          title={COUNT_TITLES[i]}
-                          className="inline-block text-right hover:text-fg"
+                          className="group relative inline-block text-right hover:text-fg"
                           style={{ width: countWidths[i] }}
                         >
                           {count}
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-1 font-sans text-xs text-gray-200 opacity-0 transition-opacity duration-100 delay-150 group-hover:opacity-100"
+                          >
+                            {COUNT_TITLES[i]}
+                          </span>
                         </span>
                       </span>
                     ))}
