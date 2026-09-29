@@ -12,7 +12,18 @@ const newer: TodoProject = { id: 'p3', name: 'Test', key: 'T', nextNumber: 1, cr
 function mockApi(projects: TodoProject[]) {
   ;(global as any).window.api = {
     todosListProjects: vi.fn().mockResolvedValue(projects),
-    todosListTodos: vi.fn((id: string) => Promise.resolve(id === 'p3' ? [{ id: 'T-1' }, { id: 'T-2' }] : [])),
+    todosListTodos: vi.fn((id: string) =>
+      Promise.resolve(
+        id === 'p3'
+          ? [
+              { id: 'T-1', status: 'backlog', archived: false },
+              { id: 'T-2', status: 'backlog', archived: false },
+              { id: 'T-3', status: 'in_progress', archived: false },
+              { id: 'T-4', status: 'done', archived: true },
+            ]
+          : []
+      )
+    ),
     todosRestoreProject: vi.fn((id: string) =>
       Promise.resolve({ ...projects.find((p) => p.id === id)!, trashedAt: null })
     ),
@@ -34,7 +45,7 @@ describe('TodoTrashPage', () => {
     expect(await screen.findByText('The Trash is empty.')).toBeInTheDocument()
   })
 
-  it('lists only trashed projects, most recently trashed first, with their todo counts', async () => {
+  it('lists only trashed projects, most recently trashed first', async () => {
     mockApi([live, older, newer])
     render(<TodoTrashPage />)
 
@@ -43,7 +54,19 @@ describe('TodoTrashPage', () => {
     expect(names[0].compareDocumentPosition(names[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Restore/ })).not.toBeInTheDocument()
     expect(screen.queryByText('vIDE')).not.toBeInTheDocument()
-    expect(await screen.findByText('2 todos')).toBeInTheDocument()
+  })
+
+  it('shows backlog | todo | in progress | done | archived counts, each named on hover', async () => {
+    mockApi([newer])
+    render(<TodoTrashPage />)
+
+    const backlog = await screen.findByTitle('Backlog')
+    expect(backlog).toHaveTextContent('2')
+    expect(screen.getByTitle('Todo')).toHaveTextContent('0')
+    expect(screen.getByTitle('In Progress')).toHaveTextContent('1')
+    expect(screen.getByTitle('Done')).toHaveTextContent('0')
+    expect(screen.getByTitle('Archived')).toHaveTextContent('1')
+    expect(screen.queryByText(/todos?$/)).not.toBeInTheDocument()
   })
 
   it('right-click > Restore moves the project back to the live list', async () => {

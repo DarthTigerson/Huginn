@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTodoStore } from '@/stores/todoStore'
 import { TodoTrashMenu } from './TodoContextMenu'
+import { TODO_COLUMNS, groupTodosByStatus } from '@/lib/todoBoard'
 import type { TodoProject } from '@/types/api'
+
+const COUNT_TITLES = [...TODO_COLUMNS.map((c) => c.title), 'Archived']
 
 // Projects moved to the Trash from the To Do sidebar; right-click a row to
 // Restore it. Restore-only for now: a hard delete would just be merged back
@@ -20,6 +23,27 @@ export function TodoTrashPage() {
   const sorted = useMemo(
     () => [...trashedProjects].sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0)),
     [trashedProjects],
+  )
+
+  // backlog | todo | in progress | done | archived, per project — null until
+  // that project's todos have loaded.
+  const counts = useMemo(
+    () =>
+      new Map(
+        trashedProjects.map((p) => {
+          const todos = todosByProject[p.id]
+          if (!todos) return [p.id, null]
+          const groups = groupTodosByStatus(todos)
+          return [p.id, [...TODO_COLUMNS.map((c) => groups[c.status].length), todos.filter((t) => t.archived).length]]
+        })
+      ),
+    [trashedProjects, todosByProject],
+  )
+  // Each count column is as wide as its widest number so the separators
+  // line up down the list (same as the sidebar's counts).
+  const countWidths = COUNT_TITLES.map(
+    (_, i) =>
+      `${Math.max(1, ...[...counts.values()].map((row) => (row ? String(row[i]).length : 1)))}ch`
   )
 
   useEffect(() => {
@@ -52,7 +76,7 @@ export function TodoTrashPage() {
       ) : (
         <div className="flex-1 overflow-y-auto">
           {sorted.map((project) => {
-            const todoCount = todosByProject[project.id]?.length
+            const row = counts.get(project.id)
             return (
               <div
                 key={project.id}
@@ -64,9 +88,20 @@ export function TodoTrashPage() {
               >
                 <span className="text-xs font-mono text-fg-subtle shrink-0">{project.key}</span>
                 <span className="flex-1 text-sm text-fg truncate">{project.name}</span>
-                {todoCount !== undefined && (
-                  <span className="text-xs text-fg-subtle shrink-0">
-                    {todoCount} {todoCount === 1 ? 'todo' : 'todos'}
+                {row && (
+                  <span className="text-xs font-mono text-fg-subtle shrink-0">
+                    {row.map((count, i) => (
+                      <span key={COUNT_TITLES[i]}>
+                        {i > 0 && <span className="px-1 opacity-50">|</span>}
+                        <span
+                          title={COUNT_TITLES[i]}
+                          className="inline-block text-right hover:text-fg"
+                          style={{ width: countWidths[i] }}
+                        >
+                          {count}
+                        </span>
+                      </span>
+                    ))}
                   </span>
                 )}
                 {project.trashedAt && (

@@ -201,7 +201,7 @@ describe('TodoPanel', () => {
     expect(screen.getByText('vIDE').parentElement!.children).toHaveLength(2)
   })
 
-  it('hides trashed projects and shows how many are in the Trash button, which opens the Trash tab', async () => {
+  it('hides trashed projects; the Trash button opens the Trash tab', async () => {
     mockApi({
       todosListProjects: vi.fn().mockResolvedValue([
         { id: 'p1', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 1 },
@@ -212,8 +212,7 @@ describe('TodoPanel', () => {
     await screen.findByText('vIDE')
     expect(screen.queryByText('Old Site')).not.toBeInTheDocument()
 
-    const trash = screen.getByRole('button', { name: /Trash/ })
-    expect(trash).toHaveTextContent('1')
+    const trash = screen.getByRole('button', { name: 'Trash' })
     fireEvent.click(trash)
     expect(openTabMock).toHaveBeenCalledWith({ path: TODO_TRASH_TAB_PATH, content: '', dirty: false })
   })
