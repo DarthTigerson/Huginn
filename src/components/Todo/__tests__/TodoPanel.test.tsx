@@ -24,6 +24,7 @@ afterEach(() => {
 function mockApi(overrides: Partial<typeof window.api> = {}) {
   ;(global as any).window.api = {
     todosListProjects: vi.fn().mockResolvedValue([]),
+    todosListTodos: vi.fn().mockResolvedValue([]),
     ...overrides,
   }
 }
@@ -63,7 +64,7 @@ describe('TodoPanel', () => {
     render(<TodoPanel />)
     await waitFor(() => screen.getByText('Snajja Maltin'))
 
-    const names = screen.getAllByRole('button', { pressed: false }).map((b) => b.lastChild?.textContent)
+    const names = screen.getAllByRole('button', { pressed: false }).map((b) => b.children[1]?.textContent)
     expect(names).toEqual(['Bonnici Portfolio', 'Link Platform', 'Snajja Maltin', 'vIDE', 'vIDE Sync'])
   })
 
@@ -88,7 +89,7 @@ describe('TodoPanel', () => {
   ]
 
   function listedNames() {
-    return screen.getAllByRole('button', { pressed: false }).map((b) => b.lastChild?.textContent)
+    return screen.getAllByRole('button', { pressed: false }).map((b) => b.children[1]?.textContent)
   }
 
   it('right-clicking empty space offers Sort by, and Created reorders by creation date', async () => {
@@ -133,6 +134,28 @@ describe('TodoPanel', () => {
 
     await waitFor(() => expect(listedNames()).toEqual(['vIDE', 'Snajja Maltin', 'Bonnici Portfolio']))
     expect(todosListTodos).toHaveBeenCalledTimes(3)
+  })
+
+  it('shows backlog | todo | in progress | done counts for each project, ignoring archived', async () => {
+    const todos: Record<string, { status: string; archived: boolean }[]> = {
+      p1: [
+        { status: 'backlog', archived: false },
+        { status: 'backlog', archived: false },
+        { status: 'todo', archived: false },
+        { status: 'done', archived: false },
+        { status: 'done', archived: true },
+      ],
+    }
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 1 },
+      ]),
+      todosListTodos: vi.fn((id: string) => Promise.resolve(todos[id] ?? [])),
+    } as any)
+    render(<TodoPanel />)
+
+    const counts = await screen.findByLabelText('Backlog 2, Todo 1, In Progress 0, Done 1')
+    expect(counts).toHaveTextContent('2|1|0|1')
   })
 
   it('clicking a project opens its Kanban board tab', async () => {

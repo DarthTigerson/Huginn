@@ -9,6 +9,7 @@ import { RenameTodoProjectModal } from './RenameTodoProjectModal'
 import { DeleteTodoProjectModal } from './DeleteTodoProjectModal'
 import { TodoProjectMenu } from './TodoContextMenu'
 import { sortTodoProjects } from '@/lib/todoProjectSort'
+import { TODO_COLUMNS, groupTodosByStatus } from '@/lib/todoBoard'
 import type { TodoProject } from '@/types/api'
 
 export function TodoPanel() {
@@ -24,6 +25,21 @@ export function TodoPanel() {
   // Keys are monospace, so sizing the key column to the longest key in `ch`
   // lines every project name up at the same x.
   const keyColumnWidth = `${Math.max(0, ...projects.map((p) => p.key.length))}ch`
+  const statusCounts = useMemo(
+    () =>
+      new Map(
+        projects.map((p) => {
+          const groups = groupTodosByStatus(todosByProject[p.id] ?? [])
+          return [p.id, TODO_COLUMNS.map((c) => groups[c.status].length)]
+        })
+      ),
+    [projects, todosByProject],
+  )
+  // Same trick for the counts: each status column is as wide as its widest
+  // number, so the separators line up down the list.
+  const countColumnWidths = TODO_COLUMNS.map(
+    (_, i) => `${Math.max(1, ...[...statusCounts.values()].map((counts) => String(counts[i]).length))}ch`
+  )
   const loadProjects = useTodoStore((s) => s.loadProjects)
   const lastOpenedProjectId = useTodoStore((s) => s.lastOpenedProjectId)
   const setLastOpenedProject = useTodoStore((s) => s.setLastOpenedProject)
@@ -38,14 +54,14 @@ export function TodoPanel() {
     loadProjects()
   }, [loadProjects])
 
-  // The count sorts need every project's todos, not just boards opened so
-  // far — load the missing ones (once each; refreshAll keeps them fresh).
+  // The per-status counts (and the count sorts) need every project's todos,
+  // not just boards opened so far — load the missing ones (once each;
+  // refreshAll keeps them fresh).
   useEffect(() => {
-    if (projectSort !== 'count' && projectSort !== 'backlog') return
     for (const project of projects) {
       if (!useTodoStore.getState().todosByProject[project.id]) loadTodos(project.id)
     }
-  }, [projectSort, projects, loadTodos])
+  }, [projects, loadTodos])
 
   // Re-focus whatever project's board tab was last active — TodoPanel is
   // unmounted whenever the sidebar switches to a different activity-bar
@@ -113,6 +129,19 @@ export function TodoPanel() {
                 {project.key}
               </span>
               <span className="text-sm text-fg truncate">{project.name}</span>
+              <span
+                aria-label={TODO_COLUMNS.map((c, i) => `${c.title} ${statusCounts.get(project.id)![i]}`).join(', ')}
+                className="ml-auto shrink-0 text-xs font-mono text-fg-subtle"
+              >
+                {statusCounts.get(project.id)!.map((count, i) => (
+                  <span key={TODO_COLUMNS[i].status}>
+                    {i > 0 && <span className="px-1 opacity-50">|</span>}
+                    <span className="inline-block text-right" style={{ width: countColumnWidths[i] }}>
+                      {count}
+                    </span>
+                  </span>
+                ))}
+              </span>
             </button>
           ))
         )}
