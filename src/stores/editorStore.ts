@@ -6,6 +6,7 @@ import {
   isTodoDetailTab,
   getTodoDetailIds,
 } from '@/components/Settings/paths'
+import { buildScratchPath } from '@/components/Editor/paths'
 
 export type EditorSplitDirection = 'horizontal' | 'vertical'
 export type SplitPlacement = 'before' | 'after'
@@ -197,6 +198,7 @@ interface EditorState {
   paneTabs: Record<string, string | null>
   paneTabLists: Record<string, string[]>
   openTab: (tab: Tab) => void
+  openScratchTab: (paneId?: string) => void
   openTabInPane: (tab: Tab, paneId: string) => void
   openTabAfter: (tab: Tab, afterPath: string) => void
   closeTabInPane: (paneId: string, path: string) => void
@@ -271,6 +273,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   openTab: (tab: Tab) => {
     get().openTabInPane(tab, get().activePaneId)
+  },
+
+  // A new empty buffer with no file behind it. Each gets its own id so
+  // several can be open at once — the path is the tab's identity in every
+  // map below, so two scratch tabs sharing one path would be one tab.
+  // paneId is for the tab bar that was double-clicked, which in a split is
+  // not necessarily the active pane; Cmd+N passes nothing and gets the
+  // active one, which is what a global shortcut should do.
+  openScratchTab: (paneId?: string) => {
+    const tab = { path: buildScratchPath(crypto.randomUUID()), content: '', dirty: false }
+    get().openTabInPane(tab, paneId ?? get().activePaneId)
   },
 
   // Like openTab, but lets the caller pick which pane a genuinely-new tab
@@ -418,17 +431,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (paneId) state.closeTabInPane(paneId, path)
   },
 
-  replaceTabPath: (oldPath, newPath) => set((state) => ({
-    tabs: state.tabs.map((t) => t.path === oldPath ? { ...t, path: newPath } : t),
-    activeTabPath: state.activeTabPath === oldPath ? newPath : state.activeTabPath,
-    paneTabs: Object.fromEntries(
-      Object.entries(state.paneTabs).map(([id, p]) => [id, p === oldPath ? newPath : p])
-    ),
-    paneTabLists: Object.fromEntries(
-      Object.entries(state.paneTabLists).map(([id, list]) => [id, list.map((p) => p === oldPath ? newPath : p)])
-    ),
-    pinnedPaths: new Set([...state.pinnedPaths].map((p) => p === oldPath ? newPath : p)),
-  })),
+  // Re-keys a tab in place (a saved scratch buffer, a newly created Llama
+  // model). Closing and reopening would drop the tab to the end of its pane's
+  // list and lose which pane it was in; the path is the key in tabs, paneTabs,
+  // paneTabLists, activeTabPath and pinnedPaths, so all of them move together.
+  replaceTabPath: (oldPath, newPath) => {
+    const before = get()
+    if (oldPath === newPath || !before.tabs.some((t) => t.path === oldPath)) return
+    // A tab already open at the destination would leave two tabs claiming one
+    // path — duplicate React keys, and a close that removes the wrong one.
+    // For a scratch Save As the file is about to be overwritten anyway (the
+    // save dialog asked), so the stale tab showing its old contents goes.
+    if (before.tabs.some((t) => t.path === newPath)) before.closeTabEverywhere(newPath)
+
+    set((state) => ({
+      tabs: state.tabs.map((t) => t.path === oldPath ? { ...t, path: newPath } : t),
+      activeTabPath: state.activeTabPath === oldPath ? newPath : state.activeTabPath,
+      paneTabs: Object.fromEntries(
+        Object.entries(state.paneTabs).map(([id, p]) => [id, p === oldPath ? newPath : p])
+      ),
+      paneTabLists: Object.fromEntries(
+        Object.entries(state.paneTabLists).map(([id, list]) => [id, list.map((p) => p === oldPath ? newPath : p)])
+      ),
+      pinnedPaths: new Set([...state.pinnedPaths].map((p) => p === oldPath ? newPath : p)),
+    }))
+  },
 
   closeActiveTab: () => {
     const { activePaneId, paneTabs, closeTabInPane } = get()

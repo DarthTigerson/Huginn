@@ -102,6 +102,10 @@ import { useGraphifyAutoBuild } from './hooks/useGraphifyAutoBuild'
 import { useNotesStore } from './stores/notesStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from './lib/gitRemoteProvider'
 import { evaluateCmdWForPinnedTab, type PendingClose } from './lib/pinnedTabCloseGuard'
+import { countUnsaved, type UnsavedState } from './lib/unsavedState'
+import type { Tab } from './types/index'
+import { useDiscardScratchStore, requestCloseTab } from './stores/discardScratchStore'
+import { ConfirmDiscardScratchModal } from './components/Editor/ConfirmDiscardScratchModal'
 import { buildTerminalPath, buildBrowserPath, JIRA_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, USAGE_GRAPH_TAB_PATH } from './components/Settings/paths'
 import { TodoPanel } from './components/Todo/TodoPanel'
 import { NotesPanel } from './components/Notes/NotesPanel'
@@ -109,6 +113,26 @@ import { LlamaPanel } from './components/Llama/LlamaPanel'
 import { useNotificationSoundSettingsStore, playNotificationSound } from './stores/notificationSoundSettingsStore'
 import { useConfigRepoStore } from './stores/configRepoStore'
 import type { AssistantKind } from './types/api'
+
+// Rendered once at the app root rather than per-TabBar: Cmd+W is handled here,
+// and the prompt has to appear whichever route asked to close the tab.
+function DiscardScratchPromptHost() {
+  const pending = useDiscardScratchStore((s) => s.pending)
+  const clear = useDiscardScratchStore((s) => s.clear)
+  if (!pending) return null
+  return (
+    <ConfirmDiscardScratchModal
+      count={pending.kind === 'all' ? pending.count : 1}
+      onConfirm={() => {
+        const store = useEditorStore.getState()
+        if (pending.kind === 'all') store.closeAllTabs()
+        else store.closeTabInPane(pending.paneId, pending.path)
+        clear()
+      }}
+      onClose={clear}
+    />
+  )
+}
 
 const ASSISTANT_OPTIONS: Array<{ id: AssistantKind; label: string }> = [
   { id: 'claude', label: 'Claude Code' },
@@ -679,10 +703,29 @@ export default function App() {
     })
   }, [])
 
+  // Keeps the main process's per-window tally current so its 'close' handler
+  // — which is synchronous and can't ask the renderer anything — knows whether
+  // to warn. Recounted on every tab change, since closing or saving a tab
+  // changes the answer too, but only sent when the counts actually move:
+  // tab content lives in `tabs`, so every keystroke lands here.
+  useEffect(() => {
+    let last: UnsavedState | null = null
+    const push = (tabs: Tab[]) => {
+      const next = countUnsaved(tabs)
+      if (last && last.dirty === next.dirty && last.neverSaved === next.neverSaved) return
+      last = next
+      window.api.setUnsavedState(next)
+    }
+    push(useEditorStore.getState().tabs)
+    return useEditorStore.subscribe((state, prev) => {
+      if (state.tabs !== prev.tabs) push(state.tabs)
+    })
+  }, [])
+
   const pendingPinnedCloseRef = useRef<PendingClose | null>(null)
   useEffect(() => {
     return window.api.onMenuCloseActiveTab(() => {
-      const { activePaneId, paneTabs, pinnedPaths, closeActiveTab } = useEditorStore.getState()
+      const { activePaneId, paneTabs, pinnedPaths } = useEditorStore.getState()
       const path = paneTabs[activePaneId]
       if (!path) return
       const { shouldClose, nextPending } = evaluateCmdWForPinnedTab(
@@ -692,7 +735,9 @@ export default function App() {
         Date.now()
       )
       pendingPinnedCloseRef.current = nextPending
-      if (shouldClose) closeActiveTab()
+      // requestCloseTab rather than closeActiveTab: Cmd+W must raise the same
+      // unsaved-scratch confirmation the tab's own × button does.
+      if (shouldClose) requestCloseTab(activePaneId, path)
     })
   }, [])
 
@@ -722,9 +767,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // A scratch buffer, not a file on disk — naming and location are deferred
+    // to the first Cmd+S. Creating a real file at a chosen path is still the
+    // file tree's right-click > Create File, which targets the folder you
+    // clicked rather than the project root this used to.
     return window.api.onMenuNewFile(() => {
-      setLeftPanel('files')
-      useSidebarUiStore.getState().requestCreate('file')
+      useEditorStore.getState().openScratchTab()
     })
   }, [])
 
@@ -1241,6 +1289,7 @@ export default function App() {
         <BranchPalette projectRoot={selectedRepo} onClose={() => useSearchStore.getState().closeBranchPalette()} />
       )}
       <GitPromptHost />
+      <DiscardScratchPromptHost />
       {sessionMenu && (
         <ClaudeSessionContextMenu
           x={sessionMenu.x}

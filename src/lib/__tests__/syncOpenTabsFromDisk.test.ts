@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useEditorStore } from '@/stores/editorStore'
 import { syncOpenTabsFromDisk } from '../syncOpenTabsFromDisk'
+import { buildScratchPath } from '@/components/Editor/paths'
 
 vi.stubGlobal('window', {
   api: {
@@ -59,5 +60,23 @@ describe('syncOpenTabsFromDisk', () => {
     await expect(syncOpenTabsFromDisk()).resolves.toBeUndefined()
 
     expect(useEditorStore.getState().tabs[0].content).toBe('old')
+  })
+
+  // A scratch tab has no file behind it — reading 'scratch://<id>' would at
+  // best fail and at worst resolve against the cwd. Even when clean, its
+  // in-memory content must survive a watcher sync untouched.
+  it('never reads a scratch tab from disk and leaves its content alone', async () => {
+    const scratch = buildScratchPath('abc')
+    useEditorStore.getState().openTab({ path: '/a.ts', content: 'old', dirty: false })
+    useEditorStore.getState().openTab({ path: scratch, content: 'notes', dirty: false })
+    vi.mocked(window.api.readFile).mockResolvedValue('from disk')
+
+    await syncOpenTabsFromDisk()
+
+    expect(window.api.readFile).toHaveBeenCalledWith('/a.ts')
+    expect(window.api.readFile).not.toHaveBeenCalledWith(scratch)
+    const tabs = useEditorStore.getState().tabs
+    expect(tabs.find((t) => t.path === scratch)?.content).toBe('notes')
+    expect(tabs.find((t) => t.path === '/a.ts')?.content).toBe('from disk')
   })
 })
