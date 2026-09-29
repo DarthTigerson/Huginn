@@ -287,6 +287,26 @@ function ProjectSortSubmenu({
   )
 }
 
+// Toggles which per-status counts show beside each project. Clicking an item
+// flips it without closing the menu, so several can be changed in one go.
+function DisplaySubmenu({
+  shownCounts,
+  onToggle,
+}: {
+  shownCounts: TodoStatus[]
+  onToggle: (status: TodoStatus) => void
+}) {
+  return (
+    <SubMenuButton label="Display">
+      {TODO_COLUMNS.map((c) => (
+        <CheckableMenuButton key={c.status} checked={shownCounts.includes(c.status)} onClick={() => onToggle(c.status)}>
+          {c.title}
+        </CheckableMenuButton>
+      ))}
+    </SubMenuButton>
+  )
+}
+
 // Right-click menu for the To Do sidebar. `project` is set when a project row
 // was right-clicked (adds Rename / Move to Trash); on empty space it's just
 // the sort options.
@@ -294,16 +314,20 @@ export function TodoProjectMenu({
   x,
   y,
   projectSort,
+  shownCounts,
   onClose,
   onSortProjects,
+  onToggleShownCount,
   onRename,
   onDelete,
 }: {
   x: number
   y: number
   projectSort: TodoProjectSortMode
+  shownCounts: TodoStatus[]
   onClose: () => void
   onSortProjects: (mode: TodoProjectSortMode) => void
+  onToggleShownCount: (status: TodoStatus) => void
   onRename?: () => void
   onDelete?: () => void
 }) {
@@ -335,6 +359,7 @@ export function TodoProjectMenu({
         </>
       )}
       <ProjectSortSubmenu projectSort={projectSort} onSelect={withClose(onSortProjects)} />
+      <DisplaySubmenu shownCounts={shownCounts} onToggle={onToggleShownCount} />
     </div>,
     document.body
   )

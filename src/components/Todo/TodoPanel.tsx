@@ -18,6 +18,9 @@ export function TodoPanel() {
   const loadTodos = useTodoStore((s) => s.loadTodos)
   const projectSort = useTodoSettingsStore((s) => s.projectSort)
   const setProjectSort = useTodoSettingsStore((s) => s.setProjectSort)
+  const shownCounts = useTodoSettingsStore((s) => s.shownCounts)
+  const toggleShownCount = useTodoSettingsStore((s) => s.toggleShownCount)
+  const shownColumns = useMemo(() => TODO_COLUMNS.filter((c) => shownCounts.includes(c.status)), [shownCounts])
   const sortedProjects = useMemo(
     () => sortTodoProjects(projects, projectSort, todosByProject),
     [projects, projectSort, todosByProject],
@@ -30,14 +33,14 @@ export function TodoPanel() {
       new Map(
         projects.map((p) => {
           const groups = groupTodosByStatus(todosByProject[p.id] ?? [])
-          return [p.id, TODO_COLUMNS.map((c) => groups[c.status].length)]
+          return [p.id, shownColumns.map((c) => groups[c.status].length)]
         })
       ),
-    [projects, todosByProject],
+    [projects, todosByProject, shownColumns],
   )
   // Same trick for the counts: each status column is as wide as its widest
   // number, so the separators line up down the list.
-  const countColumnWidths = TODO_COLUMNS.map(
+  const countColumnWidths = shownColumns.map(
     (_, i) => `${Math.max(1, ...[...statusCounts.values()].map((counts) => String(counts[i]).length))}ch`
   )
   const loadProjects = useTodoStore((s) => s.loadProjects)
@@ -129,19 +132,21 @@ export function TodoPanel() {
                 {project.key}
               </span>
               <span className="text-sm text-fg truncate">{project.name}</span>
-              <span
-                aria-label={TODO_COLUMNS.map((c, i) => `${c.title} ${statusCounts.get(project.id)![i]}`).join(', ')}
-                className="ml-auto shrink-0 text-xs font-mono text-fg-subtle"
-              >
-                {statusCounts.get(project.id)!.map((count, i) => (
-                  <span key={TODO_COLUMNS[i].status}>
-                    {i > 0 && <span className="px-1 opacity-50">|</span>}
-                    <span className="inline-block text-right" style={{ width: countColumnWidths[i] }}>
-                      {count}
+              {shownColumns.length > 0 && (
+                <span
+                  aria-label={shownColumns.map((c, i) => `${c.title} ${statusCounts.get(project.id)![i]}`).join(', ')}
+                  className="ml-auto shrink-0 text-xs font-mono text-fg-subtle"
+                >
+                  {statusCounts.get(project.id)!.map((count, i) => (
+                    <span key={shownColumns[i].status}>
+                      {i > 0 && <span className="px-1 opacity-50">|</span>}
+                      <span className="inline-block text-right" style={{ width: countColumnWidths[i] }}>
+                        {count}
+                      </span>
                     </span>
-                  </span>
-                ))}
-              </span>
+                  ))}
+                </span>
+              )}
             </button>
           ))
         )}
@@ -154,6 +159,8 @@ export function TodoPanel() {
           x={menu.x}
           y={menu.y}
           projectSort={projectSort}
+          shownCounts={shownCounts}
+          onToggleShownCount={toggleShownCount}
           onClose={() => setMenu(null)}
           onSortProjects={setProjectSort}
           onRename={menu.project ? () => setRenameTarget(menu.project) : undefined}

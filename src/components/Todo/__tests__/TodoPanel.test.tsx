@@ -13,7 +13,10 @@ beforeEach(() => {
   openTabMock.mockClear()
   useTodoStore.setState({ projects: [], todosByProject: {}, lastOpenedProjectId: null })
   useEditorStore.setState({ openTab: openTabMock })
-  useTodoSettingsStore.setState({ projectSort: 'alphabetical' })
+  useTodoSettingsStore.setState({
+    projectSort: 'alphabetical',
+    shownCounts: ['backlog', 'todo', 'in_progress', 'done'],
+  })
   localStorage.clear()
 })
 
@@ -156,6 +159,46 @@ describe('TodoPanel', () => {
 
     const counts = await screen.findByLabelText('Backlog 2, Todo 1, In Progress 0, Done 1')
     expect(counts).toHaveTextContent('2|1|0|1')
+  })
+
+  it('Display toggles hide/show count columns without closing the menu', async () => {
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 1 },
+      ]),
+      todosListTodos: vi.fn().mockResolvedValue([
+        { status: 'backlog', archived: false },
+        { status: 'done', archived: false },
+      ]),
+    } as any)
+    render(<TodoPanel />)
+    await screen.findByLabelText('Backlog 1, Todo 0, In Progress 0, Done 1')
+
+    fireEvent.contextMenu(screen.getByText('vIDE'))
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Display' }).parentElement!)
+    fireEvent.click(screen.getByText('Todo'))
+    fireEvent.click(screen.getByText('In Progress'))
+
+    // Menu stayed open through both clicks.
+    expect(screen.getByRole('button', { name: 'Display' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Backlog 1, Done 1')).toHaveTextContent('1|1')
+    expect(JSON.parse(localStorage.getItem('vide:todo:shownCounts')!)).toEqual(['backlog', 'done'])
+
+    fireEvent.click(screen.getByText('Todo'))
+    expect(screen.getByLabelText('Backlog 1, Todo 0, Done 1')).toBeInTheDocument()
+  })
+
+  it('hides the counts entirely when every status is toggled off', async () => {
+    useTodoSettingsStore.setState({ shownCounts: [] })
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 1 },
+      ]),
+    })
+    render(<TodoPanel />)
+    await screen.findByText('vIDE')
+    expect(screen.queryByText('|')).not.toBeInTheDocument()
+    expect(screen.getByText('vIDE').parentElement!.children).toHaveLength(2)
   })
 
   it('clicking a project opens its Kanban board tab', async () => {
