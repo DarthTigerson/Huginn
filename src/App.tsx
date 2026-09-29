@@ -947,7 +947,7 @@ export default function App() {
             {
               id: 'files',
               icon: <FilesIcon />,
-              title: 'Explorer',
+              title: 'File Tree',
               active: leftPanel === 'files',
               onClick: () => setLeftPanel((p) => (p === 'files' ? null : 'files')),
             },

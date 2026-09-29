@@ -94,7 +94,7 @@ export function DisplayPage() {
           <Toggle
             className="max-w-[60ch]"
             label="Navbar on the right (Gabby Style)"
-            description="Move the Explorer/Git/Settings navbar and its panel to the right edge. The Claude navbar and chat panel swap to the left."
+            description="Move the File Tree/Git/Settings navbar and its panel to the right edge. The Claude navbar and chat panel swap to the left."
             checked={navbarPosition === 'right'}
             onChange={(checked) => setNavbarPosition(checked ? 'right' : 'left')}
           />
