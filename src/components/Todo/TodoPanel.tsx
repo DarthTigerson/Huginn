@@ -8,13 +8,18 @@ import { NewTodoProjectModal } from './NewTodoProjectModal'
 import { RenameTodoProjectModal } from './RenameTodoProjectModal'
 import { DeleteTodoProjectModal } from './DeleteTodoProjectModal'
 import { TodoProjectMenu } from './TodoContextMenu'
+import { sortTodoProjects } from '@/lib/todoProjectSort'
 import type { TodoProject } from '@/types/api'
 
 export function TodoPanel() {
   const projects = useTodoStore((s) => s.projects)
+  const todosByProject = useTodoStore((s) => s.todosByProject)
+  const loadTodos = useTodoStore((s) => s.loadTodos)
+  const projectSort = useTodoSettingsStore((s) => s.projectSort)
+  const setProjectSort = useTodoSettingsStore((s) => s.setProjectSort)
   const sortedProjects = useMemo(
-    () => [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })),
-    [projects],
+    () => sortTodoProjects(projects, projectSort, todosByProject),
+    [projects, projectSort, todosByProject],
   )
   // Keys are monospace, so sizing the key column to the longest key in `ch`
   // lines every project name up at the same x.
@@ -25,13 +30,22 @@ export function TodoPanel() {
   const openTab = useEditorStore((s) => s.openTab)
   const openTabInPane = useEditorStore((s) => s.openTabInPane)
   const [modalOpen, setModalOpen] = useState(false)
-  const [menu, setMenu] = useState<{ x: number; y: number; project: TodoProject } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; project: TodoProject | null } | null>(null)
   const [renameTarget, setRenameTarget] = useState<TodoProject | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TodoProject | null>(null)
 
   useEffect(() => {
     loadProjects()
   }, [loadProjects])
+
+  // The count sorts need every project's todos, not just boards opened so
+  // far — load the missing ones (once each; refreshAll keeps them fresh).
+  useEffect(() => {
+    if (projectSort !== 'count' && projectSort !== 'backlog') return
+    for (const project of projects) {
+      if (!useTodoStore.getState().todosByProject[project.id]) loadTodos(project.id)
+    }
+  }, [projectSort, projects, loadTodos])
 
   // Re-focus whatever project's board tab was last active — TodoPanel is
   // unmounted whenever the sidebar switches to a different activity-bar
@@ -44,8 +58,9 @@ export function TodoPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function openProjectMenu(e: React.MouseEvent, project: TodoProject) {
+  function openProjectMenu(e: React.MouseEvent, project: TodoProject | null) {
     e.preventDefault()
+    e.stopPropagation()
     setMenu({ x: e.clientX, y: e.clientY, project })
   }
 
@@ -76,7 +91,7 @@ export function TodoPanel() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" onContextMenu={(e) => openProjectMenu(e, null)}>
         {projects.length === 0 ? (
           <p className="p-3 text-sm text-fg-subtle">No projects yet.</p>
         ) : (
@@ -109,9 +124,11 @@ export function TodoPanel() {
         <TodoProjectMenu
           x={menu.x}
           y={menu.y}
+          projectSort={projectSort}
           onClose={() => setMenu(null)}
-          onRename={() => setRenameTarget(menu.project)}
-          onDelete={() => setDeleteTarget(menu.project)}
+          onSortProjects={setProjectSort}
+          onRename={menu.project ? () => setRenameTarget(menu.project) : undefined}
+          onDelete={menu.project ? () => setDeleteTarget(menu.project) : undefined}
         />
       )}
 

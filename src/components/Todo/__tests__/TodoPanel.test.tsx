@@ -4,6 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { TodoPanel } from '../TodoPanel'
 import { useTodoStore } from '@/stores/todoStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
 import { buildTodoBoardPath } from '@/components/Settings/paths'
 
 const openTabMock = vi.fn()
@@ -12,6 +13,8 @@ beforeEach(() => {
   openTabMock.mockClear()
   useTodoStore.setState({ projects: [], todosByProject: {}, lastOpenedProjectId: null })
   useEditorStore.setState({ openTab: openTabMock })
+  useTodoSettingsStore.setState({ projectSort: 'alphabetical' })
+  localStorage.clear()
 })
 
 afterEach(() => {
@@ -76,6 +79,60 @@ describe('TodoPanel', () => {
 
     expect(screen.getByText('T')).toHaveStyle({ width: '5ch' })
     expect(screen.getByText('VSITE')).toHaveStyle({ width: '5ch' })
+  })
+
+  const threeProjects = [
+    { id: 'p1', name: 'Snajja Maltin', key: 'SM', nextNumber: 1, createdAt: 1 },
+    { id: 'p2', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 2 },
+    { id: 'p3', name: 'Bonnici Portfolio', key: 'BP', nextNumber: 1, createdAt: 3 },
+  ]
+
+  function listedNames() {
+    return screen.getAllByRole('button', { pressed: false }).map((b) => b.lastChild?.textContent)
+  }
+
+  it('right-clicking empty space offers Sort by, and Created reorders by creation date', async () => {
+    mockApi({ todosListProjects: vi.fn().mockResolvedValue(threeProjects) })
+    const { container } = render(<TodoPanel />)
+    await waitFor(() => screen.getByText('vIDE'))
+
+    fireEvent.contextMenu(container.querySelector('.overflow-y-auto')!)
+    expect(screen.queryByText('Rename')).not.toBeInTheDocument()
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Sort by' }).parentElement!)
+    fireEvent.click(screen.getByText('Created'))
+
+    expect(listedNames()).toEqual(['Snajja Maltin', 'vIDE', 'Bonnici Portfolio'])
+    expect(localStorage.getItem('vide:todo:projectSort')).toBe('created')
+  })
+
+  it('right-clicking a project shows Sort by alongside Rename and Move to Trash', async () => {
+    mockApi({ todosListProjects: vi.fn().mockResolvedValue(threeProjects) })
+    render(<TodoPanel />)
+    await waitFor(() => screen.getByText('vIDE'))
+
+    fireEvent.contextMenu(screen.getByText('vIDE'))
+    expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument()
+    expect(screen.getByText('Rename')).toBeInTheDocument()
+    expect(screen.getByText('Move to Trash')).toBeInTheDocument()
+  })
+
+  it('Count sort loads every project\'s todos and puts the most not-done first', async () => {
+    const todos: Record<string, { status: string; archived: boolean }[]> = {
+      p1: [{ status: 'todo', archived: false }],
+      p2: [
+        { status: 'todo', archived: false },
+        { status: 'in_progress', archived: false },
+        { status: 'done', archived: false },
+      ],
+      p3: [{ status: 'done', archived: false }],
+    }
+    const todosListTodos = vi.fn((id: string) => Promise.resolve(todos[id]))
+    mockApi({ todosListProjects: vi.fn().mockResolvedValue(threeProjects), todosListTodos } as any)
+    useTodoSettingsStore.setState({ projectSort: 'count' })
+    render(<TodoPanel />)
+
+    await waitFor(() => expect(listedNames()).toEqual(['vIDE', 'Snajja Maltin', 'Bonnici Portfolio']))
+    expect(todosListTodos).toHaveBeenCalledTimes(3)
   })
 
   it('clicking a project opens its Kanban board tab', async () => {

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { TODO_COLUMNS, TODO_SORT_MODES } from '@/lib/todoBoard'
 import type { TodoSortDirection, TodoSortMode } from '@/lib/todoBoard'
+import { TODO_PROJECT_SORT_MODES } from '@/lib/todoProjectSort'
+import type { TodoProjectSortMode } from '@/lib/todoProjectSort'
 import { TODO_LABELS, TODO_LABEL_META } from './labels'
 import type { Todo, TodoLabel, TodoStatus } from '@/types/api'
 
@@ -267,26 +269,51 @@ export function TodoCardMenu({
   )
 }
 
+function ProjectSortSubmenu({
+  projectSort,
+  onSelect,
+}: {
+  projectSort: TodoProjectSortMode
+  onSelect: (mode: TodoProjectSortMode) => void
+}) {
+  return (
+    <SubMenuButton label="Sort by">
+      {TODO_PROJECT_SORT_MODES.map(({ mode, title }) => (
+        <CheckableMenuButton key={mode} checked={projectSort === mode} onClick={() => onSelect(mode)}>
+          {title}
+        </CheckableMenuButton>
+      ))}
+    </SubMenuButton>
+  )
+}
+
+// Right-click menu for the To Do sidebar. `project` is set when a project row
+// was right-clicked (adds Rename / Move to Trash); on empty space it's just
+// the sort options.
 export function TodoProjectMenu({
   x,
   y,
+  projectSort,
   onClose,
+  onSortProjects,
   onRename,
   onDelete,
 }: {
   x: number
   y: number
+  projectSort: TodoProjectSortMode
   onClose: () => void
-  onRename: () => void
-  onDelete: () => void
+  onSortProjects: (mode: TodoProjectSortMode) => void
+  onRename?: () => void
+  onDelete?: () => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   useMenuDismiss(onClose)
   useClampedPosition(menuRef, x, y)
 
-  function withClose(fn: () => void) {
-    return () => {
-      fn()
+  function withClose<Args extends unknown[]>(fn: (...args: Args) => void) {
+    return (...args: Args) => {
+      fn(...args)
       onClose()
     }
   }
@@ -298,10 +325,16 @@ export function TodoProjectMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <MenuButton onClick={withClose(onRename)}>Rename</MenuButton>
-      <MenuButton danger onClick={withClose(onDelete)}>
-        Move to Trash
-      </MenuButton>
+      {onRename && onDelete && (
+        <>
+          <MenuButton onClick={withClose(onRename)}>Rename</MenuButton>
+          <MenuButton danger onClick={withClose(onDelete)}>
+            Move to Trash
+          </MenuButton>
+          <MenuDivider />
+        </>
+      )}
+      <ProjectSortSubmenu projectSort={projectSort} onSelect={withClose(onSortProjects)} />
     </div>,
     document.body
   )
