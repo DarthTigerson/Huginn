@@ -5,13 +5,13 @@ import { TodoPanel } from '../TodoPanel'
 import { useTodoStore } from '@/stores/todoStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
-import { buildTodoBoardPath } from '@/components/Settings/paths'
+import { buildTodoBoardPath, TODO_TRASH_TAB_PATH } from '@/components/Settings/paths'
 
 const openTabMock = vi.fn()
 
 beforeEach(() => {
   openTabMock.mockClear()
-  useTodoStore.setState({ projects: [], todosByProject: {}, lastOpenedProjectId: null })
+  useTodoStore.setState({ projects: [], trashedProjects: [], todosByProject: {}, lastOpenedProjectId: null })
   useEditorStore.setState({ openTab: openTabMock })
   useTodoSettingsStore.setState({
     projectSort: 'alphabetical',
@@ -201,6 +201,23 @@ describe('TodoPanel', () => {
     expect(screen.getByText('vIDE').parentElement!.children).toHaveLength(2)
   })
 
+  it('hides trashed projects and shows how many are in the Trash button, which opens the Trash tab', async () => {
+    mockApi({
+      todosListProjects: vi.fn().mockResolvedValue([
+        { id: 'p1', name: 'vIDE', key: 'VIDE', nextNumber: 1, createdAt: 1 },
+        { id: 'p2', name: 'Old Site', key: 'OLD', nextNumber: 1, createdAt: 2, trashedAt: 5 },
+      ]),
+    })
+    render(<TodoPanel />)
+    await screen.findByText('vIDE')
+    expect(screen.queryByText('Old Site')).not.toBeInTheDocument()
+
+    const trash = screen.getByRole('button', { name: /Trash/ })
+    expect(trash).toHaveTextContent('1')
+    fireEvent.click(trash)
+    expect(openTabMock).toHaveBeenCalledWith({ path: TODO_TRASH_TAB_PATH, content: '', dirty: false })
+  })
+
   it('clicking a project opens its Kanban board tab', async () => {
     mockApi({
       todosListProjects: vi.fn().mockResolvedValue([
@@ -274,12 +291,12 @@ describe('TodoPanel', () => {
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
     })
 
-    it('choosing Move to Trash opens the delete confirmation modal for the project', async () => {
+    it('choosing Move to Trash opens the trash confirmation modal for the project', async () => {
       await renderWithProject()
       fireEvent.contextMenu(screen.getByText('vIDE'))
       fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 
-      expect(screen.getByLabelText(/type.*vIDE.*to confirm/i)).toBeInTheDocument()
+      expect(screen.getByText(/restore it any time from Trash/)).toBeInTheDocument()
     })
   })
 })

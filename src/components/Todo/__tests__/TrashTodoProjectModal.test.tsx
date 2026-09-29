@@ -1,59 +1,48 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
-import { DeleteTodoProjectModal } from '../DeleteTodoProjectModal'
+import { TrashTodoProjectModal } from '../TrashTodoProjectModal'
 import { useTodoStore } from '@/stores/todoStore'
 import type { TodoProject } from '@/types/api'
 
-const deleteProjectMock = vi.fn()
+const trashProjectMock = vi.fn()
 const project: TodoProject = { id: 'p1', name: 'vIDE', key: 'H', nextNumber: 3, createdAt: 1 }
 
 beforeEach(() => {
-  deleteProjectMock.mockReset()
-  useTodoStore.setState({ deleteProject: deleteProjectMock })
+  trashProjectMock.mockReset()
+  useTodoStore.setState({ trashProject: trashProjectMock })
 })
 
 afterEach(() => {
   cleanup()
 })
 
-describe('DeleteTodoProjectModal', () => {
-  it('keeps the Move to Trash button disabled until the project name is typed exactly', () => {
-    render(<DeleteTodoProjectModal project={project} onClose={vi.fn()} />)
-    const confirmInput = screen.getByLabelText(/type.*vIDE.*to confirm/i)
-    const deleteButton = screen.getByRole('button', { name: 'Move to Trash' })
-
-    expect(deleteButton).toBeDisabled()
-
-    fireEvent.change(confirmInput, { target: { value: 'vid' } })
-    expect(deleteButton).toBeDisabled()
-
-    fireEvent.change(confirmInput, { target: { value: 'vIDE' } })
-    expect(deleteButton).toBeEnabled()
+describe('TrashTodoProjectModal', () => {
+  it('says the project can be restored from the Trash', () => {
+    render(<TrashTodoProjectModal project={project} onClose={vi.fn()} />)
+    expect(screen.getByText(/restore it any time from Trash/)).toBeInTheDocument()
   })
 
-  it('deletes the project and closes once confirmed', async () => {
-    deleteProjectMock.mockResolvedValue(undefined)
+  it('moves the project to the Trash and closes', async () => {
+    trashProjectMock.mockResolvedValue(undefined)
     const onClose = vi.fn()
-    render(<DeleteTodoProjectModal project={project} onClose={onClose} />)
-    fireEvent.change(screen.getByLabelText(/type.*vIDE.*to confirm/i), { target: { value: 'vIDE' } })
+    render(<TrashTodoProjectModal project={project} onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 
     await waitFor(() => {
-      expect(deleteProjectMock).toHaveBeenCalledWith('p1')
+      expect(trashProjectMock).toHaveBeenCalledWith('p1')
       expect(onClose).toHaveBeenCalled()
     })
   })
 
-  it('shows an error and does not close when deletion fails', async () => {
-    deleteProjectMock.mockRejectedValue(new Error('Failed to delete project'))
+  it('shows an error and does not close when it fails', async () => {
+    trashProjectMock.mockRejectedValue(new Error('Disk full'))
     const onClose = vi.fn()
-    render(<DeleteTodoProjectModal project={project} onClose={onClose} />)
-    fireEvent.change(screen.getByLabelText(/type.*vIDE.*to confirm/i), { target: { value: 'vIDE' } })
+    render(<TrashTodoProjectModal project={project} onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to delete project')).toBeInTheDocument()
+      expect(screen.getByText('Disk full')).toBeInTheDocument()
     })
     expect(onClose).not.toHaveBeenCalled()
   })

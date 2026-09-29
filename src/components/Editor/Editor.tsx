@@ -48,6 +48,7 @@ import {
   isGraphifyGraphTab,
   isUsageGraphTab,
   isTodoBoardTab,
+  isTodoTrashTab,
   getTodoBoardProjectId,
   isTodoDetailTab,
   getTodoDetailIds,
@@ -97,6 +98,7 @@ import { GitGraphPage } from '@/components/Git/GitGraphPage'
 import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
 import { UsageGraphPage } from '@/components/UsagePanel/UsageGraphPage'
+import { TodoTrashPage } from '@/components/Todo/TodoTrashPage'
 import { TodoBoardPage } from '@/components/Todo/TodoBoardPage'
 import { TodoDetailPage } from '@/components/Todo/TodoDetailPage'
 import {
@@ -410,6 +412,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isUsageGraph = !!activeTab && isUsageGraphTab(activeTab.path)
   const isTodoBoard = !!activeTab && isTodoBoardTab(activeTab.path)
   const isTodoDetail = !!activeTab && isTodoDetailTab(activeTab.path)
+  const isTodoTrash = !!activeTab && isTodoTrashTab(activeTab.path)
   const isLlamaModel = !!activeTab && isLlamaModelTab(activeTab.path)
   const isDockerLogs = !!activeTab && isDockerLogsTab(activeTab.path)
   const isImagePreview = !!activeTab && isImagePreviewTab(activeTab.path)
@@ -422,7 +425,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
-    !isGraphifyGraph && !isUsageGraph && !isTodoBoard && !isTodoDetail &&
+    !isGraphifyGraph && !isUsageGraph && !isTodoBoard && !isTodoDetail && !isTodoTrash &&
     !isLlamaModel && !isDockerLogs && !isImagePreview && !isMarkdownPreview &&
     // A scratch tab has no file on disk yet, so there is no path to show —
     // without this the breadcrumb splits 'scratch://<uuid>' on '/' and
@@ -613,6 +616,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <GraphifyGraphPage />
         ) : isUsageGraph ? (
           <UsageGraphPage />
+        ) : isTodoTrash ? (
+          <TodoTrashPage />
         ) : isTodoBoard ? (
           <TodoBoardPage key={activeTab.path} projectId={getTodoBoardProjectId(activeTab.path)} />
         ) : isLlamaModel ? (

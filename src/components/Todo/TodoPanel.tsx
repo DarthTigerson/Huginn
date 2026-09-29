@@ -3,10 +3,10 @@ import { useTodoStore } from '@/stores/todoStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
 import { getBiggestPaneId } from '@/lib/paneLayout'
-import { buildTodoBoardPath } from '@/components/Settings/paths'
+import { buildTodoBoardPath, TODO_TRASH_TAB_PATH } from '@/components/Settings/paths'
 import { NewTodoProjectModal } from './NewTodoProjectModal'
 import { RenameTodoProjectModal } from './RenameTodoProjectModal'
-import { DeleteTodoProjectModal } from './DeleteTodoProjectModal'
+import { TrashTodoProjectModal } from './TrashTodoProjectModal'
 import { TodoProjectMenu } from './TodoContextMenu'
 import { sortTodoProjects } from '@/lib/todoProjectSort'
 import { TODO_COLUMNS, groupTodosByStatus } from '@/lib/todoBoard'
@@ -14,6 +14,7 @@ import type { TodoProject } from '@/types/api'
 
 export function TodoPanel() {
   const projects = useTodoStore((s) => s.projects)
+  const trashedCount = useTodoStore((s) => s.trashedProjects.length)
   const todosByProject = useTodoStore((s) => s.todosByProject)
   const loadTodos = useTodoStore((s) => s.loadTodos)
   const projectSort = useTodoSettingsStore((s) => s.projectSort)
@@ -51,7 +52,7 @@ export function TodoPanel() {
   const [modalOpen, setModalOpen] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number; project: TodoProject | null } | null>(null)
   const [renameTarget, setRenameTarget] = useState<TodoProject | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<TodoProject | null>(null)
+  const [trashTarget, setTrashTarget] = useState<TodoProject | null>(null)
 
   useEffect(() => {
     loadProjects()
@@ -152,6 +153,15 @@ export function TodoPanel() {
         )}
       </div>
 
+      <button
+        type="button"
+        onClick={() => openTab({ path: TODO_TRASH_TAB_PATH, content: '', dirty: false })}
+        className="h-9 px-3 border-t border-border shrink-0 flex items-center justify-between text-fg-muted hover:text-fg hover:bg-white/5"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider">Trash</span>
+        {trashedCount > 0 && <span className="text-xs font-mono text-fg-subtle">{trashedCount}</span>}
+      </button>
+
       {modalOpen && <NewTodoProjectModal onClose={() => setModalOpen(false)} />}
 
       {menu && (
@@ -164,7 +174,7 @@ export function TodoPanel() {
           onClose={() => setMenu(null)}
           onSortProjects={setProjectSort}
           onRename={menu.project ? () => setRenameTarget(menu.project) : undefined}
-          onDelete={menu.project ? () => setDeleteTarget(menu.project) : undefined}
+          onDelete={menu.project ? () => setTrashTarget(menu.project) : undefined}
         />
       )}
 
@@ -172,8 +182,8 @@ export function TodoPanel() {
         <RenameTodoProjectModal project={renameTarget} onClose={() => setRenameTarget(null)} />
       )}
 
-      {deleteTarget && (
-        <DeleteTodoProjectModal project={deleteTarget} onClose={() => setDeleteTarget(null)} />
+      {trashTarget && (
+        <TrashTodoProjectModal project={trashTarget} onClose={() => setTrashTarget(null)} />
       )}
     </div>
   )

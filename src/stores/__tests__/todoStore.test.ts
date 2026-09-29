@@ -31,7 +31,8 @@ vi.stubGlobal('window', {
     todosListProjects: vi.fn().mockResolvedValue([project]),
     todosCreateProject: vi.fn(),
     todosRenameProject: vi.fn(),
-    todosDeleteProject: vi.fn().mockResolvedValue(undefined),
+    todosTrashProject: vi.fn().mockResolvedValue({ ...project, trashedAt: 99 }),
+    todosRestoreProject: vi.fn().mockResolvedValue({ ...project, trashedAt: null }),
     todosListTodos: vi.fn().mockResolvedValue([makeTodo()]),
     todosCreateTodo: vi.fn(),
     todosUpdateTodo: vi.fn(),
@@ -47,7 +48,7 @@ vi.stubGlobal('window', {
 describe('todoStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useTodoStore.setState({ projects: [], todosByProject: {} })
+    useTodoStore.setState({ projects: [], trashedProjects: [], todosByProject: {} })
   })
 
   it('loadProjects populates projects from the API', async () => {
@@ -78,7 +79,17 @@ describe('todoStore', () => {
     expect(useTodoStore.getState().projects).toEqual([renamed])
   })
 
-  it('deleteProject calls the API, removes the project and its todos, and closes its tabs', async () => {
+  it('loadProjects splits trashed projects out of the live list', async () => {
+    vi.mocked(window.api.todosListProjects).mockResolvedValueOnce([
+      project,
+      { ...project, id: 'p2', key: 'B', trashedAt: 5 },
+    ])
+    await useTodoStore.getState().loadProjects()
+    expect(useTodoStore.getState().projects.map((p) => p.id)).toEqual(['p1'])
+    expect(useTodoStore.getState().trashedProjects.map((p) => p.id)).toEqual(['p2'])
+  })
+
+  it('trashProject moves the project to the Trash, drops its loaded todos, and closes its tabs', async () => {
     useEditorStore.setState({
       tabs: [],
       activeTabPath: null,
@@ -96,25 +107,36 @@ describe('todoStore', () => {
       lastOpenedProjectId: 'p1',
     })
 
-    await useTodoStore.getState().deleteProject('p1')
+    await useTodoStore.getState().trashProject('p1')
 
-    expect(window.api.todosDeleteProject).toHaveBeenCalledWith('p1')
+    expect(window.api.todosTrashProject).toHaveBeenCalledWith('p1')
     expect(useTodoStore.getState().projects).toEqual([])
+    expect(useTodoStore.getState().trashedProjects).toEqual([{ ...project, trashedAt: 99 }])
     expect(useTodoStore.getState().todosByProject.p1).toBeUndefined()
     expect(useTodoStore.getState().lastOpenedProjectId).toBeNull()
     expect(useEditorStore.getState().tabs).toHaveLength(0)
   })
 
-  it('deleteProject leaves lastOpenedProjectId alone when a different project is deleted', async () => {
+  it('trashProject leaves lastOpenedProjectId alone when a different project is trashed', async () => {
     useTodoStore.setState({
       projects: [project, { ...project, id: 'p2', key: 'A' }],
       todosByProject: {},
       lastOpenedProjectId: 'p2',
     })
 
-    await useTodoStore.getState().deleteProject('p1')
+    await useTodoStore.getState().trashProject('p1')
 
     expect(useTodoStore.getState().lastOpenedProjectId).toBe('p2')
+  })
+
+  it('restoreProject moves the project from the Trash back to the live list', async () => {
+    useTodoStore.setState({ projects: [], trashedProjects: [{ ...project, trashedAt: 99 }] })
+
+    await useTodoStore.getState().restoreProject('p1')
+
+    expect(window.api.todosRestoreProject).toHaveBeenCalledWith('p1')
+    expect(useTodoStore.getState().projects).toEqual([{ ...project, trashedAt: null }])
+    expect(useTodoStore.getState().trashedProjects).toEqual([])
   })
 
   it('loadTodos populates todosByProject for the given project', async () => {

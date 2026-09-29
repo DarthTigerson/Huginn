@@ -33,7 +33,8 @@ export function registerTodoHandlers(): void {
   ipcMain.handle('todos:renameProject', (_e, id: string, name: string, key: string) =>
     store.renameProject(dataDir(), id, name, key)
   )
-  ipcMain.handle('todos:deleteProject', (_e, id: string) => store.deleteProject(dataDir(), id))
+  ipcMain.handle('todos:trashProject', (_e, id: string) => store.trashProject(dataDir(), id))
+  ipcMain.handle('todos:restoreProject', (_e, id: string) => store.restoreProject(dataDir(), id))
   ipcMain.handle('todos:listTodos', (_e, projectId: string) => store.listTodos(dataDir(), projectId))
   ipcMain.handle('todos:createTodo', (_e, projectId: string, title: string) =>
     store.createTodo(dataDir(), projectId, title)

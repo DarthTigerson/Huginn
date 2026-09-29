@@ -24,7 +24,10 @@ function replaceInBucket(
 export type TodoBoardView = 'board' | 'archive'
 
 interface TodoStore {
+  // Live projects only; ones in the Trash (trashedAt set) live in
+  // trashedProjects so nothing that lists projects has to filter them out.
   projects: TodoProject[]
+  trashedProjects: TodoProject[]
   todosByProject: Record<string, Todo[]>
   // Keyed by projectId so it survives TodoBoardPage remounting — the board
   // is unmounted whenever a todo detail tab becomes active (Editor.tsx only
@@ -47,7 +50,8 @@ interface TodoStore {
   loadProjects: () => Promise<void>
   createProject: (name: string, key: string) => Promise<TodoProject>
   renameProject: (id: string, name: string, key: string) => Promise<TodoProject>
-  deleteProject: (id: string) => Promise<void>
+  trashProject: (id: string) => Promise<void>
+  restoreProject: (id: string) => Promise<void>
   loadTodos: (projectId: string) => Promise<void>
   createTodo: (projectId: string, title: string) => Promise<Todo>
   updateTodo: (id: string, patch: TodoUpdatePatch) => Promise<Todo>
@@ -67,6 +71,7 @@ interface TodoStore {
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
   projects: [],
+  trashedProjects: [],
   todosByProject: {},
   boardViewByProject: {},
 
@@ -89,8 +94,8 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
   },
 
   loadProjects: async () => {
-    const projects = await window.api.todosListProjects()
-    set({ projects })
+    const all = await window.api.todosListProjects()
+    set({ projects: all.filter((p) => !p.trashedAt), trashedProjects: all.filter((p) => !!p.trashedAt) })
   },
 
   createProject: async (name, key) => {
@@ -107,15 +112,25 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     return renamed
   },
 
-  deleteProject: async (id) => {
-    await window.api.todosDeleteProject(id)
+  trashProject: async (id) => {
+    const trashed = await window.api.todosTrashProject(id)
     const { [id]: _removed, ...todosByProject } = get().todosByProject
     set({
       projects: get().projects.filter((p) => p.id !== id),
+      trashedProjects: [...get().trashedProjects, trashed],
       todosByProject,
       lastOpenedProjectId: get().lastOpenedProjectId === id ? null : get().lastOpenedProjectId,
     })
     useEditorStore.getState().closeTabsForProject(id)
+    notifySettingChanged()
+  },
+
+  restoreProject: async (id) => {
+    const restored = await window.api.todosRestoreProject(id)
+    set({
+      projects: [...get().projects, restored],
+      trashedProjects: get().trashedProjects.filter((p) => p.id !== id),
+    })
     notifySettingChanged()
   },
 

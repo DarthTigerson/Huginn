@@ -1,0 +1,84 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useTodoStore } from '@/stores/todoStore'
+
+// Projects moved to the Trash from the To Do sidebar. Restore-only for now:
+// a hard delete would just be merged back in by vIDE Sync (its merge is
+// additive), so permanent deletion needs a synced tombstone first.
+export function TodoTrashPage() {
+  const trashedProjects = useTodoStore((s) => s.trashedProjects)
+  const todosByProject = useTodoStore((s) => s.todosByProject)
+  const loadProjects = useTodoStore((s) => s.loadProjects)
+  const loadTodos = useTodoStore((s) => s.loadTodos)
+  const restoreProject = useTodoStore((s) => s.restoreProject)
+  const [error, setError] = useState<string | null>(null)
+
+  // Most recently trashed first.
+  const sorted = useMemo(
+    () => [...trashedProjects].sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0)),
+    [trashedProjects],
+  )
+
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects])
+
+  useEffect(() => {
+    for (const project of trashedProjects) {
+      if (!useTodoStore.getState().todosByProject[project.id]) loadTodos(project.id)
+    }
+  }, [trashedProjects, loadTodos])
+
+  async function restore(id: string) {
+    setError(null)
+    try {
+      await restoreProject(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to restore project')
+    }
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-panel overflow-hidden">
+      <div className="h-11 px-4 border-b border-border shrink-0 flex items-center">
+        <h1 className="text-sm font-semibold text-fg">Trash</h1>
+      </div>
+      {error && <p className="px-4 pt-3 text-xs text-red-400">{error}</p>}
+      {sorted.length === 0 ? (
+        <p className="p-4 text-sm text-fg-subtle">The Trash is empty.</p>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          {sorted.map((project) => {
+            const todoCount = todosByProject[project.id]?.length
+            return (
+              <div
+                key={project.id}
+                className="flex items-center gap-3 px-4 py-2 border-b border-border/60 hover:bg-white/5"
+              >
+                <span className="text-xs font-mono text-fg-subtle shrink-0">{project.key}</span>
+                <span className="flex-1 text-sm text-fg truncate">{project.name}</span>
+                {todoCount !== undefined && (
+                  <span className="text-xs text-fg-subtle shrink-0">
+                    {todoCount} {todoCount === 1 ? 'todo' : 'todos'}
+                  </span>
+                )}
+                {project.trashedAt && (
+                  <span className="text-xs text-fg-subtle shrink-0">
+                    Trashed {new Date(project.trashedAt).toLocaleDateString()}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  aria-label={`Restore ${project.name}`}
+                  onClick={() => restore(project.id)}
+                  className="text-xs text-fg-muted hover:text-fg shrink-0"
+                >
+                  Restore
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

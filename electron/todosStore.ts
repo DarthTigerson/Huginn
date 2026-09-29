@@ -13,6 +13,10 @@ export interface TodoProject {
   key: string
   nextNumber: number
   createdAt: number
+  // Set when the project is in the Trash. A soft delete, so vIDE Sync's
+  // additive merge carries it to other machines instead of resurrecting a
+  // hard-deleted project. Missing on data written before the Trash existed.
+  trashedAt?: number | null
 }
 
 export interface TodoComment {
@@ -126,8 +130,11 @@ export async function createProject(dataDir: string, name: string, key: string):
   if (!trimmedKey) throw new Error('Project key is required')
 
   const data = await readTodosData(dataDir)
-  if (data.projects.some((p) => p.key.toLowerCase() === trimmedKey.toLowerCase())) {
-    throw new Error(`A project with key "${trimmedKey}" already exists`)
+  const clash = data.projects.find((p) => p.key.toLowerCase() === trimmedKey.toLowerCase())
+  if (clash) {
+    throw new Error(
+      `A project with key "${trimmedKey}" already exists${clash.trashedAt ? ' in the Trash' : ''}`
+    )
   }
 
   const project: TodoProject = {
@@ -168,15 +175,36 @@ export async function renameProject(
   return project
 }
 
-export async function deleteProject(dataDir: string, id: string): Promise<void> {
+async function setProjectTrashedAt(dataDir: string, id: string, trashedAt: number | null): Promise<TodoProject> {
   const data = await readTodosData(dataDir)
-  const removedIds = new Set(data.todos.filter((t) => t.projectId === id).map((t) => t.id))
-  data.projects = data.projects.filter((p) => p.id !== id)
-  data.todos = data.todos.filter((t) => t.projectId !== id)
+  const project = data.projects.find((p) => p.id === id)
+  if (!project) throw new Error(`No such project: ${id}`)
+  project.trashedAt = trashedAt
   await writeTodosData(dataDir, data)
+  return project
+}
 
+export async function trashProject(dataDir: string, id: string): Promise<TodoProject> {
+  const project = await setProjectTrashedAt(dataDir, id, Date.now())
   const active = await readActiveTodo(dataDir)
-  if (active && removedIds.has(active.id)) await writeActiveTodo(dataDir, null)
+  if (active) {
+    const { todos } = await readTodosData(dataDir)
+    if (todos.some((t) => t.id === active.id && t.projectId === id)) await writeActiveTodo(dataDir, null)
+  }
+  return project
+}
+
+export async function restoreProject(dataDir: string, id: string): Promise<TodoProject> {
+  return setProjectTrashedAt(dataDir, id, null)
+}
+
+// Todos data minus trashed projects and their todos — what the MCP server
+// (Claude) is allowed to see.
+export async function readVisibleTodosData(dataDir: string): Promise<TodosData> {
+  const data = await readTodosData(dataDir)
+  const projects = data.projects.filter((p) => !p.trashedAt)
+  const visibleIds = new Set(projects.map((p) => p.id))
+  return { projects, todos: data.todos.filter((t) => visibleIds.has(t.projectId)) }
 }
 
 export async function listTodos(dataDir: string, projectId: string): Promise<Todo[]> {
