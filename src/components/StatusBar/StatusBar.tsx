@@ -130,11 +130,11 @@ export function StatusBar() {
             <span
               data-testid="footer-blame"
               title={footerBlame.hover || undefined}
-              className="truncate min-w-0 text-xs text-fg-subtle cursor-default"
+              className="truncate min-w-0 text-xs text-accent/70 cursor-default"
             >
               {footerBlame.author && footerBlame.text.startsWith(footerBlame.author) ? (
                 <>
-                  <span className="text-fg-muted">{footerBlame.author}</span>
+                  <span className="text-accent">{footerBlame.author}</span>
                   {footerBlame.text.slice(footerBlame.author.length)}
                 </>
               ) : (

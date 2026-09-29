@@ -39,7 +39,7 @@ describe('StatusBar current-line blame', () => {
       blame: { text: 'Keith Fenech, 3 days ago • Add blame', hover: '', author: 'Keith Fenech' },
     })
     render(<StatusBar />)
-    expect(screen.getByText('Keith Fenech')).toHaveClass('text-fg-muted')
+    expect(screen.getByText('Keith Fenech')).toHaveClass('text-accent')
     expect(screen.getByTestId('footer-blame')).toHaveTextContent('Keith Fenech, 3 days ago • Add blame')
   })
 
