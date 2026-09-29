@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { notifySettingChanged } from '../lib/notifySettingChanged'
 
 const KEYS = {
   autoSaveEnabled: 'vide:editor:autoSaveEnabled',
@@ -6,8 +7,10 @@ const KEYS = {
   changeAllOccurrencesInMenu: 'vide:editor:changeAllOccurrencesInMenu',
   openInBiggestPane: 'vide:editor:openInBiggestPane',
   markdownOpenMode: 'vide:editor:markdownOpenMode',
-  blameAnnotationsEnabled: 'vide:editor:blameAnnotationsEnabled',
-  blameDisplayMode: 'vide:editor:blameDisplayMode',
+  // Git blame settings live on Settings > Git, so they use the vide:git: prefix
+  // to sync in vIDE Sync's Git category rather than General (vide:editor:).
+  blameAnnotationsEnabled: 'vide:git:blameAnnotationsEnabled',
+  blameDisplayMode: 'vide:git:blameDisplayMode',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
@@ -95,6 +98,7 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setBlameAnnotationsEnabled: (value) => {
     localStorage.setItem(KEYS.blameAnnotationsEnabled, String(value))
     set({ blameAnnotationsEnabled: value })
+    notifySettingChanged()
   },
 
   // Footer by default; only an explicitly saved 'editor' choice keeps it in-line.
@@ -103,5 +107,6 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setBlameDisplayMode: (value) => {
     localStorage.setItem(KEYS.blameDisplayMode, value)
     set({ blameDisplayMode: value })
+    notifySettingChanged()
   },
 }))
