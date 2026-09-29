@@ -97,35 +97,50 @@ describe('todos', () => {
       await expect(handlers['todos:renameProject']({}, 'missing', 'x', 'X')).rejects.toThrow()
     })
 
-    it('deleteProject removes the project and its todos', async () => {
+    it('trashProject marks the project trashed but keeps it and its todos, so vIDE Sync carries the change', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1234)
       const project = (await handlers['todos:createProject']({}, 'vIDE', 'H')) as any
-      await handlers['todos:createTodo']({}, project.id, 'First')
+      const todo = await handlers['todos:createTodo']({}, project.id, 'First')
 
-      await handlers['todos:deleteProject']({}, project.id)
+      await handlers['todos:trashProject']({}, project.id)
 
-      expect(await handlers['todos:listProjects']()).toEqual([])
-      expect(await handlers['todos:listTodos']({}, project.id)).toEqual([])
+      expect(await handlers['todos:listProjects']()).toEqual([
+        expect.objectContaining({ id: project.id, trashedAt: 1234 }),
+      ])
+      expect(await handlers['todos:listTodos']({}, project.id)).toEqual([todo])
+      vi.restoreAllMocks()
     })
 
-    it('deleteProject does not touch todos belonging to other projects', async () => {
-      const doomed = (await handlers['todos:createProject']({}, 'vIDE', 'H')) as any
-      const survivor = (await handlers['todos:createProject']({}, 'Harness', 'A')) as any
-      await handlers['todos:createTodo']({}, doomed.id, 'Goes away')
-      const kept = await handlers['todos:createTodo']({}, survivor.id, 'Stays')
+    it('restoreProject clears the trash mark', async () => {
+      const project = (await handlers['todos:createProject']({}, 'vIDE', 'H')) as any
+      await handlers['todos:trashProject']({}, project.id)
 
-      await handlers['todos:deleteProject']({}, doomed.id)
+      const restored = await handlers['todos:restoreProject']({}, project.id)
 
-      expect(await handlers['todos:listTodos']({}, survivor.id)).toEqual([kept])
+      expect(restored).toEqual({ ...project, trashedAt: null })
+      expect(await handlers['todos:listProjects']()).toEqual([{ ...project, trashedAt: null }])
     })
 
-    it('deleteProject clears the active-todo marker if it pointed at one of the deleted todos', async () => {
+    it('trashProject and restoreProject throw for an unknown project', async () => {
+      await expect(handlers['todos:trashProject']({}, 'missing')).rejects.toThrow()
+      await expect(handlers['todos:restoreProject']({}, 'missing')).rejects.toThrow()
+    })
+
+    it('trashProject clears the active-todo marker if it pointed at one of the project\'s todos', async () => {
       const project = (await handlers['todos:createProject']({}, 'vIDE', 'H')) as any
       const todo = (await handlers['todos:createTodo']({}, project.id, 'First')) as any
       await startTodo('/fake/userData', todo.id)
 
-      await handlers['todos:deleteProject']({}, project.id)
+      await handlers['todos:trashProject']({}, project.id)
 
       expect(await readActiveTodo('/fake/userData')).toBeNull()
+    })
+
+    it('a trashed project keeps its key reserved so restoring it can never collide', async () => {
+      const project = (await handlers['todos:createProject']({}, 'vIDE', 'H')) as any
+      await handlers['todos:trashProject']({}, project.id)
+
+      await expect(handlers['todos:createProject']({}, 'Other', 'h')).rejects.toThrow(/in the Trash/)
     })
   })
 

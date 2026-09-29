@@ -68,6 +68,10 @@ export function isLlamaModelTab(path: string): boolean { return path.startsWith(
 export function buildLlamaModelPath(modelId?: string): string { return LLAMA_MODEL_PREFIX + (modelId ?? 'new') }
 export function getLlamaModelId(path: string): string { return path.slice(LLAMA_MODEL_PREFIX.length) }
 
+// Projects moved to the Trash from the To Do sidebar, with Restore.
+export const TODO_TRASH_TAB_PATH = 'todo-trash://Trash'
+export function isTodoTrashTab(path: string): boolean { return path === TODO_TRASH_TAB_PATH }
+
 const TODO_DETAIL_PREFIX = 'todo-detail://'
 export function isTodoDetailTab(path: string): boolean { return path.startsWith(TODO_DETAIL_PREFIX) }
 export function buildTodoDetailPath(projectId: string, todoId: string): string {

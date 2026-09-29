@@ -16,7 +16,7 @@ vi.mock('fs/promises', () => ({
 let uuidCounter = 0
 vi.stubGlobal('crypto', { randomUUID: () => `uuid-${++uuidCounter}` })
 
-import { createProject, createTodo } from '../../todosStore'
+import { createProject, createTodo, trashProject } from '../../todosStore'
 import { buildTodoTools } from '../todoTools'
 
 const DATA_DIR = '/fake/userData'
@@ -44,6 +44,23 @@ describe('buildTodoTools', () => {
     expect(result).toContain('vIDE')
     expect(result).toContain('MOB')
     expect(result).toContain('Mobile')
+  })
+
+  it('hides trashed projects and their todos from every read tool', async () => {
+    const kept = await createProject(DATA_DIR, 'Kept', 'KEEP')
+    const binned = await createProject(DATA_DIR, 'Binned', 'BIN')
+    await createTodo(DATA_DIR, kept.id, 'Visible ticket')
+    await createTodo(DATA_DIR, binned.id, 'Hidden ticket')
+    await trashProject(DATA_DIR, binned.id)
+    const tools = buildTodoTools(DATA_DIR)
+
+    expect(await findTool(tools, 'list_todo_projects').handler({})).not.toContain('BIN')
+    expect(await findTool(tools, 'list_open_todos').handler({})).not.toContain('BIN-1')
+    expect(await findTool(tools, 'search_todos').handler({ query: 'ticket' })).not.toContain('BIN-1')
+    await expect(findTool(tools, 'get_todo').handler({ id: 'BIN-1' })).rejects.toThrow(/no such todo/i)
+    await expect(findTool(tools, 'create_todo').handler({ projectKey: 'BIN', title: 'x' })).rejects.toThrow(
+      /no such project/i
+    )
   })
 
   it('list_todo_projects reports when there are no boards yet', async () => {

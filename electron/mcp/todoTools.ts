@@ -1,6 +1,6 @@
 import type { McpToolDef } from './protocol'
 import {
-  readTodosData,
+  readVisibleTodosData,
   createTodo,
   updateTodo,
   addComment,
@@ -51,7 +51,7 @@ export function buildTodoTools(dataDir: string): McpToolDef[] {
       description: "List the user's vIDE todo boards (project name and key).",
       inputSchema: { type: 'object', properties: {} },
       handler: async () => {
-        const { projects } = await readTodosData(dataDir)
+        const { projects } = await readVisibleTodosData(dataDir)
         if (!projects.length) return 'No todo projects yet.'
         return projects.map((p) => `${p.key} — ${p.name}`).join('\n')
       },
@@ -61,7 +61,7 @@ export function buildTodoTools(dataDir: string): McpToolDef[] {
       description: 'List all non-archived, non-done todos across every board.',
       inputSchema: { type: 'object', properties: {} },
       handler: async () => {
-        const { todos } = await readTodosData(dataDir)
+        const { todos } = await readVisibleTodosData(dataDir)
         const open = todos.filter((t) => !t.archived && t.status !== 'done')
         if (!open.length) return 'No open todos.'
         return open.map(summarize).join('\n')
@@ -77,7 +77,7 @@ export function buildTodoTools(dataDir: string): McpToolDef[] {
       },
       handler: async (args) => {
         const query = String(args.query ?? '').toLowerCase()
-        const { todos } = await readTodosData(dataDir)
+        const { todos } = await readVisibleTodosData(dataDir)
         const matches = todos.filter(
           (t) =>
             t.id.toLowerCase().includes(query) ||
@@ -95,7 +95,7 @@ export function buildTodoTools(dataDir: string): McpToolDef[] {
       inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       handler: async (args) => {
         const id = String(args.id)
-        const { todos, projects } = await readTodosData(dataDir)
+        const { todos, projects } = await readVisibleTodosData(dataDir)
         const todo = todos.find((t) => t.id === id)
         if (!todo) throw new Error(`No such todo: ${id}`)
         return formatDetail(
@@ -118,7 +118,7 @@ export function buildTodoTools(dataDir: string): McpToolDef[] {
       },
       handler: async (args) => {
         const projectKey = String(args.projectKey)
-        const { projects } = await readTodosData(dataDir)
+        const { projects } = await readVisibleTodosData(dataDir)
         const project = findProjectByKey(projects, projectKey)
         if (!project) throw new Error(`No such project key: ${projectKey}`)
 

@@ -14,7 +14,8 @@ export function registerTodosRelayChannels(): void {
     store.createProject(dataDir(), name, key))
   registerChannel('todos:renameProject', (id: string, name: string, key: string) =>
     store.renameProject(dataDir(), id, name, key))
-  registerChannel('todos:deleteProject', (id: string) => store.deleteProject(dataDir(), id))
+  registerChannel('todos:trashProject', (id: string) => store.trashProject(dataDir(), id))
+  registerChannel('todos:restoreProject', (id: string) => store.restoreProject(dataDir(), id))
   registerChannel('todos:listTodos', (projectId: string) => store.listTodos(dataDir(), projectId))
   registerChannel('todos:createTodo', (projectId: string, title: string) =>
     store.createTodo(dataDir(), projectId, title))
