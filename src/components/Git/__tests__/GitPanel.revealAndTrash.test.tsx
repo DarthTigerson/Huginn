@@ -5,6 +5,7 @@ import { GitPanel } from '../GitPanel'
 import { useFileStore } from '@/stores/fileStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitStore, emptyRepoGitState } from '@/stores/gitStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import type { GitStatus } from '@/types/index'
 
 const status: GitStatus = {
@@ -46,6 +47,20 @@ describe('GitPanel — Reveal in Finder', () => {
     rightClickFile('src/App.tsx')
     fireEvent.click(screen.getByRole('button', { name: 'Reveal in Finder' }))
     expect(window.api.revealInFinder).toHaveBeenCalledWith('/proj/src/App.tsx')
+  })
+
+  it('reveals a changed file in the file tree', () => {
+    useSidebarUiStore.setState({ revealRequest: null })
+    render(<GitPanel />)
+    rightClickFile('src/App.tsx')
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal in File Tree' }))
+    expect(useSidebarUiStore.getState().revealRequest?.path).toBe('/proj/src/App.tsx')
+  })
+
+  it('offers neither reveal for a deleted file', () => {
+    render(<GitPanel />)
+    rightClickFile('old.ts')
+    expect(screen.queryByRole('button', { name: 'Reveal in File Tree' })).toBeNull()
   })
 
   it('does not offer it for a deleted file', () => {

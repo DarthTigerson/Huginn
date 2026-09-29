@@ -715,9 +715,14 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
           </ContextMenuButton>
           {/* A deleted file has nothing on disk to show. */}
           {menu.file.status !== 'D' && (
-            <ContextMenuButton onClick={() => { window.api.revealInFinder(`${repo}/${menu.file.path}`); setMenu(null) }}>
-              Reveal in Finder
-            </ContextMenuButton>
+            <>
+              <ContextMenuButton onClick={() => { useSidebarUiStore.getState().requestReveal(`${repo}/${menu.file.path}`); setMenu(null) }}>
+                Reveal in File Tree
+              </ContextMenuButton>
+              <ContextMenuButton onClick={() => { window.api.revealInFinder(`${repo}/${menu.file.path}`); setMenu(null) }}>
+                Reveal in Finder
+              </ContextMenuButton>
+            </>
           )}
         </div>,
         document.body
