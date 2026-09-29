@@ -10,7 +10,7 @@ import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffP
 import { buildImagePreviewPath, buildMarkdownPreviewPath } from '@/components/Viewer/paths'
 import { isImageFile, isMarkdownFile } from '@/lib/fileKinds'
 import { FileTree, type TreePromptState } from './FileTree'
-import { Modal } from '@/components/ui/Modal'
+import { ConfirmTrashModal } from '@/components/ui/ConfirmTrashModal'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { buildTerminalPath } from '@/components/Settings/paths'
 import { pendingTerminalCommands } from '@/components/Terminal/TerminalTab'
@@ -496,6 +496,12 @@ export function Sidebar() {
                   }}>
                     Copy Path
                   </ContextMenuButton>
+                  <ContextMenuButton onClick={() => {
+                    window.api.revealInFinder(menu.node!.path)
+                    setMenu(null)
+                  }}>
+                    Reveal in Finder
+                  </ContextMenuButton>
                   <ContextMenuDivider />
                   <ContextMenuButton danger onClick={() => requestTrashNode(menu.node!)}>
                     Move to Trash
@@ -507,32 +513,11 @@ export function Sidebar() {
           )}
 
           {deleteTarget && (
-            <Modal onClose={() => setDeleteTarget(null)}>
-              <h2 className="text-sm font-semibold text-fg mb-1">Move to Trash</h2>
-              <p className="text-sm text-fg-muted mb-5">
-                Move{' '}
-                <span className="font-mono text-fg break-all">
-                  {deleteTarget.name}
-                </span>{' '}
-                to the Trash?
-              </p>
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-1.5 text-sm rounded-lg border border-border text-fg-muted hover:text-fg hover:border-fg-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => trashNode(deleteTarget)}
-                  className="px-4 py-1.5 text-sm rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold transition-colors"
-                >
-                  Move to Trash
-                </button>
-              </div>
-            </Modal>
+            <ConfirmTrashModal
+              name={deleteTarget.name}
+              onCancel={() => setDeleteTarget(null)}
+              onConfirm={() => trashNode(deleteTarget)}
+            />
           )}
         </>
       ) : (

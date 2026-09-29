@@ -7,6 +7,7 @@ import type { Tab } from '@/types/index'
 export type PendingDiscard =
   | { kind: 'tab'; paneId: string; path: string }
   | { kind: 'all'; count: number }
+  | { kind: 'others'; keepPath: string; count: number }
 
 interface DiscardScratchStore {
   pending: PendingDiscard | null
@@ -49,4 +50,15 @@ export function requestCloseAllTabs() {
     return
   }
   useEditorStore.getState().closeAllTabs()
+}
+
+// Same guard for Close Others; the kept tab's own buffer is never at risk.
+export function requestCloseOtherTabs(keepPath: string) {
+  const { tabs, pinnedPaths } = useEditorStore.getState()
+  const count = tabs.filter((t) => t.path !== keepPath && !pinnedPaths.has(t.path) && isUnsavedScratch(t)).length
+  if (count > 0) {
+    useDiscardScratchStore.setState({ pending: { kind: 'others', keepPath, count } })
+    return
+  }
+  useEditorStore.getState().closeOtherTabs(keepPath)
 }

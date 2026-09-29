@@ -1,9 +1,14 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { TabBar } from '../TabBar'
 import { useEditorStore } from '@/stores/editorStore'
 import { useTabContextMenuStore } from '@/stores/tabContextMenuStore'
+
+// The tab menu checks the tab's file exists before offering the reveal actions.
+beforeEach(() => {
+  ;(global as any).window.api = { ...(global as any).window.api, pathExists: vi.fn().mockResolvedValue(true) }
+})
 
 afterEach(() => {
   cleanup()

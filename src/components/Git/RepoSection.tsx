@@ -10,6 +10,7 @@ import { getBiggestPaneId } from '@/lib/paneLayout'
 import { buildGitDiffPath } from './paths'
 import { GIT_BRANCH_DIFF_TAB_PATH, GIT_GRAPH_TAB_PATH } from '@/components/Settings/paths'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmTrashModal } from '@/components/ui/ConfirmTrashModal'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { useSearchStore } from '@/stores/searchStore'
 import { FileRow } from './FileRow'
@@ -233,6 +234,7 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
   const [headerMenu, setHeaderMenu] = useState<HeaderMenuState | null>(null)
   const headerMenuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
+  const [trashTarget, setTrashTarget] = useState<GitFileEntry | null>(null)
   const [discardAllConfirmOpen, setDiscardAllConfirmOpen] = useState(false)
   const [commitOptionsOpen, setCommitOptionsOpen] = useState(false)
   const [pullOptionsOpen, setPullOptionsOpen] = useState(false)
@@ -338,6 +340,7 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
   }
 
   async function trashUntrackedFile(file: GitFileEntry) {
+    setTrashTarget(null)
     await window.api.trashPath(`${repo}/${file.path}`)
     await refreshStatus(repo)
   }
@@ -701,7 +704,7 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
           {isUntracked && (
             <>
               <ContextMenuDivider />
-              <ContextMenuButton danger onClick={() => { trashUntrackedFile(menu.file); setMenu(null) }}>
+              <ContextMenuButton danger onClick={() => { setTrashTarget(menu.file); setMenu(null) }}>
                 Move to Trash
               </ContextMenuButton>
             </>
@@ -710,8 +713,27 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
           <ContextMenuButton onClick={() => { copyPath(menu.file.path); setMenu(null) }}>
             Copy Path
           </ContextMenuButton>
+          {/* A deleted file has nothing on disk to show. */}
+          {menu.file.status !== 'D' && (
+            <>
+              <ContextMenuButton onClick={() => { useSidebarUiStore.getState().requestReveal(`${repo}/${menu.file.path}`); setMenu(null) }}>
+                Reveal in File Tree
+              </ContextMenuButton>
+              <ContextMenuButton onClick={() => { window.api.revealInFinder(`${repo}/${menu.file.path}`); setMenu(null) }}>
+                Reveal in Finder
+              </ContextMenuButton>
+            </>
+          )}
         </div>,
         document.body
+      )}
+
+      {trashTarget && (
+        <ConfirmTrashModal
+          name={trashTarget.path}
+          onCancel={() => setTrashTarget(null)}
+          onConfirm={() => trashUntrackedFile(trashTarget)}
+        />
       )}
 
       {discardTarget && (
@@ -837,6 +859,9 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
         >
           <ContextMenuButton onClick={() => { useSidebarUiStore.getState().requestReveal(repo, true); setHeaderMenu(null) }}>
             Reveal in File Tree
+          </ContextMenuButton>
+          <ContextMenuButton onClick={() => { window.api.revealInFinder(repo); setHeaderMenu(null) }}>
+            Reveal in Finder
           </ContextMenuButton>
           <ContextMenuDivider />
           <ContextMenuButton danger onClick={() => { closeRepo(repo); setHeaderMenu(null) }}>

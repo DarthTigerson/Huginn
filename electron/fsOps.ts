@@ -193,3 +193,7 @@ export async function moveInto(source: string, destDir: string): Promise<string>
   await fsRename(source, dest)
   return dest
 }
+
+export function revealInFinder(path: string): void {
+  shell.showItemInFolder(path)
+}

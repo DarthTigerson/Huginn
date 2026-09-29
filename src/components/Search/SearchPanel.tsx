@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, MouseEvent } from 'react'
 import type { SearchHit } from '../../../electron/searchTypes'
 import { useFileStore } from '@/stores/fileStore'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmTrashModal } from '@/components/ui/ConfirmTrashModal'
+import { useEditorStore } from '@/stores/editorStore'
+import { useSidebarUiStore } from '@/stores/sidebarUiStore'
+import { copyToClipboard as copyFileToClipboard } from '@/lib/fileClipboardActions'
+import { copyToClipboard as copyText } from '@/components/Git/commitFormat'
+import { SearchFileContextMenu } from './SearchFileContextMenu'
 import { UndoToast } from '@/components/ui/UndoToast'
 import { hitKey, planRender, RENDER_STEP, useGlobalSearchStore, type ResultGroup, type SearchToggle } from '@/stores/globalSearchStore'
 
@@ -143,7 +149,7 @@ function RowReplaceButton({ label, title, onClick }: { label: string; title: str
   )
 }
 
-function GroupRow({ group, root, collapsed, visibleCount, activeKey, canReplace, onToggle, onOpen, onReplaceFile, onReplaceHit }: {
+function GroupRow({ group, root, collapsed, visibleCount, activeKey, canReplace, onToggle, onOpen, onReplaceFile, onReplaceHit, onFileContextMenu }: {
   group: ResultGroup
   root: string | null
   collapsed: boolean
@@ -155,12 +161,13 @@ function GroupRow({ group, root, collapsed, visibleCount, activeKey, canReplace,
   onOpen: (hit: SearchHit) => void
   onReplaceFile: () => void
   onReplaceHit: (hit: SearchHit) => void
+  onFileContextMenu: (event: MouseEvent) => void
 }) {
   const name = basename(group.path)
   const dir = relativeDir(root, group.path)
   return (
     <li>
-      <div className="group flex items-center hover:bg-white/5">
+      <div className="group flex items-center hover:bg-white/5" onContextMenu={onFileContextMenu}>
       <button
         type="button"
         onClick={onToggle}
@@ -196,7 +203,10 @@ function GroupRow({ group, root, collapsed, visibleCount, activeKey, canReplace,
             const key = hitKey(hit)
             return (
               <li key={key}>
-                <div className={`group flex items-center hover:bg-white/5 ${activeKey === key ? 'bg-accent/20' : ''}`}>
+                <div
+                  className={`group flex items-center hover:bg-white/5 ${activeKey === key ? 'bg-accent/20' : ''}`}
+                  onContextMenu={onFileContextMenu}
+                >
                   <button
                     type="button"
                     data-hit-key={key}
@@ -253,6 +263,27 @@ export function SearchPanel() {
   const [showDetails, setShowDetails] = useState(() => include !== '' || exclude !== '')
   const [showReplace, setShowReplace] = useState(() => replacement !== '')
   const [tip, setTip] = useState<Tip | null>(null)
+  const [fileMenu, setFileMenu] = useState<{ x: number; y: number; path: string } | null>(null)
+  const [trashTarget, setTrashTarget] = useState<string | null>(null)
+
+  function openFileMenu(event: MouseEvent, path: string) {
+    event.preventDefault()
+    event.stopPropagation()
+    setFileMenu({ x: event.clientX, y: event.clientY, path })
+  }
+
+  async function openWholeFile(path: string) {
+    const content = await window.api.readFile(path)
+    useEditorStore.getState().openTab({ path, content, dirty: false })
+  }
+
+  async function trashFile(path: string) {
+    setTrashTarget(null)
+    await window.api.trashPath(path)
+    useEditorStore.getState().markTabsMissingForDeletedPath(path)
+    useGlobalSearchStore.getState().removeFile(path)
+    await useFileStore.getState().refreshTree()
+  }
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -462,6 +493,7 @@ export function SearchPanel() {
                       onOpen={(hit) => void openHit(hit)}
                       onReplaceFile={() => void replaceFile(group.path)}
                       onReplaceHit={(hit) => void replaceHit(hit)}
+                      onFileContextMenu={(e) => openFileMenu(e, group.path)}
                     />
                   ))}
                 </ul>
@@ -494,6 +526,28 @@ export function SearchPanel() {
               {replaceOutcome.message}
             </button>
           )
+      )}
+
+      {fileMenu && (
+        <SearchFileContextMenu
+          x={fileMenu.x}
+          y={fileMenu.y}
+          onClose={() => setFileMenu(null)}
+          onOpen={() => void openWholeFile(fileMenu.path)}
+          onRevealInFileTree={() => useSidebarUiStore.getState().requestReveal(fileMenu.path)}
+          onCopy={() => void copyFileToClipboard(fileMenu.path, 'copy').catch((e) => console.error('Copy to clipboard failed', e))}
+          onCopyPath={() => copyText(fileMenu.path)}
+          onRevealInFinder={() => void window.api.revealInFinder(fileMenu.path)}
+          onTrash={() => setTrashTarget(fileMenu.path)}
+        />
+      )}
+
+      {trashTarget && (
+        <ConfirmTrashModal
+          name={basename(trashTarget)}
+          onCancel={() => setTrashTarget(null)}
+          onConfirm={() => void trashFile(trashTarget)}
+        />
       )}
 
       {pendingReplaceAll && (

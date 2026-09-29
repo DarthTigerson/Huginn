@@ -11,6 +11,8 @@ import { buildImagePreviewPath } from '@/components/Viewer/paths'
 import { usePanelRequestStore } from '@/stores/panelRequestStore'
 
 function resetStores() {
+  // The menu checks the tab's file exists before offering the reveal actions.
+  ;(global as any).window.api = { pathExists: vi.fn().mockResolvedValue(true) }
   useEditorStore.setState({
     tabs: [
       { path: '/a.ts', content: '', dirty: false },
@@ -44,6 +46,20 @@ describe('TabContextMenu — file tab', () => {
     expect(screen.getByRole('button', { name: 'Copy File Path' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reload' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
+  })
+
+  it('Close Others closes every other tab but this one', () => {
+    resetStores()
+    render(<TabContextMenu x={10} y={10} paneId="pane-1" path="/a.ts" onRequestClose={defaultRequestClose} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close Others' }))
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual(['/a.ts'])
+  })
+
+  it('disables Close Others when there is nothing else to close', () => {
+    resetStores()
+    useEditorStore.setState({ pinnedPaths: new Set(['/b.ts']) })
+    render(<TabContextMenu x={10} y={10} paneId="pane-1" path="/a.ts" onRequestClose={defaultRequestClose} onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Close Others' })).toBeDisabled()
   })
 
   it('shows Close All Saved when autosave is off, hides it when autosave is on', () => {
@@ -171,7 +187,6 @@ describe('TabContextMenu — diff tabs', () => {
   it('does not offer Open File on a plain file tab', () => {
     setup('/proj/src/a.ts')
     expect(screen.queryByRole('button', { name: 'Open File' })).not.toBeInTheDocument()
-    expect(pathExists).not.toHaveBeenCalled()
   })
 
   it('Copy File Path copies the real file path, not the internal diff tab path', () => {

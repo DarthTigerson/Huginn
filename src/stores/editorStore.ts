@@ -209,6 +209,8 @@ interface EditorState {
   pinnedPaths: Set<string>
   togglePin: (path: string) => void
   closeAllTabs: () => void
+  // Every tab except keepPath (pinned tabs stay too), across all panes like closeAllTabs.
+  closeOtherTabs: (keepPath: string) => void
   closeSavedTabs: () => void
   closeTabsForProject: (projectId: string) => void
   reopenLastClosed: () => void
@@ -464,6 +466,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   closeAllTabs: () => set((state) => closeTabsMatching(state, () => true)),
+
+  closeOtherTabs: (keepPath) => set((state) => closeTabsMatching(state, (tab) => tab.path !== keepPath)),
 
   closeSavedTabs: () => set((state) => closeTabsMatching(state, (tab) => !tab.dirty)),
 

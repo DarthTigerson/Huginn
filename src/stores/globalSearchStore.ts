@@ -133,6 +133,8 @@ interface GlobalSearchState {
   requestFocus: () => void
   showMore: () => void
   toggleCollapsed: (path: string) => void
+  // Drops a file's results, e.g. after it's moved to the Trash from the panel.
+  removeFile: (path: string) => void
   moveActive: (delta: 1 | -1) => SearchHit | null
   openHit: (hit: SearchHit) => Promise<void>
 
@@ -281,6 +283,20 @@ export const useGlobalSearchStore = create<GlobalSearchState>((set, get) => {
       if (collapsed[path]) delete collapsed[path]
       else collapsed[path] = true
       set({ collapsed })
+    },
+
+    removeFile: (path) => {
+      const { groups, activeKey, collapsed } = get()
+      const removed = groups.find((g) => g.path === path)
+      if (!removed) return
+      const rest = { ...collapsed }
+      delete rest[path]
+      set({
+        groups: groups.filter((g) => g !== removed),
+        matchCount: get().matchCount - removed.hits.length,
+        activeKey: removed.hits.some((h) => hitKey(h) === activeKey) ? null : activeKey,
+        collapsed: rest,
+      })
     },
 
     moveActive: (delta) => {

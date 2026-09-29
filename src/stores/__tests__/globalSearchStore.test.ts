@@ -670,3 +670,26 @@ describe('globalSearchStore — capped rendering', () => {
   })
 })
 
+
+describe('removeFile', () => {
+  it('drops a file from the results and its matches from the count', () => {
+    const a = hit('/proj/a.ts', 1)
+    useGlobalSearchStore.setState({
+      groups: [
+        { path: '/proj/a.ts', hits: [a, hit('/proj/a.ts', 2)], stale: false },
+        { path: '/proj/b.ts', hits: [hit('/proj/b.ts', 1)], stale: false },
+      ],
+      matchCount: 3,
+      activeKey: hitKey(a),
+      collapsed: { '/proj/a.ts': true },
+    })
+
+    useGlobalSearchStore.getState().removeFile('/proj/a.ts')
+
+    const state = useGlobalSearchStore.getState()
+    expect(state.groups.map((g) => g.path)).toEqual(['/proj/b.ts'])
+    expect(state.matchCount).toBe(1)
+    expect(state.activeKey).toBeNull()
+    expect(state.collapsed).toEqual({})
+  })
+})

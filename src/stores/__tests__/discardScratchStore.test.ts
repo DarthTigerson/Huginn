@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useDiscardScratchStore, requestCloseTab, requestCloseAllTabs } from '../discardScratchStore'
+import { useDiscardScratchStore, requestCloseTab, requestCloseAllTabs, requestCloseOtherTabs } from '../discardScratchStore'
 import { useEditorStore } from '../editorStore'
 import { buildScratchPath } from '@/components/Editor/paths'
 
@@ -64,5 +64,36 @@ describe('requestCloseAllTabs', () => {
 
     expect(useDiscardScratchStore.getState().pending).toBeNull()
     expect(useEditorStore.getState().tabs).toHaveLength(0)
+  })
+})
+
+describe('requestCloseOtherTabs', () => {
+  it('closes every other tab and keeps the one right-clicked', () => {
+    requestCloseOtherTabs(REAL)
+
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual([REAL])
+  })
+
+  it('keeps pinned tabs open', () => {
+    useEditorStore.setState({ pinnedPaths: new Set([SCRATCH]) })
+    requestCloseOtherTabs(REAL)
+
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual([REAL, SCRATCH])
+  })
+
+  it('asks first when another tab is an unsaved scratch buffer', () => {
+    seed('unsaved work')
+    requestCloseOtherTabs(REAL)
+
+    expect(useDiscardScratchStore.getState().pending).toEqual({ kind: 'others', keepPath: REAL, count: 1 })
+    expect(useEditorStore.getState().tabs).toHaveLength(2)
+  })
+
+  it('does not ask about the kept tab\'s own unsaved buffer', () => {
+    seed('unsaved work')
+    requestCloseOtherTabs(SCRATCH)
+
+    expect(useDiscardScratchStore.getState().pending).toBeNull()
+    expect(useEditorStore.getState().tabs.map((t) => t.path)).toEqual([SCRATCH])
   })
 })

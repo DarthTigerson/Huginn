@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('clipboard:writeFiles', paths, mode),
   readClipboardFiles: () => ipcRenderer.invoke('clipboard:readFiles'),
   pathForFile: (file: File) => webUtils.getPathForFile(file),
+  revealInFinder: (path: string) => ipcRenderer.invoke('fs:revealInFinder', path),
   listAllFiles: (root: string) => ipcRenderer.invoke('fs:listAllFiles', root),
   searchText: (root: string, query: string, caseSensitive: boolean) =>
     ipcRenderer.invoke('fs:searchText', root, query, caseSensitive),
