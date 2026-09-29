@@ -262,6 +262,14 @@ export function FileTree({
                     {gitDecoration.letter}
                   </span>
                 )}
+                {/* Folders have no letter, so a dot marks changes inside (in both Letter modes). */}
+                {node.isDirectory && gitDecoration && (
+                  <span
+                    data-git-folder-dot
+                    aria-hidden
+                    className={`shrink-0 mr-0.5 h-1.5 w-1.5 rounded-full bg-current ${gitDecoration.textClass}`}
+                  />
+                )}
               </button>
             )}
             {node.isDirectory && expandedPaths.has(node.path) && node.children && (
