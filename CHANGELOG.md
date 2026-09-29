@@ -1,5 +1,22 @@
 # vIDE
 
+## v0.2.19 (2026-09-29)
+- **Git blame**: see who last changed the line your cursor is on — the author and commit message show in the footer next to the branch (the default), or at the end of the line in the editor. Hover it for a panel with the author, exact date and time, and the full commit message. Turn it off or pick where it shows in Settings > Git > Blame, and it syncs through vIDE Sync
+- **Git status in the file tree**: changed files show their status letter (M, A, D, R, U) in the Git panel's colours, their names take the same colour, and folders get a coloured name and dot when something inside them has changed. A new Settings > File Tree page switches between Off, Letter, and Letter + Colour
+- **Reveal in Finder**: from the file tree, the Git panel (changed files and the repo header), the Search panel, and editor tabs (macOS only on tabs). Changed files in the Git panel, Search results and editor tabs also gain Reveal in File Tree
+- **Search panel right-click menu**: right-click a result's file or any matching line for Open / Edit, Reveal in File Tree, Copy, Copy Path, Reveal in Finder and Move to Trash — a trashed file drops out of the results straight away
+- **Scratch tabs**: double-click the tab bar or press ⌘N for an Untitled tab that lives only in memory, and ⌘S opens a Save dialog that keeps the tab where it is. ⌘N used to create a file in the file tree; Create File in the tree's right-click menu still does that, in the folder you clicked
+- **Unsaved work guards**: closing a scratch tab with content now asks first — from its ×, the tab menu, ⌘W, Close All and Close Others — and closing a window with unsaved work warns you, listing never-saved tabs and unsaved files separately
+- **Close Others** in the tab right-click menu closes every other tab in that pane, leaving pinned tabs and other split panes alone
+- **To Do Trash**: deleting a project now moves it to a Trash page where you can restore it from the right-click menu. Trashed projects are hidden from Claude's To Do tools, and the Trash shows each project's todo counts by status
+- **To Do project list**: sort projects alphabetically, by created date, by open todo count or by Backlog size from the list's right-click menu, and choose which status counts show next to each project from its Display submenu
+- Move to Trash on an untracked file in the Git panel now asks for confirmation, the same as the file tree
+- The file tree's activity bar icon is now labelled "File Tree" instead of "Explorer"
+
+**Bug fixes**
+- Fixed a deleted To Do project coming back after vIDE Sync merged it in from another machine — projects now go to the Trash instead, which syncs
+
+
 ## v0.2.18 (2026-09-22)
 - **Custom editor colours**: a new "Custom" option in Settings > Display > Editor Colors lets you pick your own syntax colours for keywords, strings, numbers, types/keys and comments with the same colour picker as Custom Themes, plus a Reset to defaults button. Your colours sync through vIDE Sync, and they start from the current theme's palette until you change one
 - **Unpushed commits on the Push button**: the Push pill now turns amber and shows a count whenever your branch has commits that haven't been pushed yet, then goes back to normal once the push lands, so it's harder to commit and forget to push
