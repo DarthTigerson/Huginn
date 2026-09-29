@@ -424,3 +424,51 @@ export function TodoSortMenu({
     document.body
   )
 }
+
+// Right-click menu for a project row in the To Do Trash tab.
+export function TodoTrashMenu({
+  x,
+  y,
+  onClose,
+  onRestore,
+}: {
+  x: number
+  y: number
+  onClose: () => void
+  onRestore: () => void
+}) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  useMenuDismiss(onClose)
+  useClampedPosition(menuRef, x, y)
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      className="fixed z-[200] w-40 rounded border border-border bg-popover p-1 shadow-2xl shadow-black/50"
+      style={{ left: x, top: y }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <MenuButton
+        onClick={() => {
+          onRestore()
+          onClose()
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+            <path
+              d="M4 12a8 8 0 1 0 2.34-5.66L4 8.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M4 4v4.5h4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Restore
+        </span>
+      </MenuButton>
+    </div>,
+    document.body
+  )
+}

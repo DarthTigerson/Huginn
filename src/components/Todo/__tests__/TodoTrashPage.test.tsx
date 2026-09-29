@@ -39,16 +39,18 @@ describe('TodoTrashPage', () => {
     render(<TodoTrashPage />)
 
     await screen.findByText('Old Site')
-    const restoreButtons = screen.getAllByRole('button', { name: /^Restore / })
-    expect(restoreButtons.map((b) => b.getAttribute('aria-label'))).toEqual(['Restore Test', 'Restore Old Site'])
+    const names = [screen.getByText('Test'), screen.getByText('Old Site')]
+    expect(names[0].compareDocumentPosition(names[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Restore/ })).not.toBeInTheDocument()
     expect(screen.queryByText('vIDE')).not.toBeInTheDocument()
     expect(await screen.findByText('2 todos')).toBeInTheDocument()
   })
 
-  it('Restore moves the project back to the live list', async () => {
+  it('right-click > Restore moves the project back to the live list', async () => {
     mockApi([live, newer])
     render(<TodoTrashPage />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Restore Test' }))
+    fireEvent.contextMenu(await screen.findByText('Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
 
     await waitFor(() => expect(screen.getByText('The Trash is empty.')).toBeInTheDocument())
     expect(window.api.todosRestoreProject).toHaveBeenCalledWith('p3')

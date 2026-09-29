@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTodoStore } from '@/stores/todoStore'
+import { TodoTrashMenu } from './TodoContextMenu'
+import type { TodoProject } from '@/types/api'
 
-// Projects moved to the Trash from the To Do sidebar. Restore-only for now:
-// a hard delete would just be merged back in by vIDE Sync (its merge is
-// additive), so permanent deletion needs a synced tombstone first.
+// Projects moved to the Trash from the To Do sidebar; right-click a row to
+// Restore it. Restore-only for now: a hard delete would just be merged back
+// in by vIDE Sync (its merge is additive), so permanent deletion needs a
+// synced tombstone first.
 export function TodoTrashPage() {
   const trashedProjects = useTodoStore((s) => s.trashedProjects)
   const todosByProject = useTodoStore((s) => s.todosByProject)
@@ -11,6 +14,7 @@ export function TodoTrashPage() {
   const loadTodos = useTodoStore((s) => s.loadTodos)
   const restoreProject = useTodoStore((s) => s.restoreProject)
   const [error, setError] = useState<string | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; project: TodoProject } | null>(null)
 
   // Most recently trashed first.
   const sorted = useMemo(
@@ -52,6 +56,10 @@ export function TodoTrashPage() {
             return (
               <div
                 key={project.id}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setMenu({ x: e.clientX, y: e.clientY, project })
+                }}
                 className="flex items-center gap-3 px-4 py-2 border-b border-border/60 hover:bg-white/5"
               >
                 <span className="text-xs font-mono text-fg-subtle shrink-0">{project.key}</span>
@@ -66,18 +74,18 @@ export function TodoTrashPage() {
                     Trashed {new Date(project.trashedAt).toLocaleDateString()}
                   </span>
                 )}
-                <button
-                  type="button"
-                  aria-label={`Restore ${project.name}`}
-                  onClick={() => restore(project.id)}
-                  className="text-xs text-fg-muted hover:text-fg shrink-0"
-                >
-                  Restore
-                </button>
               </div>
             )
           })}
         </div>
+      )}
+      {menu && (
+        <TodoTrashMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onRestore={() => restore(menu.project.id)}
+        />
       )}
     </div>
   )
