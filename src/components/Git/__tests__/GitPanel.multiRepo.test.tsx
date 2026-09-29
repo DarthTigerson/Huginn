@@ -142,6 +142,15 @@ describe('GitPanel — multi-repo accordion', () => {
     expect(screen.queryByText('Commit --no-verify')).toBeNull()
   })
 
+  it('right-clicking a header and picking "Reveal in Finder" opens that specific repo\'s folder', () => {
+    ;(window as any).api.revealInFinder = vi.fn().mockResolvedValue(undefined)
+    setTwoRepos('/proj/repoA')
+    render(<GitPanel />)
+    fireEvent.contextMenu(screen.getByText('repoB'))
+    fireEvent.click(screen.getByText('Reveal in Finder'))
+    expect(window.api.revealInFinder).toHaveBeenCalledWith('/proj/repoB')
+  })
+
   it('right-clicking a header and picking "Reveal in File Tree" requests a reveal for that specific repo', () => {
     setTwoRepos('/proj/repoA')
     render(<GitPanel />)

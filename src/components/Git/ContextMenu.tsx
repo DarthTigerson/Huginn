@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
 
-export function ContextMenuButton({ children, danger = false, onClick }: {
+export function ContextMenuButton({ children, danger = false, onClick, role }: {
   children: ReactNode
   danger?: boolean
   onClick: () => void
+  // e.g. 'menuitem' when the menu itself is marked role="menu"
+  role?: string
 }) {
   return (
     <button
       type="button"
+      role={role}
       onClick={onClick}
       className={[
         'w-full rounded px-2 py-1.5 text-left text-xs transition-colors',
