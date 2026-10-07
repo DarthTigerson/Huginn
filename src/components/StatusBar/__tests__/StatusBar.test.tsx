@@ -10,6 +10,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useUsageAlertStore } from '@/stores/usageAlertStore'
 import { useNotificationPanelStore } from '@/stores/notificationPanelStore'
 import { useNotificationAcknowledgedStore } from '@/stores/notificationAcknowledgedStore'
+import { useNotificationArrivalStore } from '@/stores/notificationArrivalStore'
 
 beforeEach(() => {
   ;(global as any).window.api = {
@@ -161,46 +162,56 @@ describe('StatusBar — multi-repo branch display', () => {
   })
 })
 
-describe('StatusBar — notification teaser opens the real panel', () => {
+describe('StatusBar — notification bell, panel and clock', () => {
   afterEach(() => {
     useUsageAlertStore.setState({ alerts: [] })
     useNotificationPanelStore.setState({ open: false })
     useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+    useNotificationArrivalStore.setState({ knownIds: [], arrival: null })
   })
 
-  it('clicking the footer teaser makes the notification panel visible in the same render tree', () => {
-    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 1000, resetAt: null }] })
+  it('always shows the clock in the footer, even with a notification active', () => {
+    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 60_000, resetAt: null }] })
+    render(<StatusBar />)
+    expect(screen.getByTestId('footer-clock')).toBeInTheDocument()
+  })
+
+  it('clicking the bell makes the notification panel visible in the same render tree', () => {
+    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 60_000, resetAt: null }] })
     render(<StatusBar />)
 
     const panel = screen.getByTestId('notification-panel')
     expect(panel.className).toMatch(/opacity-0/)
 
-    fireEvent.mouseUp(screen.getByTestId('notification-teaser'), { button: 0 })
-
+    fireEvent.mouseUp(screen.getByTestId('notification-bell'), { button: 0 })
     expect(panel.className).toMatch(/opacity-100/)
   })
 
-  it('quiets the footer text after closing (reverts to hints) but stays a clickable toggle, and the panel still lists the acknowledged item', () => {
-    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 1000, resetAt: null }] })
+  it('clicking the bell again closes the panel instead of reopening it', () => {
+    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 60_000, resetAt: null }] })
     render(<StatusBar />)
+    const bell = screen.getByTestId('notification-bell')
 
-    fireEvent.mouseUp(screen.getByTestId('notification-teaser'), { button: 0 })
+    fireEvent.mouseUp(bell, { button: 0 })
     expect(useNotificationPanelStore.getState().open).toBe(true)
 
-    // close without picking a row (outside mousedown)
+    fireEvent.mouseDown(bell)
+    fireEvent.mouseUp(bell, { button: 0 })
+    expect(useNotificationPanelStore.getState().open).toBe(false)
+  })
+
+  it('closing the panel turns the bell from unread to seen, and the panel still lists the item', () => {
+    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 60_000, resetAt: null }] })
+    render(<StatusBar />)
+    const bell = screen.getByTestId('notification-bell')
+    expect(bell.className).toMatch(/bg-accent/)
+
+    fireEvent.mouseUp(bell, { button: 0 })
     fireEvent.mouseDown(document.body)
     expect(useNotificationPanelStore.getState().open).toBe(false)
+    expect(screen.getByTestId('notification-bell').className).not.toMatch(/bg-accent/)
 
-    // still the same alert, unchanged — the teaser's OWN text goes quiet (no
-    // longer the loud message), even though the panel (mid close-transition,
-    // still showing its last content) still mentions it elsewhere in the DOM
-    const teaser = screen.getByTestId('notification-teaser')
-    expect(teaser.tagName).toBe('BUTTON')
-    expect(teaser.textContent).not.toMatch(/Session usage may run out/)
-
-    // reopening still lists it — acknowledgment never hides it from the panel
-    fireEvent.mouseUp(teaser, { button: 0 })
-    expect(useNotificationPanelStore.getState().open).toBe(true)
+    fireEvent.mouseUp(screen.getByTestId('notification-bell'), { button: 0 })
     expect(screen.getByTestId('notification-panel').textContent).toMatch(/Session usage may run out/)
   })
 })

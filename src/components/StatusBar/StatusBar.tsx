@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useGitStore, useRepoGitState } from '@/stores/gitStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { GitIcon, AutocompleteIcon } from '@/components/ActivityBar/ActivityBar'
@@ -17,12 +16,14 @@ import { AUTOCOMPLETE_FORCE_DISABLED } from '@/lib/autocompleteEffectiveState'
 import { useConfigRepoStore } from '@/stores/configRepoStore'
 import { FooterMessage } from './FooterMessage'
 import { NotificationPanel } from './NotificationPanel'
-import { NotificationCompactToggle } from './NotificationCompactToggle'
+import { NotificationBell } from './NotificationBell'
+import { NotificationPulse } from './NotificationPulse'
+import { FontSizeControl } from './FontSizeControl'
+import { Clock } from './Clock'
 import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
 
 export function StatusBar() {
-  const { fontSize, increase, decrease, reset } = useFontSizeStore()
   const repos = useGitReposStore((s) => s.repos)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const hasExplicitSelection = useGitReposStore((s) => s.hasExplicitSelection)
@@ -77,7 +78,7 @@ export function StatusBar() {
   return (
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <GitActivityBar />
-      <NotificationPanel />
+      <NotificationPulse />
       <FooterMessage />
       {/* Branch, then current-line blame (Settings > Git > Blame: Footer), which truncates first. */}
       <div className="flex items-center gap-3 min-w-0">
@@ -172,7 +173,11 @@ export function StatusBar() {
             )}
           </div>
         )}
-        <NotificationCompactToggle />
+        {/* Panel anchors to this wrapper so it opens right above the bell. */}
+        <div className="relative flex mx-1">
+          <NotificationBell />
+          <NotificationPanel />
+        </div>
         {(syncEnabled || syncRepoUrl) && (
           <button
             type="button"
@@ -196,58 +201,15 @@ export function StatusBar() {
             <SyncIcon />
           </button>
         )}
-        <div
-          className={[
-            'flex items-center rounded-full border border-border bg-bg overflow-hidden',
-            autocompleteVisible || syncEnabled || syncRepoUrl ? 'ml-2' : '',
-          ].join(' ')}
-        >
-          <button
-            type="button"
-            onClick={decrease}
-            aria-label="Decrease font size"
-            className="flex h-5 w-6 items-center justify-center text-fg-muted hover:text-fg hover:bg-white/5"
-          >
-            <MinusIcon />
-          </button>
-          <button
-            type="button"
-            onClick={reset}
-            aria-label="Reset font size"
-            title="Reset font size"
-            className="flex h-5 min-w-[1.75rem] items-center justify-center border-x border-border px-1 text-xs tabular-nums text-fg-muted hover:text-fg hover:bg-white/5"
-          >
-            {fontSize}
-          </button>
-          <button
-            type="button"
-            onClick={increase}
-            aria-label="Increase font size"
-            className="flex h-5 w-6 items-center justify-center text-fg-muted hover:text-fg hover:bg-white/5"
-          >
-            <PlusIcon />
-          </button>
+        <div className="ml-1">
+          <FontSizeControl />
+        </div>
+        {/* Clock owns the far-right corner at every width (VIDE-140). */}
+        <div className="ml-3">
+          <Clock />
         </div>
       </div>
     </div>
-  )
-}
-
-// Same pill styling/icons as the browser zoom control (BrowserTab.tsx) —
-// duplicated locally since those icons aren't exported from there.
-function MinusIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
   )
 }
 

@@ -119,6 +119,45 @@ describe('NotificationPanel', () => {
   })
 })
 
+describe('NotificationPanel — header, unread dots and toggle clicks', () => {
+  it('shows a header with the count', () => {
+    useDockerSettingsStore.setState({ enabled: true })
+    useDockerStore.setState({ status: 'stopped' })
+    render(<NotificationPanel />)
+    expect(screen.getByText('Notifications').parentElement?.textContent).toBe('Notifications · 2')
+  })
+
+  it('Dismiss all acknowledges every row and closes the panel', () => {
+    useDockerSettingsStore.setState({ enabled: true })
+    useDockerStore.setState({ status: 'stopped' })
+    render(<NotificationPanel />)
+    fireEvent.mouseUp(screen.getByRole('button', { name: 'Dismiss all' }), { button: 0 })
+    expect(useNotificationAcknowledgedStore.getState().acknowledgedIds).toEqual(expect.arrayContaining(['usage-session', 'docker']))
+    expect(useNotificationPanelStore.getState().open).toBe(false)
+  })
+
+  it('marks unread rows with a dot and seen rows without one', () => {
+    useDockerSettingsStore.setState({ enabled: true })
+    useDockerStore.setState({ status: 'stopped' })
+    useNotificationAcknowledgedStore.setState({ acknowledgedIds: ['docker'] })
+    render(<NotificationPanel />)
+    const dots = screen.getAllByTestId('notification-unread-dot')
+    expect(dots[0].className).toMatch(/bg-accent/)
+    expect(dots[1].className).toMatch(/bg-transparent/)
+  })
+
+  it('ignores a mousedown on a notification toggle (the bell handles it on mouseup)', () => {
+    render(
+      <>
+        <button data-notification-toggle="" data-testid="toggle" />
+        <NotificationPanel />
+      </>,
+    )
+    fireEvent.mouseDown(screen.getByTestId('toggle'))
+    expect(useNotificationPanelStore.getState().open).toBe(true)
+  })
+})
+
 describe('NotificationPanel — row buttons are removed from the DOM once closed', () => {
   afterEach(() => {
     vi.useRealTimers()

@@ -11,7 +11,7 @@ export const DEFAULT_CATEGORIES: Record<string, boolean> = {
 const CATEGORY_PREFIXES: Record<string, string[]> = {
   general: [
     'vide:general:', 'vide:theme', 'vide:themeMatchSystem',
-    'vide:font', 'vide:panelStyle', 'vide:footerContent',
+    'vide:font', 'vide:panelStyle',
     'vide:memoryUsageVisible', 'vide:backgroundImage',
     'vide:backgroundImageVisible', 'vide:navbarPosition',
     'vide:editorColorScheme', 'vide:editorTokenColors',

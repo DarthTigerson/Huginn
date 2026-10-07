@@ -1,64 +1,25 @@
-import { useEffect, useState } from 'react'
-import { FOOTER_TIPS } from '@/lib/footerTips'
 import { useUpdateStore } from '@/stores/updateStore'
 import { useStatusMessageStore } from '@/stores/statusMessageStore'
-import { useDisplayStore } from '@/stores/displayStore'
 import { useNotificationPanelStore } from '@/stores/notificationPanelStore'
-import { useNotificationItems } from '@/hooks/useNotificationItems'
 import { useVisibleNotificationItems } from '@/hooks/useVisibleNotificationItems'
-import { Clock } from './Clock'
+import { useNotificationArrival } from '@/hooks/useNotificationArrival'
 
-const ROTATE_INTERVAL_MS = 9000
-const FADE_MS = 200
+// Matches the `notification-teaser` keyframes duration in index.css.
+export const TEASER_MS = 6000
 
-// Shared by every state the pill can be in (notification / clock / tip) so
-// the footer always reads as the same "notification toggle" element — only
-// its interactivity and text color change depending on whether there's
-// anything active to open the panel for.
-// hidden below 1200px — NotificationCompactToggle (in the right-hand
-// cluster, next to the font-size control) takes over at that width,
-// collapsed to just the top-priority notification's icon. Hints/clock get
-// no compact replacement; they simply go unread at that width.
-const PILL_BASE_CLASSES =
-  'absolute inset-x-0 top-1/2 -translate-y-1/2 mx-auto hidden min-[1200px]:flex h-5 w-[46rem] max-w-[92vw] items-center justify-center rounded-full border border-border bg-bg px-3 text-xs transition-colors'
-
-// The clock (unlike hints/notifications) doesn't need 46rem of room and
-// isn't worth losing below 1200px just to save space — it stays centered
-// and visible at every width, sized to just its own content instead.
-const CLOCK_PILL_CLASSES =
-  'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex h-5 w-24 items-center justify-center rounded-full border border-border bg-bg px-3 text-xs pointer-events-none select-none text-fg-subtle'
-
-function randomTipIndex(exclude?: number): number {
-  if (FOOTER_TIPS.length <= 1) return 0
-  let next = Math.floor(Math.random() * FOOTER_TIPS.length)
-  while (next === exclude) next = Math.floor(Math.random() * FOOTER_TIPS.length)
-  return next
-}
-
+// The footer's center (VIDE-140). Empty most of the time — the clock lives
+// in the right corner and the bell (with its count) is the notification
+// toggle. The center only speaks up for a transient status message, the
+// "up to date" confirmation, or for TEASER_MS after a new notification
+// arrives, when that notification's text shows here. The teaser is
+// full-width only (hidden below 1200px): at half width the bell's ring and
+// count are the whole signal.
 export function FooterMessage() {
   const transientMessage = useStatusMessageStore((s) => s.message)
-  // Raw (unfiltered) — the toggle stays clickable and the panel shows every
-  // active notification regardless of acknowledgment. Only the loud footer
-  // *text* goes quiet once viewed (visibleItems, below).
-  const rawItems = useNotificationItems()
+  const upToDateVersion = useUpdateStore((s) => s.upToDateVersion)
   const visibleItems = useVisibleNotificationItems()
   const toggleNotificationPanel = useNotificationPanelStore((s) => s.toggle)
-  const upToDateVersion = useUpdateStore((s) => s.upToDateVersion)
-  const footerContent = useDisplayStore((s) => s.footerContent)
-
-  const [tipIndex, setTipIndex] = useState(() => randomTipIndex())
-  const [fading, setFading] = useState(false)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFading(true)
-      setTimeout(() => {
-        setTipIndex((i) => randomTipIndex(i))
-        setFading(false)
-      }, FADE_MS)
-    }, ROTATE_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [])
+  const arrival = useNotificationArrival(TEASER_MS)
 
   const positionClasses = 'absolute left-1/2 -translate-x-1/2 max-w-[45%] truncate text-xs'
 
@@ -78,51 +39,32 @@ export function FooterMessage() {
     )
   }
 
-  const pillContent =
-    visibleItems.length > 0 ? (
-      <span className="truncate">{visibleItems[0].text}</span>
-    ) : footerContent === 'clock' ? (
-      <Clock />
-    ) : (
-      <span
-        className={['truncate transition-opacity', fading ? 'opacity-0' : 'opacity-100'].join(' ')}
-        style={{ transitionDuration: `${FADE_MS}ms` }}
-      >
-        {FOOTER_TIPS[tipIndex]}
-      </span>
-    )
+  // Looked up among the *visible* (unacknowledged) items, so opening the
+  // panel on it — or the condition clearing — ends the teaser early.
+  const arrived = arrival ? visibleItems.find((item) => item.id === arrival.id) : undefined
+  if (!arrival || !arrived) return null
+  const others = visibleItems.length - 1
 
-  if (rawItems.length > 0) {
-    return (
-      <button
-        type="button"
-        data-testid="notification-teaser"
-        // onMouseUp rather than onClick (VIDE-91): the countdown re-renders
-        // this button every second, and a real click that straddles one of
-        // those re-renders can fail the browser's mousedown/mouseup ==
-        // same-target check that click synthesis depends on. mouseup has no
-        // such requirement.
-        onMouseUp={(e) => {
-          if (e.button === 0) toggleNotificationPanel()
-        }}
-        className={[
-          PILL_BASE_CLASSES,
-          'cursor-pointer hover:border-fg-subtle',
-          visibleItems.length > 0 ? 'text-accent' : 'text-fg-muted',
-        ].join(' ')}
-      >
-        {pillContent}
-      </button>
-    )
-  }
-
-  if (footerContent === 'clock') {
-    return (
-      <span className={CLOCK_PILL_CLASSES}>
-        <Clock />
-      </span>
-    )
-  }
-
-  return <span className={[PILL_BASE_CLASSES, 'pointer-events-none select-none text-fg-subtle'].join(' ')}>{pillContent}</span>
+  return (
+    <button
+      // Keyed on the arrival so a second notification restarts the
+      // fade/drain animation instead of inheriting the first one's progress.
+      key={arrival.at}
+      type="button"
+      data-testid="notification-teaser"
+      data-notification-toggle=""
+      // onMouseUp rather than onClick (VIDE-91): a usage countdown re-renders
+      // this every second, and a click straddling a re-render can fail the
+      // browser's same-target check that click synthesis depends on.
+      onMouseUp={(e) => {
+        if (e.button === 0) toggleNotificationPanel()
+      }}
+      className="notification-teaser absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden min-[1200px]:flex h-5 max-w-[45%] items-center gap-2 overflow-hidden rounded-full border border-accent bg-bg pl-2 pr-3 text-xs text-accent cursor-pointer [&_svg]:h-3 [&_svg]:w-3"
+    >
+      <span className="shrink-0 flex">{arrived.icon}</span>
+      <span className="truncate">{arrived.text}</span>
+      {others > 0 && <span className="shrink-0 text-fg-muted">+{others}</span>}
+      <span className="notification-teaser-drain absolute left-0 bottom-0 h-px w-full bg-accent/70" />
+    </button>
+  )
 }

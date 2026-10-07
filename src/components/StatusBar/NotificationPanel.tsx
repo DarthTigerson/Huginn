@@ -14,6 +14,7 @@ export function NotificationPanel() {
   const close = useNotificationPanelStore((s) => s.close)
   const rawItems = useNotificationItems()
   const acknowledge = useNotificationAcknowledgedStore((s) => s.acknowledge)
+  const acknowledgedIds = useNotificationAcknowledgedStore((s) => s.acknowledgedIds)
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(open)
 
@@ -71,7 +72,11 @@ export function NotificationPanel() {
     // moving off onClick, and is the more standard "click outside" trigger
     // anyway since it doesn't wait on the browser's click synthesis at all.
     const onMouseDown = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) close()
+      const target = e.target as Element
+      // The bell/teaser toggle the panel themselves on mouseup — closing
+      // here first would just have them reopen it.
+      if (target.closest?.('[data-notification-toggle]')) return
+      if (panelRef.current && !panelRef.current.contains(target)) close()
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
@@ -89,20 +94,39 @@ export function NotificationPanel() {
       ref={panelRef}
       data-testid="notification-panel"
       className={[
-        // Centered via inset-x-0 + mx-auto (no transform) so the transform
-        // is free for the open/close slide below — combining a centering
-        // translate-x with an animated translate-y on the same element is
-        // fragile. bottom-full alone leaves this fully visible either way
-        // (it only ever repositions within visible space), so the closed
-        // state also fades to opacity-0 to actually hide it.
-        'absolute bottom-full inset-x-0 mx-auto w-[46rem] max-w-[92vw] z-40',
+        // Anchored above the bell (VIDE-140), right-aligned to it; mb lifts
+        // it from the bell's top to the footer's top edge. bottom-full alone
+        // leaves this fully visible either way, so the closed state also
+        // fades to opacity-0 to actually hide it.
+        'absolute bottom-full right-0 mb-[3px] w-[28rem] max-w-[92vw] z-40',
         'rounded-t border border-b-0 border-border bg-popover shadow-lg shadow-black/40',
         'origin-bottom transition-[opacity,transform] duration-200 ease-out',
         open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none',
       ].join(' ')}
     >
       {mounted && (
-        <ul className="h-40 overflow-y-auto overscroll-contain">
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border text-xs text-fg-muted">
+          <span>
+            <span className="font-semibold text-fg">Notifications</span> · {items.length}
+          </span>
+          {items.length > 0 && (
+            <button
+              type="button"
+              onMouseUp={(e) => {
+                if (e.button !== 0) return
+                const ids = items.map((item) => item.id)
+                setDismissedIds((prev) => [...prev, ...ids])
+                acknowledge(ids)
+              }}
+              className="text-fg-muted hover:text-fg transition-colors"
+            >
+              Dismiss all
+            </button>
+          )}
+        </div>
+      )}
+      {mounted && (
+        <ul className="max-h-40 overflow-y-auto overscroll-contain">
           {items.map((item) => (
             <li key={item.id} className="flex items-center">
               <button
@@ -118,6 +142,13 @@ export function NotificationPanel() {
                   item.disabled ? 'text-fg-subtle cursor-default' : 'text-fg hover:bg-white/5 cursor-pointer',
                 ].join(' ')}
               >
+                <span
+                  data-testid="notification-unread-dot"
+                  className={[
+                    'shrink-0 h-1.5 w-1.5 rounded-full',
+                    acknowledgedIds.includes(item.id) ? 'bg-transparent' : 'bg-accent',
+                  ].join(' ')}
+                />
                 <span className="shrink-0 [&_svg]:h-3.5 [&_svg]:w-3.5">{item.icon}</span>
                 <span className="truncate">{item.text}</span>
               </button>

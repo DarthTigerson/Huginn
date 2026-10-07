@@ -619,6 +619,60 @@ body {
   20%, 40%, 60% { opacity: 0; }
 }
 
+/* New-notification moment (VIDE-140): a one-shot white strip on the same
+   edge and timing as .git-activity-bar, the bell ringing once, and the
+   center teaser fading out with a draining underline. Light themes use the
+   theme's text colour instead — white vanishes on a pale footer. */
+:root { --notification-pulse: #ffffff; }
+[data-theme$="-light"] { --notification-pulse: var(--color-fg); }
+.notification-pulse {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--notification-pulse) 70%, transparent), var(--notification-pulse));
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--notification-pulse) 60%, transparent);
+  animation: notification-pulse-growth 1.35s cubic-bezier(0.4, 0, 0.2, 1) 1 both;
+}
+@keyframes notification-pulse-growth {
+  0%   { width: 0%;   opacity: 1; }
+  70%  { width: 92%;  opacity: 1; }
+  86%  { width: 100%; opacity: 0.55; }
+  100% { width: 100%; opacity: 0; }
+}
+.notification-bell-ring svg {
+  transform-origin: 50% 15%;
+  animation: notification-bell-ring 0.9s ease-in-out 1;
+}
+@keyframes notification-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+}
+/* opacity only — the teaser's centering already owns `transform` */
+.notification-teaser { animation: notification-teaser-fade 6s linear 1 both; }
+@keyframes notification-teaser-fade {
+  0% { opacity: 0; }
+  4%, 92% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.notification-teaser-drain {
+  transform-origin: left;
+  animation: notification-teaser-drain 6s linear 1 both;
+}
+@keyframes notification-teaser-drain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-pulse, .notification-bell-ring svg, .notification-teaser-drain { animation: none; }
+  .notification-pulse { display: none; }
+}
+
 /* Decorative badge in the empty editor panel ("open a file to start
    editing"). The source PNG has real alpha (pre-cropped to the badge's
    corner with a transparent surround), so it just composites normally —

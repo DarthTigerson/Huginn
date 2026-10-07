@@ -27,19 +27,9 @@ const { localStorageStore } = vi.hoisted(() => {
 
 import { useDisplayStore } from '../displayStore'
 
-describe('displayStore — footer content + memory usage visibility', () => {
+describe('displayStore — memory usage visibility', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-  })
-
-  it('defaults footerContent to hints', () => {
-    expect(useDisplayStore.getState().footerContent).toBe('hints')
-  })
-
-  it('setFooterContent updates state and persists to localStorage', () => {
-    useDisplayStore.getState().setFooterContent('clock')
-    expect(useDisplayStore.getState().footerContent).toBe('clock')
-    expect(localStorageStore['vide:footerContent']).toBe('clock')
   })
 
   it('defaults memoryUsageVisible to true', () => {
