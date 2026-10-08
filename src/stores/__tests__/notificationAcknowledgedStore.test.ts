@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useNotificationAcknowledgedStore } from '../notificationAcknowledgedStore'
 
 beforeEach(() => {
-  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
 })
 
 describe('notificationAcknowledgedStore', () => {
@@ -31,5 +31,18 @@ describe('notificationAcknowledgedStore', () => {
     useNotificationAcknowledgedStore.getState().acknowledge(['usage', 'docker'])
     useNotificationAcknowledgedStore.getState().reconcile(['usage'])
     expect(useNotificationAcknowledgedStore.getState().acknowledgedIds).toEqual(['usage'])
+  })
+
+  it('dismiss() records the id as dismissed and acknowledged', () => {
+    useNotificationAcknowledgedStore.getState().dismiss(['docker'])
+    const { dismissedIds, acknowledgedIds } = useNotificationAcknowledgedStore.getState()
+    expect(dismissedIds).toEqual(['docker'])
+    expect(acknowledgedIds).toContain('docker')
+  })
+
+  it('reconcile() forgets a dismissal once its condition clears', () => {
+    useNotificationAcknowledgedStore.getState().dismiss(['docker', 'update'])
+    useNotificationAcknowledgedStore.getState().reconcile(['update'])
+    expect(useNotificationAcknowledgedStore.getState().dismissedIds).toEqual(['update'])
   })
 })

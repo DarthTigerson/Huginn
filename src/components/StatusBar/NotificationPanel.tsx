@@ -18,27 +18,10 @@ export function NotificationPanel() {
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(open)
 
-  // Rows dismissed via the × button (VIDE-94), hidden from this panel right
-  // away. Deliberately local rather than reading back the global
-  // acknowledgedIds store: closing the whole panel (below) also
-  // acknowledges everything still showing, and if this list re-derived from
-  // that store, every row would vanish the instant you close it — before
-  // the fade-out transition gets a chance to animate it. Pruned whenever a
-  // dismissed id's underlying condition actually clears, so a later
-  // re-trigger of the same id isn't silenced by a stale dismissal.
-  const [dismissedIds, setDismissedIds] = useState<string[]>([])
-  const rawIdsKey = rawItems.map((item) => item.id).join(',')
-  useEffect(() => {
-    const rawIds = new Set(rawIdsKey ? rawIdsKey.split(',') : [])
-    setDismissedIds((prev) => {
-      const next = prev.filter((id) => rawIds.has(id))
-      return next.length === prev.length ? prev : next
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawIdsKey])
-
-  // Raw minus locally-dismissed — see the dismissedIds comment above for
-  // why this isn't the acknowledgment-filtered list.
+  // Rows cleared with × / "Dismiss all" leave the panel right away; the
+  // shared store keeps the bell's count in agreement (see dismissedIds).
+  const dismissedIds = useNotificationAcknowledgedStore((s) => s.dismissedIds)
+  const dismiss = useNotificationAcknowledgedStore((s) => s.dismiss)
   const items = rawItems.filter((item) => !dismissedIds.includes(item.id))
 
   // Closing (any path — row pick, outside click, Escape, auto-close) marks
@@ -114,9 +97,7 @@ export function NotificationPanel() {
               type="button"
               onMouseUp={(e) => {
                 if (e.button !== 0) return
-                const ids = items.map((item) => item.id)
-                setDismissedIds((prev) => [...prev, ...ids])
-                acknowledge(ids)
+                dismiss(items.map((item) => item.id))
               }}
               className="text-fg-muted hover:text-fg transition-colors"
             >
@@ -158,8 +139,7 @@ export function NotificationPanel() {
                 onMouseUp={(e) => {
                   if (e.button !== 0) return
                   e.stopPropagation()
-                  setDismissedIds((prev) => [...prev, item.id])
-                  acknowledge([item.id])
+                  dismiss([item.id])
                 }}
                 className="shrink-0 w-6 h-6 mr-1 flex items-center justify-center rounded text-fg-subtle hover:text-fg hover:bg-white/10"
               >

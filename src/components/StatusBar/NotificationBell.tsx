@@ -2,6 +2,7 @@ import { useNotificationItems } from '@/hooks/useNotificationItems'
 import { useVisibleNotificationItems } from '@/hooks/useVisibleNotificationItems'
 import { useNotificationArrival } from '@/hooks/useNotificationArrival'
 import { useNotificationPanelStore } from '@/stores/notificationPanelStore'
+import { useNotificationAcknowledgedStore } from '@/stores/notificationAcknowledgedStore'
 import { BellIcon } from '@/components/ActivityBar/ActivityBar'
 
 // Matches the `notification-bell-ring` keyframes duration in index.css.
@@ -11,10 +12,12 @@ const RING_MS = 900
 // and count fused into one pill so they read as a single thing. Filled
 // accent while anything is unread (not yet acknowledged by closing the
 // panel on it), a plain outline once everything has been seen, and just a
-// muted bell with nothing active. Count = every active notification, seen
-// or not — the same rows the panel lists.
+// muted bell with nothing active. Count = every active, non-dismissed
+// notification, seen or not — the same rows the panel lists.
 export function NotificationBell() {
-  const items = useNotificationItems()
+  const dismissedIds = useNotificationAcknowledgedStore((s) => s.dismissedIds)
+  // Dismissed rows are gone from the panel, so they don't count either.
+  const items = useNotificationItems().filter((item) => !dismissedIds.includes(item.id))
   const visibleItems = useVisibleNotificationItems()
   const toggle = useNotificationPanelStore((s) => s.toggle)
   const ringing = useNotificationArrival(RING_MS)

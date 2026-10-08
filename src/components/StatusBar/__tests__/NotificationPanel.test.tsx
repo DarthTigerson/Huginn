@@ -17,7 +17,7 @@ beforeEach(() => {
   useDockerSettingsStore.setState({ enabled: false })
   useDockerStore.setState({ status: 'unknown' })
   useEditorStore.setState({ activeTabPath: null })
-  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
 })
 
 afterEach(() => {

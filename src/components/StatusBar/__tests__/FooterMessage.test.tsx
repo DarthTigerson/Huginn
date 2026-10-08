@@ -15,7 +15,7 @@ function resetStores() {
   useDockerSettingsStore.setState({ enabled: false })
   useDockerStore.setState({ status: 'unknown' })
   useNotificationPanelStore.setState({ open: false })
-  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
   useNotificationArrivalStore.setState({ knownIds: [], arrival: null })
 }
 

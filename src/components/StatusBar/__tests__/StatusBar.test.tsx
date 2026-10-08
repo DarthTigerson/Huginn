@@ -175,7 +175,7 @@ describe('StatusBar — notification bell, panel and clock', () => {
   afterEach(() => {
     useUsageAlertStore.setState({ alerts: [] })
     useNotificationPanelStore.setState({ open: false })
-    useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+    useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
     useNotificationArrivalStore.setState({ knownIds: [], arrival: null })
   })
 
@@ -207,6 +207,19 @@ describe('StatusBar — notification bell, panel and clock', () => {
     fireEvent.mouseDown(bell)
     fireEvent.mouseUp(bell, { button: 0 })
     expect(useNotificationPanelStore.getState().open).toBe(false)
+  })
+
+  it('dismissing every notification in the panel clears the bell count too', () => {
+    useUsageAlertStore.setState({ alerts: [{ scope: 'session', cutoffAt: Date.now() + 60_000, resetAt: null }] })
+    render(<StatusBar />)
+    expect(screen.getByTestId('notification-bell').textContent).toBe('1')
+
+    fireEvent.mouseUp(screen.getByTestId('notification-bell'), { button: 0 })
+    fireEvent.mouseUp(screen.getByRole('button', { name: 'Dismiss all' }), { button: 0 })
+
+    const bell = screen.getByTestId('notification-bell')
+    expect(bell.textContent).toBe('')
+    expect(bell).toBeDisabled()
   })
 
   it('closing the panel turns the bell from unread to seen, and the panel still lists the item', () => {
