@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown'
 import { useUpdateStore } from '@/stores/updateStore'
 import { COMPACT_PROSE_CLASSES } from '@/components/Viewer/proseClasses'
 import { parseReleaseNotes } from '@/lib/releaseNotes'
+// The app icon itself (also what packaging uses), not a copy in src/assets.
+import appIconUrl from '../../../icon.png'
 import { Section, Row } from './SettingsLayout'
 import type { ChangelogRelease } from '../../../electron/changelog'
 
@@ -84,7 +86,7 @@ export function AboutSettingsPage() {
         <Section label="Version">
           <Row>
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-[0.9375rem] font-semibold text-fg">vI</div>
+              <img src={appIconUrl} alt="vIDE" className="h-12 w-12 shrink-0" draggable={false} />
               <div className="min-w-0 flex-1">
                 <div data-testid="about-version" className="text-[0.9375rem] font-semibold text-fg">
                   vIDE {current && <span className="text-accent">{current}</span>}

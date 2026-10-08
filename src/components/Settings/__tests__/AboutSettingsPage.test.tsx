@@ -38,6 +38,11 @@ describe('formatCheckedAgo', () => {
 })
 
 describe('AboutSettingsPage', () => {
+  it('shows the app icon beside the version', () => {
+    render(<AboutSettingsPage />)
+    expect(screen.getByRole('img', { name: 'vIDE' }).getAttribute('src')).toMatch(/icon/)
+  })
+
   it('shows the running version in the primary colour', () => {
     render(<AboutSettingsPage />)
     const version = screen.getByTestId('about-version')
