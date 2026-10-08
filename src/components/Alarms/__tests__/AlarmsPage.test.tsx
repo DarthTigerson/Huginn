@@ -69,7 +69,15 @@ describe('AlarmsPage', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Repeat' }))
     for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) fireEvent.click(screen.getByRole('button', { name: day }))
     expect(screen.getByRole('button', { name: 'Add alarm' })).toBeDisabled()
-    expect(screen.getByText('Pick at least one day')).toBeInTheDocument()
+  })
+
+  it('lists the repeat days Monday to Sunday, with no hint text beside them', () => {
+    render(<AlarmsPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Repeat' }))
+    const order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    const buttons = screen.getAllByRole('button').filter((b) => order.includes(b.getAttribute('aria-label') ?? ''))
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(order)
+    expect(screen.queryByText('Weekdays')).toBeNull()
   })
 
   it('switches an alarm off and deletes it', () => {

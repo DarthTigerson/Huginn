@@ -9,6 +9,8 @@ import {
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+// Day buttons run Monday → Sunday; values stay JS getDay() numbers (0 = Sunday).
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
 const WEEKDAYS = [1, 2, 3, 4, 5]
 
 // Same uppercase label as the settings pages' Section headings.
@@ -177,7 +179,8 @@ function NewAlarmForm() {
         {repeat && (
           <>
             <div className="flex gap-1">
-              {DAY_LETTERS.map((letter, day) => {
+              {WEEK_ORDER.map((day) => {
+                const letter = DAY_LETTERS[day]
                 const on = days.includes(day)
                 return (
                   <button
@@ -196,20 +199,16 @@ function NewAlarmForm() {
                 )
               })}
             </div>
-            <span className="text-xs text-fg-subtle">{days.length ? repeatLabel(days) : 'Pick at least one day'}</span>
           </>
         )}
-      </div>
-
-      <div className="flex items-center gap-3">
+        {/* Disabled until the alarm has a name (and, for Repeat, a day). */}
         <button
           type="submit"
           disabled={!canAdd}
-          className="h-8 px-4 rounded-full bg-accent text-on-accent text-xs font-semibold transition-opacity disabled:opacity-40 disabled:cursor-default"
+          className="ml-auto h-8 px-4 rounded-full bg-accent text-on-accent text-xs font-semibold transition-opacity disabled:opacity-40 disabled:cursor-default"
         >
           Add alarm
         </button>
-        {!name.trim() && <span className="text-xs text-fg-subtle">Give it a name to add it</span>}
       </div>
     </form>
   )

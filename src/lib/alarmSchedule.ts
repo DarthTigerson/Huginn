@@ -80,9 +80,12 @@ export function nextAlarm(alarms: Alarm[], now: number): { alarm: Alarm; at: num
 
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// Monday-first, matching the day buttons on the Alarms page.
+const mondayFirst = (day: number) => (day + 6) % 7
+
 export function repeatLabel(days: number[]): string {
-  const sorted = [...days].sort((a, b) => a - b)
-  const key = sorted.join(',')
+  const sorted = [...days].sort((a, b) => mondayFirst(a) - mondayFirst(b))
+  const key = [...days].sort((a, b) => a - b).join(',')
   if (sorted.length === 7) return 'Every day'
   if (key === '1,2,3,4,5') return 'Weekdays'
   if (key === '0,6') return 'Weekends'

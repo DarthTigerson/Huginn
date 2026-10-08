@@ -91,6 +91,7 @@ describe('labels', () => {
     expect(repeatLabel([6, 0])).toBe('Weekends')
     expect(repeatLabel([0, 1, 2, 3, 4, 5, 6])).toBe('Every day')
     expect(repeatLabel([5, 1])).toBe('Mon, Fri')
+    expect(repeatLabel([0, 1, 3])).toBe('Mon, Wed, Sun') // Monday first, Sunday last
   })
 
   it('describes once dates relative to today', () => {
