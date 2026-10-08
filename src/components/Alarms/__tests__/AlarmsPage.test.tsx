@@ -16,29 +16,53 @@ afterEach(() => {
 })
 
 const type = (label: string | RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
-// The time field opens one panel with an Hour and a Minute column (T1).
+// The time field opens one panel: Hour, Minute and (on a 12-hour clock,
+// as in this en-US test environment) AM/PM. Takes a 24-hour time.
 const pickTime = (hh: string, mm: string) => {
   fireEvent.click(screen.getByLabelText('Time'))
-  fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: hh }))
+  const h = Number(hh)
+  if (screen.queryByRole('listbox', { name: 'AM/PM' })) {
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'AM/PM' })).getByRole('option', { name: h >= 12 ? 'PM' : 'AM' }))
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: String(h % 12 || 12) }))
+  } else {
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: hh }))
+  }
   fireEvent.click(within(screen.getByRole('listbox', { name: 'Minute' })).getByRole('option', { name: mm }))
+  // the panel stays open after picking; an outside click closes it
+  fireEvent.mouseDown(document.body)
 }
+
 describe('AlarmsPage', () => {
-  it('picks the time from one panel with hour and minute columns, instead of the native picker', () => {
+  it('picks the time from one panel with hour, minute and AM/PM columns, instead of the native picker', () => {
     render(<AlarmsPage />)
     expect(document.querySelector('input[type="time"]')).toBeNull()
     const field = screen.getByLabelText('Time')
-    expect(field.textContent).toBe('09:00')
+    expect(field.textContent).toBe('9:00 AM')
 
     fireEvent.click(field)
-    expect(within(screen.getByRole('listbox', { name: 'Hour' })).getAllByRole('option')).toHaveLength(24)
+    expect(within(screen.getByRole('listbox', { name: 'Hour' })).getAllByRole('option').map((o) => o.textContent)).toEqual(
+      ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'],
+    )
     expect(within(screen.getByRole('listbox', { name: 'Minute' })).getAllByRole('option')).toHaveLength(60)
 
-    // picking an hour keeps it open, picking a minute closes it
-    fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: '14' }))
+    // picking any column, minute included, keeps it open
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'AM/PM' })).getByRole('option', { name: 'PM' }))
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: '10' }))
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Minute' })).getByRole('option', { name: '28' }))
     expect(screen.getByTestId('time-picker-panel')).toBeInTheDocument()
-    fireEvent.click(within(screen.getByRole('listbox', { name: 'Minute' })).getByRole('option', { name: '45' }))
-    expect(screen.queryByTestId('time-picker-panel')).toBeNull()
-    expect(field.textContent).toBe('14:45')
+    expect(field.textContent).toBe('10:28 PM')
+  })
+
+  it('12 AM is midnight and 12 PM is noon', () => {
+    render(<AlarmsPage />)
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Midnight' } })
+    pickTime('00', '00')
+    fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Noon' } })
+    pickTime('12', '00')
+    fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
+    const byName = Object.fromEntries(useAlarmStore.getState().alarms.map((a) => [a.name, a.hour]))
+    expect(byName).toEqual({ Midnight: 0, Noon: 12 })
   })
 
   it('closes the time panel on Escape and on an outside click', () => {

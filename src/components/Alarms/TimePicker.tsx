@@ -1,24 +1,29 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { formatAlarmTime, uses12HourClock } from '@/lib/alarmSchedule'
 
 const pad = (n: number) => String(n).padStart(2, '0')
-const HOURS = Array.from({ length: 24 }, (_, h) => h)
 const MINUTES = Array.from({ length: 60 }, (_, m) => m)
+const HOURS_24 = Array.from({ length: 24 }, (_, h) => h)
+// 12-hour clocks list 12 first: 12 AM is midnight, 12 PM is noon.
+const HOURS_12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
-// The alarm time field (VIDE-141, mockup "T1"): one HH:MM field whose panel
-// has an hours column and a minutes column side by side. The native time
-// input's picker can't be themed, and two separate dropdowns could both be
-// open at once. Picking an hour keeps the panel open; picking a minute
-// finishes and closes it, as do an outside click and Escape.
-export function TimePicker({ id, hour, minute, onChange }: {
+// The alarm time field (VIDE-141, mockup "T1"): one field whose panel has
+// hour and minute columns side by side — plus an AM/PM column when the
+// system clock is 12-hour, so the picker reads the same way as the footer
+// clock and the alarm list. The native time input's picker can't be themed,
+// and two separate dropdowns could both be open at once. Picking in any
+// column keeps the panel open so the time can be adjusted freely; an
+// outside click or Escape closes it. `hour` is always 0–23.
+export function TimePicker({ id, hour, minute, onChange, hour12 = uses12HourClock() }: {
   id?: string
   hour: number
   minute: number
   onChange: (hour: number, minute: number) => void
+  hour12?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const hoursRef = useRef<HTMLDivElement>(null)
-  const minutesRef = useRef<HTMLDivElement>(null)
+  const columnsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -36,18 +41,21 @@ export function TimePicker({ id, hour, minute, onChange }: {
     }
   }, [open])
 
-  // Open on the current time, centred in each column, not at 00.
+  // Open on the current time, centred in each column, not at the top.
   useLayoutEffect(() => {
     if (!open) return
-    for (const column of [hoursRef.current, minutesRef.current]) {
-      const selected = column?.querySelector<HTMLElement>('[aria-selected="true"]')
-      if (column && selected) column.scrollTop = selected.offsetTop - column.clientHeight / 2 + selected.clientHeight / 2
-    }
+    columnsRef.current?.querySelectorAll<HTMLElement>('[role="listbox"]').forEach((column) => {
+      const selected = column.querySelector<HTMLElement>('[aria-selected="true"]')
+      if (selected) column.scrollTop = selected.offsetTop - column.clientHeight / 2 + selected.clientHeight / 2
+    })
   }, [open])
 
-  const option = (value: number, selected: boolean, onPick: () => void) => (
+  const isPm = hour >= 12
+  const to24 = (h12: number, pm: boolean) => (h12 % 12) + (pm ? 12 : 0)
+
+  const option = (key: string | number, label: string, selected: boolean, onPick: () => void) => (
     <button
-      key={value}
+      key={key}
       type="button"
       role="option"
       aria-selected={selected}
@@ -57,9 +65,14 @@ export function TimePicker({ id, hour, minute, onChange }: {
         selected ? 'bg-accent text-on-accent font-semibold' : 'text-fg-muted hover:bg-white/5 hover:text-fg',
       ].join(' ')}
     >
-      {pad(value)}
+      {label}
     </button>
   )
+
+  const heading = (label: string) => (
+    <div className="pb-1 text-center text-[0.625rem] font-semibold uppercase tracking-wider text-fg-subtle">{label}</div>
+  )
+  const columnClass = 'relative flex h-48 flex-col gap-0.5 overflow-y-auto pr-0.5'
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -74,27 +87,36 @@ export function TimePicker({ id, hour, minute, onChange }: {
           open ? 'border-accent/60' : 'border-border hover:border-accent/60',
         ].join(' ')}
       >
-        <span>{pad(hour)}:{pad(minute)}</span>
+        <span>{hour12 ? formatAlarmTime(hour, minute) : `${pad(hour)}:${pad(minute)}`}</span>
         <ClockIcon />
       </button>
 
       {open && (
         <div
           data-testid="time-picker-panel"
-          className="absolute right-0 top-full mt-1 z-50 w-[8.5rem] rounded border border-border bg-popover p-1.5 shadow-2xl shadow-black/50"
+          className={[
+            'absolute right-0 top-full mt-1 z-50 rounded border border-border bg-popover p-1.5 shadow-2xl shadow-black/50',
+            hour12 ? 'w-[12rem]' : 'w-[8.5rem]',
+          ].join(' ')}
         >
-          <div className="grid grid-cols-2 gap-1">
-            <div className="pb-1 text-center text-[0.625rem] font-semibold uppercase tracking-wider text-fg-subtle">Hour</div>
-            <div className="pb-1 text-center text-[0.625rem] font-semibold uppercase tracking-wider text-fg-subtle">Min</div>
-            <div ref={hoursRef} role="listbox" aria-label="Hour" className="relative flex h-48 flex-col gap-0.5 overflow-y-auto pr-0.5">
-              {HOURS.map((h) => option(h, h === hour, () => onChange(h, minute)))}
+          <div ref={columnsRef} className={['grid gap-1', hour12 ? 'grid-cols-3' : 'grid-cols-2'].join(' ')}>
+            {heading('Hour')}
+            {heading('Min')}
+            {hour12 && heading('AM/PM')}
+            <div role="listbox" aria-label="Hour" className={columnClass}>
+              {hour12
+                ? HOURS_12.map((h) => option(h, String(h), to24(h, isPm) === hour, () => onChange(to24(h, isPm), minute)))
+                : HOURS_24.map((h) => option(h, pad(h), h === hour, () => onChange(h, minute)))}
             </div>
-            <div ref={minutesRef} role="listbox" aria-label="Minute" className="relative flex h-48 flex-col gap-0.5 overflow-y-auto pr-0.5">
-              {MINUTES.map((m) => option(m, m === minute, () => {
-                onChange(hour, m)
-                setOpen(false)
-              }))}
+            <div role="listbox" aria-label="Minute" className={columnClass}>
+              {MINUTES.map((m) => option(m, pad(m), m === minute, () => onChange(hour, m)))}
             </div>
+            {hour12 && (
+              <div role="listbox" aria-label="AM/PM" className="flex flex-col gap-0.5">
+                {option('am', 'AM', !isPm, () => onChange(hour % 12, minute))}
+                {option('pm', 'PM', isPm, () => onChange((hour % 12) + 12, minute))}
+              </div>
+            )}
           </div>
         </div>
       )}

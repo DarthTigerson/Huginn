@@ -101,6 +101,14 @@ export function onceLabel(date: string, now: Date): string {
   return 'Once · ' + new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+// Whether times are shown with AM/PM here — the same default the footer
+// clock and alarm rows use (toLocaleTimeString with no options), so the
+// time picker can match them. Picking from a 00–23 list while everything
+// else read "AM/PM" made "10" mean 10 AM to someone setting 10 PM.
+export function uses12HourClock(locale?: string): boolean {
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric' }).resolvedOptions().hour12 ?? false
+}
+
 export function formatAlarmTime(hour: number, minute: number): string {
   return new Date(2000, 0, 1, hour, minute).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
