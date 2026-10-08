@@ -145,6 +145,10 @@ export type BridgeEvent =
   | { type: 'error'; message: string }
 
 declare global {
+  // package.json version, injected by electron.vite.config.ts's `define`
+  // (VIDE-142). Undefined under vitest, so read it with a typeof guard.
+  const __APP_VERSION__: string | undefined
+
   interface Window {
     api: {
       readDir: (path: string) => Promise<FileNode[]>
@@ -285,6 +289,11 @@ declare global {
 
       updateGetLatest: () => Promise<UpdateInfo | null>
       updateRestart: () => void
+      // Runs install.sh in the background (VIDE-142); output/exit stream back.
+      updateRun: () => Promise<void>
+      updateGetRemoteChangelog: (version: string) => Promise<string | null>
+      onUpdateOutput: (cb: (out: { line: string; stream: 'stdout' | 'stderr' }) => void) => () => void
+      onUpdateExit: (cb: (code: number) => void) => () => void
       onUpdateAvailable: (cb: (info: UpdateInfo | null) => void) => () => void
       onUpdateUpToDate: (cb: (version: string) => void) => () => void
       getChangelogForVersion: (version: string) => Promise<string | null>

@@ -740,6 +740,40 @@ body {
   .alarm-flash-edge { animation: none; opacity: 0.8; }
 }
 
+/* Update page track (VIDE-142, mockup "U1"): the fill eases between stages,
+   comets run along the stretch in progress (the alarm flash's language),
+   and the current stop pulses. */
+.update-track-fill {
+  transition: width 0.6s ease;
+  box-shadow: 0 0 8px rgb(var(--color-accent) / 0.6);
+}
+.update-track-lane span {
+  position: absolute;
+  top: 1px;
+  height: 2px;
+  width: 26%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgb(var(--color-accent)));
+  opacity: 0;
+  animation: update-track-lane 1.2s linear infinite backwards;
+}
+.update-track-lane span:nth-child(2) { animation-delay: 0.4s; }
+.update-track-lane span:nth-child(3) { animation-delay: 0.8s; }
+@keyframes update-track-lane {
+  from { left: -26%; opacity: 0.3; }
+  80%  { opacity: 1; }
+  to   { left: 100%; opacity: 0; }
+}
+.update-track-now { animation: update-track-now 1.4s ease-in-out infinite; }
+@keyframes update-track-now {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--color-accent) / 0.45); }
+  50%      { box-shadow: 0 0 0 7px rgb(var(--color-accent) / 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-track-lane span, .update-track-now { animation: none; }
+  .update-track-fill { transition: none; }
+}
+
 /* Decorative badge in the empty editor panel ("open a file to start
    editing"). The source PNG has real alpha (pre-cropped to the badge's
    corner with a transparent surround), so it just composites normally —

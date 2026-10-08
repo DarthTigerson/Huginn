@@ -35,6 +35,7 @@ export function useNotificationItems(): NotificationItem[] {
   const available = useUpdateStore((s) => s.available)
   const status = useUpdateStore((s) => s.status)
   const startUpdate = useUpdateStore((s) => s.startUpdate)
+  const openUpdatePage = useUpdateStore((s) => s.openUpdatePage)
   const restart = useUpdateStore((s) => s.restart)
 
   const [now, setNow] = useState(() => Date.now())
@@ -128,12 +129,13 @@ export function useNotificationItems(): NotificationItem[] {
       status === 'ready'
         ? 'Update installed — click to restart'
         : status === 'updating'
-          ? 'Updating vIDE… (see terminal)'
+          ? 'Updating vIDE…'
           : status === 'failed'
             ? `Update failed — click to retry (v${available.version} available)`
             : `vIDE v${available.version} is available — click to update`
-    const onClick = status === 'ready' ? restart : status === 'updating' ? undefined : startUpdate
-    items.push({ id: 'update', text, disabled: status === 'updating', icon: <UpdateAvailableIcon />, onClick })
+    // Updating: reopen the Update page (VIDE-142) to watch its progress.
+    const onClick = status === 'ready' ? restart : status === 'updating' ? openUpdatePage : startUpdate
+    items.push({ id: 'update', text, disabled: false, icon: <UpdateAvailableIcon />, onClick })
   }
 
   return items

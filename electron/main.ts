@@ -33,6 +33,7 @@ import { registerTodoMcpHandlers, registerNotesMcpHandlers, registerBrowserMcpHa
 import { registerNotesHandlers } from './notes'
 import { registerSearchHandlers } from './search'
 import { UpdateChecker } from './updateChecker'
+import { UpdateRunner } from './updateRunner'
 import { getChangelogForVersion } from './changelog'
 import { getSystemMemoryUsage } from './systemMemory'
 import { registerOnboardingHandlers } from './onboarding'
@@ -775,6 +776,7 @@ app.whenReady().then(async () => {
   })
   updateChecker.registerHandlers()
   updateChecker.start()
+  new UpdateRunner().registerHandlers()
 
   ipcMain.on('update:restart', () => {
     // quit() (not exit()) — exit() doesn't wait for pending operations, and

@@ -119,12 +119,15 @@ describe('useNotificationItems', () => {
     expect(startUpdate).toHaveBeenCalled()
   })
 
-  it('marks the update item disabled with no action while an update is in progress', () => {
-    useUpdateStore.setState({ available: { version: '0.2.0', url: 'https://example.com' }, status: 'updating' })
+  it('while an update is in progress, the item reopens the Update page to watch it', () => {
+    const openUpdatePage = vi.fn()
+    useUpdateStore.setState({ available: { version: '0.2.0', url: 'https://example.com' }, status: 'updating', openUpdatePage })
     const { result } = renderHook(() => useNotificationItems())
     const update = result.current.find((i) => i.id === 'update')
-    expect(update?.disabled).toBe(true)
-    expect(update?.onClick).toBeUndefined()
+    expect(update?.text).toBe('Updating vIDE…')
+    expect(update?.disabled).toBe(false)
+    act(() => update!.onClick!())
+    expect(openUpdatePage).toHaveBeenCalled()
   })
 
   it('includes a commit-error item for a repo whose commit failed, and its action selects the repo and requests the panel to open', () => {

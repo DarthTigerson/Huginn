@@ -64,6 +64,13 @@ export function isAlarmsTab(path: string): boolean {
   return path === ALARMS_TAB_PATH
 }
 
+// In-app update progress page, opened from the update notification (VIDE-142).
+export const UPDATE_TAB_PATH = 'update://Update'
+
+export function isUpdateTab(path: string): boolean {
+  return path === UPDATE_TAB_PATH
+}
+
 const TODO_BOARD_PREFIX = 'todo-board://'
 export function isTodoBoardTab(path: string): boolean { return path.startsWith(TODO_BOARD_PREFIX) }
 export function buildTodoBoardPath(projectId: string): string { return TODO_BOARD_PREFIX + projectId }

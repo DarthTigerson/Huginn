@@ -1,32 +1,46 @@
 import { create } from 'zustand'
 import { useEditorStore } from './editorStore'
-import { buildTerminalPath } from '@/components/Settings/paths'
-import { pendingTerminalCommands } from '@/components/Terminal/TerminalTab'
+import { UPDATE_TAB_PATH } from '@/components/Settings/paths'
 import { PENDING_CHANGELOG_KEY } from './changelogStore'
+import { stageFromLine, failureFromLog, changelogBody, type UpdateStage, type UpdateFailure } from '@/lib/updateStage'
 import type { UpdateInfo } from '@/types/api'
 
-const SENTINEL_PREFIX = '__VIDE_UPDATE_EXIT_'
-const UPDATE_COMMAND =
-  `VIDE_NO_LAUNCH=1 curl -fsSL https://raw.githubusercontent.com/DarthTigerson/vIDE/main/install.sh | bash; ` +
-  `echo "${SENTINEL_PREFIX}$?__"\n`
-
 export type UpdateStatus = 'idle' | 'updating' | 'ready' | 'failed'
+
+export interface UpdateLogLine {
+  line: string
+  stream: 'stdout' | 'stderr'
+}
 
 const UP_TO_DATE_DISPLAY_MS = 4000
 
 interface UpdateState {
   available: UpdateInfo | null
   status: UpdateStatus
+  // Where an in-flight update is, read from install.sh's messages.
+  stage: UpdateStage | null
+  failure: UpdateFailure | null
+  log: UpdateLogLine[]
+  // The new version's CHANGELOG section for the Update page's "What's new":
+  // undefined while loading, null if it couldn't be fetched.
+  changelog: string | null | undefined
   upToDateVersion: string | null
   setAvailable: (info: UpdateInfo | null) => void
   showUpToDate: (version: string) => void
+  openUpdatePage: () => void
   startUpdate: () => void
   restart: () => void
 }
 
+let unsubscribe: (() => void) | null = null
+
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   available: null,
   status: 'idle',
+  stage: null,
+  failure: null,
+  log: [],
+  changelog: undefined,
   upToDateVersion: null,
 
   setAvailable: (info) => set({ available: info }),
@@ -38,23 +52,48 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     }, UP_TO_DATE_DISPLAY_MS)
   },
 
+  // Opens the Update tab (VIDE-142) and starts fetching what's new, without
+  // starting the update itself.
+  openUpdatePage: () => {
+    useEditorStore.getState().openTab({ path: UPDATE_TAB_PATH, content: '', dirty: false })
+    const version = get().available?.version
+    if (version && get().changelog === undefined) {
+      window.api.updateGetRemoteChangelog(version).then((section) => {
+        if (get().available?.version === version) set({ changelog: section ? changelogBody(section) : null })
+      }, () => set({ changelog: null }))
+    }
+  },
+
   startUpdate: () => {
     if (get().status === 'updating') return
-    set({ status: 'updating' })
+    get().openUpdatePage()
+    set({ status: 'updating', stage: 'download', failure: null, log: [] })
 
-    const id = Date.now().toString(36)
-    pendingTerminalCommands.set(id, UPDATE_COMMAND)
-    useEditorStore.getState().openTab({ path: buildTerminalPath(id), content: '', dirty: false })
+    unsubscribe?.()
+    const offOutput = window.api.onUpdateOutput((out) => {
+      const stage = stageFromLine(out.line)
+      set((s) => ({ log: [...s.log, out], stage: stage ?? s.stage }))
+    })
+    const offExit = window.api.onUpdateExit((code) => {
+      offOutput()
+      offExit()
+      unsubscribe = null
+      if (code === 0) set({ status: 'ready', stage: null })
+      else set((s) => ({ status: 'failed', failure: failureFromLog(s.log.map((l) => l.line)) }))
+    })
+    unsubscribe = () => {
+      offOutput()
+      offExit()
+    }
 
-    let buffer = ''
-    const unsubscribe = window.api.onTermData((termId, data) => {
-      if (termId !== id) return
-      buffer = (buffer + data).slice(-500)
-      const match = buffer.match(new RegExp(`${SENTINEL_PREFIX}(\\d+)__`))
-      if (match) {
-        unsubscribe()
-        set({ status: match[1] === '0' ? 'ready' : 'failed' })
-      }
+    window.api.updateRun().catch((e: unknown) => {
+      unsubscribe?.()
+      unsubscribe = null
+      set((s) => ({
+        status: 'failed',
+        failure: 'error',
+        log: [...s.log, { line: `Couldn't start the update: ${e instanceof Error ? e.message : String(e)}`, stream: 'stderr' }],
+      }))
     })
   },
 

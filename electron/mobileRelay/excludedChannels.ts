@@ -49,6 +49,8 @@ export const EXCLUDED_CHANNELS = new Set<string>([
 
   // App-level operations
   'update:restart',  // quits the desktop app
+  'update:run',  // replaces the desktop app in /Applications (VIDE-142)
+  'update:getRemoteChangelog',  // only feeds the desktop Update page
 
   // Language server management — ambiguous whether these should work from mobile; deferred
   'lsp:install', 'lsp:setEnabled', 'lsp:detectAll', 'lsp:getDefinition',

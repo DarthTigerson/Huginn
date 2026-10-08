@@ -1,6 +1,9 @@
 import { resolve } from 'path'
+import { readFileSync } from 'fs'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+
+const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
 
 export default defineConfig({
   main: {
@@ -33,6 +36,8 @@ export default defineConfig({
       strictPort: true
     },
     plugins: [react()],
+    // The running version, for the Update page's "You have vX" (VIDE-142).
+    define: { __APP_VERSION__: JSON.stringify(version) },
     build: {
       rollupOptions: {
         input: resolve(__dirname, 'index.html')

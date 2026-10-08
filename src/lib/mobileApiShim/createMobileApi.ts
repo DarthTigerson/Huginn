@@ -398,6 +398,10 @@ export function createMobileApi(wsUrl: string) {
     // App-level update checking/restart — tied to this desktop install
     updateGetLatest: stubInvoke(null),
     updateRestart: stubSend(),
+    updateRun: stubInvoke(undefined),
+    updateGetRemoteChangelog: stubInvoke(null),
+    onUpdateOutput: stubOn(),
+    onUpdateExit: stubOn(),
     onUpdateAvailable: stubOn(),
     onUpdateUpToDate: stubOn(),
 
