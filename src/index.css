@@ -620,8 +620,8 @@ body {
 }
 
 /* New-notification moment (VIDE-140): a one-shot white strip on the same
-   edge and timing as .git-activity-bar, the bell ringing once, and the
-   center teaser fading out with a draining underline. Light themes use the
+   edge and timing as .git-activity-bar, the bell ringing once, and a brief
+   peek above the bell whose underline drains until it closes. Light themes use the
    theme's text colour instead — white vanishes on a pale footer. */
 :root { --notification-pulse: #ffffff; }
 [data-theme$="-light"] { --notification-pulse: var(--color-fg); }
@@ -653,23 +653,18 @@ body {
   60% { transform: rotate(8deg); }
   80% { transform: rotate(-4deg); }
 }
-/* opacity only — the teaser's centering already owns `transform` */
-.notification-teaser { animation: notification-teaser-fade 6s linear 1 both; }
-@keyframes notification-teaser-fade {
-  0% { opacity: 0; }
-  4%, 92% { opacity: 1; }
-  100% { opacity: 0; }
-}
-.notification-teaser-drain {
+.notification-peek-drain {
   transform-origin: left;
-  animation: notification-teaser-drain 6s linear 1 both;
+  animation: notification-peek-drain 5s linear 1 both;
 }
-@keyframes notification-teaser-drain {
+/* hovering holds the peek open, so the countdown line holds too */
+.notification-peek:hover .notification-peek-drain { animation-play-state: paused; }
+@keyframes notification-peek-drain {
   from { transform: scaleX(1); }
   to   { transform: scaleX(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .notification-pulse, .notification-bell-ring svg, .notification-teaser-drain { animation: none; }
+  .notification-pulse, .notification-bell-ring svg, .notification-peek-drain { animation: none; }
   .notification-pulse { display: none; }
 }
 

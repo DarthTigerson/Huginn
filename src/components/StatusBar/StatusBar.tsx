@@ -18,6 +18,7 @@ import { FooterMessage } from './FooterMessage'
 import { NotificationPanel } from './NotificationPanel'
 import { NotificationBell } from './NotificationBell'
 import { NotificationPulse } from './NotificationPulse'
+import { NotificationPeek } from './NotificationPeek'
 import { FontSizeControl } from './FontSizeControl'
 import { Clock } from './Clock'
 import { GitActivityBar } from './GitActivityBar'
@@ -173,9 +174,10 @@ export function StatusBar() {
             )}
           </div>
         )}
-        {/* Panel anchors to this wrapper so it opens right above the bell. */}
+        {/* Panel and peek anchor to this wrapper so they open right above the bell. */}
         <div className="relative flex mx-1">
           <NotificationBell />
+          <NotificationPeek />
           <NotificationPanel />
         </div>
         {(syncEnabled || syncRepoUrl) && (

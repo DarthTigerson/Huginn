@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
-import { FooterMessage, TEASER_MS } from '../FooterMessage'
+import { render, screen, cleanup } from '@testing-library/react'
+import { FooterMessage } from '../FooterMessage'
 import { useUpdateStore } from '@/stores/updateStore'
 import { useUsageAlertStore } from '@/stores/usageAlertStore'
 import { useDockerSettingsStore } from '@/stores/dockerSettingsStore'
@@ -40,73 +40,11 @@ describe('FooterMessage — idle', () => {
   })
 })
 
-describe('FooterMessage — temporary teaser for a new notification', () => {
-  it('shows the new notification text, full width only', () => {
+describe('FooterMessage — new notifications stay out of the center', () => {
+  it('renders nothing in the center when a notification arrives (it peeks above the bell instead)', () => {
     useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    const teaser = screen.getByTestId('notification-teaser')
-    expect(teaser.textContent).toMatch(/Session usage may run out in 02:00:00/)
-    expect(teaser.className).toMatch(/hidden min-\[1200px\]:flex/)
-  })
-
-  it('goes away after the teaser window, while the notification stays active', () => {
-    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    expect(screen.getByTestId('notification-teaser')).toBeInTheDocument()
-    act(() => {
-      vi.advanceTimersByTime(TEASER_MS)
-    })
-    expect(screen.queryByTestId('notification-teaser')).toBeNull()
-  })
-
-  it('ticks the countdown while showing', () => {
-    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    act(() => {
-      vi.advanceTimersByTime(3000)
-    })
-    expect(screen.getByTestId('notification-teaser').textContent).toMatch(/run out in 01:59:57/)
-  })
-
-  it('opens the panel on mouseup (not click — see VIDE-91), ignoring other buttons', () => {
-    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    const teaser = screen.getByTestId('notification-teaser')
-    fireEvent.mouseUp(teaser, { button: 2 })
-    expect(useNotificationPanelStore.getState().open).toBe(false)
-    fireEvent.mouseUp(teaser, { button: 0 })
-    expect(useNotificationPanelStore.getState().open).toBe(true)
-  })
-
-  it('shows the newly arrived notification, with a count of the others', () => {
-    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    act(() => {
-      vi.advanceTimersByTime(TEASER_MS)
-    })
-    act(() => {
-      useDockerSettingsStore.setState({ enabled: true })
-      useDockerStore.setState({ status: 'stopped' })
-    })
-    const teaser = screen.getByTestId('notification-teaser')
-    expect(teaser.textContent).toMatch(/Docker isn't running/)
-    expect(teaser.textContent).toMatch(/\+1/)
-  })
-
-  it('ends early once the notification is acknowledged', () => {
-    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
-    render(<FooterMessage />)
-    act(() => {
-      useNotificationAcknowledgedStore.getState().acknowledge(['usage-session'])
-    })
-    expect(screen.queryByTestId('notification-teaser')).toBeNull()
-  })
-
-  it('is silent about Docker when disabled in settings, even if stopped', () => {
-    useDockerSettingsStore.setState({ enabled: false })
-    useDockerStore.setState({ status: 'stopped' })
-    render(<FooterMessage />)
-    expect(screen.queryByText("Docker isn't running")).toBeNull()
+    const { container } = render(<FooterMessage />)
+    expect(container).toBeEmptyDOMElement()
   })
 })
 

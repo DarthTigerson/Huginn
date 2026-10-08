@@ -68,12 +68,12 @@ export function NotificationPanel() {
 
   useEffect(() => {
     if (!open) return
-    // mousedown rather than click (VIDE-91) — matches the row/teaser buttons
+    // mousedown rather than click (VIDE-91) — matches the row/bell buttons
     // moving off onClick, and is the more standard "click outside" trigger
     // anyway since it doesn't wait on the browser's click synthesis at all.
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as Element
-      // The bell/teaser toggle the panel themselves on mouseup — closing
+      // The bell/peek toggle the panel themselves on mouseup — closing
       // here first would just have them reopen it.
       if (target.closest?.('[data-notification-toggle]')) return
       if (panelRef.current && !panelRef.current.contains(target)) close()
