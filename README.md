@@ -70,6 +70,12 @@ memory indicator built into the status bar is there to keep that honest.
 - **Usage tracking** — Claude usage/burn-rate monitoring built into the
   status bar; the RAM hover shows system, vIDE, Docker, and Llama memory
   at a glance
+- **Status bar** — a clock with the date on hover, the cursor position, a
+  notification bell with an unread count (new notifications briefly peek
+  above it), and git quick actions from a left or right click on the branch
+- **Silent alarms** — click the clock to set named alarms, once or on chosen
+  days. When one goes off the footer flashes and a popup lets you snooze it
+  for 9 minutes or stop it, with no sound
 - **Command palette & shortcuts overlay** — keyboard-first navigation
 
 | Git tooling | To Do board | Mobile Display |
