@@ -584,17 +584,20 @@ body {
   animation: autocomplete-spin 0.6s linear infinite;
 }
 
-/* Footer git-activity bar (VIDE-78): a 3px strip on the footer's top edge
+/* Footer git-activity bar (VIDE-78): a 2px strip along the footer's top edge
    that grows/fades while any git command (push, pull, fetch, commit,
    checkout, …) is running, and flashes red a few times on failure. Kept
-   purely visual — independent of the gitLogAutoShow setting. */
+   purely visual — independent of the gitLogAutoShow setting. Sits just
+   above the footer (bottom: 100%) rather than straddling its top border, so
+   it never overlaps the footer's own items or border (VIDE-140). */
 .git-activity-bar {
   position: absolute;
-  top: -1px;
+  bottom: 100%;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
   pointer-events: none;
+  z-index: 30;
 }
 .git-activity-bar-running {
   background: linear-gradient(90deg, rgb(var(--color-accent) / 0.7), rgb(var(--color-accent)));
@@ -617,6 +620,41 @@ body {
   0%, 100% { opacity: 0; }
   10%, 30%, 50% { opacity: 1; }
   20%, 40%, 60% { opacity: 0; }
+}
+
+/* New-notification moment (VIDE-140): the bell rings once, and a brief
+   peek above the bell drains its underline until it closes. */
+.notification-bell-ring svg {
+  transform-origin: 50% 15%;
+  animation: notification-bell-ring 0.9s ease-in-out 1;
+}
+@keyframes notification-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+}
+.notification-peek-drain {
+  transform-origin: left;
+  animation: notification-peek-drain 5s linear 1 both;
+}
+/* a row stacking into the peek slides up into place */
+/* fill `backwards`, not `both` — a held final keyframe would pin opacity at
+   1 and block the row's own fade-out when it expires */
+.notification-peek-row-in { animation: notification-peek-row-in 0.18s ease-out backwards; }
+@keyframes notification-peek-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* hovering holds the peek open, so the countdown line holds too */
+.notification-peek:hover .notification-peek-drain { animation-play-state: paused; }
+@keyframes notification-peek-drain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-bell-ring svg, .notification-peek-drain, .notification-peek-row-in { animation: none; }
 }
 
 /* Decorative badge in the empty editor panel ("open a file to start

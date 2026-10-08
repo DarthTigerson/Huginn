@@ -12,11 +12,11 @@ beforeEach(() => {
   useUpdateStore.setState({ available: null, status: 'idle', upToDateVersion: null })
   useDockerSettingsStore.setState({ enabled: false })
   useDockerStore.setState({ status: 'unknown' })
-  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
 })
 
 afterEach(() => {
-  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [] })
+  useNotificationAcknowledgedStore.setState({ acknowledgedIds: [], dismissedIds: [] })
 })
 
 describe('useVisibleNotificationItems', () => {

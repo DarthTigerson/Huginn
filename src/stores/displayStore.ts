@@ -6,7 +6,6 @@ import { isValidHex } from '../lib/color'
 
 const FONT_KEY = 'vide:font'
 const PANEL_STYLE_KEY = 'vide:panelStyle'
-const FOOTER_CONTENT_KEY = 'vide:footerContent'
 const MEMORY_USAGE_VISIBLE_KEY = 'vide:memoryUsageVisible'
 const BACKGROUND_IMAGE_KEY = 'vide:backgroundImage'
 const BACKGROUND_IMAGE_VISIBLE_KEY = 'vide:backgroundImageVisible'
@@ -37,11 +36,6 @@ export const PANEL_STYLE_OPTIONS: { value: PanelStyle; label: string; descriptio
   { value: 'glossy',        label: 'Glossy',      description: 'Frosted glass' },
   { value: 'glass',         label: 'Glass',       description: 'See-through' },
 ]
-
-// More may be added later (e.g. a combined view) - kept as its own union
-// rather than a boolean so the settings dropdown and FooterMessage's switch
-// don't need reshaping when that happens.
-export type FooterContent = 'hints' | 'clock'
 
 export type BackgroundImage = 'none' | 'vide' | 'clawd' | 'atreus' | 'link' | 'techLines' | 'borahae' | 'wave' | 'gabriele' | 'rockhoppers' | 'goodGirl'
 
@@ -115,7 +109,6 @@ const DEFAULT_FONT = 'Menlo, monospace'
 interface DisplayStore {
   font: string
   panelStyle: PanelStyle
-  footerContent: FooterContent
   memoryUsageVisible: boolean
   backgroundImage: BackgroundImage
   navbarPosition: NavbarPosition
@@ -123,7 +116,6 @@ interface DisplayStore {
   editorTokenColors: HighContrastTokens
   setFont: (font: string) => void
   setPanelStyle: (style: PanelStyle) => void
-  setFooterContent: (content: FooterContent) => void
   setMemoryUsageVisible: (visible: boolean) => void
   setBackgroundImage: (image: BackgroundImage) => void
   setNavbarPosition: (position: NavbarPosition) => void
@@ -177,8 +169,6 @@ const storedPanelStyle = localStorage.getItem(PANEL_STYLE_KEY)
 const initialPanelStyle: PanelStyle = PANEL_STYLE_OPTIONS.some((o) => o.value === storedPanelStyle)
   ? (storedPanelStyle as PanelStyle)
   : 'solid'
-const storedFooterContent = localStorage.getItem(FOOTER_CONTENT_KEY)
-const initialFooterContent: FooterContent = storedFooterContent === 'clock' ? 'clock' : 'hints'
 const storedMemoryUsageVisible = localStorage.getItem(MEMORY_USAGE_VISIBLE_KEY)
 const initialMemoryUsageVisible = storedMemoryUsageVisible === null ? true : storedMemoryUsageVisible === 'true'
 // Migrates the old on/off toggle (pre-dating the None/vIDE/Clawd picker):
@@ -241,7 +231,6 @@ applyPanelStyle(initialPanelStyle)
 export const useDisplayStore = create<DisplayStore>((set) => ({
   font: initialFont,
   panelStyle: initialPanelStyle,
-  footerContent: initialFooterContent,
   memoryUsageVisible: initialMemoryUsageVisible,
   backgroundImage: initialBackgroundImage,
   navbarPosition: initialNavbarPosition,
@@ -255,11 +244,6 @@ export const useDisplayStore = create<DisplayStore>((set) => ({
   setPanelStyle: (style) => {
     applyPanelStyle(style)
     set({ panelStyle: style })
-    notifySettingChanged()
-  },
-  setFooterContent: (content) => {
-    localStorage.setItem(FOOTER_CONTENT_KEY, content)
-    set({ footerContent: content })
     notifySettingChanged()
   },
   setMemoryUsageVisible: (visible) => {
