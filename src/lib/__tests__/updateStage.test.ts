@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { stageFromLine, failureFromLog, changelogBody } from '../updateStage'
+import { stageFromLine, failureFromLog, changelogBody, changelogHighlights } from '../updateStage'
 
 describe('stageFromLine', () => {
   it('maps install.sh messages to stages (macOS and Linux wording)', () => {
@@ -35,3 +35,33 @@ describe('changelogBody', () => {
     expect(changelogBody('## v0.2.20 (2026-10-08)\n- one\n- two')).toBe('- one\n- two')
   })
 })
+
+describe('changelogHighlights', () => {
+  const body = [
+    '- **Silent alarms**: click the clock to set alarms',
+    '- **Notification bell with a count**: a bell next to the clock',
+    '- The git activity bar now runs just above the footer instead of over its top border',
+    '- Removed the rotating footer hints',
+    '',
+    '**Bug fixes**',
+    '- Fixed one thing',
+    '- Fixed another',
+  ].join('\n')
+
+  it('lists the titled entries and counts the rest instead of cutting them short', () => {
+    expect(changelogHighlights(body)).toEqual({
+      highlights: ['Silent alarms', 'Notification bell with a count'],
+      otherChanges: 2,
+      bugFixes: 2,
+    })
+  })
+
+  it('falls back to the first few shortened lines when nothing is titled', () => {
+    const plain = '- Improved autocomplete logic and ui\n- Implement graphify to reduce claude token usage as well as speed up usage across the app'
+    const result = changelogHighlights(plain, 40)
+    expect(result.highlights[0]).toBe('Improved autocomplete logic and ui')
+    expect(result.highlights[1]).toBe("Implement graphify to reduce claude tok…")
+    expect(result.otherChanges).toBe(0)
+  })
+})
+

@@ -29,3 +29,38 @@ export function failureFromLog(lines: string[]): UpdateFailure {
 export function changelogBody(section: string): string {
   return section.replace(/^##[^\n]*\n?/, '').trim()
 }
+
+// A short, scannable "What's new" for the Update page: the titled entries
+// ("- **Silent alarms**: …" → "Silent alarms"), with untitled entries and
+// bug fixes counted rather than listed — cutting long sentences down read
+// badly. A release with no titled entries at all falls back to its first
+// few lines, shortened. The full text stays one click away on the page.
+export function changelogHighlights(body: string, maxLength = 64, fallbackCount = 4): {
+  highlights: string[]
+  otherChanges: number
+  bugFixes: number
+} {
+  const titled: string[] = []
+  const untitled: string[] = []
+  let bugFixes = 0
+  let inFixes = false
+  for (const raw of body.split('\n')) {
+    const line = raw.trim()
+    if (/^\*\*Bug fixes\*\*/i.test(line)) {
+      inFixes = true
+      continue
+    }
+    if (!line.startsWith('- ')) continue
+    if (inFixes) {
+      bugFixes++
+      continue
+    }
+    const text = line.slice(2)
+    const bold = text.match(/^\*\*(.+?)\*\*/)
+    if (bold) titled.push(bold[1].replace(/:\s*$/, ''))
+    else untitled.push(text.replace(/\*\*|`/g, ''))
+  }
+  if (titled.length > 0) return { highlights: titled, otherChanges: untitled.length, bugFixes }
+  const shortened = untitled.slice(0, fallbackCount).map((t) => (t.length > maxLength ? t.slice(0, maxLength - 1).trimEnd() + '…' : t))
+  return { highlights: shortened, otherChanges: untitled.length - shortened.length, bugFixes }
+}

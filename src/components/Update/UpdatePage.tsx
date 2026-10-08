@@ -4,7 +4,7 @@ import { useUpdateStore } from '@/stores/updateStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { UPDATE_TAB_PATH } from '@/components/Settings/paths'
 import { COMPACT_PROSE_CLASSES } from '@/components/Viewer/proseClasses'
-import type { UpdateFailure } from '@/lib/updateStage'
+import { changelogHighlights, type UpdateFailure } from '@/lib/updateStage'
 
 // Mockup "U1 — Track": Download → Install → Ready stops on a line.
 const STOPS = ['Download', 'Install', 'Ready'] as const
@@ -28,6 +28,7 @@ export function UpdatePage() {
   const startUpdate = useUpdateStore((s) => s.startUpdate)
   const restart = useUpdateStore((s) => s.restart)
   const [showDetails, setShowDetails] = useState(false)
+  const [showFullNotes, setShowFullNotes] = useState(false)
 
   // Injected by electron.vite.config.ts; absent under vitest.
   const current = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null
@@ -64,30 +65,34 @@ export function UpdatePage() {
   })()
 
   const news = next && changelog
+  const summary = news ? changelogHighlights(changelog) : null
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
   return (
-    <div className="h-full overflow-auto bg-panel">
-      <div className={['mx-auto grid max-w-[56rem] gap-8 px-7 py-9', news ? 'grid-cols-[minmax(0,1fr)_18rem]' : ''].join(' ')}>
-        <div className="flex flex-col items-center gap-5 pt-1 text-center">
-          <div data-testid="update-track" className="relative h-[8.5rem] w-full max-w-[20rem]">
-            <div className="absolute inset-x-5 top-[4.25rem] h-0.5 rounded bg-border">
+    // flex + m-auto centres the content both ways, and unlike
+    // items-center still lets the tab scroll when the full notes are open.
+    <div className="flex h-full overflow-auto bg-panel">
+      <div className={['m-auto grid w-full max-w-[66rem] gap-14 px-10 py-12', news ? 'grid-cols-[minmax(0,1fr)_24rem]' : ''].join(' ')}>
+        <div className="flex flex-col items-center gap-7 pt-2 text-center">
+          <div data-testid="update-track" className="relative h-[11rem] w-full max-w-[30rem]">
+            <div className="absolute inset-x-7 top-[5.5rem] h-1 rounded bg-border">
               <div className="update-track-fill absolute inset-y-0 left-0 rounded bg-accent" style={{ width: `${fill * 100}%` }} />
             </div>
             {lane !== null && (
-              <div className="update-track-lane absolute top-[4.1875rem] h-1 overflow-hidden" style={{ left: `calc(1.25rem + (100% - 2.5rem) * ${lane * 0.5})`, width: 'calc((100% - 2.5rem) * 0.5)' }}>
+              <div className="update-track-lane absolute top-[5.375rem] h-2 overflow-hidden" style={{ left: `calc(1.75rem + (100% - 3.5rem) * ${lane * 0.5})`, width: 'calc((100% - 3.5rem) * 0.5)' }}>
                 <span /><span /><span />
               </div>
             )}
             {STOPS.map((label, i) => {
               const state = stops[i]
-              const left = `calc(1.25rem + (100% - 2.5rem) * ${i * 0.5})`
+              const left = `calc(1.75rem + (100% - 3.5rem) * ${i * 0.5})`
               return (
                 <div key={label}>
                   <div
                     data-testid={`update-stop-${label.toLowerCase()}`}
                     data-state={state}
                     className={[
-                      'absolute top-[4.25rem] -ml-[0.9375rem] -mt-[0.9375rem] flex h-[1.875rem] w-[1.875rem] items-center justify-center rounded-full border-2 transition-colors [&_svg]:h-3.5 [&_svg]:w-3.5',
+                      'absolute top-[5.625rem] -ml-[1.375rem] -mt-[1.375rem] flex h-11 w-11 items-center justify-center rounded-full border-2 transition-colors [&_svg]:h-5 [&_svg]:w-5',
                       state === 'done' ? 'border-accent bg-accent text-on-accent'
                         : state === 'now' ? 'update-track-now border-accent bg-panel text-accent'
                           : state === 'fail' ? 'border-red-400 bg-red-400 text-panel'
@@ -97,19 +102,19 @@ export function UpdatePage() {
                   >
                     {state === 'done' ? <CheckIcon /> : state === 'fail' ? <CrossIcon /> : i === 0 ? <DownloadIcon /> : i === 1 ? <BoxIcon /> : <CheckIcon />}
                   </div>
-                  <div className="absolute top-[6.25rem] -translate-x-1/2 whitespace-nowrap text-[0.6875rem] text-fg-subtle" style={{ left }}>{label}</div>
+                  <div className="absolute top-[8.25rem] -translate-x-1/2 whitespace-nowrap text-sm text-fg-subtle" style={{ left }}>{label}</div>
                 </div>
               )
             })}
           </div>
 
           <div>
-            <h1 className="text-lg font-semibold text-fg">{title}</h1>
-            {subtitle && <p data-testid="update-subtitle" className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
+            <h1 className="text-3xl font-semibold text-fg">{title}</h1>
+            {subtitle && <p data-testid="update-subtitle" className="mt-2 text-base text-fg-muted">{subtitle}</p>}
           </div>
 
           {status === 'updating' && stage === 'password' && (
-            <div className="flex max-w-[26rem] items-center gap-2.5 rounded-lg border border-accent/50 bg-accent/10 px-3 py-2.5 text-left text-xs text-fg [&_svg]:h-[18px] [&_svg]:w-[18px] [&_svg]:shrink-0 [&_svg]:text-accent">
+            <div className="flex max-w-[34rem] items-center gap-3 rounded-lg border border-accent/50 bg-accent/10 px-4 py-3 text-left text-sm text-fg [&_svg]:h-6 [&_svg]:w-6 [&_svg]:shrink-0 [&_svg]:text-accent">
               <LockIcon />
               <span>
                 macOS is asking for your password (or Touch ID) to replace vIDE in /Applications.{' '}
@@ -118,7 +123,7 @@ export function UpdatePage() {
             </div>
           )}
 
-          <div className="flex min-h-8 justify-center gap-2">
+          <div className="flex min-h-10 justify-center gap-3">
             {next && status === 'idle' && <PillButton solid onClick={startUpdate}>Update now</PillButton>}
             {status === 'ready' && (
               <>
@@ -129,16 +134,16 @@ export function UpdatePage() {
             {status === 'failed' && <PillButton solid onClick={startUpdate}>Try again</PillButton>}
           </div>
           {status === 'ready' && (
-            <p className="max-w-[48ch] text-xs text-fg-subtle">Later keeps "Update installed — click to restart" in the bell until you do.</p>
+            <p className="max-w-[48ch] text-sm text-fg-subtle">Later keeps "Update installed — click to restart" in the bell until you do.</p>
           )}
 
           {log.length > 0 && (
-            <div className="w-full max-w-[32rem] text-left">
-              <button type="button" onClick={() => setShowDetails((v) => !v)} className="text-xs text-fg-muted hover:text-fg">
+            <div className="w-full max-w-[36rem] text-left">
+              <button type="button" onClick={() => setShowDetails((v) => !v)} className="text-sm text-fg-muted hover:text-fg">
                 {showDetails ? '▾ Hide details' : '▸ Show details'}
               </button>
               {showDetails && (
-                <pre data-testid="update-log" className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-bg px-3 py-2.5 font-mono text-[0.71875rem] leading-relaxed text-fg-muted">
+                <pre data-testid="update-log" className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-bg px-4 py-3 font-mono text-xs leading-relaxed text-fg-muted">
                   {log.map((l, i) => (
                     <div key={i} className={l.stream === 'stderr' ? 'text-red-400' : undefined}>{l.line}</div>
                   ))}
@@ -148,12 +153,35 @@ export function UpdatePage() {
           )}
         </div>
 
-        {news && (
-          <aside data-testid="update-whats-new" className="border-l border-border pl-5 text-left">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">What's new in v{next}</h2>
-            <div className={[COMPACT_PROSE_CLASSES, '!px-0'].join(' ')}>
-              <ReactMarkdown>{changelog}</ReactMarkdown>
-            </div>
+        {news && summary && (
+          <aside data-testid="update-whats-new" className="self-center border-l border-border pl-8 text-left">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-fg-muted">What's new in v{next}</h2>
+            {showFullNotes ? (
+              <div className={[COMPACT_PROSE_CLASSES, '!px-0 !py-0'].join(' ')}>
+                <ReactMarkdown>{changelog}</ReactMarkdown>
+              </div>
+            ) : (
+              <ul data-testid="update-highlights" className="flex flex-col gap-3 text-base text-fg">
+                {summary.highlights.map((h) => (
+                  <li key={h} className="flex items-baseline gap-2">
+                    <span className="mt-[0.5rem] h-2 w-2 shrink-0 rounded-full bg-accent" />
+                    <span>{h}</span>
+                  </li>
+                ))}
+                {(summary.otherChanges > 0 || summary.bugFixes > 0) && (
+                  <li className="pl-4 text-sm text-fg-muted">
+                    Plus{' '}
+                    {[
+                      summary.otherChanges > 0 && count(summary.otherChanges, 'smaller change', 'smaller changes'),
+                      summary.bugFixes > 0 && count(summary.bugFixes, 'bug fix', 'bug fixes'),
+                    ].filter(Boolean).join(' and ')}
+                  </li>
+                )}
+              </ul>
+            )}
+            <button type="button" onClick={() => setShowFullNotes((v) => !v)} className="mt-5 text-sm text-fg-muted hover:text-fg">
+              {showFullNotes ? '▾ Show highlights' : '▸ Full release notes'}
+            </button>
           </aside>
         )}
       </div>
@@ -167,7 +195,7 @@ function PillButton({ solid, onClick, children }: { solid?: boolean; onClick: ()
       type="button"
       onClick={onClick}
       className={[
-        'h-8 rounded-full px-4 text-sm transition-colors',
+        'h-10 rounded-full px-6 text-base transition-colors',
         solid ? 'border border-accent bg-accent font-semibold text-on-accent' : 'border border-border bg-bg text-fg hover:border-fg-subtle',
       ].join(' ')}
     >

@@ -84,12 +84,19 @@ describe('UpdatePage', () => {
     expect(screen.getByTestId('update-log').textContent).toMatch(/Update cancelled/)
   })
 
-  it('shows what is new in the new version beside the progress', () => {
-    useUpdateStore.setState({ changelog: '- **Silent alarms**: from the footer clock' })
+  it('shows a short list of what is new, with the full notes one click away', () => {
+    useUpdateStore.setState({
+      changelog: '- **Silent alarms**: from the footer clock, with a long explanation\n- A smaller tweak\n\n**Bug fixes**\n- Fixed a thing',
+    })
     render(<UpdatePage />)
     const news = screen.getByTestId('update-whats-new')
     expect(news.textContent).toMatch(/What's new in v0\.2\.20/)
-    expect(news.textContent).toMatch(/Silent alarms/)
+    expect(screen.getByTestId('update-highlights').textContent).toBe('Silent alarmsPlus 1 smaller change and 1 bug fix')
+    expect(news.textContent).not.toMatch(/long explanation/)
+
+    fireEvent.click(screen.getByRole('button', { name: /Full release notes/ }))
+    expect(news.textContent).toMatch(/long explanation/)
+    expect(screen.queryByTestId('update-highlights')).toBeNull()
   })
 
   it('leaves out What\'s new while it is loading or could not be fetched', () => {

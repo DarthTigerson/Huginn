@@ -749,8 +749,8 @@ body {
 }
 .update-track-lane span {
   position: absolute;
-  top: 1px;
-  height: 2px;
+  top: 2px;
+  height: 4px;
   width: 26%;
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, rgb(var(--color-accent)));
@@ -767,7 +767,7 @@ body {
 .update-track-now { animation: update-track-now 1.4s ease-in-out infinite; }
 @keyframes update-track-now {
   0%, 100% { box-shadow: 0 0 0 0 rgb(var(--color-accent) / 0.45); }
-  50%      { box-shadow: 0 0 0 7px rgb(var(--color-accent) / 0); }
+  50%      { box-shadow: 0 0 0 10px rgb(var(--color-accent) / 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .update-track-lane span, .update-track-now { animation: none; }
