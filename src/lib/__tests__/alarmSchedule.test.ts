@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nextOccurrence, firesBetween, nextAlarm, repeatLabel, onceLabel, formatTimeUntil, SNOOZE_MS, type Alarm } from '../alarmSchedule'
+import { nextOccurrence, nextDateFor, firesBetween, nextAlarm, repeatLabel, onceLabel, formatTimeUntil, SNOOZE_MS, type Alarm } from '../alarmSchedule'
 
 // Thursday 8 October 2026, 10:00 local
 const NOW = new Date(2026, 9, 8, 10, 0, 0).getTime()
@@ -41,6 +41,18 @@ describe('nextOccurrence', () => {
   it('a pending snooze takes priority over the regular time', () => {
     const snoozedUntil = NOW + SNOOZE_MS
     expect(nextOccurrence(alarm({ snoozedUntil }), NOW)).toBe(snoozedUntil)
+  })
+})
+
+describe('nextDateFor', () => {
+  it('is today while the time is still ahead, tomorrow once it has passed', () => {
+    expect(nextDateFor(12, 0, NOW)).toBe('2026-10-08')
+    expect(nextDateFor(9, 0, NOW)).toBe('2026-10-09')
+    expect(nextDateFor(10, 0, NOW)).toBe('2026-10-09') // exactly now counts as passed
+  })
+
+  it('rolls over the end of a month', () => {
+    expect(nextDateFor(8, 0, new Date(2026, 9, 31, 9, 0).getTime())).toBe('2026-11-01')
   })
 })
 

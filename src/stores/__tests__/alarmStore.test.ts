@@ -17,7 +17,7 @@ afterEach(() => {
 })
 
 const addStandup = (over: Partial<Parameters<ReturnType<typeof useAlarmStore.getState>['addAlarm']>[0]> = {}) =>
-  useAlarmStore.getState().addAlarm({ name: '  Stand-up ', hour: 9, minute: 30, repeat: true, days: [4], date: null, ...over })
+  useAlarmStore.getState().addAlarm({ name: '  Stand-up ', hour: 9, minute: 30, repeat: true, days: [4], ...over })
 
 describe('alarmStore', () => {
   it('adds an alarm (trimmed name, enabled) and persists it locally', () => {
@@ -56,8 +56,17 @@ describe('alarmStore', () => {
     expect(useAlarmStore.getState().alarms[0].snoozedUntil).toBeNull()
   })
 
+  it('switching a once alarm back on moves it to its next occurrence', () => {
+    addStandup({ name: 'Dentist', repeat: false, days: [] })
+    const id = useAlarmStore.getState().alarms[0].id
+    useAlarmStore.setState((st) => ({ alarms: st.alarms.map((a) => ({ ...a, date: '2026-10-01', enabled: false })) }))
+    useAlarmStore.getState().setEnabled(id, true)
+    // 09:30 is still ahead of NOW (09:29:59) -> today
+    expect(useAlarmStore.getState().alarms[0].date).toBe('2026-10-08')
+  })
+
   it('stop switches a once alarm off, but leaves a repeating one on', () => {
-    addStandup({ name: 'Dentist', repeat: false, days: [], date: '2026-10-08' })
+    addStandup({ name: 'Dentist', repeat: false, days: [] })
     useAlarmStore.getState().checkDue(NOW, NOW + 2000)
     useAlarmStore.getState().stop()
     expect(useAlarmStore.getState().alarms[0].enabled).toBe(false)

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { SNOOZE_MS, firesBetween, type Alarm } from '@/lib/alarmSchedule'
+import { SNOOZE_MS, firesBetween, nextDateFor, type Alarm } from '@/lib/alarmSchedule'
 
 // Deliberately NOT under any vIDE Sync prefix (configRepoStore's
 // CATEGORY_PREFIXES): alarms are per-machine, and every snooze rewrites this
@@ -14,7 +14,8 @@ export interface AlarmRinging {
   since: number
 }
 
-export type NewAlarm = Pick<Alarm, 'name' | 'hour' | 'minute' | 'repeat' | 'days' | 'date'>
+// A Once alarm's date is worked out here (nextDateFor), not chosen.
+export type NewAlarm = Pick<Alarm, 'name' | 'hour' | 'minute' | 'repeat' | 'days'>
 
 interface AlarmStore {
   alarms: Alarm[]
@@ -80,7 +81,7 @@ export const useAlarmStore = create<AlarmStore>((set, get) => {
         minute: input.minute,
         repeat: input.repeat,
         days: input.repeat ? [...input.days] : [],
-        date: input.repeat ? null : input.date,
+        date: input.repeat ? null : nextDateFor(input.hour, input.minute, Date.now()),
         enabled: true,
         snoozedUntil: null,
       }
@@ -88,7 +89,13 @@ export const useAlarmStore = create<AlarmStore>((set, get) => {
     },
 
     setEnabled: (id, enabled) => {
-      update(get().alarms.map((a) => (a.id === id ? { ...a, enabled, snoozedUntil: enabled ? a.snoozedUntil : null } : a)))
+      update(get().alarms.map((a) => {
+        if (a.id !== id) return a
+        if (!enabled) return { ...a, enabled, snoozedUntil: null }
+        // Switching a Once alarm back on means its next occurrence, not the
+        // (probably past) date it originally rang on.
+        return { ...a, enabled, date: a.repeat ? a.date : nextDateFor(a.hour, a.minute, Date.now()) }
+      }))
       if (!enabled && get().ringing?.alarmId === id) set({ ringing: null })
     },
 

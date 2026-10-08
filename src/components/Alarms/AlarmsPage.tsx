@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useAlarmStore } from '@/stores/alarmStore'
 import {
   formatAlarmTime,
-  isoDate,
   onceLabel,
   repeatLabel,
   type Alarm,
@@ -126,14 +125,13 @@ function NewAlarmForm() {
   const [time, setTime] = useState('09:00')
   const [repeat, setRepeat] = useState(false)
   const [days, setDays] = useState<number[]>(WEEKDAYS)
-  const [date, setDate] = useState(() => isoDate(new Date()))
 
-  const canAdd = name.trim().length > 0 && /^\d{2}:\d{2}$/.test(time) && (repeat ? days.length > 0 : !!date)
+  const canAdd = name.trim().length > 0 && /^\d{2}:\d{2}$/.test(time) && (!repeat || days.length > 0)
 
   const submit = () => {
     if (!canAdd) return
     const [hour, minute] = time.split(':').map(Number)
-    addAlarm({ name, hour, minute, repeat, days, date: repeat ? null : date })
+    addAlarm({ name, hour, minute, repeat, days })
     setName('')
   }
 
@@ -176,7 +174,7 @@ function NewAlarmForm() {
             </button>
           ))}
         </div>
-        {repeat ? (
+        {repeat && (
           <>
             <div className="flex gap-1">
               {DAY_LETTERS.map((letter, day) => {
@@ -199,18 +197,6 @@ function NewAlarmForm() {
               })}
             </div>
             <span className="text-xs text-fg-subtle">{days.length ? repeatLabel(days) : 'Pick at least one day'}</span>
-          </>
-        ) : (
-          <>
-            <input
-              aria-label="Date"
-              type="date"
-              value={date}
-              min={isoDate(new Date())}
-              onChange={(e) => setDate(e.target.value)}
-              className={inputClass}
-            />
-            <span className="text-xs text-fg-subtle">Rings once, then switches itself off</span>
           </>
         )}
       </div>

@@ -76,7 +76,7 @@ describe('Clock — alarms', () => {
   it('shows the alarm icon and the next alarm in the hover only while an alarm is on', () => {
     const { rerender } = render(<Clock />)
     expect(screen.queryByTestId('footer-clock-alarm')).toBeNull()
-    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [], date: '2026-01-01' }))
+    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [] }))
     rerender(<Clock />)
     expect(screen.getByTestId('footer-clock-alarm')).toBeInTheDocument()
     // 14:32 now (fixed clock above) -> 15:00 is 28 minutes away
@@ -84,7 +84,7 @@ describe('Clock — alarms', () => {
   })
 
   it('turns accent and shows the alarm popup instead of the date while ringing', () => {
-    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [], date: '2026-01-01' }))
+    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [] }))
     act(() => useAlarmStore.getState().ring(useAlarmStore.getState().alarms[0].id))
     render(<Clock />)
     expect(screen.getByTestId('footer-clock-button').className).toMatch(/text-accent/)

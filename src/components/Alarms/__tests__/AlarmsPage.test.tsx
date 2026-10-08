@@ -30,16 +30,24 @@ describe('AlarmsPage', () => {
     expect(screen.getByRole('button', { name: 'Add alarm' })).toBeEnabled()
   })
 
-  it('adds a once alarm for the chosen date, defaulting to Once', () => {
+  it("adds a once alarm for the next time it's that o'clock, with no date to pick", () => {
     render(<AlarmsPage />)
+    expect(screen.queryByLabelText('Date')).toBeNull()
+    expect(screen.queryByText(/Rings once/)).toBeNull()
+
     type('Name', 'Dentist')
-    type('Time', '15:00')
-    type('Date', '2026-10-09')
+    type('Time', '15:00') // still ahead of 10:00 -> today
+    fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
+    type('Name', 'Early')
+    type('Time', '08:00') // already passed -> tomorrow
     fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
 
-    const [a] = useAlarmStore.getState().alarms
-    expect(a).toMatchObject({ name: 'Dentist', hour: 15, minute: 0, repeat: false, date: '2026-10-09' })
-    expect(screen.getByTestId('alarm-row').textContent).toMatch(/Once · tomorrow/)
+    const byName = Object.fromEntries(useAlarmStore.getState().alarms.map((a) => [a.name, a]))
+    expect(byName.Dentist).toMatchObject({ hour: 15, minute: 0, repeat: false, date: '2026-10-08' })
+    expect(byName.Early).toMatchObject({ hour: 8, minute: 0, repeat: false, date: '2026-10-09' })
+    const rows = screen.getAllByTestId('alarm-row').map((r) => r.textContent)
+    expect(rows.find((t) => t?.includes('Dentist'))).toMatch(/Once · today/)
+    expect(rows.find((t) => t?.includes('Early'))).toMatch(/Once · tomorrow/)
   })
 
   it('adds a repeating alarm on the chosen days (weekdays by default)', () => {
@@ -51,7 +59,7 @@ describe('AlarmsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
 
     const [a] = useAlarmStore.getState().alarms
-    expect(a).toMatchObject({ name: 'Stand-up', repeat: true, days: [1, 2, 3, 4], date: null })
+    expect(a).toMatchObject({ name: 'Stand-up', repeat: true, days: [1, 2, 3, 4] })
     expect(screen.getByTestId('alarm-row').textContent).toMatch(/Mon, Tue, Wed, Thu/)
   })
 
@@ -65,7 +73,7 @@ describe('AlarmsPage', () => {
   })
 
   it('switches an alarm off and deletes it', () => {
-    useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4], date: null })
+    useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4] })
     render(<AlarmsPage />)
     fireEvent.click(screen.getByRole('switch', { name: 'Lunch on' }))
     expect(useAlarmStore.getState().alarms[0].enabled).toBe(false)
@@ -74,7 +82,7 @@ describe('AlarmsPage', () => {
   })
 
   it('shows "Snoozed until" for a snoozed alarm', () => {
-    useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4], date: null })
+    useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4] })
     useAlarmStore.setState((s) => ({ alarms: s.alarms.map((a) => ({ ...a, snoozedUntil: Date.now() + 9 * 60000 })) }))
     render(<AlarmsPage />)
     expect(screen.getByTestId('alarm-row').textContent).toMatch(/Snoozed until 10:09/)

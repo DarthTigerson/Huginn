@@ -23,6 +23,16 @@ export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// The date a Once alarm should ring on: today if the time is still ahead,
+// otherwise tomorrow. Once alarms have no date picker — they always mean
+// "the next time it's this o'clock".
+export function nextDateFor(hour: number, minute: number, now: number): string {
+  const today = new Date(now)
+  const at = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute, 0, 0)
+  if (at.getTime() > now) return isoDate(today)
+  return isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1))
+}
+
 function onceAt(alarm: Alarm): number | null {
   if (!alarm.date) return null
   const [y, m, d] = alarm.date.split('-').map(Number)

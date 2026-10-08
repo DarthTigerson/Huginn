@@ -7,7 +7,7 @@ import { useAlarmStore } from '@/stores/alarmStore'
 beforeEach(() => {
   localStorage.clear()
   useAlarmStore.setState({ alarms: [], ringing: null })
-  useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 9, minute: 30, repeat: false, days: [], date: '2026-10-08' })
+  useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 9, minute: 30, repeat: false, days: [] })
 })
 
 afterEach(() => {
