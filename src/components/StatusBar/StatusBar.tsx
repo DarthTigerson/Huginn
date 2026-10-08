@@ -105,8 +105,14 @@ export function StatusBar() {
               ) : (
                 aheadBehind && (
                   <span className="flex items-center gap-1.5 tabular-nums ml-1.5 shrink-0">
-                    <span>↓{aheadBehind.behind}</span>
-                    <span>↑{aheadBehind.ahead}</span>
+                    <span className="flex items-center gap-0.5" aria-label={`${aheadBehind.behind} behind`}>
+                      <ArrowDownIcon />
+                      {aheadBehind.behind}
+                    </span>
+                    <span className="flex items-center gap-0.5" aria-label={`${aheadBehind.ahead} ahead`}>
+                      <ArrowUpIcon />
+                      {aheadBehind.ahead}
+                    </span>
                   </span>
                 )
               )}
@@ -212,6 +218,24 @@ export function StatusBar() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Ahead/behind arrows drawn to match the footer's other icons (same 12px
+// box and stroke) — the ↓/↑ text glyphs rendered noticeably smaller.
+function ArrowDownIcon() {
+  return (
+    <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 4v16m0 0-6-6m6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 20V4m0 0-6 6m6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
