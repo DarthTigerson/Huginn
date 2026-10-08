@@ -6,11 +6,9 @@ export interface EditorCursor {
   path: string
   line: number
   column: number
-  // Human-readable language name (Monaco's first alias, e.g. "TypeScript").
-  language: string
 }
 
-// Cursor position + language for the StatusBar (VIDE-140). Same ownership
+// Cursor position for the StatusBar (VIDE-140). Same ownership
 // rules as footerBlameStore: the focused editor publishes under its own
 // owner token, and an editor can only clear it if it's still the last one
 // that wrote — so disposing a background pane never wipes the focused

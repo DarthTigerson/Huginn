@@ -751,20 +751,17 @@ function EditorPane({ paneId }: { paneId: string }) {
                   activatePane()
                   setLastFocusedEditor(editor)
                 })
-                // Footer cursor position + language (VIDE-140): published by the
+                // Footer cursor position (VIDE-140): published by the
                 // focused editor, and on mount for the active pane so a freshly
                 // opened file shows its position before it's clicked into.
                 const cursorOwner = {}
                 const publishCursor = () => {
                   const position = editor.getPosition()
                   if (!position) return
-                  const languageId = editor.getModel()?.getLanguageId() ?? 'plaintext'
-                  const language = monaco.languages.getLanguages().find((l) => l.id === languageId)?.aliases?.[0] ?? languageId
                   useEditorCursorStore.getState().publish(cursorOwner, {
                     path: activeTab.path,
                     line: position.lineNumber,
                     column: position.column,
-                    language,
                   })
                 }
                 if (isActivePane) publishCursor()
