@@ -1,4 +1,16 @@
 # vIDE
+## v0.2.20 (2026-10-08)
+- **Silent alarms**: click the clock in the footer to open a new Alarms tab and set named alarms (Stand-up, Lunch…) that ring once at the next occurrence of that time or repeat on the days you pick (Monday first). Nothing plays a sound — when one goes off, lines drip from the centre of the footer out to its edges, the corners flare as each one arrives, and a popup above the clock lets you Snooze (9 minutes) or Stop it. Rename an alarm by clicking its name, and switch it on or off or delete it from its row
+- The alarm time picker is a single field with Hour, Minute and AM/PM columns that follows your system's 12- or 24-hour clock. While an alarm is set, a small alarm icon sits before the time and hovering the clock shows the next one ("Break at 10:06 PM · in 8 min"). Alarms are also in the Action Palette (View: Alarms, Alarm: Snooze, Alarm: Stop), stay on this machine rather than going through vIDE Sync, and stopping one in any window stops it everywhere
+- **Redesigned footer**: the clock now lives in the far-right corner at every window width, in full text colour and a size larger, and hovering it shows the date ("Thursday the 8th of October"). It used to be dim, and was hidden whenever a notification was showing or the window was narrow
+- **Notification bell with a count**: a bell next to the clock shows how many notifications are active — filled while any are unread, outlined once you've opened the panel. The panel now opens above the bell with a "Notifications · N" header, a Dismiss all button and an unread dot on each row
+- **Notification peek**: a new notification now briefly pops up above the bell instead of replacing the clock. Several arriving close together stack, each with its own 5-second countdown line; hovering holds them, clicking one runs its action, and "+N more" opens the full panel. The bell rings once as they arrive
+- **Cursor position in the footer**: Ln and Col for the file you're editing, hidden on non-editor tabs like Settings
+- The footer's font-size control is now a compact chip (screen icon + size) that opens Settings > Display; ⌘+ / ⌘− / ⌘0 still change the size and briefly highlight it
+- The branch in the footer now opens the git quick-actions menu on a left click as well as a right click, and the menu opens above the branch name. The ahead/behind arrows are proper icons, and the sync icon matches the other footer pills
+- The git activity bar now runs just above the footer instead of over its top border
+- Removed the rotating footer hints and the Settings > Display "Footer Content" option — the centre of the footer is kept clear for git blame and status messages
+
 
 ## v0.2.19 (2026-09-29)
 - **Git blame**: see who last changed the line your cursor is on — the author and commit message show in the footer next to the branch (the default), or at the end of the line in the editor. Hover it for a panel with the author, exact date and time, and the full commit message. Turn it off or pick where it shows in Settings > Git > Blame, and it syncs through vIDE Sync
