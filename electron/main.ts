@@ -34,7 +34,7 @@ import { registerNotesHandlers } from './notes'
 import { registerSearchHandlers } from './search'
 import { UpdateChecker } from './updateChecker'
 import { UpdateRunner } from './updateRunner'
-import { getChangelogForVersion } from './changelog'
+import { getChangelogForVersion, getChangelogReleases } from './changelog'
 import { getSystemMemoryUsage } from './systemMemory'
 import { registerOnboardingHandlers } from './onboarding'
 import { registerConfigRepoHandlers } from './configRepo'
@@ -788,6 +788,7 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('changelog:getForVersion', (_e, version: string) => getChangelogForVersion(version))
+  ipcMain.handle('changelog:getReleases', () => getChangelogReleases())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

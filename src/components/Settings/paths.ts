@@ -23,6 +23,8 @@ export const MOBILE_SETTINGS_TAB_PATH = 'settings://Mobile'
 export const TODO_SETTINGS_TAB_PATH = 'settings://Todo'
 export const NOTES_SETTINGS_TAB_PATH = 'settings://Notes'
 export const LLAMA_SETTINGS_TAB_PATH = 'settings://Llama'
+// Version, update check and release history (VIDE-143).
+export const ABOUT_SETTINGS_TAB_PATH = 'settings://About'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {

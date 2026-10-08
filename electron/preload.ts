@@ -214,6 +214,8 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   updateGetLatest: () => ipcRenderer.invoke('update:getLatest'),
+  updateGetStatus: () => ipcRenderer.invoke('update:getStatus'),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
   updateRestart: () => ipcRenderer.send('update:restart'),
   updateRun: () => ipcRenderer.invoke('update:run'),
   updateGetRemoteChangelog: (version: string) => ipcRenderer.invoke('update:getRemoteChangelog', version),
@@ -228,6 +230,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('update:exit', handler)
   },
   getChangelogForVersion: (version: string) => ipcRenderer.invoke('changelog:getForVersion', version),
+  getChangelogReleases: () => ipcRenderer.invoke('changelog:getReleases'),
   onUpdateAvailable: (cb: (info: import('./updateChecker').UpdateInfo | null) => void) => {
     const handler = (_: Electron.IpcRendererEvent, info: import('./updateChecker').UpdateInfo | null) => cb(info)
     ipcRenderer.on('update:available', handler)

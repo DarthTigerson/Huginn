@@ -2,7 +2,8 @@ import type { FileNode, GitStatus, GitCommitResult, GitDiffContent, GitAheadBehi
 import type { BrowserViewEvent } from '../../electron/browserViews'
 import type { InlineEditStartPayload, InlineEditEvent } from '../../electron/inlineEdit'
 import type { LatestUsage, UsageSnapshot } from '../../electron/usagePoller'
-import type { UpdateInfo } from '../../electron/updateChecker'
+import type { UpdateInfo, UpdateCheckStatus } from '../../electron/updateChecker'
+import type { ChangelogRelease } from '../../electron/changelog'
 import type { GraphifyGraph } from './graphify'
 import type { DefinitionLocation, DetectResult, LspServerId } from '../../electron/lsp/types'
 import type { DockerStatus, DockerContainer, DockerActionResult, DockerContainerStats } from '../../electron/docker'
@@ -288,6 +289,9 @@ declare global {
       onUsageUpdate: (cb: (latest: LatestUsage | null) => void) => () => void
 
       updateGetLatest: () => Promise<UpdateInfo | null>
+      // Settings > About (VIDE-143): last check outcome, and check now.
+      updateGetStatus: () => Promise<UpdateCheckStatus>
+      updateCheck: () => Promise<UpdateCheckStatus>
       updateRestart: () => void
       // Runs install.sh in the background (VIDE-142); output/exit stream back.
       updateRun: () => Promise<void>
@@ -297,6 +301,7 @@ declare global {
       onUpdateAvailable: (cb: (info: UpdateInfo | null) => void) => () => void
       onUpdateUpToDate: (cb: (version: string) => void) => () => void
       getChangelogForVersion: (version: string) => Promise<string | null>
+      getChangelogReleases: () => Promise<ChangelogRelease[]>
 
       bridgeSend: (cwd: string, messages: BridgeMessage[], agentMode: boolean, settings: BridgeSettings) => void
       bridgeApprove: (toolCallId: string) => void

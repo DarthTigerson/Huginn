@@ -32,6 +32,8 @@ const api = {
     return () => { exitHandler = null }
   }),
   updateRestart: vi.fn(),
+  updateGetStatus: vi.fn(() => Promise.resolve({ latest: null, lastCheckedAt: 1_000, failed: false })),
+  updateCheck: vi.fn(() => Promise.resolve({ latest: { version: '0.3.0', url: 'u' } as { version: string; url: string } | null, lastCheckedAt: 2_000, failed: false })),
 }
 vi.stubGlobal('window', { api })
 
@@ -143,4 +145,24 @@ describe('updateStore', () => {
     useUpdateStore.getState().restart()
     expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBeNull()
   })
+
+  it('checkForUpdates shows checking, then records what it found', async () => {
+    const pending = useUpdateStore.getState().checkForUpdates()
+    expect(useUpdateStore.getState().checking).toBe(true)
+    await pending
+    expect(useUpdateStore.getState()).toMatchObject({ checking: false, available: { version: '0.3.0' }, lastCheckedAt: 2_000, checkFailed: false })
+  })
+
+  it('checkForUpdates records a failed check', async () => {
+    api.updateCheck.mockResolvedValueOnce({ latest: null, lastCheckedAt: 1_000, failed: true })
+    await useUpdateStore.getState().checkForUpdates()
+    expect(useUpdateStore.getState()).toMatchObject({ checking: false, checkFailed: true, lastCheckedAt: 1_000 })
+  })
+
+  it('loadCheckStatus picks up when the background checker last ran', async () => {
+    useUpdateStore.getState().loadCheckStatus()
+    await flush()
+    expect(useUpdateStore.getState().lastCheckedAt).toBe(1_000)
+  })
 })
+

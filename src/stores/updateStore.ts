@@ -25,6 +25,12 @@ interface UpdateState {
   // undefined while loading, null if it couldn't be fetched.
   changelog: string | null | undefined
   upToDateVersion: string | null
+  // Settings > About's Check for updates (VIDE-143).
+  checking: boolean
+  lastCheckedAt: number | null
+  checkFailed: boolean
+  loadCheckStatus: () => void
+  checkForUpdates: () => Promise<void>
   setAvailable: (info: UpdateInfo | null) => void
   showUpToDate: (version: string) => void
   openUpdatePage: () => void
@@ -42,6 +48,27 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   log: [],
   changelog: undefined,
   upToDateVersion: null,
+  checking: false,
+  lastCheckedAt: null,
+  checkFailed: false,
+
+  loadCheckStatus: () => {
+    window.api.updateGetStatus().then((status) => {
+      if (get().checking) return
+      set({ lastCheckedAt: status.lastCheckedAt, checkFailed: status.failed })
+    }, () => {})
+  },
+
+  checkForUpdates: async () => {
+    if (get().checking) return
+    set({ checking: true })
+    try {
+      const status = await window.api.updateCheck()
+      set({ checking: false, available: status.latest, lastCheckedAt: status.lastCheckedAt, checkFailed: status.failed })
+    } catch {
+      set({ checking: false, checkFailed: true })
+    }
+  },
 
   setAvailable: (info) => set({ available: info }),
 

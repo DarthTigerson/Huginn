@@ -67,6 +67,7 @@ import {
   EDITOR_SETTINGS_TAB_PATH,
   GIT_SETTINGS_TAB_PATH,
   FILE_TREE_SETTINGS_TAB_PATH,
+  ABOUT_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
   CLAUDE_SETTINGS_TAB_PATH,
   BRIDGE_SETTINGS_TAB_PATH,
@@ -85,6 +86,7 @@ import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
 import { FileTreeSettingsPage } from '@/components/Settings/FileTreeSettingsPage'
+import { AboutSettingsPage } from '@/components/Settings/AboutSettingsPage'
 import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ClaudeSettingsPage } from '@/components/Settings/ClaudeSettingsPage'
 import { BridgeSettingsPage } from '@/components/Settings/BridgeSettingsPage'
@@ -620,6 +622,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <EditorSettingsPage />
           ) : activeTab.path === FILE_TREE_SETTINGS_TAB_PATH ? (
             <FileTreeSettingsPage />
+          ) : activeTab.path === ABOUT_SETTINGS_TAB_PATH ? (
+            <AboutSettingsPage />
           ) : activeTab.path === BROWSER_SETTINGS_TAB_PATH ? (
             <BrowserSettingsPage />
           ) : activeTab.path === CLAUDE_SETTINGS_TAB_PATH ? (

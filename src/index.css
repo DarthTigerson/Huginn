@@ -774,6 +774,11 @@ body {
   .update-track-fill { transition: none; }
 }
 
+/* Settings > About's "Checking…" spinner (VIDE-143). */
+.update-check-spin { animation: update-check-spin 0.8s linear infinite; }
+@keyframes update-check-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .update-check-spin { animation: none; } }
+
 /* Decorative badge in the empty editor panel ("open a file to start
    editing"). The source PNG has real alpha (pre-cropped to the badge's
    corner with a transparent surround), so it just composites normally —

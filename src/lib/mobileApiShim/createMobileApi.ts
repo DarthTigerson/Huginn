@@ -226,6 +226,7 @@ export function createMobileApi(wsUrl: string) {
 
     // changelog — mirrors electron/mobileRelay/channels/changelogChannels.ts
     getChangelogForVersion: invoke('changelog:getForVersion'),
+    getChangelogReleases: invoke('changelog:getReleases'),
 
     // onboarding — mirrors electron/mobileRelay/channels/onboardingChannels.ts
     onboardingGetStatus: invoke('onboarding:getStatus'),
@@ -397,6 +398,8 @@ export function createMobileApi(wsUrl: string) {
 
     // App-level update checking/restart — tied to this desktop install
     updateGetLatest: stubInvoke(null),
+    updateGetStatus: stubInvoke({ latest: null, lastCheckedAt: null, failed: false }),
+    updateCheck: stubInvoke({ latest: null, lastCheckedAt: null, failed: false }),
     updateRestart: stubSend(),
     updateRun: stubInvoke(undefined),
     updateGetRemoteChangelog: stubInvoke(null),
