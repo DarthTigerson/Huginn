@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import { AlarmsPage } from '../AlarmsPage'
 import { useAlarmStore } from '@/stores/alarmStore'
 
@@ -16,8 +16,41 @@ afterEach(() => {
 })
 
 const type = (label: string | RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
-
+// The time field opens one panel with an Hour and a Minute column (T1).
+const pickTime = (hh: string, mm: string) => {
+  fireEvent.click(screen.getByLabelText('Time'))
+  fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: hh }))
+  fireEvent.click(within(screen.getByRole('listbox', { name: 'Minute' })).getByRole('option', { name: mm }))
+}
 describe('AlarmsPage', () => {
+  it('picks the time from one panel with hour and minute columns, instead of the native picker', () => {
+    render(<AlarmsPage />)
+    expect(document.querySelector('input[type="time"]')).toBeNull()
+    const field = screen.getByLabelText('Time')
+    expect(field.textContent).toBe('09:00')
+
+    fireEvent.click(field)
+    expect(within(screen.getByRole('listbox', { name: 'Hour' })).getAllByRole('option')).toHaveLength(24)
+    expect(within(screen.getByRole('listbox', { name: 'Minute' })).getAllByRole('option')).toHaveLength(60)
+
+    // picking an hour keeps it open, picking a minute closes it
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Hour' })).getByRole('option', { name: '14' }))
+    expect(screen.getByTestId('time-picker-panel')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('listbox', { name: 'Minute' })).getByRole('option', { name: '45' }))
+    expect(screen.queryByTestId('time-picker-panel')).toBeNull()
+    expect(field.textContent).toBe('14:45')
+  })
+
+  it('closes the time panel on Escape and on an outside click', () => {
+    render(<AlarmsPage />)
+    fireEvent.click(screen.getByLabelText('Time'))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('time-picker-panel')).toBeNull()
+    fireEvent.click(screen.getByLabelText('Time'))
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByTestId('time-picker-panel')).toBeNull()
+  })
+
   it('shows an empty state with nothing set', () => {
     render(<AlarmsPage />)
     expect(screen.getByText('No alarms yet. Add one below.')).toBeInTheDocument()
@@ -36,10 +69,10 @@ describe('AlarmsPage', () => {
     expect(screen.queryByText(/Rings once/)).toBeNull()
 
     type('Name', 'Dentist')
-    type('Time', '15:00') // still ahead of 10:00 -> today
+    pickTime('15', '00') // still ahead of 10:00 -> today
     fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
     type('Name', 'Early')
-    type('Time', '08:00') // already passed -> tomorrow
+    pickTime('08', '00') // already passed -> tomorrow
     fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))
 
     const byName = Object.fromEntries(useAlarmStore.getState().alarms.map((a) => [a.name, a]))
@@ -53,7 +86,7 @@ describe('AlarmsPage', () => {
   it('adds a repeating alarm on the chosen days (weekdays by default)', () => {
     render(<AlarmsPage />)
     type('Name', 'Stand-up')
-    type('Time', '09:30')
+    pickTime('09', '30')
     fireEvent.click(screen.getByRole('radio', { name: 'Repeat' }))
     fireEvent.click(screen.getByRole('button', { name: 'Friday' })) // drop Friday
     fireEvent.click(screen.getByRole('button', { name: 'Add alarm' }))

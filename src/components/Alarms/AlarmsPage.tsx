@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAlarmStore } from '@/stores/alarmStore'
+import { TimePicker } from './TimePicker'
 import {
   formatAlarmTime,
   onceLabel,
@@ -124,20 +125,21 @@ function AlarmRow({ alarm, ringing, now }: { alarm: Alarm; ringing: boolean; now
 function NewAlarmForm() {
   const addAlarm = useAlarmStore((s) => s.addAlarm)
   const [name, setName] = useState('')
-  const [time, setTime] = useState('09:00')
+  const [hour, setHour] = useState(9)
+  const [minute, setMinute] = useState(0)
   const [repeat, setRepeat] = useState(false)
   const [days, setDays] = useState<number[]>(WEEKDAYS)
 
-  const canAdd = name.trim().length > 0 && /^\d{2}:\d{2}$/.test(time) && (!repeat || days.length > 0)
+  const canAdd = name.trim().length > 0 && (!repeat || days.length > 0)
 
   const submit = () => {
     if (!canAdd) return
-    const [hour, minute] = time.split(':').map(Number)
     addAlarm({ name, hour, minute, repeat, days })
     setName('')
   }
 
-  const inputClass = 'h-8 px-2 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60'
+  // 30px, the height of the time field beside it.
+  const inputClass = 'h-[1.875rem] px-2 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60'
 
   return (
     <form
@@ -154,7 +156,15 @@ function NewAlarmForm() {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="alarm-time" className="text-xs text-fg-muted">Time</label>
-          <input id="alarm-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} />
+          <TimePicker
+            id="alarm-time"
+            hour={hour}
+            minute={minute}
+            onChange={(h, m) => {
+              setHour(h)
+              setMinute(m)
+            }}
+          />
         </div>
       </div>
 
