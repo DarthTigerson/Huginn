@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGitStore, useRepoGitState } from '@/stores/gitStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { GitIcon, AutocompleteIcon } from '@/components/ActivityBar/ActivityBar'
@@ -40,6 +40,10 @@ export function StatusBar() {
   const gitBusy = commandStatus === 'running' || silentFetchInFlight
   const refreshBranch = useGitStore((s) => s.refresh)
   const [gitMenuOpen, setGitMenuOpen] = useState(false)
+  // The quick-actions menu opens above the branch name itself rather than
+  // the left edge of the whole repo › branch group (its offset within it).
+  const branchNameRef = useRef<HTMLSpanElement>(null)
+  const [gitMenuLeft, setGitMenuLeft] = useState(0)
   const { forceAction, requestForce, closeForce } = useForcePushConfirm(selectedRepo)
   const { step: resetStep, requestResetToHead, requestUndoCommit, requestHardReset, pickRef, close: closeReset } = useGitResetConfirm()
   const syncEnabled = useConfigRepoStore((s) => s.enabled)
@@ -85,7 +89,11 @@ export function StatusBar() {
           <div className="relative min-w-0">
             <span
               className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
-              onContextMenu={(e) => { e.preventDefault(); setGitMenuOpen((o) => !o) }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setGitMenuLeft(branchNameRef.current?.offsetLeft ?? 0)
+                setGitMenuOpen((o) => !o)
+              }}
             >
               <GitIcon
                 className={[
@@ -99,7 +107,7 @@ export function StatusBar() {
                   <span className="text-fg-subtle shrink-0">›</span>
                 </>
               )}
-              <span className="truncate">{branch}</span>
+              <span ref={branchNameRef} className="truncate">{branch}</span>
               {commandStatus === 'running' ? (
                 <span className="ml-1.5 text-fg-subtle animate-pulse shrink-0">●</span>
               ) : (
@@ -118,13 +126,17 @@ export function StatusBar() {
               )}
             </span>
             {gitMenuOpen && (
-              <GitActionsMenu
-                onClose={() => setGitMenuOpen(false)}
-                onRequestForce={requestForce}
-                onRequestResetToHead={requestResetToHead}
-                onRequestUndoCommit={requestUndoCommit}
-                onRequestHardReset={requestHardReset}
-              />
+              // Zero-height anchor on the group's top edge, shifted to the
+              // branch name; the menu's own bottom-full stacks it above.
+              <div className="absolute top-0 h-0" style={{ left: gitMenuLeft }}>
+                <GitActionsMenu
+                  onClose={() => setGitMenuOpen(false)}
+                  onRequestForce={requestForce}
+                  onRequestResetToHead={requestResetToHead}
+                  onRequestUndoCommit={requestUndoCommit}
+                  onRequestHardReset={requestHardReset}
+                />
+              </div>
             )}
           </div>
         )}
