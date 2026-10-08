@@ -1,106 +1,62 @@
 import { useEffect, useState } from 'react'
-import { useAlarmStore, type AlarmFlashColor } from '@/stores/alarmStore'
+import { useAlarmStore } from '@/stores/alarmStore'
 import {
   formatAlarmTime,
-  formatTimeUntil,
   isoDate,
-  nextAlarm,
   onceLabel,
   repeatLabel,
   type Alarm,
 } from '@/lib/alarmSchedule'
-import { Section, Row } from '@/components/Settings/SettingsLayout'
-import { AlarmIcon } from './AlarmIcon'
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEKDAYS = [1, 2, 3, 4, 5]
 
-const FLASH_COLOR_OPTIONS: { value: AlarmFlashColor; label: string }[] = [
-  { value: 'primary', label: 'Primary' },
-  { value: 'white', label: 'White' },
-]
+// Same uppercase label as the settings pages' Section headings.
+function SectionLabel({ children }: { children: string }) {
+  return <h2 className="text-xs font-semibold text-fg-muted uppercase tracking-wider mb-3">{children}</h2>
+}
 
 // The Alarms tab (VIDE-141), opened from the footer clock or "View: Alarms".
-// Laid out like the settings pages (same Section/Row building blocks).
+// Header like the settings pages; the alarms sit in one bordered list and
+// the new-alarm form in a dashed box, as in the agreed mockup.
 export function AlarmsPage() {
   const alarms = useAlarmStore((s) => s.alarms)
   const ringing = useAlarmStore((s) => s.ringing)
-  const flashColor = useAlarmStore((s) => s.flashColor)
-  const setFlashColor = useAlarmStore((s) => s.setFlashColor)
 
-  // Re-render once a minute so "Next … in 12 min" and "Once · today" stay true.
+  // Re-render periodically so "Once · today" and "Snoozed until" stay true.
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(interval)
   }, [])
 
-  const next = nextAlarm(alarms, now)
-
   return (
     <div className="h-full overflow-auto p-6 bg-panel">
       <h1 className="text-base font-semibold text-fg mb-1">Alarms</h1>
-      <p className="text-sm text-fg-muted mb-4">
+      <p className="text-sm text-fg-muted mb-6">
         Silent reminders. When one goes off, the footer flashes and a popup lets you snooze it for 9 minutes or stop it. No sound.
       </p>
 
-      <div data-testid="alarms-next" className="mb-6 flex items-center gap-2.5 rounded-lg border border-border bg-bg px-3 py-2.5 text-sm text-fg-muted max-w-[60ch] [&_svg]:text-accent [&_svg]:shrink-0">
-        <AlarmIcon />
-        {next ? (
-          <span>
-            Next: <span className="font-semibold text-fg">{next.alarm.name}</span> at{' '}
-            <span className="font-semibold text-fg">{new Date(next.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>,{' '}
-            {formatTimeUntil(next.at, now)}
-          </span>
-        ) : (
-          <span>No alarms on.</span>
-        )}
-      </div>
-
-      <Section label="Your alarms">
-        {alarms.length === 0 ? (
-          <Row>
+      <div className="flex flex-col gap-8 max-w-[48rem]">
+        <section>
+          <SectionLabel>Your alarms</SectionLabel>
+          {alarms.length === 0 ? (
             <p className="text-sm text-fg-subtle">No alarms yet. Add one below.</p>
-          </Row>
-        ) : (
-          alarms.map((alarm) => <AlarmRow key={alarm.id} alarm={alarm} ringing={ringing?.alarmId === alarm.id} now={now} />)
-        )}
-      </Section>
-
-      <Section label="New alarm">
-        <Row>
-          <NewAlarmForm />
-        </Row>
-      </Section>
-
-      <Section label="Appearance">
-        <Row>
-          <div className="flex items-center justify-between gap-4 max-w-[60ch]">
-            <div>
-              <div className="text-sm text-fg">Flash colour</div>
-              <div className="text-xs text-fg-muted mt-0.5">Colour of the lines that run along the footer while an alarm rings.</div>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
+              {alarms.map((alarm) => <AlarmRow key={alarm.id} alarm={alarm} ringing={ringing?.alarmId === alarm.id} now={now} />)}
             </div>
-            <div role="radiogroup" aria-label="Flash colour" className="flex shrink-0 rounded-full border border-border bg-bg overflow-hidden">
-              {FLASH_COLOR_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={flashColor === opt.value}
-                  onClick={() => setFlashColor(opt.value)}
-                  className={[
-                    'h-7 px-3 text-xs transition-colors',
-                    flashColor === opt.value ? 'bg-accent text-on-accent font-semibold' : 'text-fg-muted hover:text-fg',
-                  ].join(' ')}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          )}
+        </section>
+
+        <section>
+          <SectionLabel>New alarm</SectionLabel>
+          <div className="rounded-lg border border-dashed border-border p-4">
+            <NewAlarmForm />
           </div>
-        </Row>
-      </Section>
+        </section>
+      </div>
     </div>
   )
 }
@@ -121,45 +77,46 @@ function AlarmRow({ alarm, ringing, now }: { alarm: Alarm; ringing: boolean; now
   )
 
   return (
-    <Row>
-      <div data-testid="alarm-row" className="flex items-center gap-5 max-w-[60ch]">
-        <div className={['text-2xl font-light tabular-nums shrink-0', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>
-          {time}
-          {period && <span className="ml-1 text-sm font-medium text-fg-muted">{period}</span>}
-        </div>
-        <div className="min-w-0 flex-1 text-xs text-fg-muted">
-          <div className={['truncate text-sm font-medium', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>{alarm.name}</div>
-          {status}
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-label={`${alarm.name} on`}
-          aria-checked={alarm.enabled}
-          onClick={() => setEnabled(alarm.id, !alarm.enabled)}
-          className={[
-            'relative shrink-0 w-9 h-5 rounded-full border transition-colors',
-            alarm.enabled ? 'bg-accent border-accent/80' : 'bg-white/10 border-white/15',
-          ].join(' ')}
-        >
-          <span
-            className={[
-              'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow ring-1 ring-black/10 transition-transform',
-              alarm.enabled ? 'translate-x-4' : 'translate-x-0',
-            ].join(' ')}
-          />
-        </button>
-        <button
-          type="button"
-          aria-label={`Delete ${alarm.name}`}
-          title="Delete"
-          onClick={() => removeAlarm(alarm.id)}
-          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-fg-subtle hover:text-fg hover:bg-white/10"
-        >
-          ×
-        </button>
+    <div
+      data-testid="alarm-row"
+      className={['flex items-center gap-5 px-4 py-2.5', ringing ? 'bg-accent/10' : 'bg-sidebar'].join(' ')}
+    >
+      <div className={['text-2xl font-light tabular-nums shrink-0', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>
+        {time}
+        {period && <span className="ml-1 text-sm font-medium text-fg-muted">{period}</span>}
       </div>
-    </Row>
+      <div className="min-w-0 flex-1 text-xs text-fg-muted">
+        <div className={['truncate text-sm font-medium', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>{alarm.name}</div>
+        {status}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-label={`${alarm.name} on`}
+        aria-checked={alarm.enabled}
+        onClick={() => setEnabled(alarm.id, !alarm.enabled)}
+        className={[
+          'relative shrink-0 w-9 h-5 rounded-full border transition-colors',
+          alarm.enabled ? 'bg-accent border-accent/80' : 'bg-white/10 border-white/15',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow ring-1 ring-black/10 transition-transform',
+            alarm.enabled ? 'translate-x-4' : 'translate-x-0',
+          ].join(' ')}
+        />
+      </button>
+      <button
+        type="button"
+        aria-label={`Delete ${alarm.name}`}
+        title="Delete"
+        onClick={() => removeAlarm(alarm.id)}
+        className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-fg-subtle hover:text-fg hover:bg-white/10"
+      >
+        ×
+      </button>
+    </div>
   )
 }
 
@@ -184,19 +141,19 @@ function NewAlarmForm() {
 
   return (
     <form
-      className="flex flex-col gap-4 max-w-[60ch]"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
         submit()
       }}
     >
       <div className="flex flex-wrap gap-3">
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[12rem]">
-          <label htmlFor="alarm-name" className="text-sm text-fg">Name</label>
+        <div className="flex flex-col gap-1 flex-1 min-w-[12rem]">
+          <label htmlFor="alarm-name" className="text-xs text-fg-muted">Name</label>
           <input id="alarm-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Stand-up, Lunch" className={inputClass} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="alarm-time" className="text-sm text-fg">Time</label>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="alarm-time" className="text-xs text-fg-muted">Time</label>
           <input id="alarm-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} />
         </div>
       </div>

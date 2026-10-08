@@ -5,12 +5,9 @@ import { SNOOZE_MS, firesBetween, type Alarm } from '@/lib/alarmSchedule'
 // CATEGORY_PREFIXES): alarms are per-machine, and every snooze rewrites this
 // key, which would otherwise mean a sync commit per snooze (VIDE-119).
 const ALARMS_KEY = 'vide:alarms'
-const FLASH_COLOR_KEY = 'vide:alarms:flashColor'
 // Written on every stop/snooze so other windows end the same ring. Only
 // the `storage` event matters — the value is never read back on load.
 const HANDLED_KEY = 'vide:alarms:handled'
-
-export type AlarmFlashColor = 'primary' | 'white'
 
 export interface AlarmRinging {
   alarmId: string
@@ -21,12 +18,10 @@ export type NewAlarm = Pick<Alarm, 'name' | 'hour' | 'minute' | 'repeat' | 'days
 
 interface AlarmStore {
   alarms: Alarm[]
-  flashColor: AlarmFlashColor
   ringing: AlarmRinging | null
   addAlarm: (alarm: NewAlarm) => void
   setEnabled: (id: string, enabled: boolean) => void
   removeAlarm: (id: string) => void
-  setFlashColor: (color: AlarmFlashColor) => void
   // Called by the footer ticker with its previous and current tick.
   checkDue: (from: number, to: number) => void
   ring: (id: string) => void
@@ -75,7 +70,6 @@ export const useAlarmStore = create<AlarmStore>((set, get) => {
 
   return {
     alarms: loadAlarms(),
-    flashColor: localStorage.getItem(FLASH_COLOR_KEY) === 'white' ? 'white' : 'primary',
     ringing: null,
 
     addAlarm: (input) => {
@@ -101,11 +95,6 @@ export const useAlarmStore = create<AlarmStore>((set, get) => {
     removeAlarm: (id) => {
       update(get().alarms.filter((a) => a.id !== id))
       if (get().ringing?.alarmId === id) set({ ringing: null })
-    },
-
-    setFlashColor: (color) => {
-      localStorage.setItem(FLASH_COLOR_KEY, color)
-      set({ flashColor: color })
     },
 
     checkDue: (from, to) => {
@@ -146,8 +135,6 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   window.addEventListener('storage', (e) => {
     if (e.key === ALARMS_KEY) {
       useAlarmStore.setState({ alarms: loadAlarms() })
-    } else if (e.key === FLASH_COLOR_KEY) {
-      useAlarmStore.setState({ flashColor: e.newValue === 'white' ? 'white' : 'primary' })
     } else if (e.key === HANDLED_KEY && e.newValue) {
       try {
         const handled = JSON.parse(e.newValue) as { alarmId: string; at: number }

@@ -674,8 +674,6 @@ body {
   pointer-events: none;
   z-index: 30;
 }
-.alarm-flash-white { --alarm-flash: #ffffff; }
-[data-theme$="-light"] .alarm-flash-white { --alarm-flash: var(--color-fg); }
 .alarm-flash-half { position: absolute; top: 0; bottom: 0; width: 50%; }
 .alarm-flash-l { left: 0; }
 .alarm-flash-r { left: 50%; }

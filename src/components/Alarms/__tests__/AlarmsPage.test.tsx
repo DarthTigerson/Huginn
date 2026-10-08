@@ -7,7 +7,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date(2026, 9, 8, 10, 0, 0))
   localStorage.clear()
-  useAlarmStore.setState({ alarms: [], ringing: null, flashColor: 'primary' })
+  useAlarmStore.setState({ alarms: [], ringing: null })
 })
 
 afterEach(() => {
@@ -18,10 +18,9 @@ afterEach(() => {
 const type = (label: string | RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 describe('AlarmsPage', () => {
-  it('shows an empty state and "No alarms on" with nothing set', () => {
+  it('shows an empty state with nothing set', () => {
     render(<AlarmsPage />)
     expect(screen.getByText('No alarms yet. Add one below.')).toBeInTheDocument()
-    expect(screen.getByTestId('alarms-next').textContent).toMatch(/No alarms on/)
   })
 
   it('requires a name before an alarm can be added', () => {
@@ -41,7 +40,6 @@ describe('AlarmsPage', () => {
     const [a] = useAlarmStore.getState().alarms
     expect(a).toMatchObject({ name: 'Dentist', hour: 15, minute: 0, repeat: false, date: '2026-10-09' })
     expect(screen.getByTestId('alarm-row').textContent).toMatch(/Once · tomorrow/)
-    expect(screen.getByTestId('alarms-next').textContent).toMatch(/Next: Dentist/)
   })
 
   it('adds a repeating alarm on the chosen days (weekdays by default)', () => {
@@ -80,11 +78,5 @@ describe('AlarmsPage', () => {
     useAlarmStore.setState((s) => ({ alarms: s.alarms.map((a) => ({ ...a, snoozedUntil: Date.now() + 9 * 60000 })) }))
     render(<AlarmsPage />)
     expect(screen.getByTestId('alarm-row').textContent).toMatch(/Snoozed until 10:09/)
-  })
-
-  it('sets the flash colour', () => {
-    render(<AlarmsPage />)
-    fireEvent.click(screen.getByRole('radio', { name: 'White' }))
-    expect(useAlarmStore.getState().flashColor).toBe('white')
   })
 })

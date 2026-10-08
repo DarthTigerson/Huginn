@@ -9,7 +9,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
   localStorage.clear()
-  useAlarmStore.setState({ alarms: [], ringing: null, flashColor: 'primary' })
+  useAlarmStore.setState({ alarms: [], ringing: null })
 })
 
 afterEach(() => {
@@ -95,10 +95,5 @@ describe('alarmStore', () => {
     useAlarmStore.getState().ring(id)
     window.dispatchEvent(new StorageEvent('storage', { key: 'vide:alarms:handled', newValue: JSON.stringify({ alarmId: id, at: Date.now() + 1 }) }))
     expect(useAlarmStore.getState().ringing).toBeNull()
-  })
-
-  it('persists the flash colour', () => {
-    useAlarmStore.getState().setFlashColor('white')
-    expect(localStorage.getItem('vide:alarms:flashColor')).toBe('white')
   })
 })

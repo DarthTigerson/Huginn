@@ -6,7 +6,7 @@ import { useAlarmStore } from '@/stores/alarmStore'
 
 beforeEach(() => {
   localStorage.clear()
-  useAlarmStore.setState({ alarms: [], ringing: null, flashColor: 'primary' })
+  useAlarmStore.setState({ alarms: [], ringing: null })
   useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 9, minute: 30, repeat: false, days: [], date: '2026-10-08' })
 })
 
@@ -57,12 +57,5 @@ describe('AlarmFlash', () => {
     const flash = screen.getByTestId('alarm-flash')
     expect(flash.querySelectorAll('.alarm-flash-comet')).toHaveLength(8)
     expect(flash.querySelectorAll('.alarm-flash-edge')).toHaveLength(2)
-  })
-
-  it('uses the white variant when chosen', () => {
-    useAlarmStore.setState({ flashColor: 'white' })
-    ringIt()
-    render(<AlarmFlash />)
-    expect(screen.getByTestId('alarm-flash').className).toMatch(/alarm-flash-white/)
   })
 })

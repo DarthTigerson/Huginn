@@ -79,7 +79,8 @@ describe('Clock — alarms', () => {
     act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [], date: '2026-01-01' }))
     rerender(<Clock />)
     expect(screen.getByTestId('footer-clock-alarm')).toBeInTheDocument()
-    expect(screen.getByRole('tooltip', { hidden: true }).textContent).toMatch(/next alarm 3:00 PM/)
+    // 14:32 now (fixed clock above) -> 15:00 is 28 minutes away
+    expect(screen.getByTestId('footer-clock-next-alarm').textContent).toBe('Stand-up at 3:00 PM · in 28 min')
   })
 
   it('turns accent and shows the alarm popup instead of the date while ringing', () => {
