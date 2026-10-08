@@ -25,6 +25,9 @@ import {
   ALARMS_TAB_PATH,
   GRAPHIFY_GRAPH_TAB_PATH,
 } from '@/components/Settings/paths'
+import { useAlarmStore } from '@/stores/alarmStore'
+
+const noAlarmRinging = () => (useAlarmStore.getState().ringing ? null : 'No alarm is ringing')
 
 export interface SettingsPage {
   id: string
@@ -97,6 +100,22 @@ export function pageCommands(): Command[] {
       description: 'Silent alarms — also opens from the footer clock',
       keywords: ['alarm', 'clock', 'reminder', 'timer', 'snooze'],
       action: () => openTab(ALARMS_TAB_PATH),
+    },
+    {
+      id: 'alarm-snooze',
+      label: 'Alarm: Snooze',
+      description: 'Snooze the ringing alarm for 9 minutes',
+      keywords: ['alarm', 'snooze', 'later'],
+      disabledReason: noAlarmRinging,
+      action: () => useAlarmStore.getState().snooze(),
+    },
+    {
+      id: 'alarm-stop',
+      label: 'Alarm: Stop',
+      description: 'Stop the ringing alarm',
+      keywords: ['alarm', 'stop', 'dismiss'],
+      disabledReason: noAlarmRinging,
+      action: () => useAlarmStore.getState().stop(),
     },
     {
       id: 'view-graphify-graph',

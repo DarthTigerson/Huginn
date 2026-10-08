@@ -16,6 +16,7 @@ import * as paths from '@/components/Settings/paths'
 import { pageCommands, SETTINGS_PAGES } from '../pageCommands'
 import { usePanelRequestStore } from '@/stores/panelRequestStore'
 import { useGraphifySettingsStore } from '@/stores/graphifySettingsStore'
+import { useAlarmStore } from '@/stores/alarmStore'
 
 const find = (id: string) => {
   const cmd = pageCommands().find((c) => c.id === id)
@@ -59,5 +60,34 @@ describe('view commands', () => {
 
   it('has a Usage Graph view', () => {
     expect(find('view-usage-graph').label).toBe('View: Usage Graph')
+  })
+
+  it('View: Alarms opens the Alarms tab', () => {
+    expect(find('view-alarms').label).toBe('View: Alarms')
+  })
+})
+
+describe('alarm commands', () => {
+  beforeEach(() => {
+    useAlarmStore.setState({ alarms: [], ringing: null })
+  })
+
+  it('Snooze and Stop are greyed while no alarm rings', () => {
+    expect(find('alarm-snooze').disabledReason?.()).toBe('No alarm is ringing')
+    expect(find('alarm-stop').disabledReason?.()).toBe('No alarm is ringing')
+  })
+
+  it('Snooze and Stop act on the ringing alarm', () => {
+    useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 9, minute: 30, repeat: true, days: [1] })
+    const id = useAlarmStore.getState().alarms[0].id
+    useAlarmStore.getState().ring(id)
+    expect(find('alarm-snooze').disabledReason?.()).toBeNull()
+    find('alarm-snooze').action?.()
+    expect(useAlarmStore.getState().ringing).toBeNull()
+    expect(useAlarmStore.getState().alarms[0].snoozedUntil).not.toBeNull()
+
+    useAlarmStore.getState().ring(id)
+    find('alarm-stop').action?.()
+    expect(useAlarmStore.getState().ringing).toBeNull()
   })
 })
