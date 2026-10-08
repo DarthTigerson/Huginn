@@ -1,4 +1,14 @@
 # vIDE
+## v0.2.21 (2026-10-09)
+- **Update page**: clicking "vIDE vX is available" now opens an Update tab instead of a terminal. A track shows the update moving through Download → Install → Ready, and if macOS needs your password to replace vIDE in /Applications the page says so instead of looking stuck. When it's done, Restart now and Later are right there on the same page — Later keeps "Update installed — click to restart" in the bell. If it fails, the page explains why and offers Try again, and Show details reveals the installer's output at any point
+- **What's new while you update**: the new version's highlights sit beside the progress, with the full release notes one click away
+- **Settings > About**: a new page in the General group with your version in the primary colour, a Check for updates button that shows when it last checked, and Update to vX when a new version is out. Below it, the full release history: versions on the left, and each one's notes on the right, laid out as titled changes, other changes and bug fixes. It reads the changelog that ships with vIDE, so it works offline, and it's also in the Action Palette as "Settings: About"
+- **After an update**: vIDE now opens Settings > About on the new version instead of the What's New popup, says which version you updated from, and marks every release that update brought in as New, so skipped versions are easy to spot
+
+**Bug fixes**
+- Fixed a failed download during an update being reported as a successful update
+
+
 ## v0.2.20 (2026-10-08)
 - **Silent alarms**: click the clock in the footer to open a new Alarms tab and set named alarms (Stand-up, Lunch…) that ring once at the next occurrence of that time or repeat on the days you pick (Monday first). Nothing plays a sound — when one goes off, lines drip from the centre of the footer out to its edges, the corners flare as each one arrives, and a popup above the clock lets you Snooze (9 minutes) or Stop it. Rename an alarm by clicking its name, and switch it on or off or delete it from its row
 - The alarm time picker is a single field with Hour, Minute and AM/PM columns that follows your system's 12- or 24-hour clock. While an alarm is set, a small alarm icon sits before the time and hovering the clock shows the next one ("Break at 10:06 PM · in 8 min"). Alarms are also in the Action Palette (View: Alarms, Alarm: Snooze, Alarm: Stop), stay on this machine rather than going through vIDE Sync, and stopping one in any window stops it everywhere
