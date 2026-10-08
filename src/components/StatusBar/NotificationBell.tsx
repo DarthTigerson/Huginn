@@ -38,12 +38,12 @@ export function NotificationBell() {
       title="Notifications"
       aria-label={count > 0 ? `${count} notification${count === 1 ? '' : 's'}` : 'Notifications'}
       className={[
-        'flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border text-[11px] font-semibold tabular-nums transition-colors [&_svg]:h-3.5 [&_svg]:w-3.5',
+        'flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border text-xs tabular-nums transition-colors [&_svg]:h-3.5 [&_svg]:w-3.5',
         count === 0
           ? 'w-5 border-border bg-bg text-fg-subtle cursor-default'
           : unread
-            ? 'pl-1 pr-[7px] border-accent bg-accent text-on-accent cursor-pointer'
-            : 'pl-1 pr-[7px] border-border bg-bg text-fg-muted hover:text-fg hover:border-fg-subtle cursor-pointer',
+            ? 'pl-1.5 pr-2 border-accent bg-accent text-on-accent cursor-pointer'
+            : 'pl-1.5 pr-2 border-border bg-bg text-fg-muted hover:text-fg hover:border-fg-subtle cursor-pointer',
       ].join(' ')}
     >
       <span key={ringing?.seq} className={ringing ? 'notification-bell-ring flex' : 'flex'}>

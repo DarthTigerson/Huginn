@@ -172,12 +172,6 @@ export function StatusBar() {
             )}
           </div>
         )}
-        {/* Panel and peek anchor to this wrapper so they open right above the bell. */}
-        <div className="relative flex mx-1">
-          <NotificationBell />
-          <NotificationPeek />
-          <NotificationPanel />
-        </div>
         {(syncEnabled || syncRepoUrl) && (
           <button
             type="button"
@@ -204,6 +198,13 @@ export function StatusBar() {
         )}
         <div className="ml-1">
           <FontSizeControl />
+        </div>
+        {/* Bell sits right before the clock. Panel and peek anchor to this
+            wrapper so they open right above it. */}
+        <div className="relative flex ml-1">
+          <NotificationBell />
+          <NotificationPeek />
+          <NotificationPanel />
         </div>
         {/* Clock owns the far-right corner at every width (VIDE-140). */}
         <div className="ml-3">
