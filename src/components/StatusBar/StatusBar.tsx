@@ -190,12 +190,13 @@ export function StatusBar() {
               'vIDE Sync — click to push now'
             }
             className={[
-              'flex items-center justify-center h-5 w-5 rounded transition-colors disabled:cursor-default',
+              // Same rounded/bordered pill as the bell and font-size chip beside it.
+              'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors disabled:cursor-default',
               syncStatus === 'pushing' || syncStatus === 'connecting'
-                ? 'text-accent animate-pulse'
+                ? 'border-border text-accent animate-pulse'
                 : syncStatus === 'error'
-                  ? 'text-red-400 hover:text-red-300'
-                  : 'text-fg-muted hover:text-fg',
+                  ? 'border-red-400/60 text-red-400 hover:text-red-300 hover:border-red-300'
+                  : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
             ].join(' ')}
           >
             <SyncIcon />
