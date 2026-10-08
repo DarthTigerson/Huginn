@@ -22,8 +22,12 @@ import {
   NOTES_SETTINGS_TAB_PATH,
   LLAMA_SETTINGS_TAB_PATH,
   USAGE_GRAPH_TAB_PATH,
+  ALARMS_TAB_PATH,
   GRAPHIFY_GRAPH_TAB_PATH,
 } from '@/components/Settings/paths'
+import { useAlarmStore } from '@/stores/alarmStore'
+
+const noAlarmRinging = () => (useAlarmStore.getState().ringing ? null : 'No alarm is ringing')
 
 export interface SettingsPage {
   id: string
@@ -89,6 +93,29 @@ export function pageCommands(): Command[] {
       description: 'Open the usage graph',
       keywords: ['usage', 'stats'],
       action: () => openTab(USAGE_GRAPH_TAB_PATH),
+    },
+    {
+      id: 'view-alarms',
+      label: 'View: Alarms',
+      description: 'Silent alarms — also opens from the footer clock',
+      keywords: ['alarm', 'clock', 'reminder', 'timer', 'snooze'],
+      action: () => openTab(ALARMS_TAB_PATH),
+    },
+    {
+      id: 'alarm-snooze',
+      label: 'Alarm: Snooze',
+      description: 'Snooze the ringing alarm for 9 minutes',
+      keywords: ['alarm', 'snooze', 'later'],
+      disabledReason: noAlarmRinging,
+      action: () => useAlarmStore.getState().snooze(),
+    },
+    {
+      id: 'alarm-stop',
+      label: 'Alarm: Stop',
+      description: 'Stop the ringing alarm',
+      keywords: ['alarm', 'stop', 'dismiss'],
+      disabledReason: noAlarmRinging,
+      action: () => useAlarmStore.getState().stop(),
     },
     {
       id: 'view-graphify-graph',

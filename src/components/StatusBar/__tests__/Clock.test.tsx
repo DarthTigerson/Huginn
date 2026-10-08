@@ -1,7 +1,10 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import { Clock, formatLongDate } from '../Clock'
+import { useAlarmStore } from '@/stores/alarmStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { ALARMS_TAB_PATH } from '@/components/Settings/paths'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -21,8 +24,9 @@ describe('Clock', () => {
 
   it('uses the full text colour so it is readable at a glance (VIDE-140)', () => {
     render(<Clock />)
-    expect(screen.getByText('2:32 PM').className).toMatch(/\btext-fg\b/)
-    expect(screen.getByText('2:32 PM').className).not.toMatch(/text-fg-subtle/)
+    const button = screen.getByTestId('footer-clock-button')
+    expect(button.className).toMatch(/\btext-fg\b/)
+    expect(button.className).not.toMatch(/text-fg-subtle/)
   })
 
   it('updates as time passes', () => {
@@ -53,5 +57,38 @@ describe('Clock — date tooltip', () => {
     expect(on(21)).toMatch(/the 21st of/)
     expect(on(22)).toMatch(/the 22nd of/)
     expect(on(23)).toMatch(/the 23rd of/)
+  })
+})
+
+describe('Clock — alarms', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useAlarmStore.setState({ alarms: [], ringing: null })
+    useEditorStore.setState({ activeTabPath: null })
+  })
+
+  it('opens the Alarms tab when clicked', () => {
+    render(<Clock />)
+    fireEvent.click(screen.getByTestId('footer-clock-button'))
+    expect(useEditorStore.getState().activeTabPath).toBe(ALARMS_TAB_PATH)
+  })
+
+  it('shows the alarm icon and the next alarm in the hover only while an alarm is on', () => {
+    const { rerender } = render(<Clock />)
+    expect(screen.queryByTestId('footer-clock-alarm')).toBeNull()
+    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [] }))
+    rerender(<Clock />)
+    expect(screen.getByTestId('footer-clock-alarm')).toBeInTheDocument()
+    // 14:32 now (fixed clock above) -> 15:00 is 28 minutes away
+    expect(screen.getByTestId('footer-clock-next-alarm').textContent).toBe('Stand-up at 3:00 PM · in 28 min')
+  })
+
+  it('turns accent and shows the alarm popup instead of the date while ringing', () => {
+    act(() => useAlarmStore.getState().addAlarm({ name: 'Stand-up', hour: 15, minute: 0, repeat: false, days: [] }))
+    act(() => useAlarmStore.getState().ring(useAlarmStore.getState().alarms[0].id))
+    render(<Clock />)
+    expect(screen.getByTestId('footer-clock-button').className).toMatch(/text-accent/)
+    expect(screen.getByTestId('alarm-popup')).toBeInTheDocument()
+    expect(screen.queryByRole('tooltip', { hidden: true })).toBeNull()
   })
 })

@@ -21,10 +21,13 @@ import { NotificationPeek } from './NotificationPeek'
 import { FontSizeControl } from './FontSizeControl'
 import { Clock } from './Clock'
 import { FooterCursor } from './FooterCursor'
+import { AlarmFlash } from '@/components/Alarms/AlarmFlash'
+import { useAlarmTicker } from '@/hooks/useAlarmTicker'
 import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
 
 export function StatusBar() {
+  useAlarmTicker()
   const repos = useGitReposStore((s) => s.repos)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const hasExplicitSelection = useGitReposStore((s) => s.hasExplicitSelection)
@@ -83,6 +86,7 @@ export function StatusBar() {
   return (
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <GitActivityBar />
+      <AlarmFlash />
       <FooterMessage />
       {/* Branch, then current-line blame (Settings > Git > Blame: Footer), which truncates first. */}
       <div className="flex items-center gap-3 min-w-0">
