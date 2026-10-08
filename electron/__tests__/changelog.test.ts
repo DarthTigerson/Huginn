@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractVersionSection } from '../changelog'
+import { parseChangelog, extractVersionSection } from '../changelog'
 
 const CHANGELOG = `# vIDE
 
@@ -44,3 +44,20 @@ describe('extractVersionSection', () => {
     expect(extractVersionSection(CHANGELOG, '9.9.9')).toBeNull()
   })
 })
+
+describe('parseChangelog', () => {
+  const md = '# vIDE\n## v0.2.20 (2026-10-08)\n- **Alarms**: new\n\n**Bug fixes**\n- Fixed it\n\n\n## v0.2.19 (2026-09-29)\n- Old thing\n\n## v0.1.0\n- First\n'
+
+  it('lists every release newest first, with its date and notes but not the heading', () => {
+    expect(parseChangelog(md)).toEqual([
+      { version: '0.2.20', date: '2026-10-08', body: '- **Alarms**: new\n\n**Bug fixes**\n- Fixed it' },
+      { version: '0.2.19', date: '2026-09-29', body: '- Old thing' },
+      { version: '0.1.0', date: null, body: '- First' },
+    ])
+  })
+
+  it('ignores anything before the first release heading', () => {
+    expect(parseChangelog('# vIDE\nintro text\n')).toEqual([])
+  })
+})
+

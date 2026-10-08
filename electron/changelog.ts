@@ -25,6 +25,41 @@ export function extractVersionSection(changelog: string, version: string): strin
   return lines.slice(startIdx, endIdx).join('\n').trim()
 }
 
+export interface ChangelogRelease {
+  version: string
+  date: string | null // YYYY-MM-DD, as written in the heading
+  body: string // the notes, without the "## vX (date)" heading
+}
+
+// Every release in the changelog, newest first as written — for the release
+// history in Settings > About (VIDE-143).
+export function parseChangelog(changelog: string): ChangelogRelease[] {
+  const releases: ChangelogRelease[] = []
+  let current: { version: string; date: string | null; lines: string[] } | null = null
+  const push = () => {
+    if (current) releases.push({ version: current.version, date: current.date, body: current.lines.join('\n').trim() })
+  }
+  for (const line of changelog.split('\n')) {
+    const heading = line.match(/^##\s+v?([\d.]+)(?:\s+\(([\d-]+)\))?/)
+    if (heading) {
+      push()
+      current = { version: heading[1], date: heading[2] ?? null, lines: [] }
+    } else if (current) {
+      current.lines.push(line)
+    }
+  }
+  push()
+  return releases
+}
+
+export async function getChangelogReleases(): Promise<ChangelogRelease[]> {
+  try {
+    return parseChangelog(await readFile(CHANGELOG_PATH, 'utf-8'))
+  } catch {
+    return []
+  }
+}
+
 export async function getChangelogForVersion(version: string): Promise<string | null> {
   try {
     const changelog = await readFile(CHANGELOG_PATH, 'utf-8')

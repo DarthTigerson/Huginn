@@ -102,4 +102,30 @@ describe('UpdateChecker', () => {
     await checker.check()
     expect(handlers['update:getLatest']()).toEqual({ version: '0.2.0', url: 'https://example.com/release' })
   })
+
+  it('reports when it last reached GitHub, and whether the latest check failed', async () => {
+    const checker = new UpdateChecker('0.1.0')
+    expect(checker.getStatus()).toEqual({ latest: null, lastCheckedAt: null, failed: false })
+
+    mockFetchOnce({ tag_name: 'v0.1.0', html_url: 'x', draft: false, prerelease: false })
+    await checker.check()
+    const ok = checker.getStatus()
+    expect(ok.failed).toBe(false)
+    expect(ok.lastCheckedAt).toEqual(expect.any(Number))
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    await checker.check()
+    // still remembers the last successful check
+    expect(checker.getStatus()).toEqual({ latest: null, lastCheckedAt: ok.lastCheckedAt, failed: true })
+  })
+
+  it('update:check checks now and returns the status', async () => {
+    mockFetchOnce({ tag_name: 'v0.2.0', html_url: 'https://example.com/release', draft: false, prerelease: false })
+    const checker = new UpdateChecker('0.1.0')
+    checker.registerHandlers()
+    const status = await handlers['update:check']()
+    expect(status).toMatchObject({ latest: { version: '0.2.0', url: 'https://example.com/release' }, failed: false })
+    expect(handlers['update:getStatus']()).toEqual(status)
+  })
 })
+

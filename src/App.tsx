@@ -9,7 +9,6 @@ import { syncOpenTabsFromDisk } from '@/lib/syncOpenTabsFromDisk'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { Editor } from './components/Editor/Editor'
 import { ActionPalette } from './components/Search/ActionPalette'
-import { UpdateChangelogModal } from './components/UpdateChangelogModal'
 import { SetupWizard } from './components/Onboarding/SetupWizard'
 import { ShortcutsOverlay } from './components/Shortcuts/ShortcutsOverlay'
 import { useHoldToShowShortcuts } from './components/Shortcuts/useHoldToShowShortcuts'
@@ -1326,7 +1325,6 @@ export default function App() {
           onClose={() => setSessionMenu(null)}
         />
       )}
-      <UpdateChangelogModal />
       <SetupWizard />
     </div>
   )

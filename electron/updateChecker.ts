@@ -8,6 +8,15 @@ export interface UpdateInfo {
   url: string
 }
 
+// What Settings > About shows next to Check for updates (VIDE-143).
+export interface UpdateCheckStatus {
+  latest: UpdateInfo | null
+  // When the last check that actually reached GitHub finished, or null.
+  lastCheckedAt: number | null
+  // Whether the most recent check failed (offline, rate-limited, …).
+  failed: boolean
+}
+
 interface GithubRelease {
   tag_name: string
   html_url: string
@@ -31,6 +40,8 @@ export function compareVersions(a: string, b: string): number {
 export class UpdateChecker {
   private latest: UpdateInfo | null = null
   private interval: ReturnType<typeof setInterval> | null = null
+  private lastCheckedAt: number | null = null
+  private lastCheckFailed = false
 
   constructor(
     private readonly currentVersion: string,
@@ -42,8 +53,13 @@ export class UpdateChecker {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json' },
       })
-      if (!res.ok) return this.latest
+      if (!res.ok) {
+        this.lastCheckFailed = true
+        return this.latest
+      }
       const release: GithubRelease = await res.json()
+      this.lastCheckedAt = Date.now()
+      this.lastCheckFailed = false
       if (release.draft || release.prerelease) return this.latest
 
       const version = release.tag_name.replace(/^v/, '')
@@ -58,6 +74,7 @@ export class UpdateChecker {
       return this.latest
     } catch (e) {
       console.error('UpdateChecker check failed:', e)
+      this.lastCheckFailed = true
       return this.latest
     }
   }
@@ -76,7 +93,17 @@ export class UpdateChecker {
     return this.latest
   }
 
+  getStatus(): UpdateCheckStatus {
+    return { latest: this.latest, lastCheckedAt: this.lastCheckedAt, failed: this.lastCheckFailed }
+  }
+
   registerHandlers(): void {
     ipcMain.handle('update:getLatest', () => this.getLatest())
+    ipcMain.handle('update:getStatus', () => this.getStatus())
+    // "Check for updates" in Settings > About: check now, report the outcome.
+    ipcMain.handle('update:check', async () => {
+      await this.check()
+      return this.getStatus()
+    })
   }
 }

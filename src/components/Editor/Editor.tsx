@@ -51,6 +51,7 @@ import {
   isGraphifyGraphTab,
   isUsageGraphTab,
   isAlarmsTab,
+  isUpdateTab,
   isTodoBoardTab,
   isTodoTrashTab,
   getTodoBoardProjectId,
@@ -66,6 +67,7 @@ import {
   EDITOR_SETTINGS_TAB_PATH,
   GIT_SETTINGS_TAB_PATH,
   FILE_TREE_SETTINGS_TAB_PATH,
+  ABOUT_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH,
   CLAUDE_SETTINGS_TAB_PATH,
   BRIDGE_SETTINGS_TAB_PATH,
@@ -84,6 +86,7 @@ import { DisplayPage } from '@/components/Settings/DisplayPage'
 import { GitSettingsPage } from '@/components/Settings/GitSettingsPage'
 import { EditorSettingsPage } from '@/components/Settings/EditorSettingsPage'
 import { FileTreeSettingsPage } from '@/components/Settings/FileTreeSettingsPage'
+import { AboutSettingsPage } from '@/components/Settings/AboutSettingsPage'
 import { BrowserSettingsPage } from '@/components/Settings/BrowserSettingsPage'
 import { ClaudeSettingsPage } from '@/components/Settings/ClaudeSettingsPage'
 import { BridgeSettingsPage } from '@/components/Settings/BridgeSettingsPage'
@@ -105,6 +108,7 @@ import { GitBranchDiffPage } from '@/components/Git/GitBranchDiffPage'
 import { GraphifyGraphPage } from '@/components/Graphify/GraphifyGraphPage'
 import { UsageGraphPage } from '@/components/UsagePanel/UsageGraphPage'
 import { AlarmsPage } from '@/components/Alarms/AlarmsPage'
+import { UpdatePage } from '@/components/Update/UpdatePage'
 import { TodoTrashPage } from '@/components/Todo/TodoTrashPage'
 import { TodoBoardPage } from '@/components/Todo/TodoBoardPage'
 import { TodoDetailPage } from '@/components/Todo/TodoDetailPage'
@@ -443,6 +447,7 @@ function EditorPane({ paneId }: { paneId: string }) {
   const isGraphifyGraph = !!activeTab && isGraphifyGraphTab(activeTab.path)
   const isUsageGraph = !!activeTab && isUsageGraphTab(activeTab.path)
   const isAlarms = !!activeTab && isAlarmsTab(activeTab.path)
+  const isUpdate = !!activeTab && isUpdateTab(activeTab.path)
   const isTodoBoard = !!activeTab && isTodoBoardTab(activeTab.path)
   const isTodoDetail = !!activeTab && isTodoDetailTab(activeTab.path)
   const isTodoTrash = !!activeTab && isTodoTrashTab(activeTab.path)
@@ -458,7 +463,7 @@ function EditorPane({ paneId }: { paneId: string }) {
     !!activeTab &&
     !isVirtual && !isTerminal && !isBrowser &&
     !isDiff && !isCommitDiff && !isGitLog && !isGitGraph && !isGitBranchDiff &&
-    !isGraphifyGraph && !isUsageGraph && !isAlarms && !isTodoBoard && !isTodoDetail && !isTodoTrash &&
+    !isGraphifyGraph && !isUsageGraph && !isAlarms && !isUpdate && !isTodoBoard && !isTodoDetail && !isTodoTrash &&
     !isLlamaModel && !isDockerLogs && !isImagePreview && !isMarkdownPreview &&
     // A scratch tab has no file on disk yet, so there is no path to show —
     // without this the breadcrumb splits 'scratch://<uuid>' on '/' and
@@ -617,6 +622,8 @@ function EditorPane({ paneId }: { paneId: string }) {
             <EditorSettingsPage />
           ) : activeTab.path === FILE_TREE_SETTINGS_TAB_PATH ? (
             <FileTreeSettingsPage />
+          ) : activeTab.path === ABOUT_SETTINGS_TAB_PATH ? (
+            <AboutSettingsPage />
           ) : activeTab.path === BROWSER_SETTINGS_TAB_PATH ? (
             <BrowserSettingsPage />
           ) : activeTab.path === CLAUDE_SETTINGS_TAB_PATH ? (
@@ -654,6 +661,8 @@ function EditorPane({ paneId }: { paneId: string }) {
           <UsageGraphPage />
         ) : isAlarms ? (
           <AlarmsPage />
+        ) : isUpdate ? (
+          <UpdatePage />
         ) : isTodoTrash ? (
           <TodoTrashPage />
         ) : isTodoBoard ? (

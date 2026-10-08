@@ -6,7 +6,7 @@ import {
   GENERAL_SETTINGS_TAB_PATH, DISPLAY_TAB_PATH, EDITOR_SETTINGS_TAB_PATH, GIT_SETTINGS_TAB_PATH, FILE_TREE_SETTINGS_TAB_PATH,
   BROWSER_SETTINGS_TAB_PATH, CLAUDE_SETTINGS_TAB_PATH, BRIDGE_SETTINGS_TAB_PATH, GRAPHIFY_SETTINGS_TAB_PATH,
   JIRA_SETTINGS_TAB_PATH, DOCKER_SETTINGS_TAB_PATH, MOBILE_SETTINGS_TAB_PATH, NOTES_SETTINGS_TAB_PATH,
-  TODO_SETTINGS_TAB_PATH, LLAMA_SETTINGS_TAB_PATH,
+  TODO_SETTINGS_TAB_PATH, LLAMA_SETTINGS_TAB_PATH, ABOUT_SETTINGS_TAB_PATH,
 } from './paths'
 import {
   SettingsIcon, EditorIcon, DisplaySettingsIcon, FilesIcon, ClaudeIcon, BridgeIcon, GitIcon, DockerIcon,
@@ -32,6 +32,7 @@ const NAV_GROUPS: NavGroup[] = [
       { path: EDITOR_SETTINGS_TAB_PATH, label: 'Editor', icon: <EditorIcon /> },
       { path: DISPLAY_TAB_PATH, label: 'Display', icon: <DisplaySettingsIcon /> },
       { path: FILE_TREE_SETTINGS_TAB_PATH, label: 'File Tree', icon: <FilesIcon /> },
+      { path: ABOUT_SETTINGS_TAB_PATH, label: 'About', icon: <AboutIcon /> },
     ],
   },
   {
@@ -123,5 +124,16 @@ export function SettingsPanel() {
         ))}
       </div>
     </div>
+  )
+}
+
+// "i" in a circle, for Settings > About (VIDE-143). Same size/stroke as
+// SettingsIcon.
+function AboutIcon() {
+  return (
+    <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M12 11v5.5M12 7.75v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   )
 }

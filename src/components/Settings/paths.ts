@@ -23,6 +23,8 @@ export const MOBILE_SETTINGS_TAB_PATH = 'settings://Mobile'
 export const TODO_SETTINGS_TAB_PATH = 'settings://Todo'
 export const NOTES_SETTINGS_TAB_PATH = 'settings://Notes'
 export const LLAMA_SETTINGS_TAB_PATH = 'settings://Llama'
+// Version, update check and release history (VIDE-143).
+export const ABOUT_SETTINGS_TAB_PATH = 'settings://About'
 export const GIT_LOG_TAB_PATH = 'git-log://Git Log'
 
 export function isSettingsTab(path: string): boolean {
@@ -62,6 +64,13 @@ export const ALARMS_TAB_PATH = 'alarms://Alarms'
 
 export function isAlarmsTab(path: string): boolean {
   return path === ALARMS_TAB_PATH
+}
+
+// In-app update progress page, opened from the update notification (VIDE-142).
+export const UPDATE_TAB_PATH = 'update://Update'
+
+export function isUpdateTab(path: string): boolean {
+  return path === UPDATE_TAB_PATH
 }
 
 const TODO_BOARD_PREFIX = 'todo-board://'

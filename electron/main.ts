@@ -33,7 +33,8 @@ import { registerTodoMcpHandlers, registerNotesMcpHandlers, registerBrowserMcpHa
 import { registerNotesHandlers } from './notes'
 import { registerSearchHandlers } from './search'
 import { UpdateChecker } from './updateChecker'
-import { getChangelogForVersion } from './changelog'
+import { UpdateRunner } from './updateRunner'
+import { getChangelogForVersion, getChangelogReleases } from './changelog'
 import { getSystemMemoryUsage } from './systemMemory'
 import { registerOnboardingHandlers } from './onboarding'
 import { registerConfigRepoHandlers } from './configRepo'
@@ -775,6 +776,7 @@ app.whenReady().then(async () => {
   })
   updateChecker.registerHandlers()
   updateChecker.start()
+  new UpdateRunner().registerHandlers()
 
   ipcMain.on('update:restart', () => {
     // quit() (not exit()) — exit() doesn't wait for pending operations, and
@@ -786,6 +788,7 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('changelog:getForVersion', (_e, version: string) => getChangelogForVersion(version))
+  ipcMain.handle('changelog:getReleases', () => getChangelogReleases())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
