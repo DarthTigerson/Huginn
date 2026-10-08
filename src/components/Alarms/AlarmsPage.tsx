@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAlarmStore } from '@/stores/alarmStore'
 import { TimePicker } from './TimePicker'
 import {
@@ -83,12 +83,14 @@ function AlarmRow({ alarm, ringing, now }: { alarm: Alarm; ringing: boolean; now
       data-testid="alarm-row"
       className={['flex items-center gap-5 px-4 py-2.5', ringing ? 'bg-accent/10' : 'bg-sidebar'].join(' ')}
     >
-      <div className={['text-2xl font-light tabular-nums shrink-0', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>
+      {/* Fixed width, right-aligned: "1:00" and "12:00" line up on the colon
+          and every name starts at the same place. Fits "12:00 PM". */}
+      <div className={['flex w-28 shrink-0 items-baseline justify-end text-2xl font-light tabular-nums', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>
         {time}
         {period && <span className="ml-1 text-sm font-medium text-fg-muted">{period}</span>}
       </div>
       <div className="min-w-0 flex-1 text-xs text-fg-muted">
-        <div className={['truncate text-sm font-medium', alarm.enabled ? 'text-fg' : 'text-fg-subtle'].join(' ')}>{alarm.name}</div>
+        <AlarmName alarm={alarm} />
         {status}
       </div>
       <button
@@ -119,6 +121,58 @@ function AlarmRow({ alarm, ringing, now }: { alarm: Alarm; ringing: boolean; now
         ×
       </button>
     </div>
+  )
+}
+
+// Click the name to rename it in place: Enter or clicking away saves,
+// Escape cancels, and a blank name falls back to the old one.
+function AlarmName({ alarm }: { alarm: Alarm }) {
+  const renameAlarm = useAlarmStore((s) => s.renameAlarm)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(alarm.name)
+  // Set once Enter/Escape has decided, so the blur that follows when the
+  // input unmounts can't save a cancelled edit.
+  const done = useRef(false)
+  const color = alarm.enabled ? 'text-fg' : 'text-fg-subtle'
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        title="Rename"
+        onClick={() => {
+          setDraft(alarm.name)
+          done.current = false
+          setEditing(true)
+        }}
+        className={['block max-w-full truncate rounded -mx-1 px-1 text-left text-sm font-medium hover:bg-white/5 cursor-text', color].join(' ')}
+      >
+        {alarm.name}
+      </button>
+    )
+  }
+
+  const finish = (save: boolean) => {
+    if (done.current) return
+    done.current = true
+    if (save) renameAlarm(alarm.id, draft)
+    setEditing(false)
+  }
+
+  return (
+    <input
+      autoFocus
+      aria-label="Alarm name"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+      }}
+      className={['w-full -mx-1 px-1 rounded bg-bg border border-accent/60 text-sm font-medium focus:outline-none', color].join(' ')}
+    />
   )
 }
 

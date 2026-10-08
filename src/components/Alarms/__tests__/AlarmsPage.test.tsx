@@ -122,6 +122,28 @@ describe('AlarmsPage', () => {
     expect(useAlarmStore.getState().alarms).toEqual([])
   })
 
+  it('renames an alarm by clicking its name: Enter saves, Escape cancels, blank keeps the old name', () => {
+    useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4] })
+    render(<AlarmsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lunch' }))
+    const input = screen.getByLabelText('Alarm name')
+    fireEvent.change(input, { target: { value: '  Long lunch ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(useAlarmStore.getState().alarms[0].name).toBe('Long lunch')
+    expect(screen.queryByLabelText('Alarm name')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Long lunch' }))
+    fireEvent.change(screen.getByLabelText('Alarm name'), { target: { value: 'Nope' } })
+    fireEvent.keyDown(screen.getByLabelText('Alarm name'), { key: 'Escape' })
+    expect(useAlarmStore.getState().alarms[0].name).toBe('Long lunch')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Long lunch' }))
+    fireEvent.change(screen.getByLabelText('Alarm name'), { target: { value: '   ' } })
+    fireEvent.blur(screen.getByLabelText('Alarm name'))
+    expect(useAlarmStore.getState().alarms[0].name).toBe('Long lunch')
+  })
+
   it('shows "Snoozed until" for a snoozed alarm', () => {
     useAlarmStore.getState().addAlarm({ name: 'Lunch', hour: 12, minute: 45, repeat: true, days: [4] })
     useAlarmStore.setState((s) => ({ alarms: s.alarms.map((a) => ({ ...a, snoozedUntil: Date.now() + 9 * 60000 })) }))

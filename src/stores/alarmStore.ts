@@ -22,6 +22,8 @@ interface AlarmStore {
   ringing: AlarmRinging | null
   addAlarm: (alarm: NewAlarm) => void
   setEnabled: (id: string, enabled: boolean) => void
+  // Ignores a blank name, so an alarm always keeps one.
+  renameAlarm: (id: string, name: string) => void
   removeAlarm: (id: string) => void
   // Called by the footer ticker with its previous and current tick.
   checkDue: (from: number, to: number) => void
@@ -97,6 +99,12 @@ export const useAlarmStore = create<AlarmStore>((set, get) => {
         return { ...a, enabled, date: a.repeat ? a.date : nextDateFor(a.hour, a.minute, Date.now()) }
       }))
       if (!enabled && get().ringing?.alarmId === id) set({ ringing: null })
+    },
+
+    renameAlarm: (id, name) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      update(get().alarms.map((a) => (a.id === id ? { ...a, name: trimmed } : a)))
     },
 
     removeAlarm: (id) => {
