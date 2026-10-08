@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { AboutSettingsPage, formatCheckedAgo } from '../AboutSettingsPage'
 import { useUpdateStore } from '@/stores/updateStore'
+import { useChangelogStore } from '@/stores/changelogStore'
 
 const RELEASES = [
+  { version: '0.2.21', date: '2026-10-20', body: '- **Future**: not installed yet' },
   { version: '0.2.20', date: '2026-10-08', body: '- **Silent alarms**: from the footer clock\n- A smaller tweak\n\n**Bug fixes**\n- Fixed a thing' },
   { version: '0.2.19', date: '2026-09-29', body: '- **Git blame**: in the footer' },
 ]
@@ -15,6 +17,7 @@ const openUpdatePage = vi.fn()
 beforeEach(() => {
   vi.stubGlobal('__APP_VERSION__', '0.2.20')
   ;(window as any).api = { getChangelogReleases: vi.fn(async () => RELEASES) }
+  useChangelogStore.setState({ justUpdated: null })
   useUpdateStore.setState({
     available: null, status: 'idle', checking: false, lastCheckedAt: null, checkFailed: false,
     checkForUpdates, startUpdate, openUpdatePage, loadCheckStatus: vi.fn(),
@@ -90,9 +93,9 @@ describe('AboutSettingsPage', () => {
     render(<AboutSettingsPage />)
     const list = await screen.findByRole('listbox', { name: 'Releases' })
     const options = within(list).getAllByRole('option')
-    expect(options.map((o) => o.textContent)).toEqual(['v0.2.208 Oct 2026', 'v0.2.1929 Sept 2026'])
-    expect(within(options[0]).getByText('v0.2.20').className).toMatch(/text-accent/)
-    expect(within(options[1]).getByText('v0.2.19').className ?? '').not.toMatch(/text-accent/)
+    expect(options.map((o) => o.textContent)).toEqual(['v0.2.2120 Oct 2026', 'v0.2.208 Oct 2026', 'v0.2.1929 Sept 2026'])
+    expect(within(options[1]).getByText('v0.2.20').className).toMatch(/text-accent/)
+    expect(within(options[2]).getByText('v0.2.19').className ?? '').not.toMatch(/text-accent/)
     expect(screen.getByTestId('about-release-notes').textContent).toMatch(/Silent alarms/)
   })
 
@@ -112,6 +115,23 @@ describe('AboutSettingsPage', () => {
     expect(screen.getByTestId('release-changes').textContent).toBe('A smaller tweak')
     expect(within(notes).getByText('Bug fixes')).toBeInTheDocument()
     expect(screen.getByTestId('release-fixes').textContent).toBe('Fixed a thing')
+  })
+
+  it('after an update, says which version it came from and marks the releases it brought in', async () => {
+    useChangelogStore.setState({ justUpdated: { to: '0.2.20', from: '0.2.18' } })
+    render(<AboutSettingsPage />)
+    expect(screen.getByTestId('about-updated-from').textContent).toBe('Updated from v0.2.18')
+    const list = await screen.findByRole('listbox', { name: 'Releases' })
+    const marked = within(list).getAllByTestId('about-release-new').map((n) => n.closest('[role="option"]')!.textContent)
+    // 0.2.19 and 0.2.20 came in with this update; 0.2.21 isn't installed
+    expect(marked).toEqual(['v0.2.20New8 Oct 2026', 'v0.2.19New29 Sept 2026'])
+  })
+
+  it('says nothing about an update on a normal day', async () => {
+    render(<AboutSettingsPage />)
+    await screen.findByRole('listbox', { name: 'Releases' })
+    expect(screen.queryByTestId('about-updated-from')).toBeNull()
+    expect(screen.queryByTestId('about-release-new')).toBeNull()
   })
 })
 

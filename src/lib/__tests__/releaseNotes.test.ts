@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { parseReleaseNotes } from '../releaseNotes'
+import { parseReleaseNotes, isNewerVersion } from '../releaseNotes'
 import { parseChangelog } from '../../../electron/changelog'
 
 describe('parseReleaseNotes', () => {
@@ -41,3 +41,14 @@ describe('parseReleaseNotes', () => {
     }
   })
 })
+
+describe('isNewerVersion', () => {
+  it('compares segment by segment, not as text', () => {
+    expect(isNewerVersion('0.2.20', '0.2.9')).toBe(true)
+    expect(isNewerVersion('0.2.9', '0.2.20')).toBe(false)
+    expect(isNewerVersion('0.3.0', '0.2.99')).toBe(true)
+    expect(isNewerVersion('0.2.20', '0.2.20')).toBe(false)
+    expect(isNewerVersion('1.0', '0.9.9')).toBe(true)
+  })
+})
+

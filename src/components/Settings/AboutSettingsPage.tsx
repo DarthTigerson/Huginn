@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useUpdateStore } from '@/stores/updateStore'
 import { COMPACT_PROSE_CLASSES } from '@/components/Viewer/proseClasses'
-import { parseReleaseNotes } from '@/lib/releaseNotes'
+import { parseReleaseNotes, isNewerVersion } from '@/lib/releaseNotes'
+import { useChangelogStore } from '@/stores/changelogStore'
 // The app icon itself (also what packaging uses), not a copy in src/assets.
 import appIconUrl from '../../../icon.png'
 import { Section, Row } from './SettingsLayout'
@@ -38,6 +39,7 @@ export function AboutSettingsPage() {
   const loadCheckStatus = useUpdateStore((s) => s.loadCheckStatus)
   const startUpdate = useUpdateStore((s) => s.startUpdate)
   const openUpdatePage = useUpdateStore((s) => s.openUpdatePage)
+  const justUpdated = useChangelogStore((s) => s.justUpdated)
 
   // Injected by electron.vite.config.ts; absent under vitest.
   const current = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null
@@ -74,6 +76,11 @@ export function AboutSettingsPage() {
   )
 
   const release = releases?.find((r) => r.version === selected) ?? null
+  // Releases this update brought in: newer than the version it replaced, up
+  // to the one now running (more than one if releases were skipped).
+  const updatedFrom = justUpdated && justUpdated.to === current ? justUpdated.from : null
+  const isNew = (version: string) =>
+    !!updatedFrom && isNewerVersion(version, updatedFrom) && !(current && isNewerVersion(version, current))
 
   return (
     // A flex column so Release history can take whatever height is left.
@@ -91,6 +98,11 @@ export function AboutSettingsPage() {
                 <div data-testid="about-version" className="text-[0.9375rem] font-semibold text-fg">
                   vIDE {current && <span className="text-accent">{current}</span>}
                 </div>
+                {justUpdated && justUpdated.to === current && (
+                  <div data-testid="about-updated-from" className="mt-0.5 text-xs text-fg-muted">
+                    {updatedFrom ? <>Updated from v{updatedFrom}</> : <>Just updated</>}
+                  </div>
+                )}
                 <div className="mt-0.5">{statusLine}</div>
               </div>
               <button
@@ -149,7 +161,12 @@ export function AboutSettingsPage() {
                           isSelected ? 'bg-accent/10 text-fg' : 'text-fg-muted hover:bg-white/5 hover:text-fg',
                         ].join(' ')}
                       >
-                        <span className={r.version === current ? 'text-accent' : undefined}>v{r.version}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className={r.version === current ? 'text-accent' : undefined}>v{r.version}</span>
+                          {isNew(r.version) && (
+                            <span data-testid="about-release-new" className="rounded-full bg-accent/15 px-1.5 text-[0.625rem] font-semibold uppercase tracking-wider text-accent">New</span>
+                          )}
+                        </span>
                         <span className="text-xs text-fg-subtle">{formatReleaseDate(r.date)}</span>
                       </button>
                     )

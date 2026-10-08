@@ -6,7 +6,6 @@ import { normalizeUrlInput } from './urlBar'
 import { zoomLevelToPercent } from './zoomLevel'
 import { MOBILE_DEVICES, getMobileDevice } from './mobileDevices'
 import { useSearchStore } from '@/stores/searchStore'
-import { useChangelogStore } from '@/stores/changelogStore'
 import { useBrowserRecentStore } from '@/stores/browserRecentStore'
 import { useBrowserClosedTabsStore } from '@/stores/browserClosedTabsStore'
 import { useBrowserFavoritesStore } from '@/stores/browserFavoritesStore'
@@ -231,14 +230,13 @@ export function BrowserTab({ browserId }: Props) {
       s.recentProjectsPaletteOpen ||
       s.branchPaletteOpen
   )
-  const changelogOpen = useChangelogStore((s) => s.content !== null)
   useEffect(() => {
     // Also hides the native view whenever the tab has no url — the landing
     // page (shown by the JSX below in that case) needs the view out of the
     // way, same as goHome() relies on this effect rather than calling
     // setVisible itself.
-    window.api.browserViewSetVisible(browserId, !!url && !loadError && !anyOverlayOpen && !changelogOpen)
-  }, [browserId, url, loadError, anyOverlayOpen, changelogOpen])
+    window.api.browserViewSetVisible(browserId, !!url && !loadError && !anyOverlayOpen)
+  }, [browserId, url, loadError, anyOverlayOpen])
 
   useEffect(() => {
     if (!menuOpen) return

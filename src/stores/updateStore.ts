@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { useEditorStore } from './editorStore'
 import { UPDATE_TAB_PATH } from '@/components/Settings/paths'
-import { PENDING_CHANGELOG_KEY } from './changelogStore'
+import { PENDING_CHANGELOG_KEY, UPDATED_FROM_KEY } from './changelogStore'
 import { stageFromLine, failureFromLog, changelogBody, type UpdateStage, type UpdateFailure } from '@/lib/updateStage'
 import type { UpdateInfo } from '@/types/api'
 
@@ -126,7 +126,11 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
 
   restart: () => {
     const version = get().available?.version
-    if (version) localStorage.setItem(PENDING_CHANGELOG_KEY, version)
+    if (version) {
+      localStorage.setItem(PENDING_CHANGELOG_KEY, version)
+      // The version being replaced, so About can say "Updated from v…".
+      if (typeof __APP_VERSION__ === 'string') localStorage.setItem(UPDATED_FROM_KEY, __APP_VERSION__)
+    }
     window.api.updateRestart()
   },
 }))

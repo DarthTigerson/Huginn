@@ -1,62 +1,65 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useChangelogStore, PENDING_CHANGELOG_KEY } from '../changelogStore'
 
-const { localStorageStore } = vi.hoisted(() => {
+const { localStorageStore, openTab, openTabInPane, settings } = vi.hoisted(() => {
   const localStorageStore: Record<string, string> = {}
   ;(global as any).localStorage = {
     getItem: (k: string) => localStorageStore[k] ?? null,
     setItem: (k: string, v: string) => { localStorageStore[k] = v },
     removeItem: (k: string) => { delete localStorageStore[k] },
   }
-  return { localStorageStore }
+  return { localStorageStore, openTab: vi.fn(), openTabInPane: vi.fn(), settings: { openInBiggestPane: false } }
 })
 
-vi.stubGlobal('window', {
-  api: {
-    getChangelogForVersion: vi.fn().mockResolvedValue('## v0.2.0\n- New stuff'),
-  },
-})
+vi.mock('@/stores/editorStore', () => ({ useEditorStore: { getState: () => ({ openTab, openTabInPane }) } }))
+vi.mock('@/stores/generalSettingsStore', () => ({ useGeneralSettingsStore: { getState: () => settings } }))
+vi.mock('@/lib/paneLayout', () => ({ getBiggestPaneId: () => 'pane-big' }))
+
+import { useChangelogStore, PENDING_CHANGELOG_KEY, UPDATED_FROM_KEY } from '../changelogStore'
+
+const ABOUT = 'settings://About'
 
 describe('changelogStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useChangelogStore.setState({ version: null, content: null })
+    settings.openInBiggestPane = false
+    useChangelogStore.setState({ justUpdated: null })
   })
 
-  it('starts with nothing to show', () => {
-    const { version, content } = useChangelogStore.getState()
-    expect(version).toBeNull()
-    expect(content).toBeNull()
+  it('does nothing on a normal startup', () => {
+    useChangelogStore.getState().checkPending()
+    expect(openTab).not.toHaveBeenCalled()
+    expect(useChangelogStore.getState().justUpdated).toBeNull()
   })
 
-  it('checkPending does nothing when no version is pending', async () => {
-    await useChangelogStore.getState().checkPending()
-    expect(window.api.getChangelogForVersion).not.toHaveBeenCalled()
-    expect(useChangelogStore.getState().content).toBeNull()
+  it('after an update, opens Settings > About and remembers which version it came from', () => {
+    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.20')
+    localStorage.setItem(UPDATED_FROM_KEY, '0.2.19')
+    useChangelogStore.getState().checkPending()
+    expect(openTab).toHaveBeenCalledWith(expect.objectContaining({ path: ABOUT }))
+    expect(useChangelogStore.getState().justUpdated).toEqual({ to: '0.2.20', from: '0.2.19' })
   })
 
-  it('checkPending fetches and shows the pending version, then clears the flag', async () => {
-    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.0')
-    await useChangelogStore.getState().checkPending()
-    expect(window.api.getChangelogForVersion).toHaveBeenCalledWith('0.2.0')
-    expect(useChangelogStore.getState().version).toBe('0.2.0')
-    expect(useChangelogStore.getState().content).toBe('## v0.2.0\n- New stuff')
+  it('clears both keys so it only happens once', () => {
+    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.20')
+    localStorage.setItem(UPDATED_FROM_KEY, '0.2.19')
+    useChangelogStore.getState().checkPending()
     expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBeNull()
+    expect(localStorage.getItem(UPDATED_FROM_KEY)).toBeNull()
   })
 
-  it('clears the pending flag even if the fetch comes back empty', async () => {
-    vi.mocked(window.api.getChangelogForVersion).mockResolvedValueOnce(null)
-    localStorage.setItem(PENDING_CHANGELOG_KEY, '9.9.9')
-    await useChangelogStore.getState().checkPending()
-    expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBeNull()
-    expect(useChangelogStore.getState().content).toBeNull()
+  it('still opens About when the previous build did not record where it came from', () => {
+    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.20')
+    useChangelogStore.getState().checkPending()
+    expect(useChangelogStore.getState().justUpdated).toEqual({ to: '0.2.20', from: null })
+    expect(openTab).toHaveBeenCalled()
   })
 
-  it('dismiss clears version and content', () => {
-    useChangelogStore.setState({ version: '0.2.0', content: '## v0.2.0' })
-    useChangelogStore.getState().dismiss()
-    expect(useChangelogStore.getState().version).toBeNull()
-    expect(useChangelogStore.getState().content).toBeNull()
+  it('respects "Always open in biggest pane"', () => {
+    settings.openInBiggestPane = true
+    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.20')
+    useChangelogStore.getState().checkPending()
+    expect(openTabInPane).toHaveBeenCalledWith(expect.objectContaining({ path: ABOUT }), 'pane-big')
+    expect(openTab).not.toHaveBeenCalled()
   })
 })

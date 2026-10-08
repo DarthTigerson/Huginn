@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useUpdateStore } from '../updateStore'
-import { PENDING_CHANGELOG_KEY } from '../changelogStore'
+import { PENDING_CHANGELOG_KEY, UPDATED_FROM_KEY } from '../changelogStore'
 import { UPDATE_TAB_PATH } from '@/components/Settings/paths'
 
 const { openTabMock, localStorageStore } = vi.hoisted(() => {
@@ -134,10 +134,17 @@ describe('updateStore', () => {
     expect(useUpdateStore.getState().log.at(-1)?.line).toMatch(/ipc gone/)
   })
 
-  it('restart stashes the available version for the changelog modal and relaunches', () => {
-    useUpdateStore.getState().restart()
-    expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBe('0.2.0')
-    expect(api.updateRestart).toHaveBeenCalled()
+  it('restart records the new version and the one it replaces, then relaunches', () => {
+    vi.stubGlobal('__APP_VERSION__', '0.1.9')
+    try {
+      useUpdateStore.getState().restart()
+      expect(localStorage.getItem(PENDING_CHANGELOG_KEY)).toBe('0.2.0')
+      expect(localStorage.getItem(UPDATED_FROM_KEY)).toBe('0.1.9')
+      expect(api.updateRestart).toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+      vi.stubGlobal('window', { api })
+    }
   })
 
   it('restart does not stash a version when none is available', () => {

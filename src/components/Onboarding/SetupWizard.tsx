@@ -19,7 +19,7 @@ const STEP_COMPONENTS = {
   done: DoneStep,
 }
 
-// Mounted at the App.tsx top level (alongside UpdateChangelogModal), not
+// Mounted at the App.tsx top level, not
 // nested inside the Sidebar tree — this codebase has been bitten before by
 // overlays nested under the sidebar clipping/stacking incorrectly.
 export function SetupWizard() {
