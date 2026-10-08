@@ -6,7 +6,7 @@ import { useNotificationArrivalStore, type NotificationArrival } from '@/stores/
 // `windowMs`, then null — re-rendering on its own when the window runs out.
 // Every caller also feeds the current ids into the arrival store; that's
 // idempotent (a second observe() of the same ids is a no-op), so the
-// teaser, bell and pulse can each call this without coordinating.
+// bell and peek can each call this without coordinating.
 export function useNotificationArrival(windowMs: number): NotificationArrival | null {
   const items = useNotificationItems()
   const observe = useNotificationArrivalStore((s) => s.observe)

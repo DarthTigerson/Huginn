@@ -1,8 +1,13 @@
 import { create } from 'zustand'
 
 export interface NotificationArrival {
-  id: string
+  // Every id that became active in the same observe() — usually one, but
+  // e.g. two conditions noticed in the same render arrive together.
+  ids: string[]
   at: number
+  // Increments per arrival — identifies one even when two land in the same
+  // millisecond, where `at` alone can't tell them apart.
+  seq: number
 }
 
 interface NotificationArrivalState {
@@ -16,9 +21,8 @@ interface NotificationArrivalState {
 }
 
 // Drives the footer's "something new happened" moment (VIDE-140): the
-// temporary center teaser, the bell's ring and the white pulse along the
-// footer's top edge all key off `arrival`, so they fire together exactly
-// once per newly-appeared notification.
+// bell's ring and the peek above it both key off `arrival`, so they fire
+// together exactly once per newly-appeared notification.
 export const useNotificationArrivalStore = create<NotificationArrivalState>((set, get) => ({
   knownIds: [],
   arrival: null,
@@ -31,7 +35,7 @@ export const useNotificationArrivalStore = create<NotificationArrivalState>((set
     if (sameIds) return
     set({
       knownIds: [...activeIds],
-      ...(fresh.length > 0 ? { arrival: { id: fresh[0], at: Date.now() } } : {}),
+      ...(fresh.length > 0 ? { arrival: { ids: fresh, at: Date.now(), seq: (get().arrival?.seq ?? 0) + 1 } } : {}),
     })
   },
 }))

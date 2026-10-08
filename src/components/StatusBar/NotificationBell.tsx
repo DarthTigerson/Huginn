@@ -46,7 +46,7 @@ export function NotificationBell() {
             : 'pl-[5px] pr-[7px] border-border bg-bg text-fg-muted hover:text-fg hover:border-fg-subtle cursor-pointer',
       ].join(' ')}
     >
-      <span key={ringing?.at} className={ringing ? 'notification-bell-ring flex' : 'flex'}>
+      <span key={ringing?.seq} className={ringing ? 'notification-bell-ring flex' : 'flex'}>
         <BellIcon />
       </span>
       {count > 0 && <span>{count}</span>}

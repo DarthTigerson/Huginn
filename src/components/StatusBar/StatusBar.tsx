@@ -17,7 +17,6 @@ import { useConfigRepoStore } from '@/stores/configRepoStore'
 import { FooterMessage } from './FooterMessage'
 import { NotificationPanel } from './NotificationPanel'
 import { NotificationBell } from './NotificationBell'
-import { NotificationPulse } from './NotificationPulse'
 import { NotificationPeek } from './NotificationPeek'
 import { FontSizeControl } from './FontSizeControl'
 import { Clock } from './Clock'
@@ -79,7 +78,6 @@ export function StatusBar() {
   return (
     <div className="relative h-6 shrink-0 flex items-center justify-between px-3 bg-tab-bar border-t border-border select-none">
       <GitActivityBar />
-      <NotificationPulse />
       <FooterMessage />
       {/* Branch, then current-line blame (Settings > Git > Blame: Footer), which truncates first. */}
       <div className="flex items-center gap-3 min-w-0">

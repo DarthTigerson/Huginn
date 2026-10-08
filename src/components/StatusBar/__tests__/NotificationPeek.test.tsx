@@ -69,15 +69,30 @@ describe('NotificationPeek', () => {
     expect(useNotificationAcknowledgedStore.getState().acknowledgedIds).toEqual([])
   })
 
-  it('stays open while hovered, and closes once the pointer leaves after its time is up', () => {
+  it('pauses while hovered, then resumes the remaining time once the pointer leaves', () => {
     useUsageAlertStore.setState({ alerts: [sessionAlert()] })
     render(<NotificationPeek />)
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
     fireEvent.mouseEnter(screen.getByTestId('notification-peek'))
     act(() => {
-      vi.advanceTimersByTime(PEEK_MS + 1000)
+      vi.advanceTimersByTime(10_000)
     })
     expect(screen.getByTestId('notification-peek').className).toMatch(/opacity-100/)
     fireEvent.mouseLeave(screen.getByTestId('notification-peek'))
+
+    // 3s were left when hovered
+    act(() => {
+      vi.advanceTimersByTime(2900)
+    })
+    expect(screen.getByTestId('notification-peek').className).toMatch(/opacity-100/)
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
     expect(screen.queryByTestId('notification-peek')).toBeNull()
   })
 
@@ -94,7 +109,10 @@ describe('NotificationPeek', () => {
     dockerOff()
     render(<NotificationPeek />)
     act(() => {
-      vi.advanceTimersByTime(PEEK_MS + 200)
+      vi.advanceTimersByTime(PEEK_MS)
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
     })
     act(() => {
       useUsageAlertStore.setState({ alerts: [sessionAlert()] })
@@ -103,6 +121,76 @@ describe('NotificationPeek', () => {
     fireEvent.mouseUp(screen.getByRole('button', { name: '+1 more' }), { button: 0 })
     expect(useNotificationPanelStore.getState().open).toBe(true)
     expect(screen.queryByTestId('notification-peek')).toBeNull()
+  })
+
+  it('stacks a second arrival below the first, each expiring on its own timer', () => {
+    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
+    render(<NotificationPeek />)
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+    act(() => dockerOff())
+
+    const rows = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatch(/Session usage may run out/)
+    expect(rows[1]).toMatch(/Docker isn't running/)
+
+    // t=5s: the first row expires and fades; the second keeps going
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(screen.getAllByRole('listitem')[0]).toHaveAttribute('data-leaving', 'true')
+    expect(screen.getAllByRole('listitem')[1]).not.toHaveAttribute('data-leaving')
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    const left = screen.getAllByRole('listitem')
+    expect(left).toHaveLength(1)
+    expect(left[0].textContent).toMatch(/Docker isn't running/)
+    expect(screen.getByTestId('notification-peek').className).toMatch(/opacity-100/)
+
+    // t=8s: the second's own 5s is up, so the whole peek closes
+    act(() => {
+      vi.advanceTimersByTime(2800)
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(screen.queryByTestId('notification-peek')).toBeNull()
+  })
+
+  it('stacks a new arrival even while hovered', () => {
+    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
+    render(<NotificationPeek />)
+    fireEvent.mouseEnter(screen.getByTestId('notification-peek'))
+    act(() => dockerOff())
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('starts a fresh stack once the previous peek has closed', () => {
+    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
+    render(<NotificationPeek />)
+    act(() => {
+      vi.advanceTimersByTime(PEEK_MS)
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    act(() => dockerOff())
+    const rows = screen.getAllByRole('listitem')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].textContent).toMatch(/Docker isn't running/)
+  })
+
+  it('clicking one stacked row leaves the others showing', () => {
+    useUsageAlertStore.setState({ alerts: [sessionAlert()] })
+    render(<NotificationPeek />)
+    act(() => dockerOff())
+    fireEvent.mouseUp(screen.getByText(/Session usage may run out/), { button: 0 })
+    const rows = screen.getAllByRole('listitem')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].textContent).toMatch(/Docker isn't running/)
   })
 
   it('stays hidden while the full panel is open', () => {

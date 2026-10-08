@@ -619,29 +619,8 @@ body {
   20%, 40%, 60% { opacity: 0; }
 }
 
-/* New-notification moment (VIDE-140): a one-shot white strip on the same
-   edge and timing as .git-activity-bar, the bell ringing once, and a brief
-   peek above the bell whose underline drains until it closes. Light themes use the
-   theme's text colour instead — white vanishes on a pale footer. */
-:root { --notification-pulse: #ffffff; }
-[data-theme$="-light"] { --notification-pulse: var(--color-fg); }
-.notification-pulse {
-  position: absolute;
-  top: -1px;
-  left: 0;
-  height: 3px;
-  pointer-events: none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--notification-pulse) 70%, transparent), var(--notification-pulse));
-  border-radius: 0 2px 2px 0;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--notification-pulse) 60%, transparent);
-  animation: notification-pulse-growth 1.35s cubic-bezier(0.4, 0, 0.2, 1) 1 both;
-}
-@keyframes notification-pulse-growth {
-  0%   { width: 0%;   opacity: 1; }
-  70%  { width: 92%;  opacity: 1; }
-  86%  { width: 100%; opacity: 0.55; }
-  100% { width: 100%; opacity: 0; }
-}
+/* New-notification moment (VIDE-140): the bell rings once, and a brief
+   peek above the bell drains its underline until it closes. */
 .notification-bell-ring svg {
   transform-origin: 50% 15%;
   animation: notification-bell-ring 0.9s ease-in-out 1;
@@ -657,6 +636,14 @@ body {
   transform-origin: left;
   animation: notification-peek-drain 5s linear 1 both;
 }
+/* a row stacking into the peek slides up into place */
+/* fill `backwards`, not `both` — a held final keyframe would pin opacity at
+   1 and block the row's own fade-out when it expires */
+.notification-peek-row-in { animation: notification-peek-row-in 0.18s ease-out backwards; }
+@keyframes notification-peek-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 /* hovering holds the peek open, so the countdown line holds too */
 .notification-peek:hover .notification-peek-drain { animation-play-state: paused; }
 @keyframes notification-peek-drain {
@@ -664,8 +651,7 @@ body {
   to   { transform: scaleX(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .notification-pulse, .notification-bell-ring svg, .notification-peek-drain { animation: none; }
-  .notification-pulse { display: none; }
+  .notification-bell-ring svg, .notification-peek-drain, .notification-peek-row-in { animation: none; }
 }
 
 /* Decorative badge in the empty editor panel ("open a file to start
