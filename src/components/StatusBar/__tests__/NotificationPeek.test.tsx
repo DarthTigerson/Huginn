@@ -45,12 +45,12 @@ describe('NotificationPeek', () => {
     expect(screen.queryByTestId('notification-peek')).toBeNull()
   })
 
-  it('peeks the new notification above the bell, full width only', () => {
+  it('peeks the new notification above the bell, at every window width', () => {
     useUsageAlertStore.setState({ alerts: [sessionAlert()] })
     render(<NotificationPeek />)
     const peek = screen.getByTestId('notification-peek')
     expect(peek.textContent).toMatch(/Session usage may run out/)
-    expect(peek.className).toMatch(/hidden min-\[1200px\]:block/)
+    expect(peek.className).not.toMatch(/min-\[1200px\]/)
     expect(peek.className).toMatch(/bottom-full right-0/)
   })
 

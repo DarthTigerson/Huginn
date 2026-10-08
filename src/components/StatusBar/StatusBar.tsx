@@ -20,6 +20,7 @@ import { NotificationBell } from './NotificationBell'
 import { NotificationPeek } from './NotificationPeek'
 import { FontSizeControl } from './FontSizeControl'
 import { Clock } from './Clock'
+import { FooterCursor } from './FooterCursor'
 import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
 
@@ -88,7 +89,15 @@ export function StatusBar() {
         {showBranch && (
           <div className="relative min-w-0">
             <span
-              className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-default select-none hover:text-fg transition-colors"
+              className="flex items-center gap-1 min-w-0 text-fg-muted text-xs cursor-pointer select-none hover:text-fg transition-colors"
+              // Left and right click both open the git quick-actions menu.
+              // stopPropagation keeps the opening click from reaching the
+              // window-level close listener the menu registers.
+              onClick={(e) => {
+                e.stopPropagation()
+                setGitMenuLeft(branchNameRef.current?.offsetLeft ?? 0)
+                setGitMenuOpen((o) => !o)
+              }}
               onContextMenu={(e) => {
                 e.preventDefault()
                 setGitMenuLeft(branchNameRef.current?.offsetLeft ?? 0)
@@ -155,6 +164,7 @@ export function StatusBar() {
         <ConfirmHardResetModal cwd={selectedRepo} targetRef={resetStep.ref} onClose={closeReset} />
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
+        <FooterCursor />
         {autocompleteVisible && (
           <div className="relative">
             <button

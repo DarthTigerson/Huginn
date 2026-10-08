@@ -33,6 +33,7 @@ import { computeLineChanges } from '@/lib/lineDiff'
 import { getLastFocusedEditor, setLastFocusedEditor } from '@/lib/lastFocusedEditor'
 import { notifyNoteChanged } from '@/lib/notifySettingChanged'
 import { attachCurrentLineBlame } from './currentLineBlame'
+import { useEditorCursorStore } from '@/stores/editorCursorStore'
 import { useFooterBlameStore } from '@/stores/footerBlameStore'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
@@ -750,6 +751,28 @@ function EditorPane({ paneId }: { paneId: string }) {
                   activatePane()
                   setLastFocusedEditor(editor)
                 })
+                // Footer cursor position + language (VIDE-140): published by the
+                // focused editor, and on mount for the active pane so a freshly
+                // opened file shows its position before it's clicked into.
+                const cursorOwner = {}
+                const publishCursor = () => {
+                  const position = editor.getPosition()
+                  if (!position) return
+                  const languageId = editor.getModel()?.getLanguageId() ?? 'plaintext'
+                  const language = monaco.languages.getLanguages().find((l) => l.id === languageId)?.aliases?.[0] ?? languageId
+                  useEditorCursorStore.getState().publish(cursorOwner, {
+                    path: activeTab.path,
+                    line: position.lineNumber,
+                    column: position.column,
+                    language,
+                  })
+                }
+                if (isActivePane) publishCursor()
+                editor.onDidFocusEditorText(publishCursor)
+                editor.onDidChangeCursorPosition(() => {
+                  if (editor.hasTextFocus() || useEditorCursorStore.getState().owner === cursorOwner) publishCursor()
+                })
+                editor.onDidDispose(() => useEditorCursorStore.getState().release(cursorOwner))
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
                   activatePane()
                   saveActiveTab({ allowCreateMissing: true })

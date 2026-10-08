@@ -151,6 +151,15 @@ describe('StatusBar — multi-repo branch display', () => {
     expect(screen.getByText('main')).toBeTruthy()
   })
 
+  it('opens the git quick-actions menu on left click as well as right click', () => {
+    useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj', hasExplicitSelection: false })
+    useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
+
+    render(<StatusBar />)
+    fireEvent.click(screen.getByText('main'))
+    expect(screen.getByText('Fetch')).toBeInTheDocument()
+  })
+
   it('single-repo projects show "repoName › branch" immediately too, regardless of hasExplicitSelection', () => {
     useGitReposStore.setState({ repos: ['/proj'], selectedRepo: '/proj', hasExplicitSelection: false })
     useGitStore.setState({ repos: { '/proj': { ...emptyRepoGitState, branch: 'main' } } })
