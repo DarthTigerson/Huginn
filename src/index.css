@@ -657,6 +657,91 @@ body {
   .notification-bell-ring svg, .notification-peek-drain, .notification-peek-row-in { animation: none; }
 }
 
+/* Silent alarm flash (VIDE-141, mockup "B2 — Edge flare"): comets drip
+   from the center of the footer's top edge out to both sides — small and
+   faint at the center, growing longer, thicker and brighter as they go —
+   and each far edge flares as a comet arrives. Sits just above the footer
+   like .git-activity-bar. Widths are % of each half, so the gap between
+   comets (0.4s of a 1.6s trip, i.e. 24% of the way) always exceeds their
+   12% max length and they never merge. */
+.alarm-flash {
+  --alarm-flash: rgb(var(--color-accent));
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  pointer-events: none;
+  z-index: 30;
+}
+.alarm-flash-white { --alarm-flash: #ffffff; }
+[data-theme$="-light"] .alarm-flash-white { --alarm-flash: var(--color-fg); }
+.alarm-flash-half { position: absolute; top: 0; bottom: 0; width: 50%; }
+.alarm-flash-l { left: 0; }
+.alarm-flash-r { left: 50%; }
+.alarm-flash-comet {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--alarm-flash) 60%, transparent);
+  opacity: 0;
+  animation-duration: 1.6s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-fill-mode: backwards;
+}
+/* bright tip on the outer end, tail fading back toward the center */
+.alarm-flash-l .alarm-flash-comet { background: linear-gradient(90deg, var(--alarm-flash), transparent); animation-name: alarm-flash-left; }
+.alarm-flash-r .alarm-flash-comet { background: linear-gradient(270deg, var(--alarm-flash), transparent); animation-name: alarm-flash-right; }
+@keyframes alarm-flash-left {
+  0%   { right: 0%;  width: 0.6%; height: 1px; opacity: 0; }
+  10%  { opacity: 0.55; }
+  80%  { opacity: 1; }
+  100% { right: 96%; width: 12%;  height: 2px; opacity: 0; }
+}
+@keyframes alarm-flash-right {
+  0%   { left: 0%;  width: 0.6%; height: 1px; opacity: 0; }
+  10%  { opacity: 0.55; }
+  80%  { opacity: 1; }
+  100% { left: 96%; width: 12%;  height: 2px; opacity: 0; }
+}
+/* flares once per arriving comet: every 0.4s, first at 88% of a trip */
+.alarm-flash-edge {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 6%;
+  opacity: 0;
+  animation: alarm-flash-edge 0.4s ease-out 1.408s infinite;
+}
+.alarm-flash-l .alarm-flash-edge { left: 0; background: linear-gradient(90deg, var(--alarm-flash), transparent); }
+.alarm-flash-r .alarm-flash-edge { right: 0; background: linear-gradient(270deg, var(--alarm-flash), transparent); }
+@keyframes alarm-flash-edge {
+  0%        { opacity: 0.9; box-shadow: 0 0 10px var(--alarm-flash); }
+  60%, 100% { opacity: 0; box-shadow: none; }
+}
+.alarm-popup { animation: alarm-popup-in 0.2s ease-out both; }
+@keyframes alarm-popup-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.alarm-popup-icon svg { transform-origin: 50% 30%; animation: alarm-popup-wiggle 1.2s ease-in-out infinite; }
+@keyframes alarm-popup-wiggle {
+  0%, 60%, 100% { transform: rotate(0); }
+  10% { transform: rotate(12deg); }
+  20% { transform: rotate(-10deg); }
+  30% { transform: rotate(7deg); }
+  40% { transform: rotate(-4deg); }
+}
+/* Reduced motion: no travelling comets — a steady line at the edges, so a
+   ringing alarm still reads as "on". */
+@media (prefers-reduced-motion: reduce) {
+  .alarm-flash-comet, .alarm-popup-icon svg, .alarm-popup { animation: none; }
+  .alarm-flash-comet { display: none; }
+  .alarm-flash-edge { animation: none; opacity: 0.8; }
+}
+
 /* Decorative badge in the empty editor panel ("open a file to start
    editing"). The source PNG has real alpha (pre-cropped to the badge's
    corner with a transparent surround), so it just composites normally —

@@ -57,6 +57,13 @@ export function isUsageGraphTab(path: string): boolean {
   return path === USAGE_GRAPH_TAB_PATH
 }
 
+// Silent alarms page, opened by clicking the footer clock (VIDE-141).
+export const ALARMS_TAB_PATH = 'alarms://Alarms'
+
+export function isAlarmsTab(path: string): boolean {
+  return path === ALARMS_TAB_PATH
+}
+
 const TODO_BOARD_PREFIX = 'todo-board://'
 export function isTodoBoardTab(path: string): boolean { return path.startsWith(TODO_BOARD_PREFIX) }
 export function buildTodoBoardPath(projectId: string): string { return TODO_BOARD_PREFIX + projectId }

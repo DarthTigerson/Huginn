@@ -22,6 +22,7 @@ import {
   NOTES_SETTINGS_TAB_PATH,
   LLAMA_SETTINGS_TAB_PATH,
   USAGE_GRAPH_TAB_PATH,
+  ALARMS_TAB_PATH,
   GRAPHIFY_GRAPH_TAB_PATH,
 } from '@/components/Settings/paths'
 
@@ -89,6 +90,13 @@ export function pageCommands(): Command[] {
       description: 'Open the usage graph',
       keywords: ['usage', 'stats'],
       action: () => openTab(USAGE_GRAPH_TAB_PATH),
+    },
+    {
+      id: 'view-alarms',
+      label: 'View: Alarms',
+      description: 'Silent alarms — also opens from the footer clock',
+      keywords: ['alarm', 'clock', 'reminder', 'timer', 'snooze'],
+      action: () => openTab(ALARMS_TAB_PATH),
     },
     {
       id: 'view-graphify-graph',
