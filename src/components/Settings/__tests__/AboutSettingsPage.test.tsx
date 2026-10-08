@@ -4,7 +4,7 @@ import { AboutSettingsPage, formatCheckedAgo } from '../AboutSettingsPage'
 import { useUpdateStore } from '@/stores/updateStore'
 
 const RELEASES = [
-  { version: '0.2.20', date: '2026-10-08', body: '- **Silent alarms**: from the footer clock' },
+  { version: '0.2.20', date: '2026-10-08', body: '- **Silent alarms**: from the footer clock\n- A smaller tweak\n\n**Bug fixes**\n- Fixed a thing' },
   { version: '0.2.19', date: '2026-09-29', body: '- **Git blame**: in the footer' },
 ]
 
@@ -96,4 +96,17 @@ describe('AboutSettingsPage', () => {
     fireEvent.click(await screen.findByRole('option', { name: /v0\.2\.19/ }))
     await waitFor(() => expect(screen.getByTestId('about-release-notes').textContent).toMatch(/Git blame/))
   })
+
+  it('lays a release out as titled changes, then other changes and bug fixes', async () => {
+    render(<AboutSettingsPage />)
+    await screen.findByTestId('release-features')
+    const notes = screen.getByTestId('about-release-notes')
+    expect(within(screen.getByTestId('release-features')).getByText('Silent alarms')).toBeInTheDocument()
+    expect(within(screen.getByTestId('release-features')).getByText('from the footer clock')).toBeInTheDocument()
+    expect(within(notes).getByText('Other changes')).toBeInTheDocument()
+    expect(screen.getByTestId('release-changes').textContent).toBe('A smaller tweak')
+    expect(within(notes).getByText('Bug fixes')).toBeInTheDocument()
+    expect(screen.getByTestId('release-fixes').textContent).toBe('Fixed a thing')
+  })
 })
+
