@@ -73,13 +73,14 @@ export function AboutSettingsPage() {
   const release = releases?.find((r) => r.version === selected) ?? null
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
+    // A flex column so Release history can take whatever height is left.
+    <div className="flex h-full flex-col overflow-auto p-6 bg-panel">
       <h1 className="text-base font-semibold text-fg mb-1">About</h1>
       <p className="text-sm text-fg-muted mb-4">Your version of vIDE, updates, and every release so far.</p>
 
       <Section label="Version">
         <Row>
-          <div className="flex max-w-[48rem] items-center gap-4">
+          <div className="flex items-center gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-[0.9375rem] font-semibold text-fg">vI</div>
             <div className="min-w-0 flex-1">
               <div data-testid="about-version" className="text-[0.9375rem] font-semibold text-fg">
@@ -99,7 +100,7 @@ export function AboutSettingsPage() {
           </div>
 
           {available && (
-            <div data-testid="about-update-banner" className="mt-3 flex max-w-[48rem] items-center gap-3 rounded-lg border border-accent/50 bg-accent/10 px-3 py-2.5">
+            <div data-testid="about-update-banner" className="mt-3 flex items-center gap-3 rounded-lg border border-accent/50 bg-accent/10 px-3 py-2.5">
               <div className="min-w-0 flex-1 text-sm text-fg">
                 {status === 'ready' ? `v${available.version} is installed` : status === 'updating' ? `Updating to v${available.version}…` : `vIDE v${available.version} is ready to install`}
                 <div className="mt-0.5 text-xs text-fg-muted">
@@ -118,14 +119,16 @@ export function AboutSettingsPage() {
         </Row>
       </Section>
 
-      <Section label="Release history">
-        <Row>
+      {/* Same look as <Section>/<Row>, but stretched to the bottom of the page. */}
+      <section className="flex min-h-[20rem] flex-1 flex-col pt-8">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-muted">Release history</h2>
+        <div className="flex min-h-0 flex-1 flex-col pl-3">
           {releases === null ? (
             <p className="text-sm text-fg-subtle">Loading releases…</p>
           ) : releases.length === 0 ? (
             <p className="text-sm text-fg-subtle">No release notes found.</p>
           ) : (
-            <div className="grid h-[26rem] max-w-[56rem] grid-cols-[13rem_minmax(0,1fr)] overflow-hidden rounded-lg border border-border">
+            <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] overflow-hidden rounded-lg border border-border">
               <div role="listbox" aria-label="Releases" className="overflow-y-auto border-r border-border bg-sidebar">
                 {releases.map((r) => {
                   const isSelected = r.version === selected
@@ -162,8 +165,8 @@ export function AboutSettingsPage() {
               </div>
             </div>
           )}
-        </Row>
-      </Section>
+        </div>
+      </section>
     </div>
   )
 }
