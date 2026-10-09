@@ -107,6 +107,7 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
     pinnedPaths, layout, paneTabLists, tabs,
   } = useEditorStore()
   const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
+  const inlineDiffEnabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
   const fullscreenId = useBrowserStore((s) => s.fullscreenId)
 
   useEffect(() => {
@@ -203,6 +204,12 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
       <MenuButton onClick={withClose(() => togglePin(path))}>
         {isPinned ? 'Unpin Tab' : 'Pin Tab'}
       </MenuButton>
+      {/* Global setting, offered only where it renders: plain file tabs. */}
+      {!path.includes('://') && (
+        <MenuButton onClick={withClose(() => useEditorSettingsStore.getState().toggleInlineDiff())}>
+          {inlineDiffEnabled ? 'Hide Inline Diff' : 'Show Inline Diff'}
+        </MenuButton>
+      )}
       <MenuDivider />
 
       <SubMenuButton

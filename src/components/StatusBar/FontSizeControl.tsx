@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { DISPLAY_TAB_PATH } from '@/components/Settings/paths'
+import { FooterTooltip } from './FooterTooltip'
 
 // How long the chip stays highlighted after the size changes (the View
 // menu's ⌘+ / ⌘− / ⌘0, or anywhere else).
@@ -25,20 +26,21 @@ export function FontSizeControl() {
   }, [fontSize])
 
   return (
-    <button
-      type="button"
-      data-testid="font-size-chip"
-      onClick={() => useEditorStore.getState().openTab({ path: DISPLAY_TAB_PATH, content: '', dirty: false })}
-      aria-label={`Font size ${fontSize}, open Display settings`}
-      title="Display settings"
-      className={[
-        'flex h-5 shrink-0 items-center gap-1 rounded-full border bg-bg px-2 text-xs tabular-nums transition-colors',
-        flashing ? 'border-accent text-accent' : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
-      ].join(' ')}
-    >
-      <ScreenIcon />
-      <span>{fontSize}</span>
-    </button>
+    <FooterTooltip label="Display settings">
+      <button
+        type="button"
+        data-testid="font-size-chip"
+        onClick={() => useEditorStore.getState().openTab({ path: DISPLAY_TAB_PATH, content: '', dirty: false })}
+        aria-label={`Font size ${fontSize}, open Display settings`}
+        className={[
+          'flex h-5 shrink-0 items-center gap-1 rounded-full border bg-bg px-2 text-xs tabular-nums transition-colors',
+          flashing ? 'border-accent text-accent' : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
+        ].join(' ')}
+      >
+        <ScreenIcon />
+        <span>{fontSize}</span>
+      </button>
+    </FooterTooltip>
   )
 }
 

@@ -5,6 +5,9 @@ import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorSettingsStore, type BlameDisplayMode } from '@/stores/editorSettingsStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { RadioGroup } from '@/components/ui/RadioGroup'
+import { ColorPickerRow } from '@/components/ui/ColorPickerRow'
+import type { ChangeColorMode, ChangeStrength } from '@/lib/gitChangeColors'
 import { Select } from '@/components/ui/Select'
 import { Section, Row, TextField } from './SettingsLayout'
 
@@ -33,6 +36,16 @@ export function GitSettingsPage() {
   const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
   const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
   const setBlameDisplayMode = useEditorSettingsStore((s) => s.setBlameDisplayMode)
+  const inlineDiffEnabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
+  const setInlineDiffEnabled = useEditorSettingsStore((s) => s.setInlineDiffEnabled)
+  const inlineDiffColors = useEditorSettingsStore((s) => s.inlineDiffColors)
+  const setInlineDiffColors = useEditorSettingsStore((s) => s.setInlineDiffColors)
+  const inlineDiffCustomColors = useEditorSettingsStore((s) => s.inlineDiffCustomColors)
+  const setInlineDiffCustomColor = useEditorSettingsStore((s) => s.setInlineDiffCustomColor)
+  const inlineDiffStrength = useEditorSettingsStore((s) => s.inlineDiffStrength)
+  const setInlineDiffStrength = useEditorSettingsStore((s) => s.setInlineDiffStrength)
+  const inlineDiffFooterIcon = useEditorSettingsStore((s) => s.inlineDiffFooterIcon)
+  const setInlineDiffFooterIcon = useEditorSettingsStore((s) => s.setInlineDiffFooterIcon)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -187,6 +200,64 @@ export function GitSettingsPage() {
               />
             </div>
           )}
+        </Row>
+      </Section>
+
+      <Section label="Changes">
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Inline Diff Highlight"
+            description="Tint changed lines in the editor and highlight the exact words that changed since the last commit. The gutter markers stay on either way."
+            checked={inlineDiffEnabled}
+            onChange={setInlineDiffEnabled}
+          />
+        </Row>
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Show icon in footer"
+            description="A highlighter button in the footer to switch the inline diff highlight on and off."
+            checked={inlineDiffFooterIcon}
+            onChange={setInlineDiffFooterIcon}
+          />
+        </Row>
+        <Row>
+          <p className="text-sm text-fg mb-1">Change colours</p>
+          <p className="text-xs text-fg-muted max-w-[60ch] mb-3">
+            {inlineDiffColors === 'default'
+              ? 'Green, amber and red, with darker shades on light themes.'
+              : 'Your own colours for added, modified and deleted lines.'}
+            {' '}Used by the gutter line numbers as well as the highlight.
+          </p>
+          <RadioGroup<ChangeColorMode>
+            ariaLabel="Change colours"
+            value={inlineDiffColors}
+            onChange={setInlineDiffColors}
+            options={[
+              { value: 'default', label: 'Default' },
+              { value: 'custom', label: 'Custom' },
+            ]}
+          />
+          {inlineDiffColors === 'custom' && (
+            <div className="mt-3 flex flex-col">
+              <ColorPickerRow label="Added" value={inlineDiffCustomColors.added} onChange={(hex) => setInlineDiffCustomColor('added', hex)} />
+              <ColorPickerRow label="Modified" value={inlineDiffCustomColors.modified} onChange={(hex) => setInlineDiffCustomColor('modified', hex)} />
+              <ColorPickerRow label="Deleted" value={inlineDiffCustomColors.deleted} onChange={(hex) => setInlineDiffCustomColor('deleted', hex)} />
+            </div>
+          )}
+
+          <p className="text-xs text-fg-muted mt-4 mb-1.5">Strength</p>
+          <RadioGroup<ChangeStrength>
+            ariaLabel="Inline diff strength"
+            value={inlineDiffStrength}
+            onChange={setInlineDiffStrength}
+            options={[
+              { value: 'subtle', label: 'Subtle' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'strong', label: 'Strong' },
+            ]}
+          />
         </Row>
       </Section>
 

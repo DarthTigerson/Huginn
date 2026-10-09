@@ -51,6 +51,41 @@ describe('editorSettingsStore', () => {
     expect(notifySettingChanged).toHaveBeenCalledTimes(2)
   })
 
+  it('has the inline diff highlight on by default', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(true)
+  })
+
+  it('toggleInlineDiff flips, persists and syncs the inline diff highlight', () => {
+    vi.mocked(notifySettingChanged).mockClear()
+    useEditorSettingsStore.getState().toggleInlineDiff()
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(false)
+    expect(store['vide:git:inlineDiffEnabled']).toBe('false')
+    expect(notifySettingChanged).toHaveBeenCalledTimes(1)
+  })
+
+  it('defaults change colours to Default at Medium strength', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffColors).toBe('default')
+    expect(useEditorSettingsStore.getState().inlineDiffStrength).toBe('medium')
+  })
+
+  it('persists change colour mode, custom colours and strength under vide:git: keys', () => {
+    const s = useEditorSettingsStore.getState()
+    s.setInlineDiffColors('custom')
+    s.setInlineDiffCustomColor('modified', '#123456')
+    s.setInlineDiffStrength('strong')
+    expect(store['vide:git:inlineDiffColors']).toBe('custom')
+    expect(JSON.parse(store['vide:git:inlineDiffCustomColors']).modified).toBe('#123456')
+    expect(store['vide:git:inlineDiffStrength']).toBe('strong')
+    expect(useEditorSettingsStore.getState().inlineDiffCustomColors.modified).toBe('#123456')
+  })
+
+  it('shows the inline diff footer icon by default and persists hiding it', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(true)
+    useEditorSettingsStore.getState().setInlineDiffFooterIcon(false)
+    expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(false)
+    expect(store['vide:git:inlineDiffFooterIcon']).toBe('false')
+  })
+
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
     useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)

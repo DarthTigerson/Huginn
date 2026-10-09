@@ -7,6 +7,7 @@ import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGraphifyStore } from '@/stores/graphifyStore'
 import { useGraphifySettingsStore } from '@/stores/graphifySettingsStore'
 import { usePanelRequestStore } from '@/stores/panelRequestStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { openNewBrowserTab } from '@/lib/openBrowserTab'
 import { isMac } from '@/lib/platform'
 import { buildTerminalPath } from '@/components/Settings/paths'
@@ -51,6 +52,22 @@ export function panelCommands(): Command[] {
       keywords: ['assistant', 'model'],
       condition: () => useClaudeStore.getState().assistant !== 'bridge',
       action: () => useClaudeStore.getState().setAssistant('bridge'),
+    },
+    {
+      id: 'inline-diff-show',
+      label: 'Show Inline Diff Highlight',
+      description: 'Tint changed lines and highlight changed words in the editor',
+      keywords: ['git', 'changes', 'toggle', 'gutter', 'word'],
+      condition: () => !useEditorSettingsStore.getState().inlineDiffEnabled,
+      action: () => useEditorSettingsStore.getState().setInlineDiffEnabled(true),
+    },
+    {
+      id: 'inline-diff-hide',
+      label: 'Hide Inline Diff Highlight',
+      description: 'Keep only the gutter markers for changed lines',
+      keywords: ['git', 'changes', 'toggle', 'gutter', 'word'],
+      condition: () => useEditorSettingsStore.getState().inlineDiffEnabled,
+      action: () => useEditorSettingsStore.getState().setInlineDiffEnabled(false),
     },
     {
       id: 'claude-new-session',

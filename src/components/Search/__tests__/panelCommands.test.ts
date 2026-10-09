@@ -22,6 +22,7 @@ import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGraphifyStore } from '@/stores/graphifyStore'
 import { useGraphifySettingsStore } from '@/stores/graphifySettingsStore'
 import { usePanelRequestStore } from '@/stores/panelRequestStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 
 const find = (id: string) => {
   const cmd = panelCommands().find((c) => c.id === id)
@@ -100,5 +101,18 @@ describe('Graphify: Rebuild', () => {
     useGraphifySettingsStore.setState(settings as object)
     useGraphifyStore.setState(graphify as object)
     expect(find('graphify-rebuild').disabledReason?.()).toBe(reason)
+  })
+})
+
+describe('inline diff highlight', () => {
+  it('offers Hide while on and Show while off, each flipping the setting', () => {
+    useEditorSettingsStore.setState({ inlineDiffEnabled: true })
+    expect(find('inline-diff-hide').condition?.()).toBe(true)
+    expect(find('inline-diff-show').condition?.()).toBe(false)
+    find('inline-diff-hide').action?.()
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(false)
+    expect(find('inline-diff-show').condition?.()).toBe(true)
+    find('inline-diff-show').action?.()
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(true)
   })
 })

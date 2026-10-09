@@ -566,13 +566,37 @@ body {
 
 /* Editor gutter change indicators (uncommitted changes vs git HEAD) - colors
    the line number itself rather than adding a separate margin bar (no extra
-   gutter width, no gap from the numbers). Same fixed green/amber/red as the
-   Git panel's file list (FileRow.tsx's STATUS_COLOR), not theme-derived, so
-   the meaning stays instantly recognizable no matter which theme is active.
-   !important overrides Monaco's own injected .line-numbers color rule. */
-.git-gutter-added { color: #4ade80 !important; font-weight: 600; }
-.git-gutter-modified { color: #fbbf24 !important; font-weight: 600; }
-.git-gutter-deleted { color: #f87171 !important; font-weight: 600; }
+   gutter width, no gap from the numbers). Default is the same fixed
+   green/amber/red as the Git panel's file list (FileRow.tsx's STATUS_COLOR),
+   not derived from the theme's accent, so the meaning stays recognizable on
+   every theme. !important overrides Monaco's own injected .line-numbers
+   color rule. */
+:root {
+  --git-added: #4ade80;
+  --git-modified: #fbbf24;
+  --git-deleted: #f87171;
+  --git-wash: 10%;
+  --git-word: 22%;
+}
+/* Darker hues for light themes. Luuk Light is secretly dark, so it keeps the
+   dark values. Custom colours and Strength (Settings > Git) override these as
+   inline variables on the root element (src/lib/gitChangeColors.ts). */
+:root[data-theme$="-light"]:not([data-theme="luuk-light"]) {
+  --git-added: #16a34a;
+  --git-modified: #d97706;
+  --git-deleted: #dc2626;
+}
+.git-gutter-added { color: var(--git-added) !important; font-weight: 600; }
+.git-gutter-modified { color: var(--git-modified) !important; font-weight: 600; }
+.git-gutter-deleted { color: var(--git-deleted) !important; font-weight: 600; }
+
+/* Inline diff highlight (Settings > Git, footer toggle): a whole-line tint
+   on added/modified lines, plus a stronger highlight on the exact changed
+   words of a modified line (computeDiff in src/lib/lineDiff.ts). Deleted
+   lines get no tint - their marker sits on the unchanged line above the gap. */
+.git-line-added { background-color: color-mix(in srgb, var(--git-added) var(--git-wash), transparent); }
+.git-line-modified { background-color: color-mix(in srgb, var(--git-modified) var(--git-wash), transparent); }
+.git-inline-diff-modified { background-color: color-mix(in srgb, var(--git-modified) var(--git-word), transparent); border-radius: 2px; }
 
 /* Marches the "1 3" dash pattern around the autocomplete icon's arc so an
    in-flight completion reads as an obvious spinner, not a barely-visible

@@ -29,7 +29,7 @@ import { registerInlineEditCommands } from '@/lib/inlineEditMonaco'
 import { registerLspDefinitionProvider } from '@/lib/lspClient'
 import { registerModelPath } from '@/lib/lspModelRegistry'
 import { formatSelectionForAssistant, toRelativePath } from '@/lib/sendSelectionToAssistant'
-import { computeLineChanges } from '@/lib/lineDiff'
+import { computeDiff } from '@/lib/lineDiff'
 import { getLastFocusedEditor, setLastFocusedEditor } from '@/lib/lastFocusedEditor'
 import { notifyNoteChanged } from '@/lib/notifySettingChanged'
 import { attachCurrentLineBlame } from './currentLineBlame'
@@ -430,6 +430,19 @@ function EditorPane({ paneId }: { paneId: string }) {
     }
     if (blameAnnotationsEnabled) ensureBlameAttachedRef.current()
   }, [blameAnnotationsEnabled, blameDisplayMode])
+  // Inline word-diff highlight for lines gutterDecorationsRef already marks
+  // 'modified' - additive to, not a replacement for, the gutter marker.
+  // Created and refreshed alongside gutterDecorationsRef (same onMount, same
+  // applyGutterDecorations/refreshGutterRef pass) so it can never leak across
+  // files: a fresh pane/tab mount gets a fresh collection, same as the gutter.
+  const inlineDiffDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
+  // Re-runs applyGutterDecorations against the already-fetched HEAD content
+  // (no git round-trip) so the inline diff toggle takes effect immediately.
+  const reapplyGutterRef = useRef<() => void>(() => {})
+  const inlineDiffEnabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
+  useEffect(() => {
+    reapplyGutterRef.current()
+  }, [inlineDiffEnabled])
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -906,6 +919,7 @@ function EditorPane({ paneId }: { paneId: string }) {
                 let headContent: string | null = null
                 let debounceTimer: ReturnType<typeof setTimeout> | null = null
                 gutterDecorationsRef.current = editor.createDecorationsCollection([])
+                inlineDiffDecorationsRef.current = editor.createDecorationsCollection([])
 
                 async function applyGutterDecorations() {
                   if (cancelled || !activeTab) return
@@ -922,11 +936,31 @@ function EditorPane({ paneId }: { paneId: string }) {
                   }
                   const model = editor.getModel()
                   if (!model) return
-                  const changes = computeLineChanges(headContent, model.getValue())
+                  // One diffLines pass powers both decoration collections: the
+                  // gutter's whole-line markers, and - only for the lines it
+                  // already flags 'modified' - the inline word-diff highlight
+                  // below. Never runs word/char-level diffing on added/removed/
+                  // unchanged lines or the whole file.
+                  const { changes, inlineDiffs } = computeDiff(headContent, model.getValue())
+                  const showInline = useEditorSettingsStore.getState().inlineDiffEnabled
                   gutterDecorationsRef.current?.set(changes.map((c) => ({
                     range: new monaco.Range(c.startLine, 1, c.endLine, 1),
-                    options: { isWholeLine: true, lineNumberClassName: `git-gutter-${c.type}` },
+                    options: {
+                      isWholeLine: true,
+                      // A 'deleted' marker sits on the unchanged line above
+                      // the gap, so washing it would mark that line changed.
+                      className: showInline && c.type !== 'deleted' ? `git-line-${c.type}` : undefined,
+                      lineNumberClassName: `git-gutter-${c.type}`,
+                    },
                   })))
+                  inlineDiffDecorationsRef.current?.set(!showInline ? [] : inlineDiffs.flatMap((d) => d.ranges.map((r) => ({
+                    range: new monaco.Range(d.line, r.startColumn, d.line, r.endColumn),
+                    options: { inlineClassName: 'git-inline-diff-modified' },
+                  }))))
+                }
+
+                reapplyGutterRef.current = () => {
+                  applyGutterDecorations()
                 }
 
                 refreshGutterRef.current = () => {
