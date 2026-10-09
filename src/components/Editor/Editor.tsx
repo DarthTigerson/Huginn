@@ -35,7 +35,6 @@ import { notifyNoteChanged } from '@/lib/notifySettingChanged'
 import { attachCurrentLineBlame } from './currentLineBlame'
 import { useEditorCursorStore } from '@/stores/editorCursorStore'
 import { useFooterBlameStore } from '@/stores/footerBlameStore'
-import './gitInlineDiff.css'
 import { TabBar } from './TabBar'
 import { EditorBreadcrumb } from './EditorBreadcrumb'
 import { EditorContextMenu } from './EditorContextMenu'
@@ -437,6 +436,13 @@ function EditorPane({ paneId }: { paneId: string }) {
   // applyGutterDecorations/refreshGutterRef pass) so it can never leak across
   // files: a fresh pane/tab mount gets a fresh collection, same as the gutter.
   const inlineDiffDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
+  // Re-runs applyGutterDecorations against the already-fetched HEAD content
+  // (no git round-trip) so the inline diff toggle takes effect immediately.
+  const reapplyGutterRef = useRef<() => void>(() => {})
+  const inlineDiffEnabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
+  useEffect(() => {
+    reapplyGutterRef.current()
+  }, [inlineDiffEnabled])
 
   const tabPath = paneTabs[paneId]
   const activeTab = tabs.find((t) => t.path === tabPath) ?? null
@@ -936,18 +942,25 @@ function EditorPane({ paneId }: { paneId: string }) {
                   // below. Never runs word/char-level diffing on added/removed/
                   // unchanged lines or the whole file.
                   const { changes, inlineDiffs } = computeDiff(headContent, model.getValue())
+                  const showInline = useEditorSettingsStore.getState().inlineDiffEnabled
                   gutterDecorationsRef.current?.set(changes.map((c) => ({
                     range: new monaco.Range(c.startLine, 1, c.endLine, 1),
                     options: {
                       isWholeLine: true,
-                      className: `git-line-${c.type}`,
+                      // A 'deleted' marker sits on the unchanged line above
+                      // the gap, so washing it would mark that line changed.
+                      className: showInline && c.type !== 'deleted' ? `git-line-${c.type}` : undefined,
                       lineNumberClassName: `git-gutter-${c.type}`,
                     },
                   })))
-                  inlineDiffDecorationsRef.current?.set(inlineDiffs.flatMap((d) => d.ranges.map((r) => ({
+                  inlineDiffDecorationsRef.current?.set(!showInline ? [] : inlineDiffs.flatMap((d) => d.ranges.map((r) => ({
                     range: new monaco.Range(d.line, r.startColumn, d.line, r.endColumn),
                     options: { inlineClassName: 'git-inline-diff-modified' },
                   }))))
+                }
+
+                reapplyGutterRef.current = () => {
+                  applyGutterDecorations()
                 }
 
                 refreshGutterRef.current = () => {

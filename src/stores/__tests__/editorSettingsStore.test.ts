@@ -51,6 +51,18 @@ describe('editorSettingsStore', () => {
     expect(notifySettingChanged).toHaveBeenCalledTimes(2)
   })
 
+  it('has the inline diff highlight on by default', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(true)
+  })
+
+  it('toggleInlineDiff flips, persists and syncs the inline diff highlight', () => {
+    vi.mocked(notifySettingChanged).mockClear()
+    useEditorSettingsStore.getState().toggleInlineDiff()
+    expect(useEditorSettingsStore.getState().inlineDiffEnabled).toBe(false)
+    expect(store['vide:git:inlineDiffEnabled']).toBe('false')
+    expect(notifySettingChanged).toHaveBeenCalledTimes(1)
+  })
+
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
     useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)

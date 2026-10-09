@@ -25,6 +25,7 @@ import { AlarmFlash } from '@/components/Alarms/AlarmFlash'
 import { useAlarmTicker } from '@/hooks/useAlarmTicker'
 import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
+import { InlineDiffToggle } from './InlineDiffToggle'
 
 export function StatusBar() {
   useAlarmTicker()
@@ -169,6 +170,7 @@ export function StatusBar() {
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
         <FooterCursor />
+        <InlineDiffToggle />
         {autocompleteVisible && (
           <div className="relative">
             <button

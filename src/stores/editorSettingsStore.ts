@@ -11,6 +11,7 @@ const KEYS = {
   // to sync in vIDE Sync's Git category rather than General (vide:editor:).
   blameAnnotationsEnabled: 'vide:git:blameAnnotationsEnabled',
   blameDisplayMode: 'vide:git:blameDisplayMode',
+  inlineDiffEnabled: 'vide:git:inlineDiffEnabled',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
@@ -53,6 +54,11 @@ interface EditorSettingsStore {
   // Where current-line blame shows: end of the line in the editor, or the footer.
   blameDisplayMode: BlameDisplayMode
   setBlameDisplayMode: (value: BlameDisplayMode) => void
+  // Line wash + word-level highlight on uncommitted changes. The gutter's
+  // line-number markers stay on regardless; this only hides the extra layer.
+  inlineDiffEnabled: boolean
+  setInlineDiffEnabled: (value: boolean) => void
+  toggleInlineDiff: () => void
 }
 
 export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
@@ -109,4 +115,14 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
     set({ blameDisplayMode: value })
     notifySettingChanged()
   },
+
+  inlineDiffEnabled: getBool(KEYS.inlineDiffEnabled, true),
+
+  setInlineDiffEnabled: (value) => {
+    localStorage.setItem(KEYS.inlineDiffEnabled, String(value))
+    set({ inlineDiffEnabled: value })
+    notifySettingChanged()
+  },
+
+  toggleInlineDiff: () => get().setInlineDiffEnabled(!get().inlineDiffEnabled),
 }))

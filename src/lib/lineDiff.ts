@@ -89,20 +89,28 @@ export function computeInlineRanges(oldLine: string, newLine: string): InlineDif
   return ranges
 }
 
-// Shared core for both computeLineChanges (gutter markers) and
-// computeInlineDiffs (inline word-diff highlight): a single diffLines pass
-// over the whole file, since both features are read off the very same line
-// hunks and paying for that line-level diff twice per keystroke would be
-// wasted work. Only 'modified' hunks (a removed run immediately followed by
-// an added run) yield old/new line text pairs; added/removed/unchanged
-// lines never reach computeInlineRanges above.
+// Limits on the inline word-diff highlight below. Word-diffing every paired
+// line runs on each (debounced) keystroke, so a minified file or a huge
+// pasted-over block is skipped outright rather than diffed.
+const INLINE_MAX_LINE_LENGTH = 1000
+const INLINE_MAX_HUNK_LINES = 500
+
+function inlineRangesWithinLimits(oldLine: string, newLine: string): InlineDiffRange[] {
+  if (oldLine.length > INLINE_MAX_LINE_LENGTH || newLine.length > INLINE_MAX_LINE_LENGTH) return []
+  return computeInlineRanges(oldLine, newLine)
+}
+
+// Shared core for both the gutter markers and the inline word-diff
+// highlight: a single diffLines pass over the whole file, since both are
+// read off the very same line hunks. Only 'modified' hunks (a removed run
+// immediately followed by an added run) yield old/new line text pairs;
+// added/removed/unchanged lines never reach computeInlineRanges above.
 //
 // A hunk's removed and added line counts aren't guaranteed equal (e.g. 2
 // lines replaced by 4) - old/new lines are paired by index up to
 // Math.min(oldLines.length, newLines.length); any extra new lines beyond
-// that (no corresponding old line to diff against) still get the gutter's
-// whole-hunk 'modified' marker but no inline highlight, same as they always
-// have since inline highlighting is additive, not a replacement.
+// that still get the gutter's whole-hunk 'modified' marker but no inline
+// highlight.
 function diffContent(headContent: string, currentContent: string): DiffResult {
   const parts = diffLines(normalizeForDiff(headContent), normalizeForDiff(currentContent))
   const changes: LineChange[] = []
@@ -127,9 +135,9 @@ function diffContent(headContent: string, currentContent: string): DiffResult {
           startLine: currentLine,
           endLine: currentLine + newLines.length - 1,
         })
-        const pairCount = Math.min(oldLines.length, newLines.length)
+        const pairCount = newLines.length > INLINE_MAX_HUNK_LINES ? 0 : Math.min(oldLines.length, newLines.length)
         for (let j = 0; j < pairCount; j++) {
-          const ranges = computeInlineRanges(oldLines[j], newLines[j])
+          const ranges = inlineRangesWithinLimits(oldLines[j], newLines[j])
           if (ranges.length > 0) inlineDiffs.push({ line: currentLine + j, ranges })
         }
         currentLine += newLines.length
@@ -163,20 +171,8 @@ export function computeLineChanges(headContent: string, currentContent: string):
   return diffContent(headContent, currentContent).changes
 }
 
-// Powers the editor's inline word-diff highlight: for every line
-// computeLineChanges already flags 'modified', the character range(s)
-// within it that changed from HEAD. Call computeDiff instead when both the
-// gutter markers and the inline highlight are needed from the same buffer
-// snapshot (e.g. Editor.tsx's applyGutterDecorations) - it shares the one
-// diffLines pass rather than paying for it twice.
-export function computeInlineDiffs(headContent: string, currentContent: string): InlineLineDiff[] {
-  return diffContent(headContent, currentContent).inlineDiffs
-}
-
 // Single entry point for callers that need both the gutter's line changes
-// and the inline word-diff highlight from the same buffer snapshot - one
-// diffLines pass instead of the two computeLineChanges/computeInlineDiffs
-// would otherwise each run independently.
+// and the inline word-diff highlight from the same buffer snapshot.
 export function computeDiff(headContent: string, currentContent: string): DiffResult {
   return diffContent(headContent, currentContent)
 }

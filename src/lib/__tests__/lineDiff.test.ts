@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeLineChanges, computeInlineRanges, computeInlineDiffs, computeDiff } from '../lineDiff'
+import { computeLineChanges, computeInlineRanges, computeDiff } from '../lineDiff'
 
 describe('computeLineChanges', () => {
   it('returns nothing for identical content', () => {
@@ -87,39 +87,58 @@ describe('computeInlineRanges', () => {
   })
 })
 
-describe('computeInlineDiffs', () => {
+describe('computeDiff inlineDiffs', () => {
+  const inline = (head: string, current: string) => computeDiff(head, current).inlineDiffs
+
   it('returns no inline diffs for identical content', () => {
-    expect(computeInlineDiffs('a\nb\nc\n', 'a\nb\nc\n')).toEqual([])
+    expect(inline('a\nb\nc\n', 'a\nb\nc\n')).toEqual([])
   })
 
   it('pairs a single modified line with its inline ranges', () => {
-    const diffs = computeInlineDiffs('a\nb\nc\n', 'a\nX\nc\n')
-    expect(diffs).toEqual([{ line: 2, ranges: [{ startColumn: 1, endColumn: 2 }] }])
+    const diffs = inline('a\nconst foo = 1;\nc\n', 'a\nconst foo = 2;\nc\n')
+    expect(diffs).toEqual([{ line: 2, ranges: [{ startColumn: 13, endColumn: 14 }] }])
   })
 
   it('never runs on pure additions or deletions', () => {
-    expect(computeInlineDiffs('a\nb\n', 'a\nb\nc\nd\n')).toEqual([])
-    expect(computeInlineDiffs('a\nb\nc\n', 'a\nc\n')).toEqual([])
+    expect(inline('a\nb\n', 'a\nb\nc\nd\n')).toEqual([])
+    expect(inline('a\nb\nc\n', 'a\nc\n')).toEqual([])
   })
 
   it('pairs old/new lines by index when a hunk replaces N lines with M != N lines, leaving extras uncovered', () => {
-    // 2 old lines (b, c) replaced by 4 new lines (W, X, Y, Z): only the first
-    // 2 new lines have an old counterpart to diff against, so only those get
-    // an inline entry - Y and Z stay gutter-'modified'-only, same as always.
-    const diffs = computeInlineDiffs('a\nb\nc\nd\n', 'a\nW\nX\nY\nZ\nd\n')
+    const diffs = inline(
+      'a\nconst foo = 1;\nconst bar = 1;\nd\n',
+      'a\nconst foo = 2;\nconst bar = 2;\nY\nZ\nd\n',
+    )
     expect(diffs).toEqual([
-      { line: 2, ranges: [{ startColumn: 1, endColumn: 2 }] },
-      { line: 3, ranges: [{ startColumn: 1, endColumn: 2 }] },
+      { line: 2, ranges: [{ startColumn: 13, endColumn: 14 }] },
+      { line: 3, ranges: [{ startColumn: 13, endColumn: 14 }] },
     ])
+  })
+
+  it('highlights a fully rewritten line end to end', () => {
+    expect(inline('a\nb\nc\n', 'a\nX\nc\n')).toEqual([{ line: 2, ranges: [{ startColumn: 1, endColumn: 2 }] }])
+  })
+
+  it('skips lines longer than the inline length cap', () => {
+    const oldLine = 'x'.repeat(1200) + ' 1'
+    const newLine = 'x'.repeat(1200) + ' 2'
+    expect(inline(`a\n${oldLine}\nc\n`, `a\n${newLine}\nc\n`)).toEqual([])
+  })
+
+  it('skips hunks larger than the inline hunk cap but still marks them modified', () => {
+    const count = 600
+    const head = Array.from({ length: count }, (_, i) => `const v${i} = 1;`).join('\n') + '\n'
+    const current = Array.from({ length: count }, (_, i) => `const v${i} = 2;`).join('\n') + '\n'
+    const result = computeDiff(head, current)
+    expect(result.inlineDiffs).toEqual([])
+    expect(result.changes).toEqual([{ type: 'modified', startLine: 1, endLine: count }])
   })
 })
 
 describe('computeDiff', () => {
-  it('combines computeLineChanges and computeInlineDiffs from a single pass', () => {
+  it('returns the same changes as computeLineChanges from a single pass', () => {
     const head = 'a\nb\nc\nd\ne\n'
     const current = 'a\nX\nc\nd\ne\nf\n'
-    const result = computeDiff(head, current)
-    expect(result.changes).toEqual(computeLineChanges(head, current))
-    expect(result.inlineDiffs).toEqual(computeInlineDiffs(head, current))
+    expect(computeDiff(head, current).changes).toEqual(computeLineChanges(head, current))
   })
 })

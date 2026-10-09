@@ -33,6 +33,8 @@ export function GitSettingsPage() {
   const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
   const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
   const setBlameDisplayMode = useEditorSettingsStore((s) => s.setBlameDisplayMode)
+  const inlineDiffEnabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
+  const setInlineDiffEnabled = useEditorSettingsStore((s) => s.setInlineDiffEnabled)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -187,6 +189,18 @@ export function GitSettingsPage() {
               />
             </div>
           )}
+        </Row>
+      </Section>
+
+      <Section label="Changes">
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Inline Diff Highlight"
+            description="Tint changed lines in the editor and highlight the exact words that changed since the last commit. The gutter markers stay on either way."
+            checked={inlineDiffEnabled}
+            onChange={setInlineDiffEnabled}
+          />
         </Row>
       </Section>
 
