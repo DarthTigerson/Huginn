@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 import { notifySettingChanged } from '../lib/notifySettingChanged'
+import {
+  applyGitChangeColors,
+  DEFAULT_CUSTOM_CHANGE_COLORS,
+  type ChangeColorMode,
+  type ChangeColors,
+  type ChangeStrength,
+} from '../lib/gitChangeColors'
 
 const KEYS = {
   autoSaveEnabled: 'vide:editor:autoSaveEnabled',
@@ -12,6 +19,9 @@ const KEYS = {
   blameAnnotationsEnabled: 'vide:git:blameAnnotationsEnabled',
   blameDisplayMode: 'vide:git:blameDisplayMode',
   inlineDiffEnabled: 'vide:git:inlineDiffEnabled',
+  inlineDiffColors: 'vide:git:inlineDiffColors',
+  inlineDiffCustomColors: 'vide:git:inlineDiffCustomColors',
+  inlineDiffStrength: 'vide:git:inlineDiffStrength',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
@@ -25,6 +35,24 @@ function getBool(key: string, def: boolean): boolean {
 function getMarkdownOpenMode(key: string, def: MarkdownOpenMode): MarkdownOpenMode {
   const v = localStorage.getItem(key)
   return v === 'editor' || v === 'preview' || v === 'split' ? v : def
+}
+
+function getChangeColorMode(): ChangeColorMode {
+  return localStorage.getItem(KEYS.inlineDiffColors) === 'custom' ? 'custom' : 'default'
+}
+
+function getChangeStrength(): ChangeStrength {
+  const v = localStorage.getItem(KEYS.inlineDiffStrength)
+  return v === 'subtle' || v === 'strong' ? v : 'medium'
+}
+
+function getCustomChangeColors(): ChangeColors {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEYS.inlineDiffCustomColors) ?? 'null')
+    return { ...DEFAULT_CUSTOM_CHANGE_COLORS, ...(saved ?? {}) }
+  } catch {
+    return DEFAULT_CUSTOM_CHANGE_COLORS
+  }
 }
 
 interface EditorSettingsStore {
@@ -59,6 +87,14 @@ interface EditorSettingsStore {
   inlineDiffEnabled: boolean
   setInlineDiffEnabled: (value: boolean) => void
   toggleInlineDiff: () => void
+  // Colours for the gutter markers, line tint and word highlight: Default
+  // (fixed green/amber/red, retuned for light themes) or the user's own.
+  inlineDiffColors: ChangeColorMode
+  setInlineDiffColors: (value: ChangeColorMode) => void
+  inlineDiffCustomColors: ChangeColors
+  setInlineDiffCustomColor: (kind: keyof ChangeColors, hex: string) => void
+  inlineDiffStrength: ChangeStrength
+  setInlineDiffStrength: (value: ChangeStrength) => void
 }
 
 export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
@@ -125,4 +161,39 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   },
 
   toggleInlineDiff: () => get().setInlineDiffEnabled(!get().inlineDiffEnabled),
+
+  inlineDiffColors: getChangeColorMode(),
+
+  setInlineDiffColors: (value) => {
+    localStorage.setItem(KEYS.inlineDiffColors, value)
+    set({ inlineDiffColors: value })
+    notifySettingChanged()
+  },
+
+  inlineDiffCustomColors: getCustomChangeColors(),
+
+  setInlineDiffCustomColor: (kind, hex) => {
+    const next = { ...get().inlineDiffCustomColors, [kind]: hex }
+    localStorage.setItem(KEYS.inlineDiffCustomColors, JSON.stringify(next))
+    set({ inlineDiffCustomColors: next })
+    notifySettingChanged()
+  },
+
+  inlineDiffStrength: getChangeStrength(),
+
+  setInlineDiffStrength: (value) => {
+    localStorage.setItem(KEYS.inlineDiffStrength, value)
+    set({ inlineDiffStrength: value })
+    notifySettingChanged()
+  },
 }))
+
+// Keeps the root element's change-colour CSS variables in step with the
+// settings: once at startup (which also covers values vIDE Sync pulled in,
+// since preBootSync writes them to localStorage before this store loads),
+// then on every change.
+function syncChangeColors(s: EditorSettingsStore) {
+  applyGitChangeColors(s.inlineDiffColors, s.inlineDiffCustomColors, s.inlineDiffStrength)
+}
+syncChangeColors(useEditorSettingsStore.getState())
+useEditorSettingsStore.subscribe(syncChangeColors)

@@ -63,6 +63,22 @@ describe('editorSettingsStore', () => {
     expect(notifySettingChanged).toHaveBeenCalledTimes(1)
   })
 
+  it('defaults change colours to Default at Medium strength', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffColors).toBe('default')
+    expect(useEditorSettingsStore.getState().inlineDiffStrength).toBe('medium')
+  })
+
+  it('persists change colour mode, custom colours and strength under vide:git: keys', () => {
+    const s = useEditorSettingsStore.getState()
+    s.setInlineDiffColors('custom')
+    s.setInlineDiffCustomColor('modified', '#123456')
+    s.setInlineDiffStrength('strong')
+    expect(store['vide:git:inlineDiffColors']).toBe('custom')
+    expect(JSON.parse(store['vide:git:inlineDiffCustomColors']).modified).toBe('#123456')
+    expect(store['vide:git:inlineDiffStrength']).toBe('strong')
+    expect(useEditorSettingsStore.getState().inlineDiffCustomColors.modified).toBe('#123456')
+  })
+
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
     useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)
