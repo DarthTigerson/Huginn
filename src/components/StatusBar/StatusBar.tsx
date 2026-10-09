@@ -170,7 +170,6 @@ export function StatusBar() {
       )}
       <div className="flex items-center gap-1 text-fg-muted text-xs">
         <FooterCursor />
-        <InlineDiffToggle />
         {autocompleteVisible && (
           <div className="relative">
             <button
@@ -206,6 +205,7 @@ export function StatusBar() {
             )}
           </div>
         )}
+        <InlineDiffToggle />
         {(syncEnabled || syncRepoUrl) && (
           <button
             type="button"

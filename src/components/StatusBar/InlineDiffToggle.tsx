@@ -18,8 +18,11 @@ export function InlineDiffToggle() {
       aria-pressed={enabled}
       title={enabled ? 'Inline diff: on' : 'Inline diff: off'}
       className={[
-        'h-5 px-1 flex items-center justify-center transition-colors',
-        enabled ? 'text-fg-muted hover:text-fg' : 'text-fg-subtle hover:text-fg-muted',
+        // Same rounded/bordered pill as the sync button, font-size chip and bell beside it.
+        'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors',
+        enabled
+          ? 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle'
+          : 'border-border text-fg-subtle hover:text-fg-muted hover:border-fg-subtle',
       ].join(' ')}
     >
       <InlineDiffIcon crossedOut={!enabled} />
@@ -27,15 +30,15 @@ export function InlineDiffToggle() {
   )
 }
 
-// Three text lines, the middle one carrying a highlighted word - the same
-// picture the feature paints in the editor.
+// Highlighter pen, adapted from Lucide's "highlighter" (ISC). The off-state
+// slash runs top-left to bottom-right, like the autocomplete icon's, so it
+// crosses the pen's diagonal instead of running alongside it.
 function InlineDiffIcon({ crossedOut }: { crossedOut: boolean }) {
   return (
-    <svg width="16" height="14" viewBox="0 0 16 14" fill="none" aria-hidden="true">
-      <path d="M2 3h12M2 11h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M2 7h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <rect x="6.5" y="5" width="7.5" height="4" rx="1" fill="currentColor" opacity="0.55" />
-      {crossedOut && <path d="M1 13L15 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />}
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="m9 11-6 6v3h9l3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {crossedOut && <path d="M3 3l18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />}
     </svg>
   )
 }
