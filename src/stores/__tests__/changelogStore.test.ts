@@ -1,18 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const { localStorageStore, openTab, openTabInPane, settings } = vi.hoisted(() => {
+const { localStorageStore, openTab } = vi.hoisted(() => {
   const localStorageStore: Record<string, string> = {}
   ;(global as any).localStorage = {
     getItem: (k: string) => localStorageStore[k] ?? null,
     setItem: (k: string, v: string) => { localStorageStore[k] = v },
     removeItem: (k: string) => { delete localStorageStore[k] },
   }
-  return { localStorageStore, openTab: vi.fn(), openTabInPane: vi.fn(), settings: { openInBiggestPane: false } }
+  return { localStorageStore, openTab: vi.fn() }
 })
 
-vi.mock('@/stores/editorStore', () => ({ useEditorStore: { getState: () => ({ openTab, openTabInPane }) } }))
-vi.mock('@/stores/generalSettingsStore', () => ({ useGeneralSettingsStore: { getState: () => settings } }))
-vi.mock('@/lib/paneLayout', () => ({ getBiggestPaneId: () => 'pane-big' }))
+vi.mock('@/stores/editorStore', () => ({ useEditorStore: { getState: () => ({ openTab }) } }))
 
 import { useChangelogStore, PENDING_CHANGELOG_KEY, UPDATED_FROM_KEY } from '../changelogStore'
 
@@ -22,7 +20,6 @@ describe('changelogStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    settings.openInBiggestPane = false
     useChangelogStore.setState({ justUpdated: null })
   })
 
@@ -53,13 +50,5 @@ describe('changelogStore', () => {
     useChangelogStore.getState().checkPending()
     expect(useChangelogStore.getState().justUpdated).toEqual({ to: '0.2.20', from: null })
     expect(openTab).toHaveBeenCalled()
-  })
-
-  it('respects "Always open in biggest pane"', () => {
-    settings.openInBiggestPane = true
-    localStorage.setItem(PENDING_CHANGELOG_KEY, '0.2.20')
-    useChangelogStore.getState().checkPending()
-    expect(openTabInPane).toHaveBeenCalledWith(expect.objectContaining({ path: ABOUT }), 'pane-big')
-    expect(openTab).not.toHaveBeenCalled()
   })
 })

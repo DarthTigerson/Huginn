@@ -12,8 +12,6 @@ export function JiraSettingsPage() {
   const setProjectUrl = useJiraSettingsStore((s) => s.setProjectUrl)
   const closeSidePanelOnOpen = useJiraSettingsStore((s) => s.closeSidePanelOnOpen)
   const setCloseSidePanelOnOpen = useJiraSettingsStore((s) => s.setCloseSidePanelOnOpen)
-  const openInBiggestPane = useJiraSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useJiraSettingsStore((s) => s.setOpenInBiggestPane)
   const projectRoot = useFileStore((s) => s.projectRoot)
 
   return (
@@ -63,13 +61,6 @@ export function JiraSettingsPage() {
               description="Collapse the currently open sidebar (Files, Git, etc.) when jumping to the Jira browser tab, to give it the full width."
               checked={closeSidePanelOnOpen}
               onChange={setCloseSidePanelOnOpen}
-            />
-            <Toggle
-              className="max-w-[60ch]"
-              label="Always open in biggest window"
-              description="If the editor is split into multiple panes, open the Jira browser tab in whichever pane currently has the most space, instead of the focused one."
-              checked={openInBiggestPane}
-              onChange={setOpenInBiggestPane}
             />
           </div>
         </Row>

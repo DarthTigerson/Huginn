@@ -57,7 +57,7 @@ export function registerLspDefinitionProvider(monaco: typeof import('monaco-edit
       // machinery (the same one Search-in-files uses) and tell Monaco
       // there's nothing more for it to do.
       if (otherFile && sameFile.length === 0) {
-        await openFileAtLocation(otherFile.path, otherFile.line, otherFile.col)
+        await openFileAtLocation(otherFile.path, otherFile.line, otherFile.col, '', { stayInActivePane: true })
         return []
       }
 

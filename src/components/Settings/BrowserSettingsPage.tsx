@@ -4,8 +4,6 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Section, Row } from './SettingsLayout'
 
 export function BrowserSettingsPage() {
-  const openInBiggestPane = useBrowserSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useBrowserSettingsStore((s) => s.setOpenInBiggestPane)
   const closeSidePanelOnOpen = useBrowserSettingsStore((s) => s.closeSidePanelOnOpen)
   const setCloseSidePanelOnOpen = useBrowserSettingsStore((s) => s.setCloseSidePanelOnOpen)
 
@@ -22,13 +20,6 @@ export function BrowserSettingsPage() {
       <Section label="New Tab">
         <Row>
           <div className="flex flex-col gap-3">
-            <Toggle
-              className="max-w-[60ch]"
-              label="Always open in biggest window"
-              description="If the editor is split into multiple panes, open new browser tabs in whichever pane currently has the most space, instead of the focused one."
-              checked={openInBiggestPane}
-              onChange={setOpenInBiggestPane}
-            />
             <Toggle
               className="max-w-[60ch]"
               label="Close side panel when opening"

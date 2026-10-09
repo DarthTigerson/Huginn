@@ -8,6 +8,7 @@ import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 
 const BLAME = 'Thomas, 2 days ago · Fixed sync auth'
 
@@ -97,11 +98,11 @@ describe('FetchPreview', () => {
 
 describe('GraphTabsPreview', () => {
   it('lands the Graph tab in the biggest pane or the focused one', () => {
-    useGitSettingsStore.setState({ openInBiggestPane: true })
+    useGeneralSettingsStore.setState({ newTabPane: 'biggest' })
     const { rerender } = render(<GraphTabsPreview />)
     expect(screen.getByText('Graph').closest('[data-pane]')).toHaveAttribute('data-pane', 'big')
 
-    useGitSettingsStore.setState({ openInBiggestPane: false })
+    useGeneralSettingsStore.setState({ newTabPane: 'active' })
     rerender(<GraphTabsPreview />)
     expect(screen.getByText('Graph').closest('[data-pane]')).toHaveAttribute('data-pane', 'focused')
   })

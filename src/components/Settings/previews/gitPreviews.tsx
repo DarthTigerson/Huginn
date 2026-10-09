@@ -2,6 +2,7 @@ import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useGitSettingsStore } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
+import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
 import { detectGitRemoteProvider, gitRemoteIcon, gitRemoteLabel } from '@/lib/gitRemoteProvider'
 import { InlineDiffIcon } from '@/components/StatusBar/InlineDiffToggle'
 import { PreviewFrame, MiniCode, MiniFooter, MiniTabs, MiniPanes } from './primitives'
@@ -133,7 +134,7 @@ export function FetchPreview() {
 }
 
 export function GraphTabsPreview() {
-  const biggest = useGitSettingsStore((s) => s.openInBiggestPane)
+  const biggest = useGeneralSettingsStore((s) => s.newTabPane) === 'biggest'
   const projectRoot = useFileStore((s) => s.projectRoot)
   const target = useGitSettingsStore((s) => (projectRoot ? s.getListDiffTargetBranch(projectRoot) : ''))
   const graph = { label: 'Graph', isNew: true }

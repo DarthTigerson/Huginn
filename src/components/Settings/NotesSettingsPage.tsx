@@ -6,8 +6,6 @@ import { Section, Row } from './SettingsLayout'
 export function NotesSettingsPage() {
   const enabled = useNotesSettingsStore((s) => s.enabled)
   const setEnabled = useNotesSettingsStore((s) => s.setEnabled)
-  const openInBiggestPane = useNotesSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useNotesSettingsStore((s) => s.setOpenInBiggestPane)
 
   const mcpEnabled = useNotesMcpStore((s) => s.enabled)
   const mcpPending = useNotesMcpStore((s) => s.pending)
@@ -33,15 +31,6 @@ export function NotesSettingsPage() {
           />
         </Row>
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open notes in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
-          />
-        </Row>
       </Section>
 
       <Section label="Claude Code">

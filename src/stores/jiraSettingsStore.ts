@@ -4,7 +4,6 @@ const URL_KEY = 'vide:jira:externalUrl'
 const PROJECT_URLS_KEY = 'vide:jira:projectUrls'
 const CLOSE_SIDE_PANEL_KEY = 'vide:jira:closeSidePanel'
 const ENABLED_KEY = 'vide:jira:enabled'
-const OPEN_IN_BIGGEST_PANE_KEY = 'vide:jira:openInBiggestPane'
 
 function getBool(key: string, def: boolean): boolean {
   const value = localStorage.getItem(key)
@@ -34,8 +33,6 @@ interface JiraSettingsStore {
   setCloseSidePanelOnOpen: (value: boolean) => void
   enabled: boolean
   setEnabled: (value: boolean) => void
-  openInBiggestPane: boolean
-  setOpenInBiggestPane: (value: boolean) => void
 }
 
 export const useJiraSettingsStore = create<JiraSettingsStore>((set, get) => ({
@@ -79,10 +76,4 @@ export const useJiraSettingsStore = create<JiraSettingsStore>((set, get) => ({
     set({ enabled: value })
   },
 
-  openInBiggestPane: getBool(OPEN_IN_BIGGEST_PANE_KEY, true),
-
-  setOpenInBiggestPane: (value) => {
-    localStorage.setItem(OPEN_IN_BIGGEST_PANE_KEY, String(value))
-    set({ openInBiggestPane: value })
-  },
 }))

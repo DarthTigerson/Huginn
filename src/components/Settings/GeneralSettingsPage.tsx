@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useOnboardingStore } from '@/stores/onboardingStore'
-import { useGeneralSettingsStore } from '@/stores/generalSettingsStore'
+import { useGeneralSettingsStore, type NewTabPane } from '@/stores/generalSettingsStore'
 import { useConfigRepoStore } from '@/stores/configRepoStore'
 import { Toggle } from '@/components/ui/Toggle'
+import { RadioGroup } from '@/components/ui/RadioGroup'
 import { Section, Row, TextField } from './SettingsLayout'
 import { SyncStatusPill } from './SyncStatusPill'
 
@@ -20,8 +21,8 @@ const SYNC_ITEMS = [
 export function GeneralSettingsPage() {
   const [replaying, setReplaying] = useState(false)
 
-  const openInBiggestPane = useGeneralSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useGeneralSettingsStore((s) => s.setOpenInBiggestPane)
+  const newTabPane = useGeneralSettingsStore((s) => s.newTabPane)
+  const setNewTabPane = useGeneralSettingsStore((s) => s.setNewTabPane)
 
   const {
     loaded,
@@ -41,15 +42,26 @@ export function GeneralSettingsPage() {
       <h1 className="text-base font-semibold text-fg mb-1">General</h1>
       <p className="text-sm text-fg-muted mb-4">App-level setup and preferences.</p>
 
-      <Section label="Settings">
+      <Section label="Tabs">
         <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open any settings page in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
-          />
+          <div className="flex max-w-[60ch] flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-sm text-fg">Open new tabs in</p>
+            <RadioGroup<NewTabPane>
+              ariaLabel="Open new tabs in"
+              value={newTabPane}
+              onChange={setNewTabPane}
+              options={[
+                { value: 'active', label: 'Active window' },
+                { value: 'biggest', label: 'Biggest window' },
+              ]}
+            />
+          </div>
+          <p className="mt-1.5 max-w-[60ch] text-xs text-fg-muted">
+            {newTabPane === 'biggest'
+              ? 'Tabs open in the largest editor window, so a small split never gets crowded.'
+              : 'Tabs open in the window you last clicked in.'}
+            {' '}Applies to files, settings, Git, notes, todos and browser tabs. Go to definition always stays in your window.
+          </p>
         </Row>
       </Section>
 

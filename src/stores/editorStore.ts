@@ -7,6 +7,8 @@ import {
   getTodoDetailIds,
 } from '@/components/Settings/paths'
 import { buildScratchPath } from '@/components/Editor/paths'
+import { getBiggestPaneId } from '@/lib/paneLayout'
+import { useGeneralSettingsStore } from './generalSettingsStore'
 
 export type EditorSplitDirection = 'horizontal' | 'vertical'
 export type SplitPlacement = 'before' | 'after'
@@ -48,6 +50,15 @@ function removePane(node: EditorLayoutNode, paneId: string): EditorLayoutNode | 
 function collectPaneIds(node: EditorLayoutNode): string[] {
   if (node.type === 'pane') return [node.id]
   return [...collectPaneIds(node.children[0]), ...collectPaneIds(node.children[1])]
+}
+
+// The window a newly opened tab lands in, per Settings > General > "Open new
+// tabs in". Falls back to the active window when the biggest can't be measured
+// (no DOM in tests) or isn't part of the current layout.
+function paneForNewTab(state: { layout: EditorLayoutNode; activePaneId: string }): string {
+  if (useGeneralSettingsStore.getState().newTabPane !== 'biggest') return state.activePaneId
+  const biggest = getBiggestPaneId()
+  return biggest && collectPaneIds(state.layout).includes(biggest) ? biggest : state.activePaneId
 }
 
 // Shared by closeAllTabs/closeSavedTabs: closes every open tab matching
@@ -274,18 +285,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearRevealRequest: () => set({ revealRequest: null }),
 
   openTab: (tab: Tab) => {
-    get().openTabInPane(tab, get().activePaneId)
+    get().openTabInPane(tab, paneForNewTab(get()))
   },
 
   // A new empty buffer with no file behind it. Each gets its own id so
   // several can be open at once — the path is the tab's identity in every
   // map below, so two scratch tabs sharing one path would be one tab.
   // paneId is for the tab bar that was double-clicked, which in a split is
-  // not necessarily the active pane; Cmd+N passes nothing and gets the
-  // active one, which is what a global shortcut should do.
+  // not necessarily the active pane; Cmd+N passes nothing and follows
+  // Settings > General > "Open new tabs in", like any other new tab.
   openScratchTab: (paneId?: string) => {
     const tab = { path: buildScratchPath(crypto.randomUUID()), content: '', dirty: false }
-    get().openTabInPane(tab, paneId ?? get().activePaneId)
+    get().openTabInPane(tab, paneId ?? paneForNewTab(get()))
   },
 
   // Like openTab, but lets the caller pick which pane a genuinely-new tab

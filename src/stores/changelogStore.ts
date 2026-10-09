@@ -1,7 +1,5 @@
 import { create } from 'zustand'
 import { useEditorStore } from './editorStore'
-import { useGeneralSettingsStore } from './generalSettingsStore'
-import { getBiggestPaneId } from '@/lib/paneLayout'
 import { ABOUT_SETTINGS_TAB_PATH } from '@/components/Settings/paths'
 
 // Set by updateStore.restart() right before the app relaunches, so they
@@ -38,9 +36,6 @@ export const useChangelogStore = create<ChangelogState>((set) => ({
 
     set({ justUpdated: { to, from: from && from !== to ? from : null } })
     const tab = { path: ABOUT_SETTINGS_TAB_PATH, content: '', dirty: false }
-    const editor = useEditorStore.getState()
-    const biggestPaneId = useGeneralSettingsStore.getState().openInBiggestPane ? getBiggestPaneId() : null
-    if (biggestPaneId) editor.openTabInPane(tab, biggestPaneId)
-    else editor.openTab(tab)
+    useEditorStore.getState().openTab(tab)
   },
 }))

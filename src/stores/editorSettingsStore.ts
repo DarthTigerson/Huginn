@@ -12,7 +12,6 @@ const KEYS = {
   autoSaveEnabled: 'vide:editor:autoSaveEnabled',
   wordWrapEnabled: 'vide:editor:wordWrapEnabled',
   changeAllOccurrencesInMenu: 'vide:editor:changeAllOccurrencesInMenu',
-  openInBiggestPane: 'vide:editor:openInBiggestPane',
   markdownOpenMode: 'vide:editor:markdownOpenMode',
   // Git blame settings live on Settings > Git, so they use the vide:git: prefix
   // to sync in vIDE Sync's Git category rather than General (vide:editor:).
@@ -68,8 +67,6 @@ interface EditorSettingsStore {
   // it only hides/shows the menu entry.
   changeAllOccurrencesInMenu: boolean
   setChangeAllOccurrencesInMenu: (value: boolean) => void
-  openInBiggestPane: boolean
-  setOpenInBiggestPane: (value: boolean) => void
   // What clicking a .md file in the file tree does by default — the
   // context-menu's explicit "Open / Edit" / "View in Markdown Viewer"
   // actions always ignore this and do exactly what they say.
@@ -123,13 +120,6 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setChangeAllOccurrencesInMenu: (value) => {
     localStorage.setItem(KEYS.changeAllOccurrencesInMenu, String(value))
     set({ changeAllOccurrencesInMenu: value })
-  },
-
-  openInBiggestPane: getBool(KEYS.openInBiggestPane, true),
-
-  setOpenInBiggestPane: (value) => {
-    localStorage.setItem(KEYS.openInBiggestPane, String(value))
-    set({ openInBiggestPane: value })
   },
 
   markdownOpenMode: getMarkdownOpenMode(KEYS.markdownOpenMode, 'editor'),

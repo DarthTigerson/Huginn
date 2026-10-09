@@ -14,8 +14,6 @@ export function EditorSettingsPage() {
   const setWordWrapEnabled = useEditorSettingsStore((s) => s.setWordWrapEnabled)
   const changeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.changeAllOccurrencesInMenu)
   const setChangeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.setChangeAllOccurrencesInMenu)
-  const openInBiggestPane = useEditorSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useEditorSettingsStore((s) => s.setOpenInBiggestPane)
   const markdownOpenMode = useEditorSettingsStore((s) => s.markdownOpenMode)
   const setMarkdownOpenMode = useEditorSettingsStore((s) => s.setMarkdownOpenMode)
   const refreshLspStatus = useLspStatusStore((s) => s.refresh)
@@ -48,16 +46,6 @@ export function EditorSettingsPage() {
             description="Wrap long lines instead of scrolling horizontally. Also toggleable with ⌥Z. Shared with Git Log."
             checked={wordWrapEnabled}
             onChange={setWordWrapEnabled}
-          />
-        </Row>
-
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open files from the file tree in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
           />
         </Row>
 

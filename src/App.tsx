@@ -3,7 +3,6 @@ import type { MouseEvent } from 'react'
 import * as monaco from 'monaco-editor'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { clampSize, loadPanelSize } from '@/lib/panelSize'
-import { getBiggestPaneId } from '@/lib/paneLayout'
 import { openNewBrowserTab } from '@/lib/openBrowserTab'
 import { syncOpenTabsFromDisk } from '@/lib/syncOpenTabsFromDisk'
 import { Sidebar } from './components/Sidebar/Sidebar'
@@ -321,16 +320,7 @@ export default function App() {
     }
     useBrowserStore.getState().ensureTab(JIRA_BROWSER_ID, url)
     const tab = { path: buildBrowserPath(JIRA_BROWSER_ID), content: '', dirty: false }
-    if (useJiraSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        useEditorStore.getState().openTabInPane(tab, biggestPaneId)
-      } else {
-        useEditorStore.getState().openTab(tab)
-      }
-    } else {
-      useEditorStore.getState().openTab(tab)
-    }
+    useEditorStore.getState().openTab(tab)
     if (useJiraSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
@@ -345,16 +335,7 @@ export default function App() {
     }
     useBrowserStore.getState().ensureTab(GIT_REMOTE_BROWSER_ID, url)
     const tab = { path: buildBrowserPath(GIT_REMOTE_BROWSER_ID), content: '', dirty: false }
-    if (useGitRemoteSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        useEditorStore.getState().openTabInPane(tab, biggestPaneId)
-      } else {
-        useEditorStore.getState().openTab(tab)
-      }
-    } else {
-      useEditorStore.getState().openTab(tab)
-    }
+    useEditorStore.getState().openTab(tab)
     if (useGitRemoteSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 

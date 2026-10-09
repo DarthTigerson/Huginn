@@ -15,7 +15,7 @@ import { useBrowserSettingsStore } from '../browserSettingsStore'
 describe('browserSettingsStore', () => {
   beforeEach(() => {
     Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k])
-    useBrowserSettingsStore.setState({ openInBiggestPane: true, closeSidePanelOnOpen: false })
+    useBrowserSettingsStore.setState({ closeSidePanelOnOpen: false })
   })
 
   it('closeSidePanelOnOpen defaults to false', () => {

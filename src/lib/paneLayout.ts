@@ -5,6 +5,7 @@
 // nested horizontal/vertical splits to get an absolute rendered size is far
 // more error-prone than just asking the browser.
 export function getBiggestPaneId(): string | null {
+  if (typeof document === 'undefined') return null
   const panes = document.querySelectorAll<HTMLElement>('[data-pane-id]')
   let bestId: string | null = null
   let bestArea = -1

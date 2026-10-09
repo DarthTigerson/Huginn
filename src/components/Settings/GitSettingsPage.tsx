@@ -26,7 +26,6 @@ export function GitSettingsPage() {
     periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
     gitLogAutoShow, setGitLogAutoShow,
     repoScanDepth, setRepoScanDepth,
-    openInBiggestPane, setOpenInBiggestPane,
   } = useGitSettingsStore()
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
@@ -34,8 +33,6 @@ export function GitSettingsPage() {
   const setGitRemoteProjectUrl = useGitRemoteSettingsStore((s) => s.setProjectUrl)
   const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
-  const gitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.openInBiggestPane)
-  const setGitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.setOpenInBiggestPane)
   const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
   const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
   const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
@@ -203,7 +200,7 @@ export function GitSettingsPage() {
 
         <FeatureBlock
           title="Graph & List Diff"
-          description="Where the Graph and List Diff tabs open, and what List Diff compares against."
+          description="What List Diff compares the current branch against. Where the tabs open follows General › Open new tabs in."
           preview={<GraphTabsPreview />}
         >
           {projectRoot ? (
@@ -224,9 +221,6 @@ export function GitSettingsPage() {
           ) : (
             <p className="py-1.5 text-sm text-fg-muted">Open a repo to set its default target branch.</p>
           )}
-          <SettingRow label="Open in the biggest pane" description="When the editor is split.">
-            <Switch label="Open in the biggest pane" checked={openInBiggestPane} onChange={setOpenInBiggestPane} />
-          </SettingRow>
         </FeatureBlock>
 
         <FeatureBlock
@@ -254,9 +248,6 @@ export function GitSettingsPage() {
           )}
           <SettingRow label="Close side panel when opening" description="Give the repo page the full width.">
             <Switch label="Close side panel when opening" checked={gitRemoteCloseSidePanelOnOpen} onChange={setGitRemoteCloseSidePanelOnOpen} />
-          </SettingRow>
-          <SettingRow label="Open in the biggest pane" description="When the editor is split.">
-            <Switch label="Always open in biggest window" checked={gitRemoteOpenInBiggestPane} onChange={setGitRemoteOpenInBiggestPane} />
           </SettingRow>
         </FeatureBlock>
       </div>

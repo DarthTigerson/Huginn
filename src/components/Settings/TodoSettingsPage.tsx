@@ -6,8 +6,6 @@ import { Section, Row } from './SettingsLayout'
 export function TodoSettingsPage() {
   const enabled = useTodoSettingsStore((s) => s.enabled)
   const setEnabled = useTodoSettingsStore((s) => s.setEnabled)
-  const openInBiggestPane = useTodoSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useTodoSettingsStore((s) => s.setOpenInBiggestPane)
 
   const mcpEnabled = useTodoMcpStore((s) => s.enabled)
   const mcpPending = useTodoMcpStore((s) => s.pending)
@@ -32,15 +30,6 @@ export function TodoSettingsPage() {
           />
         </Row>
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open the task board in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
-          />
-        </Row>
       </Section>
 
       <Section label="Claude Code">

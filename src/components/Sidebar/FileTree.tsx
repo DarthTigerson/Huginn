@@ -3,7 +3,6 @@ import type { FileNode } from '@/types/index'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
-import { getBiggestPaneId } from '@/lib/paneLayout'
 import { useRepoGitState } from '@/stores/gitStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 import { isGitDiffTab, parseGitDiffPath, isGitCommitDiffTab, parseGitCommitDiffPath } from '@/components/Git/paths'
@@ -105,7 +104,7 @@ export function FileTree({
   const { files: fileGitDecorations, folders: folderGitAggregates } = useGitTreeDecorations()
   // Settings > General > File Tree: 'letter' keeps names their normal colour.
   const colourGitNames = useGeneralSettingsStore((s) => s.fileTreeGitStatus === 'letterAndColour')
-  const { activeTabPath, openTab, openTabInPane, openTabInNewSplitPane } = useEditorStore()
+  const { activeTabPath, openTab, openTabInNewSplitPane } = useEditorStore()
   // isGitDiffTab/isGitCommitDiffTab both carry a repo-*relative* path (that's
   // what git status/git show hand back, and what getDiffContent's own
   // HEAD:<path> git refs require) — has to be re-joined to the diff tab's
@@ -125,17 +124,6 @@ export function FileTree({
               : activeTabPath
   const createPromptHere = prompt && !prompt.node && prompt.directory === directoryPath
 
-  function openFileTab(tab: { path: string; content: string; dirty: boolean }) {
-    if (useEditorSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        openTabInPane(tab, biggestPaneId)
-        return
-      }
-    }
-    openTab(tab)
-  }
-
   async function handleClick(node: FileNode) {
     useFileStore.getState().clearRevealedPath()
     if (node.isDirectory) {
@@ -147,16 +135,16 @@ export function FileTree({
       }
     } else if (isImageFile(node.name)) {
       select(node.path)
-      openFileTab({ path: buildImagePreviewPath(node.path), content: '', dirty: false })
+      openTab({ path: buildImagePreviewPath(node.path), content: '', dirty: false })
     } else if (isMarkdownFile(node.name)) {
       select(node.path)
       const mode = useEditorSettingsStore.getState().markdownOpenMode
       if (mode === 'preview') {
-        openFileTab({ path: buildMarkdownPreviewPath(node.path), content: '', dirty: false })
+        openTab({ path: buildMarkdownPreviewPath(node.path), content: '', dirty: false })
         return
       }
       const content = await window.api.readFile(node.path)
-      openFileTab({ path: node.path, content, dirty: false })
+      openTab({ path: node.path, content, dirty: false })
       if (mode === 'split') {
         const landedPaneId = useEditorStore.getState().activePaneId
         openTabInNewSplitPane(
@@ -169,7 +157,7 @@ export function FileTree({
     } else {
       select(node.path)
       const content = await window.api.readFile(node.path)
-      openFileTab({ path: node.path, content, dirty: false })
+      openTab({ path: node.path, content, dirty: false })
     }
   }
 
