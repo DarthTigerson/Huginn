@@ -29,33 +29,33 @@ describe('StatusBar sync icon (SYNC-18)', () => {
   it('is hidden when sync is disabled', () => {
     useConfigRepoStore.setState({ enabled: false, status: 'idle' })
     render(<StatusBar />)
-    expect(screen.queryByTitle(/vide sync/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /vide sync/i })).toBeNull()
   })
 
   it('is visible when sync is enabled', () => {
     useConfigRepoStore.setState({ enabled: true, status: 'connected', push: mockPush })
     render(<StatusBar />)
-    expect(screen.getByTitle('vIDE Sync — click to push now')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'vIDE Sync — click to push now' })).toBeDefined()
   })
 
   it('calls push() when clicked in connected state', () => {
     useConfigRepoStore.setState({ enabled: true, status: 'connected', push: mockPush })
     render(<StatusBar />)
-    fireEvent.click(screen.getByTitle('vIDE Sync — click to push now'))
+    fireEvent.click(screen.getByRole('button', { name: 'vIDE Sync — click to push now' }))
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('is disabled and shows pushing tooltip while status is pushing', () => {
     useConfigRepoStore.setState({ enabled: true, status: 'pushing', push: mockPush })
     render(<StatusBar />)
-    const btn = screen.getByTitle('Pushing…') as HTMLButtonElement
+    const btn = screen.getByRole('button', { name: 'Pushing…' }) as HTMLButtonElement
     expect(btn.disabled).toBe(true)
   })
 
   it('shows error tooltip and is enabled for retry when status is error', () => {
     useConfigRepoStore.setState({ enabled: true, status: 'error', push: mockPush })
     render(<StatusBar />)
-    const btn = screen.getByTitle('Sync error — click to retry') as HTMLButtonElement
+    const btn = screen.getByRole('button', { name: 'Sync error — click to retry' }) as HTMLButtonElement
     expect(btn.disabled).toBe(false)
     fireEvent.click(btn)
     expect(mockPush).toHaveBeenCalledTimes(1)

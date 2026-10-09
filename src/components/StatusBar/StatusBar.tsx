@@ -26,6 +26,7 @@ import { useAlarmTicker } from '@/hooks/useAlarmTicker'
 import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
 import { InlineDiffToggle } from './InlineDiffToggle'
+import { FooterTooltip } from './FooterTooltip'
 
 export function StatusBar() {
   useAlarmTicker()
@@ -54,6 +55,11 @@ export function StatusBar() {
   const syncEnabled = useConfigRepoStore((s) => s.enabled)
   const syncRepoUrl = useConfigRepoStore((s) => s.repoUrl)
   const syncStatus = useConfigRepoStore((s) => s.status)
+  const syncLabel =
+    syncStatus === 'pushing' ? 'Pushing…' :
+    syncStatus === 'error' ? 'Sync error — click to retry' :
+    syncStatus === 'connecting' ? 'Connecting…' :
+    'vIDE Sync — click to push now'
   const syncNow = useConfigRepoStore((s) => s.push)
   const autocompleteEnabled = useAutocompleteSettingsStore((s) => s.enabled)
   const autocompletePaused = useAutocompleteSessionStore((s) => s.paused)
@@ -172,26 +178,30 @@ export function StatusBar() {
         <FooterCursor />
         {autocompleteVisible && (
           <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
-              className={[
-                'h-5 px-1 flex items-center justify-center transition-colors',
-                autocompleteActive && autocompleteBusy
-                  ? 'text-accent'
-                  : autocompleteActive
-                    ? 'text-fg-muted hover:text-fg'
-                    : 'text-fg-subtle hover:text-fg-muted',
-              ].join(' ')}
-              aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
-              title={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
+            <FooterTooltip
+              label={autocompleteActive ? (autocompleteBusy ? 'Autocomplete: working…' : 'Autocomplete: on') : 'Autocomplete: off'}
+              hidden={autocompleteMenuOpen}
             >
-              <AutocompleteIcon
-                crossedOut={!autocompleteActive}
-                busy={autocompleteActive && autocompleteBusy}
-              />
-            </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutocompleteMenuOpen((o) => !o) }}
+                className={[
+                  'h-5 px-1 flex items-center justify-center transition-colors',
+                  autocompleteActive && autocompleteBusy
+                    ? 'text-accent'
+                    : autocompleteActive
+                      ? 'text-fg-muted hover:text-fg'
+                      : 'text-fg-subtle hover:text-fg-muted',
+                ].join(' ')}
+                aria-label={autocompleteActive ? 'Autocomplete on' : 'Autocomplete off'}
+              >
+                <AutocompleteIcon
+                  crossedOut={!autocompleteActive}
+                  busy={autocompleteActive && autocompleteBusy}
+                />
+              </button>
+            </FooterTooltip>
             {autocompleteMenuOpen && (
               <div className="absolute bottom-full right-0 mb-1 w-56 rounded border border-border bg-popover shadow-lg shadow-black/40 py-1 z-50">
                 <button
@@ -207,28 +217,25 @@ export function StatusBar() {
         )}
         <InlineDiffToggle />
         {(syncEnabled || syncRepoUrl) && (
-          <button
-            type="button"
-            onClick={syncNow}
-            disabled={syncStatus === 'pushing' || syncStatus === 'connecting'}
-            title={
-              syncStatus === 'pushing' ? 'Pushing…' :
-              syncStatus === 'error' ? 'Sync error — click to retry' :
-              syncStatus === 'connecting' ? 'Connecting…' :
-              'vIDE Sync — click to push now'
-            }
-            className={[
-              // Same rounded/bordered pill as the bell and font-size chip beside it.
-              'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors disabled:cursor-default',
-              syncStatus === 'pushing' || syncStatus === 'connecting'
-                ? 'border-border text-accent animate-pulse'
-                : syncStatus === 'error'
-                  ? 'border-red-400/60 text-red-400 hover:text-red-300 hover:border-red-300'
-                  : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
-            ].join(' ')}
-          >
-            <SyncIcon />
-          </button>
+          <FooterTooltip label={syncLabel}>
+            <button
+              type="button"
+              onClick={syncNow}
+              disabled={syncStatus === 'pushing' || syncStatus === 'connecting'}
+              aria-label={syncLabel}
+              className={[
+                // Same rounded/bordered pill as the bell and font-size chip beside it.
+                'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors disabled:cursor-default',
+                syncStatus === 'pushing' || syncStatus === 'connecting'
+                  ? 'border-border text-accent animate-pulse'
+                  : syncStatus === 'error'
+                    ? 'border-red-400/60 text-red-400 hover:text-red-300 hover:border-red-300'
+                    : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
+              ].join(' ')}
+            >
+              <SyncIcon />
+            </button>
+          </FooterTooltip>
         )}
         <div className="ml-1">
           <FontSizeControl />

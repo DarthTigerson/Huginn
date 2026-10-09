@@ -1,5 +1,6 @@
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
+import { FooterTooltip } from './FooterTooltip'
 
 // Footer switch for the editor's inline diff highlight (line wash + changed
 // words). Same setting as Settings > Git, the palette's Show/Hide command
@@ -11,22 +12,23 @@ export function InlineDiffToggle() {
   if (!hasRepo) return null
 
   return (
-    <button
-      type="button"
-      onClick={() => useEditorSettingsStore.getState().toggleInlineDiff()}
-      aria-label={enabled ? 'Inline diff highlight on' : 'Inline diff highlight off'}
-      aria-pressed={enabled}
-      title={enabled ? 'Inline diff: on' : 'Inline diff: off'}
-      className={[
-        // Same rounded/bordered pill as the sync button, font-size chip and bell beside it.
-        'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors',
-        enabled
-          ? 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle'
-          : 'border-border text-fg-subtle hover:text-fg-muted hover:border-fg-subtle',
-      ].join(' ')}
-    >
-      <InlineDiffIcon crossedOut={!enabled} />
-    </button>
+    <FooterTooltip label={enabled ? 'Inline diff: on' : 'Inline diff: off'}>
+      <button
+        type="button"
+        onClick={() => useEditorSettingsStore.getState().toggleInlineDiff()}
+        aria-label={enabled ? 'Inline diff highlight on' : 'Inline diff highlight off'}
+        aria-pressed={enabled}
+        className={[
+          // Same rounded/bordered pill as the sync button, font-size chip and bell beside it.
+          'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors',
+          enabled
+            ? 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle'
+            : 'border-border text-fg-subtle hover:text-fg-muted hover:border-fg-subtle',
+        ].join(' ')}
+      >
+        <InlineDiffIcon crossedOut={!enabled} />
+      </button>
+    </FooterTooltip>
   )
 }
 
