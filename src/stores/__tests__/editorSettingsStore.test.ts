@@ -20,14 +20,12 @@ describe('editorSettingsStore', () => {
     useEditorSettingsStore.setState({
       autoSaveEnabled: false,
       wordWrapEnabled: false,
-      changeAllOccurrencesInMenu: false,
     })
   })
 
   it('has correct defaults', () => {
     expect(useEditorSettingsStore.getState().autoSaveEnabled).toBe(false)
     expect(useEditorSettingsStore.getState().wordWrapEnabled).toBe(false)
-    expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(false)
   })
 
   it('has git blame on and shown in the footer by default', () => {
@@ -84,12 +82,6 @@ describe('editorSettingsStore', () => {
     useEditorSettingsStore.getState().setInlineDiffFooterIcon(false)
     expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(false)
     expect(store['vide:git:inlineDiffFooterIcon']).toBe('false')
-  })
-
-  it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
-    useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
-    expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)
-    expect(store['vide:editor:changeAllOccurrencesInMenu']).toBe('true')
   })
 
   it('setAutoSaveEnabled persists to localStorage', () => {

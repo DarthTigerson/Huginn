@@ -12,15 +12,15 @@ import { EditorSettingsPage } from '../EditorSettingsPage'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 
 beforeEach(() => {
-  useEditorSettingsStore.setState({ autoSaveEnabled: false, wordWrapEnabled: false, changeAllOccurrencesInMenu: false, markdownOpenMode: 'editor' })
+  useEditorSettingsStore.setState({ autoSaveEnabled: false, wordWrapEnabled: false, markdownOpenMode: 'editor' })
 })
 afterEach(cleanup)
 
 describe('EditorSettingsPage — feature blocks', () => {
-  it('lays the page out as five blocks', () => {
+  it('lays the page out as four blocks', () => {
     render(<EditorSettingsPage />)
     expect(screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))).toEqual([
-      'Auto save', 'Word wrap', 'Right-click menu', 'Markdown files', 'Go to definition',
+      'Auto save', 'Word wrap', 'Markdown files', 'Go to definition',
     ])
   })
 
@@ -40,14 +40,6 @@ describe('EditorSettingsPage — feature blocks', () => {
     rerender(<EditorSettingsPage />)
     expect(screen.getByTestId('word-wrap-preview').querySelector('[data-wrap]')).toHaveAttribute('data-wrap', 'true')
     expect(screen.getByTestId('markdown-preview').querySelector('[data-mode]')).toHaveAttribute('data-mode', 'split')
-  })
-
-  it('shows Change All Occurrences in the previewed menu only when it is turned on', () => {
-    const { rerender } = render(<EditorSettingsPage />)
-    expect(within(screen.getByTestId('context-menu-preview')).queryByText('Change All Occurrences')).toBeNull()
-    useEditorSettingsStore.setState({ changeAllOccurrencesInMenu: true })
-    rerender(<EditorSettingsPage />)
-    expect(within(screen.getByTestId('context-menu-preview')).getByText('Change All Occurrences')).toBeInTheDocument()
   })
 
   it('still lists every language server', () => {

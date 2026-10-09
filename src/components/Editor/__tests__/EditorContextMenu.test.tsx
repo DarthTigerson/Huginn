@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { EditorContextMenu } from '../EditorContextMenu'
-import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 
 function fakeEditor() {
   const run = vi.fn()
@@ -9,23 +8,12 @@ function fakeEditor() {
   return { editor: { getAction } as any, run, getAction }
 }
 
-beforeEach(() => {
-  useEditorSettingsStore.setState({ changeAllOccurrencesInMenu: false })
-})
-
 afterEach(() => {
   cleanup()
 })
 
 describe('EditorContextMenu', () => {
-  it('hides Change All Occurrences by default (setting off)', () => {
-    const { editor } = fakeEditor()
-    render(<EditorContextMenu x={10} y={10} editor={editor} onClose={() => {}} />)
-    expect(screen.queryByText('Change All Occurrences')).not.toBeInTheDocument()
-  })
-
-  it('shows Change All Occurrences (with its ⌘F2 hint) once the setting is turned on', () => {
-    useEditorSettingsStore.setState({ changeAllOccurrencesInMenu: true })
+  it('always shows Change All Occurrences, with its ⌘F2 hint', () => {
     const { editor } = fakeEditor()
     render(<EditorContextMenu x={10} y={10} editor={editor} onClose={() => {}} />)
     expect(screen.getByText('Change All Occurrences')).toBeInTheDocument()

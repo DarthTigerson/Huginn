@@ -1,13 +1,12 @@
 import { useEffect } from 'react'
 import { useEditorSettingsStore, type MarkdownOpenMode } from '@/stores/editorSettingsStore'
-import { Switch } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
 import { LSP_SERVER_IDS } from '@/stores/lspSettingsStore'
 import { useLspStatusStore, subscribeLspInstallEvents } from '@/stores/lspStatusStore'
 import { LspServerRow } from './LspServerRow'
 import { FeatureBlock, SettingRow } from './FeatureBlock'
 import {
-  AutoSavePreview, WordWrapPreview, ContextMenuPreview, MarkdownPreview, GoToDefinitionPreview,
+  AutoSavePreview, WordWrapPreview, MarkdownPreview, GoToDefinitionPreview,
 } from './previews/editorPreviews'
 
 export function EditorSettingsPage() {
@@ -15,8 +14,6 @@ export function EditorSettingsPage() {
   const setAutoSaveEnabled = useEditorSettingsStore((s) => s.setAutoSaveEnabled)
   const wordWrapEnabled = useEditorSettingsStore((s) => s.wordWrapEnabled)
   const setWordWrapEnabled = useEditorSettingsStore((s) => s.setWordWrapEnabled)
-  const changeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.changeAllOccurrencesInMenu)
-  const setChangeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.setChangeAllOccurrencesInMenu)
   const markdownOpenMode = useEditorSettingsStore((s) => s.markdownOpenMode)
   const setMarkdownOpenMode = useEditorSettingsStore((s) => s.setMarkdownOpenMode)
   const refreshLspStatus = useLspStatusStore((s) => s.refresh)
@@ -45,20 +42,6 @@ export function EditorSettingsPage() {
           toggle={{ checked: wordWrapEnabled, onChange: setWordWrapEnabled }}
           preview={<WordWrapPreview />}
         />
-
-        <FeatureBlock
-          title="Right-click menu"
-          description="⌘F2 changes all occurrences either way; this only decides whether the menu lists it."
-          preview={<ContextMenuPreview />}
-        >
-          <SettingRow label="Show Change All Occurrences">
-            <Switch
-              label={'Show "Change All Occurrences" in right-click menu'}
-              checked={changeAllOccurrencesInMenu}
-              onChange={setChangeAllOccurrencesInMenu}
-            />
-          </SettingRow>
-        </FeatureBlock>
 
         <FeatureBlock
           title="Markdown files"

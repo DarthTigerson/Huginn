@@ -11,7 +11,6 @@ import {
 const KEYS = {
   autoSaveEnabled: 'vide:editor:autoSaveEnabled',
   wordWrapEnabled: 'vide:editor:wordWrapEnabled',
-  changeAllOccurrencesInMenu: 'vide:editor:changeAllOccurrencesInMenu',
   markdownOpenMode: 'vide:editor:markdownOpenMode',
   // Git blame settings live on Settings > Git, so they use the vide:git: prefix
   // to sync in vIDE Sync's Git category rather than General (vide:editor:).
@@ -61,12 +60,6 @@ interface EditorSettingsStore {
   wordWrapEnabled: boolean
   setWordWrapEnabled: (value: boolean) => void
   toggleWordWrap: () => void
-  // Controls whether "Change All Occurrences" is listed in the editor's
-  // right-click menu - off by default (available via Settings or ⌘F2
-  // instead). The ⌘F2 keybinding for it works regardless of this setting;
-  // it only hides/shows the menu entry.
-  changeAllOccurrencesInMenu: boolean
-  setChangeAllOccurrencesInMenu: (value: boolean) => void
   // What clicking a .md file in the file tree does by default — the
   // context-menu's explicit "Open / Edit" / "View in Markdown Viewer"
   // actions always ignore this and do exactly what they say.
@@ -114,13 +107,6 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   },
 
   toggleWordWrap: () => get().setWordWrapEnabled(!get().wordWrapEnabled),
-
-  changeAllOccurrencesInMenu: getBool(KEYS.changeAllOccurrencesInMenu, false),
-
-  setChangeAllOccurrencesInMenu: (value) => {
-    localStorage.setItem(KEYS.changeAllOccurrencesInMenu, String(value))
-    set({ changeAllOccurrencesInMenu: value })
-  },
 
   markdownOpenMode: getMarkdownOpenMode(KEYS.markdownOpenMode, 'editor'),
 

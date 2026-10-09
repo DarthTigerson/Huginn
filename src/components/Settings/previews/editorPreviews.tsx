@@ -41,31 +41,6 @@ export function WordWrapPreview() {
   )
 }
 
-export function ContextMenuPreview() {
-  const showChangeAll = useEditorSettingsStore((s) => s.changeAllOccurrencesInMenu)
-  const items: [string, string?][] = [
-    ['Go to Definition', 'F12'],
-    ...(showChangeAll ? [['Change All Occurrences', '⌘F2'] as [string, string]] : []),
-    ['Cut', '⌘X'],
-    ['Copy', '⌘C'],
-    ['Paste', '⌘V'],
-  ]
-  return (
-    <PreviewFrame testId="context-menu-preview">
-      <div className="p-3">
-        <div className="ml-auto w-[190px] rounded border border-border bg-popover p-1 shadow-lg shadow-black/30">
-          {items.map(([label, keys]) => (
-            <div key={label} className="flex justify-between rounded px-2 py-0.5 text-[10.5px] text-fg-muted">
-              <span>{label}</span>
-              {keys && <span className="text-fg-subtle">{keys}</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </PreviewFrame>
-  )
-}
-
 export function MarkdownPreview() {
   const mode = useEditorSettingsStore((s) => s.markdownOpenMode)
   const source = (
