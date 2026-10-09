@@ -217,25 +217,27 @@ export function StatusBar() {
         )}
         <InlineDiffToggle />
         {(syncEnabled || syncRepoUrl) && (
-          <FooterTooltip label={syncLabel}>
-            <button
-              type="button"
-              onClick={syncNow}
-              disabled={syncStatus === 'pushing' || syncStatus === 'connecting'}
-              aria-label={syncLabel}
-              className={[
-                // Same rounded/bordered pill as the bell and font-size chip beside it.
-                'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors disabled:cursor-default',
-                syncStatus === 'pushing' || syncStatus === 'connecting'
-                  ? 'border-border text-accent animate-pulse'
-                  : syncStatus === 'error'
-                    ? 'border-red-400/60 text-red-400 hover:text-red-300 hover:border-red-300'
-                    : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
-              ].join(' ')}
-            >
-              <SyncIcon />
-            </button>
-          </FooterTooltip>
+          <div className="ml-1">
+            <FooterTooltip label={syncLabel}>
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={syncStatus === 'pushing' || syncStatus === 'connecting'}
+                aria-label={syncLabel}
+                className={[
+                  // Same rounded/bordered pill as the bell and font-size chip beside it.
+                  'flex items-center justify-center h-5 w-5 shrink-0 rounded-full border bg-bg transition-colors disabled:cursor-default',
+                  syncStatus === 'pushing' || syncStatus === 'connecting'
+                    ? 'border-border text-accent animate-pulse'
+                    : syncStatus === 'error'
+                      ? 'border-red-400/60 text-red-400 hover:text-red-300 hover:border-red-300'
+                      : 'border-border text-fg-muted hover:text-fg hover:border-fg-subtle',
+                ].join(' ')}
+              >
+                <SyncIcon />
+              </button>
+            </FooterTooltip>
+          </div>
         )}
         <div className="ml-1">
           <FontSizeControl />
