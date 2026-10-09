@@ -1,4 +1,15 @@
 # vIDE
+## v0.2.22 (2026-10-09)
+- **Inline diff highlight**: lines you've changed since the last commit now get a faint tint in the editor — green for added, amber for modified — and the exact words that changed are highlighted on top. Switch it on or off from a new highlighter button in the footer, "Show/Hide Inline Diff Highlight" in the Action Palette, or Show/Hide Inline Diff in a tab's right-click menu. Very long lines and very large edited blocks skip the word highlight so typing stays smooth
+- **Change colours and strength**: in Settings > Git, pick Default colours (green, amber and red, with darker shades on light themes) or your own for added, modified and deleted lines — the gutter line numbers use them too — and choose Subtle, Medium or Strong. The footer button can be hidden from the same place
+- **Redesigned settings**: every settings page is now laid out as feature blocks — a title, a one-line description and its switch, with each control sitting right next to its label instead of out at the far edge. Git, General, Editor, Display, File Tree, Docker and Claude show a live picture of what each setting does that changes as you flip it. Options for a feature that's switched off now stay in place, greyed out, instead of disappearing, so the page doesn't jump
+- **Open new tabs in**: one setting in Settings > General replaces the eight separate "Always open in biggest pane" switches — Active window or Biggest window (the default), with the choice explained under it. Every way of opening a tab follows it, from files and settings to Git, notes, todos and browser tabs, while Go to Definition always stays in the window you're working in
+- **Side panel and chat sizes**: the side panel and the Claude/Bridge chat now size themselves to the text instead of taking a share of the window, so the file tree no longer opens a quarter of a big screen wide. Changing the text size grows or shrinks them with it, resizing the window leaves them alone, and widths start once from the new defaults
+- **Popups over browser tabs**: modals, palettes, right-click menus (including on a browser tab itself), dropdowns and footer popups now appear above browser pages instead of hidden behind them — the page shows as a still snapshot while the popup is open
+- The footer icons on the right now show the same hover label as the clock
+- "Change All Occurrences" is now always in the editor's right-click menu, and the setting to hide it is gone; ⌘F2 works as before
+
+
 ## v0.2.21 (2026-10-09)
 - **Update page**: clicking "vIDE vX is available" now opens an Update tab instead of a terminal. A track shows the update moving through Download → Install → Ready, and if macOS needs your password to replace vIDE in /Applications the page says so instead of looking stuck. When it's done, Restart now and Later are right there on the same page — Later keeps "Update installed — click to restart" in the bell. If it fails, the page explains why and offers Try again, and Show details reveals the installer's output at any point
 - **What's new while you update**: the new version's highlights sit beside the progress, with the full release notes one click away
