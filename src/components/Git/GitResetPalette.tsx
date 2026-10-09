@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useGitBranchStore, useRepoBranchState } from '@/stores/gitBranchStore'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   projectRoot: string
@@ -19,6 +20,7 @@ type PaletteItem =
 // resolves tag names and commit hashes as revisions just like branch names,
 // so no extra data source is needed to support them here.
 export function GitResetPalette({ projectRoot, onClose, onPick }: Props) {
+  useCoverNativeViews()
   const { current, local, remote, loading } = useRepoBranchState(projectRoot)
   const load = useGitBranchStore((s) => s.load)
 

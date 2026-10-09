@@ -318,6 +318,7 @@ declare global {
       browserViewCreate: (id: string, url: string) => Promise<number | null>
       browserViewSetBounds: (id: string, bounds: { x: number; y: number; width: number; height: number }) => Promise<void>
       browserViewSetVisible: (id: string, visible: boolean) => Promise<void>
+      browserViewCapture: (id: string) => Promise<string | null>
       browserViewNavigate: (id: string, url: string) => Promise<void>
       browserViewGoBack: (id: string) => Promise<void>
       browserViewGoForward: (id: string) => Promise<void>

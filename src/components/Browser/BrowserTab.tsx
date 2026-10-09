@@ -1,3 +1,4 @@
+import { useNativeViewCoverStore } from '@/lib/nativeViewCover'
 import { useEffect, useRef, useState } from 'react'
 import { useBrowserStore } from '@/stores/browserStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -12,6 +13,7 @@ import { useBrowserFavoritesStore } from '@/stores/browserFavoritesStore'
 import { BrowserLandingPage } from './BrowserLandingPage'
 import { StarIcon } from './StarIcon'
 import { ClearBrowsingDataModal } from './ClearBrowsingDataModal'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   browserId: string
@@ -54,6 +56,7 @@ export function BrowserTab({ browserId }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
   const toggleButtonRef = useRef<HTMLButtonElement>(null)
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
+  useCoverNativeViews(deviceMenuOpen)
   const deviceButtonRef = useRef<HTMLButtonElement>(null)
   const [clearDataOpen, setClearDataOpen] = useState(false)
 
@@ -230,13 +233,35 @@ export function BrowserTab({ browserId }: Props) {
       s.recentProjectsPaletteOpen ||
       s.branchPaletteOpen
   )
+  const coveredByPopup = useNativeViewCoverStore((s) => s.count > 0)
+  const covered = anyOverlayOpen || coveredByPopup
+  const pageShown = !!url && !loadError
+  // While covered, a still snapshot of the page stands in for the native view
+  // (see lib/nativeViewCover.ts), so the popup appears over the page rather
+  // than over a blank pane. The snapshot is taken first, then the view hides;
+  // if the popup closes before the snapshot arrives, nothing is hidden.
+  const [snapshot, setSnapshot] = useState<string | null>(null)
   useEffect(() => {
     // Also hides the native view whenever the tab has no url — the landing
     // page (shown by the JSX below in that case) needs the view out of the
     // way, same as goHome() relies on this effect rather than calling
     // setVisible itself.
-    window.api.browserViewSetVisible(browserId, !!url && !loadError && !anyOverlayOpen)
-  }, [browserId, url, loadError, anyOverlayOpen])
+    if (!pageShown || !covered) {
+      setSnapshot(null)
+      window.api.browserViewSetVisible(browserId, pageShown)
+      return
+    }
+    let cancelled = false
+    const capture = window.api.browserViewCapture?.(browserId) ?? Promise.resolve(null)
+    capture
+      .catch(() => null)
+      .then((dataUrl) => {
+        if (cancelled) return
+        setSnapshot(dataUrl)
+        window.api.browserViewSetVisible(browserId, false)
+      })
+    return () => { cancelled = true }
+  }, [browserId, pageShown, covered])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -562,6 +587,15 @@ export function BrowserTab({ browserId }: Props) {
       )}
       <div className="relative flex-1 min-h-0">
         <div ref={containerRef} className="h-full w-full" />
+        {snapshot && (
+          <img
+            data-browser-snapshot=""
+            src={snapshot}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+          />
+        )}
         {!url && !loadError && <BrowserLandingPage onNavigate={goTo} />}
         {loadError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg px-4 text-center">

@@ -360,6 +360,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('browserView:setBounds', id, bounds),
   browserViewSetVisible: (id: string, visible: boolean) =>
     ipcRenderer.invoke('browserView:setVisible', id, visible),
+  browserViewCapture: (id: string) => ipcRenderer.invoke('browserView:capture', id),
   browserViewNavigate: (id: string, url: string) => ipcRenderer.invoke('browserView:navigate', id, url),
   browserViewGoBack: (id: string) => ipcRenderer.invoke('browserView:goBack', id),
   browserViewGoForward: (id: string) => ipcRenderer.invoke('browserView:goForward', id),

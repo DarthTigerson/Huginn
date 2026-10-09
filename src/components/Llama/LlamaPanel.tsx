@@ -5,6 +5,7 @@ import { useLlamaModelsStore, type LlamaModelConfig } from '@/stores/llamaModels
 import { useEditorStore } from '@/stores/editorStore'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { buildLlamaModelPath, buildTerminalPath } from '@/components/Settings/paths'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const pillButtonClass =
   'w-full h-7 rounded-full flex items-center justify-center text-[0.625rem] font-bold tracking-tight bg-accent/80 text-on-accent transition-colors hover:bg-accent active:scale-95 disabled:opacity-40 disabled:pointer-events-none'
@@ -71,6 +72,7 @@ function ContextMenuList({ x, y, actions, onClose }: {
   actions: MenuAction[]
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

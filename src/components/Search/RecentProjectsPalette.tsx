@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFileStore } from '@/stores/fileStore'
 import { isMac } from '@/lib/platform'
 import type { RecentProject } from '@/types/api'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   onClose: () => void
@@ -28,6 +29,7 @@ function filterRecents(recents: RecentProject[], query: string): RecentProject[]
 }
 
 export function RecentProjectsPalette({ onClose }: Props) {
+  useCoverNativeViews()
   const [query, setQuery] = useState('')
   const [recents, setRecents] = useState<RecentProject[]>([])
   const [activeIndex, setActiveIndex] = useState(0)

@@ -4,6 +4,7 @@ import { useGitFavoriteReposStore, sortReposByFavorite } from '@/stores/gitFavor
 import { useGitOpenReposStore } from '@/stores/gitOpenReposStore'
 import { useSearchStore } from '@/stores/searchStore'
 import type { GitCommandAction } from '@/types/index'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   onClose: () => void
@@ -16,6 +17,7 @@ interface Props {
 type ForceAction = Extract<GitCommandAction, 'forcePush' | 'forcePushLease'>
 
 export function GitActionsMenu({ onClose, onRequestForce, onRequestResetToHead, onRequestUndoCommit, onRequestHardReset }: Props) {
+  useCoverNativeViews()
   const repos = useGitReposStore((s) => s.repos)
   const selectedRepo = useGitReposStore((s) => s.selectedRepo)
   const selectRepo = useGitReposStore((s) => s.selectRepo)

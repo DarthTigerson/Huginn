@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { ContextMenuButton, ContextMenuDivider } from '@/components/Git/ContextMenu'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 export interface SearchFileMenuActions {
   onOpen: () => void
@@ -20,6 +21,7 @@ export function SearchFileContextMenu({ x, y, onClose, ...actions }: SearchFileM
   y: number
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

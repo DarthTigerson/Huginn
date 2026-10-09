@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 function MenuButton({ label, danger = false, onClick }: { label: string; danger?: boolean; onClick: () => void }) {
   return (
@@ -35,6 +36,7 @@ export function CustomThemeContextMenu({ x, y, onEdit, onShare, onDelete, onClos
   onDelete: () => void
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

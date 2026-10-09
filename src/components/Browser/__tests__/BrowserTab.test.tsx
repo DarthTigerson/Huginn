@@ -1,12 +1,13 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, cleanup, fireEvent } from '@testing-library/react'
+import { render, cleanup, fireEvent, act, waitFor } from '@testing-library/react'
 import { BrowserTab } from '../BrowserTab'
 import { useBrowserStore } from '@/stores/browserStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useBrowserFavoritesStore } from '@/stores/browserFavoritesStore'
 import { useBrowserRecentStore } from '@/stores/browserRecentStore'
 import { useBrowserClosedTabsStore } from '@/stores/browserClosedTabsStore'
+import { useNativeViewCoverStore } from '@/lib/nativeViewCover'
 
 // Captures the most recent onBrowserViewEvent callback so later tasks'
 // tests can simulate main-process events (did-navigate, page-title-updated, ...).
@@ -18,6 +19,7 @@ function mockWindowApi() {
   ;(global as any).window.api = {
     browserViewCreate: vi.fn().mockResolvedValue(101),
     browserViewSetVisible: vi.fn(),
+    browserViewCapture: vi.fn().mockResolvedValue('data:image/png;base64,AAA'),
     browserViewSetBounds: vi.fn(),
     browserViewNavigate: vi.fn(),
     browserViewGoBack: vi.fn(),
@@ -44,6 +46,7 @@ beforeEach(() => {
   useBrowserFavoritesStore.setState({ favorites: {} })
   useBrowserRecentStore.setState({ entries: [] })
   useBrowserClosedTabsStore.setState({ entries: [] })
+  useNativeViewCoverStore.setState({ count: 0 })
 })
 
 afterEach(() => {
@@ -201,5 +204,44 @@ describe('BrowserTab', () => {
     fireEvent.click(getByText('Clear browsing data…'))
 
     expect(getByText('Clear browsing data')).toBeTruthy()
+  })
+})
+
+describe('BrowserTab — popups over the page', () => {
+  it('swaps the live page for a snapshot while a popup is open, then brings it back', async () => {
+    useBrowserStore.getState().ensureTab('tab-cover', 'https://example.com')
+    const { container } = render(<BrowserTab browserId="tab-cover" />)
+    expect(window.api.browserViewSetVisible).toHaveBeenLastCalledWith('tab-cover', true)
+
+    let release = () => {}
+    act(() => { release = useNativeViewCoverStore.getState().cover() })
+    await waitFor(() => expect(window.api.browserViewSetVisible).toHaveBeenLastCalledWith('tab-cover', false))
+    expect(window.api.browserViewCapture).toHaveBeenCalledWith('tab-cover')
+    expect(container.querySelector('img[data-browser-snapshot]')).toHaveAttribute('src', 'data:image/png;base64,AAA')
+
+    act(() => release())
+    expect(window.api.browserViewSetVisible).toHaveBeenLastCalledWith('tab-cover', true)
+    expect(container.querySelector('img[data-browser-snapshot]')).toBeNull()
+  })
+
+  it('still hides the page when the snapshot fails', async () => {
+    ;(window.api.browserViewCapture as any).mockResolvedValueOnce(null)
+    useBrowserStore.getState().ensureTab('tab-fail', 'https://example.com')
+    const { container } = render(<BrowserTab browserId="tab-fail" />)
+    act(() => { useNativeViewCoverStore.getState().cover() })
+    await waitFor(() => expect(window.api.browserViewSetVisible).toHaveBeenLastCalledWith('tab-fail', false))
+    expect(container.querySelector('img[data-browser-snapshot]')).toBeNull()
+  })
+
+  it('does not hide the page if the popup closes before the snapshot arrives', async () => {
+    let resolveCapture: (v: string) => void = () => {}
+    ;(window.api.browserViewCapture as any).mockReturnValueOnce(new Promise((r) => { resolveCapture = r }))
+    useBrowserStore.getState().ensureTab('tab-race', 'https://example.com')
+    render(<BrowserTab browserId="tab-race" />)
+    let release = () => {}
+    act(() => { release = useNativeViewCoverStore.getState().cover() })
+    act(() => release())
+    await act(async () => { resolveCapture('data:image/png;base64,BBB') })
+    expect(window.api.browserViewSetVisible).toHaveBeenLastCalledWith('tab-race', true)
   })
 })

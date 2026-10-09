@@ -8,6 +8,7 @@ import { useGitOpenReposStore } from '@/stores/gitOpenReposStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { ContextMenuButton } from './ContextMenu'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 function StarIcon({ filled }: { filled: boolean }) {
   return (
@@ -88,6 +89,7 @@ function RepoRow({ repo, active, onSelect, onHover, onContextMenu }: {
 // only selectedRepo stays "live" via the git file watcher, this palette is a
 // point-in-time snapshot, refreshed on demand.
 export function RepoPalette({ onClose }: Props) {
+  useCoverNativeViews()
   const repos = useGitReposStore((s) => s.repos)
   const selectRepo = useGitReposStore((s) => s.selectRepo)
   const refresh = useGitStore((s) => s.refresh)

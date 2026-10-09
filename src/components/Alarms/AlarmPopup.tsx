@@ -1,6 +1,7 @@
 import { useAlarmStore } from '@/stores/alarmStore'
 import { formatAlarmTime } from '@/lib/alarmSchedule'
 import { AlarmIcon } from './AlarmIcon'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 // The ringing alarm's popup (VIDE-141), styled like NotificationPeek and
 // anchored above the clock. Stays up until Snooze (9 minutes) or Stop.
@@ -9,6 +10,7 @@ export function AlarmPopup() {
   const alarm = useAlarmStore((s) => s.alarms.find((a) => a.id === s.ringing?.alarmId))
   const snooze = useAlarmStore((s) => s.snooze)
   const stop = useAlarmStore((s) => s.stop)
+  useCoverNativeViews(!!ringing && !!alarm)
   if (!ringing || !alarm) return null
 
   return (

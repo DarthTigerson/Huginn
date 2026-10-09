@@ -4,6 +4,7 @@ import type * as Monaco from 'monaco-editor'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { isMac } from '@/lib/platform'
 import { ShortcutKeys } from '@/components/ui/ShortcutKeys'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const CHANGE_ALL_HINT = isMac ? '⌘F2' : 'Ctrl+F2'
 
@@ -40,6 +41,7 @@ interface Props {
 // undocumented internals, and owning the menu ourselves makes future
 // changes here a normal React change instead of another internals dig.
 export function EditorContextMenu({ x, y, editor, onClose }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

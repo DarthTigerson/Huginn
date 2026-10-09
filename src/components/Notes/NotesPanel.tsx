@@ -12,6 +12,7 @@ import { clampToViewport } from '@/components/ui/clampToViewport'
 import { UndoToast } from '@/components/ui/UndoToast'
 import { DiaryPageIcon } from './DiaryPageIcon'
 import { NotesTree, type NotesPromptState } from './NotesTree'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -150,6 +151,7 @@ export function NotesPanel() {
   const [searchResults, setSearchResults] = useState<NotesSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  useCoverNativeViews(!!menu)
   const menuRef = useRef<HTMLDivElement>(null)
   const [prompt, setPrompt] = useState<NotesPromptState | null>(null)
   const [promptError, setPromptError] = useState<string | null>(null)

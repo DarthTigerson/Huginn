@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { PreviousSessionIcon, ResumeSessionIcon, CompactIcon, ClearIcon } from './ActivityBar'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   x: number
@@ -26,6 +27,7 @@ export function ClaudeSessionContextMenu({
   onCloseAllSessions,
   onClose,
 }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

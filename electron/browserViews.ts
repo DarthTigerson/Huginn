@@ -166,6 +166,14 @@ export class BrowserViewManager {
       const winId = this.winIdOf(event)
       this.setZoom(winId, id, (this.get(winId, id)?.webContents.getZoomLevel() ?? 0) + 1)
     })
+    // A still image of the page, shown in its place while a popup covers it
+    // (see src/lib/nativeViewCover.ts). null when there's nothing to capture.
+    ipcMain.handle('browserView:capture', async (event, id: string) => {
+      const view = this.get(this.winIdOf(event), id)
+      if (!view) return null
+      const image = await view.webContents.capturePage()
+      return image.isEmpty() ? null : image.toDataURL()
+    })
     ipcMain.handle('browserView:zoomOut', (event, id: string) => {
       const winId = this.winIdOf(event)
       this.setZoom(winId, id, (this.get(winId, id)?.webContents.getZoomLevel() ?? 0) - 1)

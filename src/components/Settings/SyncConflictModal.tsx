@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ConflictEntry } from '../../../electron/configRepo'
 import type { PendingConflicts } from '@/stores/configRepoStore'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   result: PendingConflicts
@@ -101,6 +102,7 @@ function ConflictCategoryRow({
 }
 
 export function SyncConflictModal({ result, onResolve, onCancel }: Props) {
+  useCoverNativeViews()
   const categories = Object.keys(result.conflicts)
   const [choices, setChoices] = useState<Record<string, 'local' | 'remote'>>({})
 

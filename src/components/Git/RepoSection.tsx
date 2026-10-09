@@ -26,6 +26,7 @@ import { useGitReposStore } from '@/stores/gitReposStore'
 import { useGitOpenReposStore } from '@/stores/gitOpenReposStore'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { accentSolidColor, pillButtonClass } from '@/components/ui/pillButton'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 // Unpushed commits turn the Push pill amber instead of the shared accent
 // fill — amber-400/500 is already this codebase's "needs your attention"
@@ -229,6 +230,7 @@ export function RepoSection({ repo, showHeader }: { repo: string; showHeader: bo
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [headerMenu, setHeaderMenu] = useState<HeaderMenuState | null>(null)
+  useCoverNativeViews(!!menu || !!headerMenu)
   const headerMenuRef = useRef<HTMLDivElement>(null)
   const [discardTarget, setDiscardTarget] = useState<GitFileEntry | null>(null)
   const [trashTarget, setTrashTarget] = useState<GitFileEntry | null>(null)

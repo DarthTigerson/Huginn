@@ -7,6 +7,7 @@ import { isMac } from '@/lib/platform'
 import { copyText } from '@/lib/copyText'
 import { formatTerminalSelectionForAssistant } from '@/lib/sendSelectionToAssistant'
 import { useClaudeStore } from '@/stores/claudeStore'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const SEND_HINT = isMac ? '⌘L' : 'Ctrl+L'
 
@@ -37,6 +38,7 @@ export function TerminalContextMenu({ x, y, selection, onClose }: {
   selection: string
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
   const hasSelection = selection.length > 0
 
