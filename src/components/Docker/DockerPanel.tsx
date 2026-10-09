@@ -28,7 +28,7 @@ function formatBytes(bytes: number): string {
   return `${rounded} ${units[unitIndex]}`
 }
 
-function formatMemory(stats: DockerContainerStats, format: DockerMemoryFormat): string {
+export function formatMemory(stats: DockerContainerStats, format: DockerMemoryFormat): string {
   switch (format) {
     case 'usedPercent':
       return `${Math.round(stats.percent)}%`

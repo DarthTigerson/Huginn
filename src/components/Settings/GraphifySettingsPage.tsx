@@ -1,8 +1,8 @@
 import { useGraphifyStore } from '@/stores/graphifyStore'
 import { useGraphifySettingsStore } from '@/stores/graphifySettingsStore'
 import { useFileStore } from '@/stores/fileStore'
-import { Toggle } from '@/components/ui/Toggle'
-import { Section, Row } from './SettingsLayout'
+import { Switch } from '@/components/ui/Toggle'
+import { FeatureBlock, SettingRow } from './FeatureBlock'
 
 export function GraphifySettingsPage() {
   const projectRoot = useFileStore((s) => s.projectRoot)
@@ -13,55 +13,42 @@ export function GraphifySettingsPage() {
   const setAutoBuildOnOpen = useGraphifySettingsStore((s) => s.setAutoBuildOnOpen)
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Graphify</h1>
-      <p className="text-sm text-fg-muted mb-4">
-        graphify builds a knowledge graph of your codebase, viewable from the Graphify panel.
-      </p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Graphify</h1>
+        <p className="mb-4 text-sm text-fg-muted">graphify builds a knowledge graph of your codebase, viewable from the Graphify panel.</p>
 
-      <Section label="General">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Enable Graphify"
-            description="Adds a Graphify icon to the activity bar with the knowledge graph panel."
-            checked={enabled}
-            onChange={setEnabled}
-          />
-        </Row>
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Auto-build graph when a repo is opened"
-            description="Runs graphify automatically the first time you open a repo each session, instead of waiting for a manual click."
-            checked={autoBuildOnOpen}
-            onChange={setAutoBuildOnOpen}
-          />
+        <FeatureBlock
+          title="Graphify"
+          description="Adds a Graphify icon to the activity bar with the knowledge graph panel."
+          toggle={{ checked: enabled, onChange: setEnabled, label: 'Enable Graphify' }}
+        >
+          <SettingRow label="Build when a repo opens" description="The first time you open a repo each session, instead of waiting for a manual click.">
+            <Switch label="Auto-build graph when a repo is opened" checked={autoBuildOnOpen} onChange={setAutoBuildOnOpen} />
+          </SettingRow>
           {autoBuildOnOpen && (
-            <p className="mt-2 max-w-[60ch] text-xs text-amber-400 border border-amber-400/30 rounded p-2">
+            <p className="mt-1 max-w-[460px] rounded border border-amber-400/30 p-2 text-xs text-amber-400">
               Building a graph spawns a real CLI process and uses CPU — on a large repo or a slower
               machine this can be noticeable. Turn this off if you'd rather trigger builds manually
               from the Graphify panel.
             </p>
           )}
-        </Row>
-      </Section>
+        </FeatureBlock>
 
-      <Section label="Claude Code">
-        <Row>
-          <p className="text-sm text-fg-muted mb-3">
-            Registers graphify as a Claude Code skill for the current project
-            (<code className="text-xs bg-white/10 rounded px-1 py-0.5">.claude/skills/graphify</code>, plus a
-            CLAUDE.md section), so Claude can query the graph itself
-            (<code className="text-xs bg-white/10 rounded px-1 py-0.5">graphify query</code>/
-            <code className="text-xs bg-white/10 rounded px-1 py-0.5">explain</code>/
-            <code className="text-xs bg-white/10 rounded px-1 py-0.5">path</code>) instead of grepping raw files —
-            saving tokens on codebase questions.
-          </p>
-
+        <FeatureBlock
+          title="Claude Code"
+          description={
+            <>
+              Registers graphify as a Claude Code skill for the current project
+              (<code className="rounded bg-white/10 px-1 py-0.5 text-[0.95em]">.claude/skills/graphify</code>, plus a
+              CLAUDE.md section), so Claude can query the graph instead of grepping raw files, saving tokens on
+              codebase questions.
+            </>
+          }
+        >
           <button
             type="button"
-            className="w-full h-8 rounded-full flex items-center justify-center text-xs font-bold tracking-tight bg-accent/80 text-on-accent transition-colors hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
+            className="h-8 rounded-full bg-accent/80 px-4 text-xs font-bold tracking-tight text-on-accent transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
             disabled={!projectRoot || installingSkill}
             onClick={() => projectRoot && installClaudeSkill(projectRoot)}
           >
@@ -70,8 +57,8 @@ export function GraphifySettingsPage() {
 
           {skillInstallResult && (
             <div
-              className={`mt-3 text-xs whitespace-pre-wrap border rounded p-2 max-h-64 overflow-y-auto ${
-                skillInstallResult.ok ? 'text-fg-muted border-border' : 'text-red-400 border-red-400/30'
+              className={`mt-3 max-h-64 max-w-[560px] overflow-y-auto whitespace-pre-wrap rounded border p-2 text-xs ${
+                skillInstallResult.ok ? 'border-border text-fg-muted' : 'border-red-400/30 text-red-400'
               }`}
             >
               {skillInstallResult.ok
@@ -79,8 +66,8 @@ export function GraphifySettingsPage() {
                 : `Failed to enable graphify for Claude Code:\n${skillInstallResult.output}`}
             </div>
           )}
-        </Row>
-      </Section>
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

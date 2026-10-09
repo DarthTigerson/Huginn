@@ -11,7 +11,9 @@ import { Switch } from '@/components/ui/Toggle'
 export function FeatureBlock({ title, description, toggle, preview, dimWhenOff = true, children }: {
   title: string
   description?: ReactNode
-  toggle?: { checked: boolean; onChange: (value: boolean) => void }
+  // label names the switch for screen readers and tests when it differs
+  // from the block title (e.g. block "Notes", switch "Enable Notes").
+  toggle?: { checked: boolean; onChange: (value: boolean) => void; label?: string; disabled?: boolean }
   preview?: ReactNode
   dimWhenOff?: boolean
   children?: ReactNode
@@ -25,7 +27,7 @@ export function FeatureBlock({ title, description, toggle, preview, dimWhenOff =
       <div className="min-w-0 flex-1 basis-[22rem]">
         <div className="flex max-w-[460px] items-start justify-between gap-4">
           <h2 className="text-sm font-semibold text-fg">{title}</h2>
-          {toggle && <Switch label={title} checked={toggle.checked} onChange={toggle.onChange} />}
+          {toggle && <Switch label={toggle.label ?? title} checked={toggle.checked} onChange={toggle.onChange} disabled={toggle.disabled} />}
         </div>
         {description && <p className="mt-0.5 max-w-[52ch] text-xs leading-relaxed text-fg-muted">{description}</p>}
         {children && (

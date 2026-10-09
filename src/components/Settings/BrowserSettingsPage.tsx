@@ -1,7 +1,7 @@
 import { useBrowserSettingsStore } from '@/stores/browserSettingsStore'
 import { useBrowserMcpStore } from '@/stores/browserMcpStore'
-import { Toggle } from '@/components/ui/Toggle'
-import { Section, Row } from './SettingsLayout'
+import { Switch } from '@/components/ui/Toggle'
+import { FeatureBlock, SettingRow } from './FeatureBlock'
 
 export function BrowserSettingsPage() {
   const closeSidePanelOnOpen = useBrowserSettingsStore((s) => s.closeSidePanelOnOpen)
@@ -13,37 +13,25 @@ export function BrowserSettingsPage() {
   const setMcpEnabled = useBrowserMcpStore((s) => s.setEnabled)
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Browser</h1>
-      <p className="text-sm text-fg-muted mb-4">Settings for the embedded browser tab.</p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Browser</h1>
+        <p className="mb-4 text-sm text-fg-muted">Settings for the embedded browser tab.</p>
 
-      <Section label="New Tab">
-        <Row>
-          <div className="flex flex-col gap-3">
-            <Toggle
-              className="max-w-[60ch]"
-              label="Close side panel when opening"
-              description="Collapse the currently open sidebar (Files, Git, etc.) when opening a new browser tab, to give it the full width."
-              checked={closeSidePanelOnOpen}
-              onChange={setCloseSidePanelOnOpen}
-            />
-          </div>
-        </Row>
-      </Section>
+        <FeatureBlock title="New browser tabs" description="What happens when you open a browser tab.">
+          <SettingRow label="Close side panel when opening" description="Give the page the full width.">
+            <Switch label="Close side panel when opening" checked={closeSidePanelOnOpen} onChange={setCloseSidePanelOnOpen} />
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="Claude Code">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Let Claude drive a browser tab"
-            description="Registers an MCP server (claude mcp, user scope) so Claude Code can navigate, click, type, screenshot, and read console logs in a dedicated browser tab — a built-in alternative to a separate browser-automation extension. Never touches tabs you have open yourself."
-            checked={mcpEnabled}
-            onChange={(value) => void setMcpEnabled(value)}
-            disabled={mcpPending}
-          />
-          {mcpError && <p className="text-xs text-red-500 mt-1">{mcpError}</p>}
-        </Row>
-      </Section>
+        <FeatureBlock
+          title="Claude Code"
+          description="Lets Claude Code navigate, click, type, screenshot and read console logs in a dedicated browser tab, through an MCP server (claude mcp, user scope). A built-in alternative to a browser-automation extension; never touches tabs you have open yourself."
+          toggle={{ checked: mcpEnabled, onChange: (value) => void setMcpEnabled(value), label: 'Let Claude drive a browser tab', disabled: mcpPending }}
+        >
+          {mcpError && <p className="text-xs text-red-500">{mcpError}</p>}
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

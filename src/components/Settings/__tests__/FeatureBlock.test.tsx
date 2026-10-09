@@ -48,6 +48,12 @@ describe('FeatureBlock', () => {
     expect(screen.getByRole('button', { name: 'control' })).toBeEnabled()
   })
 
+  it('can name its switch separately from its title, and disable it', () => {
+    render(<FeatureBlock title="Notes" toggle={{ checked: true, onChange: () => {}, label: 'Enable Notes', disabled: true }} />)
+    expect(screen.getByRole('switch', { name: 'Enable Notes' })).toBeDisabled()
+    expect(screen.getByRole('heading', { name: 'Notes' })).toBeInTheDocument()
+  })
+
   it('has no preview column without a preview', () => {
     const { container } = render(<FeatureBlock title="Multi-repo"><span>x</span></FeatureBlock>)
     expect(container.querySelector('[data-preview]')).toBeNull()

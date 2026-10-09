@@ -1,7 +1,8 @@
 import { useDockerSettingsStore, type DockerBadgeMode, type DockerMemoryFormat } from '@/stores/dockerSettingsStore'
-import { Toggle } from '@/components/ui/Toggle'
+import { Switch } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
-import { Section, Row } from './SettingsLayout'
+import { FeatureBlock, SettingRow } from './FeatureBlock'
+import { DockerBadgePreview, DockerRowsPreview } from './previews/dockerPreviews'
 
 export function DockerSettingsPage() {
   const enabled = useDockerSettingsStore((s) => s.enabled)
@@ -16,66 +17,45 @@ export function DockerSettingsPage() {
   const setMemoryFormat = useDockerSettingsStore((s) => s.setMemoryFormat)
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Docker</h1>
-      <p className="text-sm text-fg-muted mb-4">
-        See and control local Docker containers without leaving vIDE.
-      </p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Docker</h1>
+        <p className="mb-4 text-sm text-fg-muted">See and control local Docker containers without leaving vIDE.</p>
 
-      <Section label="General">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Enable Docker"
-            description="Adds a Docker icon to the activity bar with a live container panel and per-container logs."
-            checked={enabled}
-            onChange={setEnabled}
-          />
-        </Row>
+        <FeatureBlock
+          title="Docker"
+          description="Adds a Docker icon to the activity bar with a live container panel and per-container logs."
+          toggle={{ checked: enabled, onChange: setEnabled, label: 'Enable Docker' }}
+          preview={<DockerBadgePreview />}
+        >
+          <SettingRow label="Show running count" description="A live badge on the Docker icon, kept up to date even while the panel is closed.">
+            <Switch label="Show running count" checked={showBadge} onChange={setShowBadge} />
+          </SettingRow>
+          <fieldset disabled={!showBadge} className={['m-0 min-w-0 border-0 p-0', showBadge ? '' : 'opacity-50'].join(' ')}>
+            <SettingRow label="Count" htmlFor="docker-badge-mode" sub>
+              <div className="w-72">
+                <Select
+                  id="docker-badge-mode"
+                  value={badgeMode}
+                  onChange={(v) => setBadgeMode(v as DockerBadgeMode)}
+                  options={[
+                    { value: 'containers', label: 'All running containers' },
+                    { value: 'projects', label: 'All running projects' },
+                  ]}
+                />
+              </div>
+            </SettingRow>
+          </fieldset>
+        </FeatureBlock>
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Show running count"
-            description="Adds a badge with a live count to the Docker icon in the activity bar, kept up to date even while the panel is closed."
-            checked={showBadge}
-            onChange={setShowBadge}
-          />
-
-          {showBadge && (
-            <div className="mt-3 pl-4 border-l border-border/40 max-w-xs">
-              <label htmlFor="docker-badge-mode" className="text-xs text-fg-muted mb-1.5 block">
-                Count
-              </label>
-              <Select
-                id="docker-badge-mode"
-                value={badgeMode}
-                onChange={(v) => setBadgeMode(v as DockerBadgeMode)}
-                options={[
-                  { value: 'containers', label: 'All running containers' },
-                  { value: 'projects', label: 'All running projects' },
-                ]}
-              />
-            </div>
-          )}
-        </Row>
-      </Section>
-
-      <Section label="Container Rows">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Show memory usage"
-            description="Adds each container's memory usage to its row. Uses docker stats, a noticeably heavier command than the container list itself, so this polls only while the panel is open."
-            checked={showMemory}
-            onChange={setShowMemory}
-          />
-
-          {showMemory && (
-            <div className="mt-3 pl-4 border-l border-border/40 max-w-xs">
-              <label htmlFor="docker-memory-format" className="text-xs text-fg-muted mb-1.5 block">
-                Format
-              </label>
+        <FeatureBlock
+          title="Container memory"
+          description="Each container's memory use on its row. Uses docker stats, a noticeably heavier command than the container list, so it only polls while the panel is open."
+          toggle={{ checked: showMemory, onChange: setShowMemory, label: 'Show memory usage' }}
+          preview={<DockerRowsPreview />}
+        >
+          <SettingRow label="Format" htmlFor="docker-memory-format">
+            <div className="w-72">
               <Select
                 id="docker-memory-format"
                 value={memoryFormat}
@@ -87,14 +67,14 @@ export function DockerSettingsPage() {
                   { value: 'usedOverLimit', label: 'Used / limit (e.g. 512 MB / 1 GB)' },
                 ]}
               />
-              <p className="text-xs text-fg-subtle mt-1.5">
-                A container with no explicit memory limit reports its limit as the host's total
-                RAM, so "%" for one of those means share of the whole machine, not of a per-container ceiling.
-              </p>
             </div>
-          )}
-        </Row>
-      </Section>
+          </SettingRow>
+          <p className="max-w-[460px] text-xs text-fg-subtle">
+            A container with no memory limit reports the host's total RAM as its limit, so "%" for one of
+            those means its share of the whole machine.
+          </p>
+        </FeatureBlock>
+      </div>
     </div>
   )
 }
