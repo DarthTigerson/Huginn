@@ -41,6 +41,12 @@ describe('formatCheckedAgo', () => {
 })
 
 describe('AboutSettingsPage', () => {
+  it('lays the page out like the other settings pages: Version and Release history blocks', () => {
+    render(<AboutSettingsPage />)
+    expect(screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))).toEqual(['Version', 'Release history'])
+    expect(screen.getByRole('heading', { name: 'Release history' })).toBeInTheDocument()
+  })
+
   it('shows the app icon beside the version', () => {
     render(<AboutSettingsPage />)
     expect(screen.getByRole('img', { name: 'vIDE' }).getAttribute('src')).toMatch(/icon/)

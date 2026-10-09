@@ -27,6 +27,7 @@ import { GitActivityBar } from './GitActivityBar'
 import { FooterBlame } from './FooterBlame'
 import { InlineDiffToggle } from './InlineDiffToggle'
 import { FooterTooltip } from './FooterTooltip'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 export function StatusBar() {
   useAlarmTicker()
@@ -68,6 +69,7 @@ export function StatusBar() {
   const autocompleteActive = autocompleteEnabled && !autocompletePaused
   const autocompleteVisible = !AUTOCOMPLETE_FORCE_DISABLED && autocompleteEnabled
   const [autocompleteMenuOpen, setAutocompleteMenuOpen] = useState(false)
+  useCoverNativeViews(autocompleteMenuOpen)
 
   useEffect(() => {
     if (!gitMenuOpen) return

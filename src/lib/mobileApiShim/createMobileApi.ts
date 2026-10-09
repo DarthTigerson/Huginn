@@ -346,6 +346,7 @@ export function createMobileApi(wsUrl: string) {
     browserViewCreate: stubInvoke<number | null>(null),
     browserViewSetBounds: stubInvoke(undefined as void),
     browserViewSetVisible: stubInvoke(undefined as void),
+    browserViewCapture: stubInvoke(null as string | null),
     browserViewNavigate: stubInvoke(undefined as void),
     browserViewGoBack: stubInvoke(undefined as void),
     browserViewGoForward: stubInvoke(undefined as void),

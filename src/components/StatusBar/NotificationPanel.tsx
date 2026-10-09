@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNotificationPanelStore } from '@/stores/notificationPanelStore'
 import { useNotificationItems } from '@/hooks/useNotificationItems'
 import { useNotificationAcknowledgedStore } from '@/stores/notificationAcknowledgedStore'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 // Matches the duration-200 slide/fade below. The row buttons are only kept
 // in the DOM while open or mid-close-transition — closed-and-settled means
@@ -17,6 +18,7 @@ export function NotificationPanel() {
   const acknowledgedIds = useNotificationAcknowledgedStore((s) => s.acknowledgedIds)
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(open)
+  useCoverNativeViews(mounted)
 
   // Rows cleared with × / "Dismiss all" leave the panel right away; the
   // shared store keeps the bell's count in agreement (see dismissedIds).

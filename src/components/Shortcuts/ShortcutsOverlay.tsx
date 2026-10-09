@@ -1,7 +1,9 @@
 import { useSearchStore } from '@/stores/searchStore'
 import { SHORTCUT_GROUPS } from './shortcuts'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 export function ShortcutsOverlay() {
+  useCoverNativeViews()
   const closeShortcutsOverlay = useSearchStore((s) => s.closeShortcutsOverlay)
 
   return (

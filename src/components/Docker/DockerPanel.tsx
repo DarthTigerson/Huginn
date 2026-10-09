@@ -10,6 +10,7 @@ import { ConfirmRemoveContainerModal } from './ConfirmRemoveContainerModal'
 import { Modal } from '@/components/ui/Modal'
 import { DockerIcon } from '@/components/ActivityBar/ActivityBar'
 import type { DockerContainer, DockerContainerStats } from '@/types/api'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const MEMORY_POLL_INTERVAL_MS = 5000
 
@@ -28,7 +29,7 @@ function formatBytes(bytes: number): string {
   return `${rounded} ${units[unitIndex]}`
 }
 
-function formatMemory(stats: DockerContainerStats, format: DockerMemoryFormat): string {
+export function formatMemory(stats: DockerContainerStats, format: DockerMemoryFormat): string {
   switch (format) {
     case 'usedPercent':
       return `${Math.round(stats.percent)}%`
@@ -240,6 +241,7 @@ function ContextMenuList({ x, y, actions, onClose }: {
   actions: MenuAction[]
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {

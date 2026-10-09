@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import type * as Monaco from 'monaco-editor'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { isMac } from '@/lib/platform'
-import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { ShortcutKeys } from '@/components/ui/ShortcutKeys'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const CHANGE_ALL_HINT = isMac ? '⌘F2' : 'Ctrl+F2'
 
@@ -41,8 +41,8 @@ interface Props {
 // undocumented internals, and owning the menu ourselves makes future
 // changes here a normal React change instead of another internals dig.
 export function EditorContextMenu({ x, y, editor, onClose }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
-  const changeAllOccurrencesInMenu = useEditorSettingsStore((s) => s.changeAllOccurrencesInMenu)
 
   useEffect(() => {
     const close = () => onClose()
@@ -77,16 +77,12 @@ export function EditorContextMenu({ x, y, editor, onClose }: Props) {
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      {changeAllOccurrencesInMenu && (
-        <>
-          <MenuButton
-            label="Change All Occurrences"
-            hint={CHANGE_ALL_HINT}
-            onClick={run('editor.action.changeAll')}
-          />
-          <MenuDivider />
-        </>
-      )}
+      <MenuButton
+        label="Change All Occurrences"
+        hint={CHANGE_ALL_HINT}
+        onClick={run('editor.action.changeAll')}
+      />
+      <MenuDivider />
 
       <MenuButton label="Cut" onClick={run('editor.action.clipboardCutAction')} />
       <MenuButton label="Copy" onClick={run('editor.action.clipboardCopyAction')} />

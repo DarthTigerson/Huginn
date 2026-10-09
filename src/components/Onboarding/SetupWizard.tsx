@@ -7,6 +7,7 @@ import { GitIdentityStep } from './GitIdentityStep'
 import { PermissionsStep } from './PermissionsStep'
 import { DoneStep } from './DoneStep'
 import { VIDESyncStep } from './VIDESyncStep'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const STEP_COMPONENTS = {
   welcome: WelcomeStep,
@@ -26,6 +27,7 @@ export function SetupWizard() {
   const open = useOnboardingStore((s) => s.open)
   const stepIndex = useOnboardingStore((s) => s.stepIndex)
 
+  useCoverNativeViews(open)
   if (!open) return null
 
   const stepId = ONBOARDING_STEPS[stepIndex]

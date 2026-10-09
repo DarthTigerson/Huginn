@@ -4,12 +4,16 @@ import type { GitLogAutoShow } from '@/stores/gitSettingsStore'
 import { useGitRemoteSettingsStore } from '@/stores/gitRemoteSettingsStore'
 import { useFileStore } from '@/stores/fileStore'
 import { useEditorSettingsStore, type BlameDisplayMode } from '@/stores/editorSettingsStore'
-import { Toggle } from '@/components/ui/Toggle'
+import { Switch } from '@/components/ui/Toggle'
 import { RadioGroup } from '@/components/ui/RadioGroup'
 import { ColorPickerRow } from '@/components/ui/ColorPickerRow'
 import type { ChangeColorMode, ChangeStrength } from '@/lib/gitChangeColors'
 import { Select } from '@/components/ui/Select'
-import { Section, Row, TextField } from './SettingsLayout'
+import { TextField } from './SettingsLayout'
+import { FeatureBlock, SettingRow, NumberInput } from './FeatureBlock'
+import {
+  BlamePreview, InlineDiffPreview, ForcePushPreview, GitLogPreview, FetchPreview, GraphTabsPreview, RemotePreview,
+} from './previews/gitPreviews'
 
 export function GitSettingsPage() {
   const {
@@ -22,7 +26,6 @@ export function GitSettingsPage() {
     periodicFetchIntervalMinutes, setPeriodicFetchIntervalMinutes,
     gitLogAutoShow, setGitLogAutoShow,
     repoScanDepth, setRepoScanDepth,
-    openInBiggestPane, setOpenInBiggestPane,
   } = useGitSettingsStore()
   const gitRemoteUrl = useGitRemoteSettingsStore((s) => s.externalUrl)
   const setGitRemoteUrl = useGitRemoteSettingsStore((s) => s.setExternalUrl)
@@ -30,8 +33,6 @@ export function GitSettingsPage() {
   const setGitRemoteProjectUrl = useGitRemoteSettingsStore((s) => s.setProjectUrl)
   const gitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.closeSidePanelOnOpen)
   const setGitRemoteCloseSidePanelOnOpen = useGitRemoteSettingsStore((s) => s.setCloseSidePanelOnOpen)
-  const gitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.openInBiggestPane)
-  const setGitRemoteOpenInBiggestPane = useGitRemoteSettingsStore((s) => s.setOpenInBiggestPane)
   const blameAnnotationsEnabled = useEditorSettingsStore((s) => s.blameAnnotationsEnabled)
   const setBlameAnnotationsEnabled = useEditorSettingsStore((s) => s.setBlameAnnotationsEnabled)
   const blameDisplayMode = useEditorSettingsStore((s) => s.blameDisplayMode)
@@ -70,125 +71,19 @@ export function GitSettingsPage() {
   }, [projectRoot])
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Git</h1>
-      <p className="text-sm text-fg-muted mb-4">Safety settings and defaults for git operations.</p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Git</h1>
+        <p className="mb-4 text-sm text-fg-muted">How git behaves in vIDE.</p>
 
-      <Section label="Force Push Safety">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Confirm before force-pushing"
-            description="Show a confirmation modal before running force push or force push with lease."
-            checked={forceSafetyEnabled}
-            onChange={setForceSafetyEnabled}
-          />
-
-          {forceSafetyEnabled && (
-            <div className="mt-3 pl-4 border-l border-border/40 flex flex-col gap-3">
-              <Toggle
-                className="max-w-[60ch]"
-                label="Countdown before confirming"
-                description="Show a countdown timer instead of an immediate Confirm button."
-                checked={countdownEnabled}
-                onChange={setCountdownEnabled}
-              />
-
-              {countdownEnabled && (
-                <div className="pl-4 border-l border-border/40 flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <label htmlFor="countdown-duration" className="text-sm text-fg-muted shrink-0">Duration</label>
-                    <input
-                      id="countdown-duration"
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={countdownSeconds}
-                      onChange={(e) => setCountdownSeconds(Math.max(1, Math.min(30, parseInt(e.target.value, 10) || 1)))}
-                      className="w-16 px-2 py-1 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
-                    />
-                    <span className="text-sm text-fg-muted">seconds</span>
-                  </div>
-
-                  <Toggle
-                    className="max-w-[60ch]"
-                    label="Continue automatically when countdown ends"
-                    description="The force push fires when the timer reaches zero, without requiring a Confirm click."
-                    checked={autoContinueOnCountdownEnd}
-                    onChange={setAutoContinueOnCountdownEnd}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </Row>
-      </Section>
-
-      <Section label="Fetch">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Periodic background fetch"
-            description="Silently fetch from the remote on an interval, on top of automatic fetches on repo open and branch switch. Keeps the ahead/behind counts in the footer accurate without a manual Fetch."
-            checked={periodicFetchEnabled}
-            onChange={setPeriodicFetchEnabled}
-          />
-
-          {periodicFetchEnabled && (
-            <div className="mt-3 pl-4 border-l border-border/40 flex items-center gap-3">
-              <label htmlFor="fetch-interval" className="text-sm text-fg-muted shrink-0">Fetch every</label>
-              <input
-                id="fetch-interval"
-                type="number"
-                min={1}
-                max={120}
-                value={periodicFetchIntervalMinutes}
-                onChange={(e) => setPeriodicFetchIntervalMinutes(parseInt(e.target.value, 10) || 1)}
-                className="w-16 px-2 py-1 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
-              />
-              <span className="text-sm text-fg-muted">minutes</span>
-            </div>
-          )}
-        </Row>
-      </Section>
-
-      <Section label="Multi-Repo">
-        <Row>
-          <p className="text-xs text-fg-muted max-w-[60ch]">
-            How many folder levels below the opened project to scan for nested git repos.
-            Scanning stops as soon as a repo is found, so a repo's own submodules aren't listed separately.
-          </p>
-          <div className="mt-3 flex items-center gap-3">
-            <label htmlFor="repo-scan-depth" className="text-sm text-fg-muted shrink-0">Scan depth</label>
-            <input
-              id="repo-scan-depth"
-              type="number"
-              min={1}
-              max={10}
-              value={repoScanDepth}
-              onChange={(e) => setRepoScanDepth(parseInt(e.target.value, 10) || 1)}
-              className="w-16 px-2 py-1 text-sm text-fg bg-bg border border-border rounded-lg focus:outline-none focus:border-accent/60"
-            />
-            <span className="text-sm text-fg-muted">levels</span>
-          </div>
-        </Row>
-      </Section>
-
-      <Section label="Blame">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Git Blame Annotations"
-            description="Show the last commit's author, date, and summary at the end of the current line, GitLens-style."
-            checked={blameAnnotationsEnabled}
-            onChange={setBlameAnnotationsEnabled}
-          />
-
-          {blameAnnotationsEnabled && (
-            <div className="mt-3 pl-4 border-l border-border/40 max-w-xs">
-              <label htmlFor="blame-display-mode" className="text-xs text-fg-muted mb-1.5 block">
-                Show blame in
-              </label>
+        <FeatureBlock
+          title="Blame"
+          description="Who last changed the line you're on, and why."
+          toggle={{ checked: blameAnnotationsEnabled, onChange: setBlameAnnotationsEnabled }}
+          preview={<BlamePreview />}
+        >
+          <SettingRow label="Show blame in" htmlFor="blame-display-mode">
+            <div className="w-56">
               <Select
                 id="blame-display-mode"
                 value={blameDisplayMode}
@@ -199,146 +94,148 @@ export function GitSettingsPage() {
                 ]}
               />
             </div>
-          )}
-        </Row>
-      </Section>
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="Changes">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Inline Diff Highlight"
-            description="Tint changed lines in the editor and highlight the exact words that changed since the last commit. The gutter markers stay on either way."
-            checked={inlineDiffEnabled}
-            onChange={setInlineDiffEnabled}
-          />
-        </Row>
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Show icon in footer"
-            description="A highlighter button in the footer to switch the inline diff highlight on and off."
-            checked={inlineDiffFooterIcon}
-            onChange={setInlineDiffFooterIcon}
-          />
-        </Row>
-        <Row>
-          <p className="text-sm text-fg mb-1">Change colours</p>
-          <p className="text-xs text-fg-muted max-w-[60ch] mb-3">
-            {inlineDiffColors === 'default'
-              ? 'Green, amber and red, with darker shades on light themes.'
-              : 'Your own colours for added, modified and deleted lines.'}
-            {' '}Used by the gutter line numbers as well as the highlight.
-          </p>
-          <RadioGroup<ChangeColorMode>
-            ariaLabel="Change colours"
-            value={inlineDiffColors}
-            onChange={setInlineDiffColors}
-            options={[
-              { value: 'default', label: 'Default' },
-              { value: 'custom', label: 'Custom' },
-            ]}
-          />
+        <FeatureBlock
+          title="Inline diff"
+          description="See what you changed since the last commit, down to the word. The gutter markers stay on either way."
+          toggle={{ checked: inlineDiffEnabled, onChange: setInlineDiffEnabled }}
+          dimWhenOff={false}
+          preview={<InlineDiffPreview />}
+        >
+          <SettingRow label="Show icon in footer">
+            <Switch label="Show icon in footer" checked={inlineDiffFooterIcon} onChange={setInlineDiffFooterIcon} />
+          </SettingRow>
+          <SettingRow label="Change colours" description="Also used by the gutter line numbers.">
+            <RadioGroup<ChangeColorMode>
+              ariaLabel="Change colours"
+              value={inlineDiffColors}
+              onChange={setInlineDiffColors}
+              options={[
+                { value: 'default', label: 'Default' },
+                { value: 'custom', label: 'Custom' },
+              ]}
+            />
+          </SettingRow>
           {inlineDiffColors === 'custom' && (
-            <div className="mt-3 flex flex-col">
+            <div className="flex max-w-[460px] flex-col pl-4">
               <ColorPickerRow label="Added" value={inlineDiffCustomColors.added} onChange={(hex) => setInlineDiffCustomColor('added', hex)} />
               <ColorPickerRow label="Modified" value={inlineDiffCustomColors.modified} onChange={(hex) => setInlineDiffCustomColor('modified', hex)} />
               <ColorPickerRow label="Deleted" value={inlineDiffCustomColors.deleted} onChange={(hex) => setInlineDiffCustomColor('deleted', hex)} />
             </div>
           )}
-
-          <p className="text-xs text-fg-muted mt-4 mb-1.5">Strength</p>
-          <RadioGroup<ChangeStrength>
-            ariaLabel="Inline diff strength"
-            value={inlineDiffStrength}
-            onChange={setInlineDiffStrength}
-            options={[
-              { value: 'subtle', label: 'Subtle' },
-              { value: 'medium', label: 'Medium' },
-              { value: 'strong', label: 'Strong' },
-            ]}
-          />
-        </Row>
-      </Section>
-
-      <Section label="Git Log">
-        <Row>
-          <p className="text-xs text-fg-muted max-w-[60ch]">
-            Every fetch/pull/push/commit/checkout runs in the read-only Git Log terminal.
-            Choose whether it jumps to the front each time or only when a command fails.
-          </p>
-          <div className="mt-3 max-w-xs">
-            <label htmlFor="git-log-auto-show" className="text-xs text-fg-muted mb-1.5 block">
-              Show Git Log terminal
-            </label>
-            <Select
-              id="git-log-auto-show"
-              value={gitLogAutoShow}
-              onChange={(v) => setGitLogAutoShow(v as GitLogAutoShow)}
+          <SettingRow label="Strength">
+            <RadioGroup<ChangeStrength>
+              ariaLabel="Inline diff strength"
+              value={inlineDiffStrength}
+              onChange={setInlineDiffStrength}
               options={[
-                { value: 'always', label: 'Every time a command runs' },
-                { value: 'onError', label: 'Only when a command fails' },
+                { value: 'subtle', label: 'Subtle' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'strong', label: 'Strong' },
               ]}
             />
-          </div>
-        </Row>
-      </Section>
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="List Diff">
-        <Row>
-          {!projectRoot ? (
-            <p className="text-sm text-fg-muted">Open a repo to set its default target branch.</p>
-          ) : (
-            <div className="max-w-xs">
-              <label htmlFor="list-diff-target-branch" className="text-xs text-fg-muted mb-1.5 block">
-                Default target branch
-              </label>
+        <FeatureBlock
+          title="Force push safety"
+          description="A pause before you overwrite the remote branch."
+          toggle={{ checked: forceSafetyEnabled, onChange: setForceSafetyEnabled }}
+          preview={<ForcePushPreview />}
+        >
+          <SettingRow label="Countdown before confirming">
+            <Switch label="Countdown before confirming" checked={countdownEnabled} onChange={setCountdownEnabled} />
+          </SettingRow>
+          <fieldset disabled={!countdownEnabled} className={['m-0 min-w-0 border-0 p-0', countdownEnabled ? '' : 'opacity-50'].join(' ')}>
+            <SettingRow label="Countdown length" htmlFor="countdown-duration" sub>
+              <NumberInput id="countdown-duration" label="Countdown length" value={countdownSeconds} min={1} max={30} unit="seconds" onChange={setCountdownSeconds} />
+            </SettingRow>
+            <SettingRow label="Push when the countdown ends" sub>
+              <Switch label="Push when the countdown ends" checked={autoContinueOnCountdownEnd} onChange={setAutoContinueOnCountdownEnd} />
+            </SettingRow>
+          </fieldset>
+        </FeatureBlock>
+
+        <FeatureBlock
+          title="Git Log"
+          description="Every fetch, pull, push, commit and checkout runs in the read-only Git Log terminal."
+          preview={<GitLogPreview />}
+        >
+          <SettingRow label="Bring it forward" htmlFor="git-log-auto-show">
+            <div className="w-56">
               <Select
-                id="list-diff-target-branch"
-                value={listDiffTarget}
-                disabled={loadingBranches}
-                onChange={(v) => setListDiffTargetBranch(projectRoot, v)}
+                id="git-log-auto-show"
+                value={gitLogAutoShow}
+                onChange={(v) => setGitLogAutoShow(v as GitLogAutoShow)}
                 options={[
-                  { value: '', label: 'Use repo default' },
-                  ...branches.map((branch) => ({ value: branch, label: branch })),
+                  { value: 'always', label: 'Every time a command runs' },
+                  { value: 'onError', label: 'Only when a command fails' },
                 ]}
               />
-              <p className="text-xs text-fg-subtle mt-1.5">
-                Used to compare against the current branch when opening List Diff. Leave as "Use repo default" to fall back to git's own default branch.
-              </p>
             </div>
+          </SettingRow>
+        </FeatureBlock>
+
+        <FeatureBlock
+          title="Background fetch"
+          description="Fetch quietly on a timer, so the footer's ahead/behind counts stay accurate."
+          toggle={{ checked: periodicFetchEnabled, onChange: setPeriodicFetchEnabled }}
+          preview={<FetchPreview />}
+        >
+          <SettingRow label="Fetch every" htmlFor="fetch-interval" sub>
+            <NumberInput id="fetch-interval" label="Fetch every" value={periodicFetchIntervalMinutes} min={1} max={120} unit="minutes" onChange={setPeriodicFetchIntervalMinutes} />
+          </SettingRow>
+        </FeatureBlock>
+
+        <FeatureBlock
+          title="Multi-repo"
+          description="How many folder levels below the project to look for nested repos. Stops at the first repo found, so submodules aren't listed separately."
+        >
+          <SettingRow label="Scan depth" htmlFor="repo-scan-depth">
+            <NumberInput id="repo-scan-depth" label="Scan depth" value={repoScanDepth} min={1} max={10} unit="levels" onChange={setRepoScanDepth} />
+          </SettingRow>
+        </FeatureBlock>
+
+        <FeatureBlock
+          title="Graph & List Diff"
+          description="What List Diff compares the current branch against. Where the tabs open follows General › Open new tabs in."
+          preview={<GraphTabsPreview />}
+        >
+          {projectRoot ? (
+            <SettingRow label="Default target branch" htmlFor="list-diff-target-branch">
+              <div className="w-56">
+                <Select
+                  id="list-diff-target-branch"
+                  value={listDiffTarget}
+                  disabled={loadingBranches}
+                  onChange={(v) => setListDiffTargetBranch(projectRoot, v)}
+                  options={[
+                    { value: '', label: 'Use repo default' },
+                    ...branches.map((branch) => ({ value: branch, label: branch })),
+                  ]}
+                />
+              </div>
+            </SettingRow>
+          ) : (
+            <p className="py-1.5 text-sm text-fg-muted">Open a repo to set its default target branch.</p>
           )}
-        </Row>
-      </Section>
+        </FeatureBlock>
 
-      <Section label="Graph & List Diff Tabs">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open the Graph and List Diff tabs in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
-          />
-        </Row>
-      </Section>
-
-      <Section label="Git Remote">
-        <Row>
-          <p className="text-xs text-fg-muted max-w-[60ch]">
-            Point this at your repo's page on GitHub, GitLab, or Bitbucket and a
-            matching launcher button appears at the bottom of the Git panel.
-          </p>
-
+        <FeatureBlock
+          title="Remote launcher"
+          description="A button at the bottom of the Git panel that opens your repo's page on GitHub, GitLab or Bitbucket."
+          preview={<RemotePreview />}
+        >
           <TextField
             id="git-remote-external-url"
             label="Default URL"
             value={gitRemoteUrl}
             onChange={setGitRemoteUrl}
             placeholder="https://github.com/your-org/your-repo"
-            className="mt-3 flex flex-col gap-1.5 max-w-md"
+            className="flex max-w-[460px] flex-col gap-1.5 py-1.5"
           />
-
           {projectRoot && (
             <TextField
               id="git-remote-project-url"
@@ -346,28 +243,14 @@ export function GitSettingsPage() {
               value={gitRemoteProjectUrls[projectRoot] ?? ''}
               onChange={(v) => setGitRemoteProjectUrl(projectRoot, v)}
               placeholder={gitRemoteUrl || 'Same as default URL above'}
-              className="mt-3 flex flex-col gap-1.5 max-w-md"
+              className="flex max-w-[460px] flex-col gap-1.5 py-1.5"
             />
           )}
-
-          <div className="mt-3 flex flex-col gap-3">
-            <Toggle
-              className="max-w-[60ch]"
-              label="Close side panel when opening"
-              description="Collapse the currently open sidebar (Files, Git, etc.) when jumping to the repo browser tab, to give it the full width."
-              checked={gitRemoteCloseSidePanelOnOpen}
-              onChange={setGitRemoteCloseSidePanelOnOpen}
-            />
-            <Toggle
-              className="max-w-[60ch]"
-              label="Always open in biggest window"
-              description="If the editor is split into multiple panes, open the repo browser tab in whichever pane currently has the most space, instead of the focused one."
-              checked={gitRemoteOpenInBiggestPane}
-              onChange={setGitRemoteOpenInBiggestPane}
-            />
-          </div>
-        </Row>
-      </Section>
+          <SettingRow label="Close side panel when opening" description="Give the repo page the full width.">
+            <Switch label="Close side panel when opening" checked={gitRemoteCloseSidePanelOnOpen} onChange={setGitRemoteCloseSidePanelOnOpen} />
+          </SettingRow>
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useDisplayStore, basePanelColors, PANEL_STYLE_OPTIONS } from '@/stores/displayStore'
 import { useThemeStore } from '@/stores/themeStore'
-import { Section } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 
 // Mirrors the [data-panel-style="brushed-metal"] rule in index.css exactly.
 // Can't just rely on that rule here — it deliberately excludes
@@ -128,10 +128,10 @@ export function PanelStyleGrid() {
 
 export function PanelStyleSection() {
   return (
-    <Section label="Panel Style">
+    <FeatureBlock title="Panel Style" description="How the side panels and editor frame are drawn.">
       <div className="pb-4 pl-3">
         <PanelStyleGrid />
       </div>
-    </Section>
+    </FeatureBlock>
   )
 }

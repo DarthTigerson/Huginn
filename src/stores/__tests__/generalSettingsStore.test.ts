@@ -45,3 +45,30 @@ describe('generalSettingsStore — file tree git status', () => {
     expect(fresh.getState().fileTreeGitStatus).toBe('letterAndColour')
   })
 })
+
+describe('generalSettingsStore — open new tabs in', () => {
+  beforeEach(() => {
+    Object.keys(store).forEach((k) => delete store[k])
+    vi.mocked(notifySettingChanged).mockClear()
+  })
+
+  it('defaults to the biggest window', async () => {
+    vi.resetModules()
+    const { useGeneralSettingsStore: fresh } = await import('../generalSettingsStore')
+    expect(fresh.getState().newTabPane).toBe('biggest')
+  })
+
+  it('starts on the active window for someone who had switched off the old biggest-pane option', async () => {
+    store['vide:general:openInBiggestPane'] = 'false'
+    vi.resetModules()
+    const { useGeneralSettingsStore: fresh } = await import('../generalSettingsStore')
+    expect(fresh.getState().newTabPane).toBe('active')
+  })
+
+  it('saves the choice under the general sync prefix and pushes it to vIDE Sync', () => {
+    useGeneralSettingsStore.getState().setNewTabPane('active')
+    expect(useGeneralSettingsStore.getState().newTabPane).toBe('active')
+    expect(store['vide:general:newTabPane']).toBe('active')
+    expect(notifySettingChanged).toHaveBeenCalledTimes(1)
+  })
+})

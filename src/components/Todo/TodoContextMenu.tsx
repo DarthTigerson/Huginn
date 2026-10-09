@@ -7,6 +7,7 @@ import { TODO_PROJECT_SORT_MODES } from '@/lib/todoProjectSort'
 import type { TodoProjectSortMode } from '@/lib/todoProjectSort'
 import { TODO_LABELS, TODO_LABEL_META } from './labels'
 import type { Todo, TodoLabel, TodoStatus } from '@/types/api'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 function MenuButton({
   children,
@@ -205,6 +206,7 @@ export function TodoCardMenu({
   onSortAllDirection: (direction: TodoSortDirection) => void
   onArchiveAll?: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
   useMenuDismiss(onClose)
   useClampedPosition(menuRef, x, y)
@@ -331,6 +333,7 @@ export function TodoProjectMenu({
   onRename?: () => void
   onDelete?: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
   useMenuDismiss(onClose)
   useClampedPosition(menuRef, x, y)
@@ -388,6 +391,7 @@ export function TodoSortMenu({
   onSelectAllDirection: (direction: TodoSortDirection) => void
   onArchiveAll?: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
   useMenuDismiss(onClose)
   useClampedPosition(menuRef, x, y)
@@ -437,6 +441,7 @@ export function TodoTrashMenu({
   onClose: () => void
   onRestore: () => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
   useMenuDismiss(onClose)
   useClampedPosition(menuRef, x, y)

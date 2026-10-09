@@ -2,7 +2,7 @@ import { useDisplayStore, EDITOR_COLOR_SCHEME_OPTIONS, EDITOR_TOKEN_FIELDS, type
 import { useThemeStore, type ThemeId } from '@/stores/themeStore'
 import { THEME_PALETTES, HIGH_CONTRAST_TOKENS, DEFAULT_TOKENS, MARIO_MODE_BASE, MARIO_MODE_TOKENS, type HighContrastTokens } from '@/monacoThemes'
 import { ColorPickerRow } from '@/components/ui/ColorPickerRow'
-import { Section } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 
 // Same 4-line snippet for every card so the schemes compare directly.
 // Default and High Contrast read from the *active* theme's own palette —
@@ -38,7 +38,7 @@ export function EditorColorsSection() {
   const themeId = useThemeStore((s) => s.theme)
 
   return (
-    <Section label="Editor Colors">
+    <FeatureBlock title="Editor Colors" description="Syntax colours in the editor.">
       <div className="pb-4 pl-3">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
           {EDITOR_COLOR_SCHEME_OPTIONS.map((opt) => {
@@ -95,6 +95,6 @@ export function EditorColorsSection() {
           </div>
         )}
       </div>
-    </Section>
+    </FeatureBlock>
   )
 }

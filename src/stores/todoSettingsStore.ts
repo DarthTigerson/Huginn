@@ -5,7 +5,6 @@ import { TODO_COLUMNS } from '@/lib/todoBoard'
 import type { TodoStatus } from '@/types/api'
 
 const ENABLED_KEY = 'vide:todo:enabled'
-const OPEN_IN_BIGGEST_PANE_KEY = 'vide:todo:openInBiggestPane'
 const PROJECT_SORT_KEY = 'vide:todo:projectSort'
 const SHOWN_COUNTS_KEY = 'vide:todo:shownCounts'
 
@@ -36,8 +35,6 @@ function getShownCounts(): TodoStatus[] {
 interface TodoSettingsStore {
   enabled: boolean
   setEnabled: (value: boolean) => void
-  openInBiggestPane: boolean
-  setOpenInBiggestPane: (value: boolean) => void
   projectSort: TodoProjectSortMode
   setProjectSort: (value: TodoProjectSortMode) => void
   shownCounts: TodoStatus[]
@@ -50,13 +47,6 @@ export const useTodoSettingsStore = create<TodoSettingsStore>((set, get) => ({
   setEnabled: (value) => {
     localStorage.setItem(ENABLED_KEY, String(value))
     set({ enabled: value })
-  },
-
-  openInBiggestPane: getBool(OPEN_IN_BIGGEST_PANE_KEY, true),
-
-  setOpenInBiggestPane: (value) => {
-    localStorage.setItem(OPEN_IN_BIGGEST_PANE_KEY, String(value))
-    set({ openInBiggestPane: value })
   },
 
   projectSort: getProjectSort(),

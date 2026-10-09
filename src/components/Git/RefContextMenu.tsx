@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import type { RefTarget } from './commitFormat'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   x: number
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function RefContextMenu({ x, y, name, kind, onCheckout, onClose }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

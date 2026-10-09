@@ -25,10 +25,10 @@ describe('GitSettingsPage — Blame section', () => {
     expect(screen.getByLabelText('Show blame in')).toBeInTheDocument()
   })
 
-  it('hides the dropdown while blame is off', () => {
+  it('dims the dropdown while blame is off', () => {
     useEditorSettingsStore.setState({ blameAnnotationsEnabled: false })
     render(<GitSettingsPage />)
-    expect(screen.queryByLabelText('Show blame in')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Show blame in')).toBeDisabled()
   })
 
   it('lists Footer as the first option', () => {

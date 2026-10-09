@@ -46,11 +46,11 @@ describe('DockerSettingsPage', () => {
     expect(useDockerSettingsStore.getState().badgeMode).toBe('projects')
   })
 
-  it('renders the Show memory usage toggle off by default, with no Format dropdown', () => {
+  it('renders the Show memory usage toggle off by default, with the Format dropdown greyed out', () => {
     render(<DockerSettingsPage />)
     const toggle = screen.getByRole('switch', { name: 'Show memory usage' })
     expect(toggle).toHaveAttribute('aria-checked', 'false')
-    expect(screen.queryByRole('button', { name: 'Format' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Format' })).toBeDisabled()
   })
 
   it('shows the Format dropdown once Show memory usage is switched on, defaulting to Used %', () => {

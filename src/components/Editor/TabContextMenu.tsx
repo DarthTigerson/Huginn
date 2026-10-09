@@ -12,6 +12,7 @@ import { requestCloseAllTabs, requestCloseOtherTabs } from '@/stores/discardScra
 import { openFileInTree } from '@/lib/openFileInTree'
 import { useSidebarUiStore } from '@/stores/sidebarUiStore'
 import { isMac } from '@/lib/platform'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const DIRECTIONS: { direction: PaneDirection; label: string }[] = [
   { direction: 'right', label: 'Right' },
@@ -100,6 +101,7 @@ export function TabContextMenu({ x, y, paneId, path, onClose, onRequestClose }: 
   // confirmation here as it does from the tab's own × button.
   onRequestClose: (path: string) => void
 }) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   const {

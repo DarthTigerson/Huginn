@@ -27,3 +27,22 @@ describe('FileTreeSettingsPage', () => {
     expect(useGeneralSettingsStore.getState().fileTreeGitStatus).toBe('letter')
   })
 })
+
+describe('FileTreeSettingsPage — preview', () => {
+  it('shows letters and colours, letters only, or nothing', () => {
+    useGeneralSettingsStore.setState({ fileTreeGitStatus: 'letterAndColour' })
+    const { rerender } = render(<FileTreeSettingsPage />)
+    const preview = () => screen.getByTestId('file-tree-preview')
+    expect(within(preview()).getByText('M')).toBeInTheDocument()
+    expect(within(preview()).getByText('App.tsx')).toHaveClass('text-amber-400')
+
+    useGeneralSettingsStore.setState({ fileTreeGitStatus: 'letter' })
+    rerender(<FileTreeSettingsPage />)
+    expect(within(preview()).getByText('M')).toBeInTheDocument()
+    expect(within(preview()).getByText('App.tsx')).not.toHaveClass('text-amber-400')
+
+    useGeneralSettingsStore.setState({ fileTreeGitStatus: 'off' })
+    rerender(<FileTreeSettingsPage />)
+    expect(within(preview()).queryByText('M')).toBeNull()
+  })
+})

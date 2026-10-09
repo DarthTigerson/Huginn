@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTodoStore } from '@/stores/todoStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
-import { getBiggestPaneId } from '@/lib/paneLayout'
 import { buildTodoBoardPath, TODO_TRASH_TAB_PATH } from '@/components/Settings/paths'
 import { NewTodoProjectModal } from './NewTodoProjectModal'
 import { RenameTodoProjectModal } from './RenameTodoProjectModal'
@@ -48,7 +47,6 @@ export function TodoPanel() {
   const lastOpenedProjectId = useTodoStore((s) => s.lastOpenedProjectId)
   const setLastOpenedProject = useTodoStore((s) => s.setLastOpenedProject)
   const openTab = useEditorStore((s) => s.openTab)
-  const openTabInPane = useEditorStore((s) => s.openTabInPane)
   const [modalOpen, setModalOpen] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number; project: TodoProject | null } | null>(null)
   const [renameTarget, setRenameTarget] = useState<TodoProject | null>(null)
@@ -87,13 +85,6 @@ export function TodoPanel() {
   function openProject(project: TodoProject) {
     setLastOpenedProject(project.id)
     const tab = { path: buildTodoBoardPath(project.id), content: '', dirty: false }
-    if (useTodoSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        openTabInPane(tab, biggestPaneId)
-        return
-      }
-    }
     openTab(tab)
   }
 

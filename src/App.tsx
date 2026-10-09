@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import * as monaco from 'monaco-editor'
 import { ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { clampSize, loadPanelSize } from '@/lib/panelSize'
-import { getBiggestPaneId } from '@/lib/paneLayout'
+import { SIDEBAR_PANEL, CHAT_PANEL, clampRem, remToPercent, percentToRem, percentLimits, loadRem } from '@/lib/remPanelSize'
 import { openNewBrowserTab } from '@/lib/openBrowserTab'
 import { syncOpenTabsFromDisk } from '@/lib/syncOpenTabsFromDisk'
 import { Sidebar } from './components/Sidebar/Sidebar'
@@ -153,21 +152,15 @@ const GIT_REMOTE_BROWSER_ID = 'git-remote-external'
 const CLAUDE_BROWSER_ID = 'claude-controlled'
 const GIT_POLL_INTERVAL_MS = 3000
 const MEMORY_POLL_INTERVAL_MS = 3000
-const SIDEBAR_SIZE_KEY = 'vide:layout:sidebarSize'
-const SIDEBAR_DEFAULT_SIZE = 26
-const SIDEBAR_MIN_SIZE = 4
-const SIDEBAR_MAX_SIZE = 40
-const CHAT_SIZE_KEY = 'vide:layout:chatSize'
-const CHAT_DEFAULT_SIZE = 25
-const CHAT_MIN_SIZE = 15
-const CHAT_MAX_SIZE = 50
+// Panel widths in rem (see lib/remPanelSize.ts). New keys on purpose: the old
+// 'vide:layout:sidebarSize'/'chatSize' held percentages of the window, so
+// everyone starts once from the new rem defaults instead of a converted guess.
+const SIDEBAR_WIDTH_KEY = 'vide:layout:sidebarWidthRem'
+const CHAT_WIDTH_KEY = 'vide:layout:chatWidthRem'
+const MAIN_PANEL_GROUP_ID = 'main-layout'
 
-function loadSidebarSize(): number {
-  return loadPanelSize(SIDEBAR_SIZE_KEY, SIDEBAR_DEFAULT_SIZE, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
-}
-
-function loadChatSize(): number {
-  return loadPanelSize(CHAT_SIZE_KEY, CHAT_DEFAULT_SIZE, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
+function readRootPx(): number {
+  return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
 }
 
 export default function App() {
@@ -192,8 +185,16 @@ export default function App() {
   const repoName = projectRoot ? projectRoot.split('/').pop() : null
   const [leftPanel, setLeftPanel] = useState<'files' | 'search' | 'git' | 'docker' | 'mobile' | 'graphify' | 'todos' | 'notes' | 'llama' | 'settings' | null>('files')
   const lastLeftPanelRef = useRef<'files' | 'search' | 'git' | 'docker' | 'mobile' | 'graphify' | 'todos' | 'notes' | 'llama' | 'settings'>('files')
-  const [sidebarSize, setSidebarSize] = useState(loadSidebarSize)
-  const [chatSize, setChatSize] = useState(loadChatSize)
+  const [sidebarRem, setSidebarRem] = useState(() => loadRem(SIDEBAR_WIDTH_KEY, SIDEBAR_PANEL))
+  const [chatRem, setChatRem] = useState(() => loadRem(CHAT_WIDTH_KEY, CHAT_PANEL))
+  // The panel group's width and the root font size: the two numbers needed to
+  // turn the rem widths into the percentages react-resizable-panels wants.
+  const [groupPx, setGroupPx] = useState(() => window.innerWidth)
+  const [rootPx, setRootPx] = useState(readRootPx)
+  // Only a drag on a resize handle saves a new width. Window resizes, text
+  // size changes and expand/collapse just re-apply the saved rem width, so a
+  // temporarily small window can't permanently shrink the panels.
+  const draggingRef = useRef(false)
   const [assistantMenuOpen, setAssistantMenuOpen] = useState(false)
   const [sessionMenu, setSessionMenu] = useState<{ x: number; y: number; instanceId: string } | null>(null)
   const [memoryUsage, setMemoryUsage] = useState<{ usedBytes: number; totalBytes: number; appBytes: number } | null>(null)
@@ -321,16 +322,7 @@ export default function App() {
     }
     useBrowserStore.getState().ensureTab(JIRA_BROWSER_ID, url)
     const tab = { path: buildBrowserPath(JIRA_BROWSER_ID), content: '', dirty: false }
-    if (useJiraSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        useEditorStore.getState().openTabInPane(tab, biggestPaneId)
-      } else {
-        useEditorStore.getState().openTab(tab)
-      }
-    } else {
-      useEditorStore.getState().openTab(tab)
-    }
+    useEditorStore.getState().openTab(tab)
     if (useJiraSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
@@ -345,30 +337,52 @@ export default function App() {
     }
     useBrowserStore.getState().ensureTab(GIT_REMOTE_BROWSER_ID, url)
     const tab = { path: buildBrowserPath(GIT_REMOTE_BROWSER_ID), content: '', dirty: false }
-    if (useGitRemoteSettingsStore.getState().openInBiggestPane) {
-      const biggestPaneId = getBiggestPaneId()
-      if (biggestPaneId) {
-        useEditorStore.getState().openTabInPane(tab, biggestPaneId)
-      } else {
-        useEditorStore.getState().openTab(tab)
-      }
-    } else {
-      useEditorStore.getState().openTab(tab)
-    }
+    useEditorStore.getState().openTab(tab)
     if (useGitRemoteSettingsStore.getState().closeSidePanelOnOpen) setLeftPanel(null)
   }
 
-  function saveSidebarSize(size: number) {
-    const nextSize = clampSize(size, SIDEBAR_MIN_SIZE, SIDEBAR_MAX_SIZE)
-    setSidebarSize(nextSize)
-    localStorage.setItem(SIDEBAR_SIZE_KEY, String(nextSize))
+  const sidebarPercent = remToPercent(clampRem(sidebarRem, SIDEBAR_PANEL, groupPx, rootPx), groupPx, rootPx)
+  const sidebarLimits = percentLimits(SIDEBAR_PANEL, groupPx, rootPx)
+  const chatPercent = remToPercent(clampRem(chatRem, CHAT_PANEL, groupPx, rootPx), groupPx, rootPx)
+  const chatLimits = percentLimits(CHAT_PANEL, groupPx, rootPx)
+
+  function saveSidebarSize(percent: number) {
+    if (!draggingRef.current || percent <= 0 || groupPx <= 0) return
+    const rem = percentToRem(percent, groupPx, rootPx)
+    setSidebarRem(rem)
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(rem))
   }
 
-  function saveChatSize(size: number) {
-    const nextSize = clampSize(size, CHAT_MIN_SIZE, CHAT_MAX_SIZE)
-    setChatSize(nextSize)
-    localStorage.setItem(CHAT_SIZE_KEY, String(nextSize))
+  function saveChatSize(percent: number) {
+    if (!draggingRef.current || percent <= 0 || groupPx <= 0) return
+    const rem = percentToRem(percent, groupPx, rootPx)
+    setChatRem(rem)
+    localStorage.setItem(CHAT_WIDTH_KEY, String(rem))
   }
+
+  const fontSize = useFontSizeStore((s) => s.fontSize)
+  useEffect(() => {
+    setRootPx(readRootPx())
+  }, [fontSize])
+
+  // Track the panel group's width. It remounts when the navbar swaps sides
+  // or a project opens, hence the dependencies.
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>(`[data-panel-group][data-panel-group-id="${MAIN_PANEL_GROUP_ID}"]`)
+    if (!el || typeof ResizeObserver === 'undefined') return
+    setGroupPx(el.getBoundingClientRect().width)
+    const observer = new ResizeObserver(([entry]) => setGroupPx(entry.contentRect.width))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [mirrored, projectRoot])
+
+  // Keep each open panel at its rem width as the window or text size changes.
+  useEffect(() => {
+    if (draggingRef.current) return
+    if (leftPanel !== null) sidebarPanelRef.current?.resize(sidebarPercent)
+    if (chatVisible) chatPanelRef.current?.resize(chatPercent)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupPx, rootPx])
 
   useEffect(() => {
     useBridgeSettingsStore.getState().init()
@@ -400,8 +414,10 @@ export default function App() {
   }, [assistantMenuOpen])
 
   useEffect(() => {
-    if (chatVisible) chatPanelRef.current?.expand()
-    else chatPanelRef.current?.collapse()
+    if (chatVisible) {
+      chatPanelRef.current?.expand()
+      chatPanelRef.current?.resize(chatPercent)
+    } else chatPanelRef.current?.collapse()
   }, [chatVisible])
 
   // No project open means no assistant terminal to show, so the chat panel
@@ -453,8 +469,10 @@ export default function App() {
   // unmounting it here would re-trigger the exact desync this pattern
   // exists to avoid).
   useEffect(() => {
-    if (leftPanel !== null) sidebarPanelRef.current?.expand()
-    else sidebarPanelRef.current?.collapse()
+    if (leftPanel !== null) {
+      sidebarPanelRef.current?.expand()
+      sidebarPanelRef.current?.resize(sidebarPercent)
+    } else sidebarPanelRef.current?.collapse()
   }, [leftPanel])
 
   useEffect(() => {
@@ -1057,9 +1075,9 @@ export default function App() {
           <Panel
             key="sidebar"
             ref={sidebarPanelRef}
-            defaultSize={sidebarSize}
-            minSize={SIDEBAR_MIN_SIZE}
-            maxSize={SIDEBAR_MAX_SIZE}
+            defaultSize={sidebarPercent}
+            minSize={sidebarLimits.min}
+            maxSize={sidebarLimits.max}
             collapsible
             collapsedSize={0}
             onCollapse={() => setLeftPanel(null)}
@@ -1074,7 +1092,7 @@ export default function App() {
           </Panel>
           )
           const sidebarHandle = (
-          <PanelResizeHandle key="sidebar-handle" className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
+          <PanelResizeHandle key="sidebar-handle" onDragging={(dragging) => { draggingRef.current = dragging }} className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${leftPanel ? '' : 'hidden'}`} />
           )
 
           const centerPanel = (
@@ -1084,15 +1102,15 @@ export default function App() {
           )
 
           const chatHandle = (
-          <PanelResizeHandle key="chat-handle" className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
+          <PanelResizeHandle key="chat-handle" onDragging={(dragging) => { draggingRef.current = dragging }} className={`w-px bg-border hover:bg-accent/60 transition-colors cursor-col-resize ${chatVisible ? '' : 'hidden'}`} />
           )
           const chatPanel = (
           <Panel
             key="chat"
             ref={chatPanelRef}
-            defaultSize={chatSize}
-            minSize={CHAT_MIN_SIZE}
-            maxSize={CHAT_MAX_SIZE}
+            defaultSize={chatPercent}
+            minSize={chatLimits.min}
+            maxSize={chatLimits.max}
             collapsible
             id="chat"
             order={mirrored ? 1 : 3}
@@ -1250,7 +1268,7 @@ export default function App() {
           return mirrored ? (
             <>
               {claudeActivityBar}
-              <PanelGroup direction="horizontal" className="flex-1">
+              <PanelGroup id={MAIN_PANEL_GROUP_ID} direction="horizontal" className="flex-1">
                 {chatPanel}
                 {chatHandle}
                 {centerPanel}
@@ -1262,7 +1280,7 @@ export default function App() {
           ) : (
             <>
               {primaryActivityBar}
-              <PanelGroup direction="horizontal" className="flex-1">
+              <PanelGroup id={MAIN_PANEL_GROUP_ID} direction="horizontal" className="flex-1">
                 {sidebarPanel}
                 {sidebarHandle}
                 {centerPanel}

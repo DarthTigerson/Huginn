@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   x: number
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function CommitFileContextMenu({ x, y, onCopyPath, onOpenFile, onOpenDiff, onRevealInFileTree, onClose }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

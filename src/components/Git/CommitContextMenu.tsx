@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { copyToClipboard } from './commitFormat'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   x: number
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function CommitContextMenu({ x, y, message, hash, onClose }: Props) {
+  useCoverNativeViews()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

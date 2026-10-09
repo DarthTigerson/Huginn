@@ -1,13 +1,10 @@
 import { useTodoSettingsStore } from '@/stores/todoSettingsStore'
 import { useTodoMcpStore } from '@/stores/todoMcpStore'
-import { Toggle } from '@/components/ui/Toggle'
-import { Section, Row } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 
 export function TodoSettingsPage() {
   const enabled = useTodoSettingsStore((s) => s.enabled)
   const setEnabled = useTodoSettingsStore((s) => s.setEnabled)
-  const openInBiggestPane = useTodoSettingsStore((s) => s.openInBiggestPane)
-  const setOpenInBiggestPane = useTodoSettingsStore((s) => s.setOpenInBiggestPane)
 
   const mcpEnabled = useTodoMcpStore((s) => s.enabled)
   const mcpPending = useTodoMcpStore((s) => s.pending)
@@ -15,47 +12,25 @@ export function TodoSettingsPage() {
   const setMcpEnabled = useTodoMcpStore((s) => s.setEnabled)
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">To Do</h1>
-      <p className="text-sm text-fg-muted mb-4">
-        Internal task tracking with named projects, a Kanban board, and attachments.
-      </p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">To Do</h1>
+        <p className="mb-4 text-sm text-fg-muted">Internal task tracking with named projects, a Kanban board, and attachments.</p>
 
-      <Section label="General">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Enable To Do"
-            description="Adds a To Do icon to the activity bar with your task boards."
-            checked={enabled}
-            onChange={setEnabled}
-          />
-        </Row>
+        <FeatureBlock
+          title="To Do"
+          description="Adds a To Do icon to the activity bar with your task boards."
+          toggle={{ checked: enabled, onChange: setEnabled, label: 'Enable To Do' }}
+        />
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Always open in biggest pane"
-            description="If the editor is split into multiple panes, open the task board in whichever pane currently has the most space, instead of the focused one."
-            checked={openInBiggestPane}
-            onChange={setOpenInBiggestPane}
-          />
-        </Row>
-      </Section>
-
-      <Section label="Claude Code">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Let Claude see & manage your todos"
-            description="Registers an MCP server (claude mcp, user scope) so Claude Code can list, search, create, and update your todos by ticket id — no more pasting ticket details in. Also installs a plugin that stops Claude from ending a turn without a progress comment on whichever ticket it started working on."
-            checked={mcpEnabled}
-            onChange={(value) => void setMcpEnabled(value)}
-            disabled={mcpPending}
-          />
-          {mcpError && <p className="text-xs text-red-500 mt-2">{mcpError}</p>}
-        </Row>
-      </Section>
+        <FeatureBlock
+          title="Claude Code"
+          description="Lets Claude Code list, search, create and update your todos by ticket id, through an MCP server (claude mcp, user scope). Also installs a plugin that stops Claude from ending a turn without a progress comment on the ticket it started working on."
+          toggle={{ checked: mcpEnabled, onChange: (value) => void setMcpEnabled(value), label: "Let Claude see & manage your todos", disabled: mcpPending }}
+        >
+          {mcpError && <p className="text-xs text-red-500">{mcpError}</p>}
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

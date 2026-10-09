@@ -4,6 +4,7 @@ import type { Command, PaletteStep } from './commands'
 import { rankBySearch, withRecentsFirst } from '@/lib/paletteSearch'
 import { getRecents, recordRecent } from '@/lib/paletteRecents'
 import { ShortcutKeys } from '@/components/ui/ShortcutKeys'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 interface Props {
   onClose: () => void
@@ -24,6 +25,7 @@ function listCommands(query: string): Command[] {
 }
 
 export function ActionPalette({ onClose }: Props) {
+  useCoverNativeViews()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const [step, setStep] = useState<PaletteStep | null>(null)

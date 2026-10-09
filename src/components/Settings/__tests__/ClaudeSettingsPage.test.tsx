@@ -179,10 +179,10 @@ describe('ClaudeSettingsPage notifications section', () => {
     expect(screen.getByRole('switch', { name: 'Play sound when Claude is done' })).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('hides the sound picker and test button while disabled', () => {
+  it('greys out the sound picker and test button while disabled', () => {
     render(<ClaudeSettingsPage />)
-    expect(screen.queryByLabelText('Sound')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Test sound' })).toBeNull()
+    expect(screen.getByLabelText('Sound')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Test sound' })).toBeDisabled()
   })
 
   it('shows the sound picker and test button once enabled', () => {

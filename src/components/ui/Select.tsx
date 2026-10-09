@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { clampToViewport } from './clampToViewport'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 export interface SelectOption {
   value: string
@@ -21,6 +22,7 @@ export function Select({ id, value, onChange, options, disabled, compact, ariaLa
   ariaLabel?: string
 }) {
   const [open, setOpen] = useState(false)
+  useCoverNativeViews(open && !disabled)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuStyle, setMenuStyle] = useState<{ left: number; top: number; width: number }>({ left: 0, top: 0, width: 0 })

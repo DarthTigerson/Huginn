@@ -7,9 +7,9 @@ import { useUsagePassiveSettingsStore } from '@/stores/usagePassiveSettingsStore
 import { useNotificationSoundSettingsStore, NOTIFICATION_SOUND_OPTIONS, playNotificationSound } from '@/stores/notificationSoundSettingsStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { USAGE_GRAPH_TAB_PATH } from '@/components/Settings/paths'
-import { Toggle } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
-import { Section, Row, Field } from './SettingsLayout'
+import { FeatureBlock, SettingRow } from './FeatureBlock'
+import { AutocompletePreview, InlineEditPreview, CommitMessagePreview } from './previews/claudePreviews'
 
 function SpeakerIcon() {
   return (
@@ -57,35 +57,25 @@ export function ClaudeSettingsPage() {
   const modelOptions = AUTOCOMPLETE_MODELS.map((m) => ({ value: m.id, label: m.label }))
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Claude</h1>
-      <p className="text-sm text-fg-muted mb-4">Claude Code and its model-powered features.</p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Claude</h1>
+        <p className="mb-4 text-sm text-fg-muted">Claude Code and its model-powered features.</p>
 
-      <Section label="General">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Claude"
-            description="Show Claude Code in the model dropdown."
-            checked={claudeEnabled}
-            onChange={(value) => setModelEnabled('claude', value)}
-          />
-        </Row>
-      </Section>
+        <FeatureBlock
+          title="Claude"
+          description="Show Claude Code in the model dropdown."
+          toggle={{ checked: claudeEnabled, onChange: (value) => setModelEnabled('claude', value), label: 'Claude' }}
+        />
 
-      <Section label="Notifications">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Play sound when Claude is done"
-            description="Plays a sound when Claude finishes responding. Claude only, for now."
-            checked={notificationSoundEnabled}
-            onChange={setNotificationSoundEnabled}
-          />
-
-          {notificationSoundEnabled && (
-            <div className="mt-3 pl-4 border-l border-border/40 flex items-end gap-2">
-              <Field label="Sound">
+        <FeatureBlock
+          title="Done sound"
+          description="Play a sound when Claude finishes responding. Claude only, for now."
+          toggle={{ checked: notificationSoundEnabled, onChange: setNotificationSoundEnabled, label: 'Play sound when Claude is done' }}
+        >
+          <SettingRow label="Sound" htmlFor="notification-sound-select">
+            <div className="flex items-center gap-2">
+              <div className="w-44">
                 <Select
                   id="notification-sound-select"
                   value={notificationSoundId}
@@ -93,113 +83,84 @@ export function ClaudeSettingsPage() {
                   options={NOTIFICATION_SOUND_OPTIONS.map((s) => ({ value: s.id, label: s.label }))}
                   ariaLabel="Sound"
                 />
-              </Field>
+              </div>
               <button
                 type="button"
                 onClick={() => playNotificationSound(notificationSoundId)}
                 aria-label="Test sound"
                 title="Test sound"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-fg hover:border-fg-subtle transition-colors"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-fg transition-colors hover:border-fg-subtle"
               >
                 <SpeakerIcon />
               </button>
             </div>
-          )}
-        </Row>
-      </Section>
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="Model Features">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Inline Autocomplete"
-            description="Temporarily disabled while we rework how this feature works (VIDE-16) — the current design has poor latency and burns subscription usage."
-            checked={false}
-            disabled
-            onChange={() => {}}
-          />
-          <Field label="Model">
-            <Select
-              id="autocomplete-model"
-              value={autocompleteModel}
-              onChange={setAutocompleteModel}
-              options={modelOptions}
-              ariaLabel="Model"
-              disabled
-            />
-          </Field>
-        </Row>
+        <FeatureBlock
+          title="Inline autocomplete"
+          description="Temporarily disabled while we rework how this works (VIDE-16): the current design has poor latency and burns subscription usage."
+          toggle={{ checked: false, onChange: () => {}, label: 'Inline Autocomplete', disabled: true }}
+          preview={<AutocompletePreview />}
+        >
+          <SettingRow label="Model">
+            <div className="w-44">
+              <Select id="autocomplete-model" value={autocompleteModel} onChange={setAutocompleteModel} options={modelOptions} ariaLabel="Model" disabled />
+            </div>
+          </SettingRow>
+        </FeatureBlock>
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Inline Edit (Cmd+K)"
-            description="Select code (or place your cursor) and press Cmd+K to describe a change."
-            checked={inlineEditEnabled}
-            onChange={setInlineEditEnabled}
-          />
-          <Field label="Model">
-            <Select
-              id="inline-edit-model"
-              value={inlineEditModel}
-              onChange={setInlineEditModel}
-              options={modelOptions}
-              ariaLabel="Inline Edit Model"
-            />
-          </Field>
-        </Row>
+        <FeatureBlock
+          title="Inline edit (⌘K)"
+          description="Select code, or place your cursor, and press ⌘K to describe a change."
+          toggle={{ checked: inlineEditEnabled, onChange: setInlineEditEnabled, label: 'Inline Edit (Cmd+K)' }}
+          preview={<InlineEditPreview />}
+        >
+          <SettingRow label="Model">
+            <div className="w-44">
+              <Select id="inline-edit-model" value={inlineEditModel} onChange={setInlineEditModel} options={modelOptions} ariaLabel="Inline Edit Model" />
+            </div>
+          </SettingRow>
+        </FeatureBlock>
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Commit Messages"
-            description="Adds a button next to the commit message box in the Git panel that writes a message from your staged diff."
-            checked={commitMessageEnabled}
-            onChange={setCommitMessageEnabled}
-          />
-          <Field label="Model">
-            <Select
-              id="commit-message-model"
-              value={commitMessageModel}
-              onChange={setCommitMessageModel}
-              options={modelOptions}
-              ariaLabel="Commit Message Model"
-            />
-          </Field>
-          <div className="mt-3 flex items-start gap-3">
-            <label htmlFor="commit-message-prompt" className="text-xs text-fg-muted shrink-0 w-20 pt-2">Prompt</label>
+        <FeatureBlock
+          title="Commit messages"
+          description="A button next to the commit message box in the Git panel that writes a message from your staged diff."
+          toggle={{ checked: commitMessageEnabled, onChange: setCommitMessageEnabled, label: 'Commit Messages' }}
+          preview={<CommitMessagePreview />}
+        >
+          <SettingRow label="Model">
+            <div className="w-44">
+              <Select id="commit-message-model" value={commitMessageModel} onChange={setCommitMessageModel} options={modelOptions} ariaLabel="Commit Message Model" />
+            </div>
+          </SettingRow>
+          <SettingRow label="Prompt" htmlFor="commit-message-prompt" stacked>
             <textarea
               id="commit-message-prompt"
               value={commitMessagePrompt}
               onChange={(e) => setCommitMessagePrompt(e.target.value)}
               placeholder="Leave empty for the default prompt"
               rows={3}
-              className="w-full max-w-xl resize-none px-2 py-1.5 text-sm text-fg bg-bg border border-border rounded-lg placeholder:text-fg-subtle focus:outline-none focus:border-accent/60"
+              className="w-full resize-none rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-fg placeholder:text-fg-subtle focus:border-accent/60 focus:outline-none"
             />
-          </div>
-        </Row>
-      </Section>
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="Usage Monitoring">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Passive usage monitoring"
-            description="Track Claude Code usage continuously in the background, even when the usage panel and mobile display are closed. Off by default — usage is otherwise only tracked while one of those is open. History collected this way is viewable in the Usage Graph tab."
-            checked={passiveUsageEnabled}
-            onChange={setPassiveUsageEnabled}
-          />
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={() => useEditorStore.getState().openTab({ path: USAGE_GRAPH_TAB_PATH, content: '', dirty: false })}
-              className="h-8 px-3 rounded border border-border text-sm text-fg hover:border-fg-subtle transition-colors"
-            >
-              Open Usage Graph
-            </button>
-          </div>
-        </Row>
-      </Section>
+        <FeatureBlock
+          title="Usage monitoring"
+          description="Track Claude Code usage in the background, even with the usage panel and mobile display closed. Off by default: usage is otherwise only tracked while one of those is open. The history shows in the Usage Graph tab."
+          toggle={{ checked: passiveUsageEnabled, onChange: setPassiveUsageEnabled, label: 'Passive usage monitoring' }}
+          dimWhenOff={false}
+        >
+          <button
+            type="button"
+            onClick={() => useEditorStore.getState().openTab({ path: USAGE_GRAPH_TAB_PATH, content: '', dirty: false })}
+            className="h-8 rounded border border-border px-3 text-sm text-fg transition-colors hover:border-fg-subtle"
+          >
+            Open Usage Graph
+          </button>
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

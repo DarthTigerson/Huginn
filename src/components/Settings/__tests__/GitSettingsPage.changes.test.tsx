@@ -23,6 +23,13 @@ describe('GitSettingsPage — Changes section', () => {
     expect(screen.getByRole('radiogroup', { name: 'Inline diff strength' })).toBeInTheDocument()
   })
 
+  it('keeps the colour choice usable while the highlight is off', () => {
+    useEditorSettingsStore.setState({ inlineDiffEnabled: false })
+    render(<GitSettingsPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Custom' }))
+    expect(useEditorSettingsStore.getState().inlineDiffColors).toBe('custom')
+  })
+
   it('sets the strength', () => {
     render(<GitSettingsPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'Strong' }))

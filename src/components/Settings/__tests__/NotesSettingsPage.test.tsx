@@ -28,7 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  useNotesSettingsStore.setState({ enabled: true, openInBiggestPane: false })
+  useNotesSettingsStore.setState({ enabled: true })
 })
 
 describe('NotesSettingsPage', () => {

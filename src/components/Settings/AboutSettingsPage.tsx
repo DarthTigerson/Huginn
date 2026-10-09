@@ -6,7 +6,7 @@ import { parseReleaseNotes, isNewerVersion } from '@/lib/releaseNotes'
 import { useChangelogStore } from '@/stores/changelogStore'
 // The app icon itself (also what packaging uses), not a copy in src/assets.
 import appIconUrl from '../../../icon.png'
-import { Section, Row } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 import type { ChangelogRelease } from '../../../electron/changelog'
 
 // "just now" / "5 min ago" / "2 hours ago" / "3 days ago"
@@ -84,14 +84,14 @@ export function AboutSettingsPage() {
 
   return (
     // A flex column so Release history can take whatever height is left.
-    // Full width like the other settings pages; the notes fill the viewer.
+    // Capped at the same width as the other settings pages.
     <div className="flex h-full flex-col overflow-auto p-6 bg-panel">
-      <div className="flex w-full flex-1 flex-col">
+      <div className="flex w-full max-w-[1000px] flex-1 flex-col">
         <h1 className="text-base font-semibold text-fg mb-1">About</h1>
         <p className="text-sm text-fg-muted mb-4">Your version of vIDE, updates, and every release so far.</p>
 
-        <Section label="Version">
-          <Row>
+        <FeatureBlock title="Version" description="The vIDE you're running, and whether a newer one is out.">
+          <div className="max-w-[640px] pt-1">
             <div className="flex items-center gap-4">
               <img src={appIconUrl} alt="vIDE" className="h-12 w-12 shrink-0" draggable={false} />
               <div className="min-w-0 flex-1">
@@ -133,13 +133,15 @@ export function AboutSettingsPage() {
                 </button>
               </div>
             )}
-          </Row>
-        </Section>
+          </div>
+        </FeatureBlock>
 
-        {/* Same look as <Section>/<Row>, but stretched to the bottom of the page. */}
-        <section className="flex min-h-[20rem] flex-1 flex-col pt-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-muted">Release history</h2>
-          <div className="flex min-h-0 flex-1 flex-col pl-3">
+        {/* Same heading and divider as FeatureBlock, but stretched to the
+            bottom of the page so the notes fill the viewer. */}
+        <section aria-label="Release history" className="flex min-h-[20rem] flex-1 flex-col border-t border-border py-6">
+          <h2 className="text-sm font-semibold text-fg">Release history</h2>
+          <p className="mb-3 mt-0.5 text-xs text-fg-muted">Every release so far. New ones from your last update are marked.</p>
+          <div className="flex min-h-0 flex-1 flex-col">
             {releases === null ? (
               <p className="text-sm text-fg-subtle">Loading releases…</p>
             ) : releases.length === 0 ? (

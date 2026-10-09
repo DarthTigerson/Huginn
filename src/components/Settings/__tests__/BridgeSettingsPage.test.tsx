@@ -40,10 +40,10 @@ describe('BridgeSettingsPage connection section', () => {
     expect(screen.getByLabelText('Endpoint')).toBeTruthy()
   })
 
-  it('is hidden when bridge is disabled', () => {
+  it('is greyed out when bridge is disabled', () => {
     useModelSettingsStore.setState({ enabled: { claude: true, bridge: false } })
     render(<BridgeSettingsPage />)
-    expect(screen.queryByLabelText('Endpoint')).toBeNull()
+    expect(screen.getByLabelText('Endpoint')).toBeDisabled()
   })
 
   it('renders current settings values', () => {

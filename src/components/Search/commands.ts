@@ -1,6 +1,4 @@
 import { useEditorStore } from '@/stores/editorStore'
-import { useGitSettingsStore } from '@/stores/gitSettingsStore'
-import { getBiggestPaneId } from '@/lib/paneLayout'
 
 export interface PaletteStepItem {
   id: string
@@ -48,16 +46,7 @@ export function openTab(path: string) {
   useEditorStore.getState().openTab({ path, content: '', dirty: false })
 }
 
-// Shared by the Git Graph and Git Branch Diff commands — mirrors the
-// "open in biggest pane" pattern used elsewhere for these tabs.
+// Shared by the Git Graph and Git Branch Diff commands.
 export function openGitTab(path: string) {
-  const tab = { path, content: '', dirty: false }
-  if (useGitSettingsStore.getState().openInBiggestPane) {
-    const biggestPaneId = getBiggestPaneId()
-    if (biggestPaneId) {
-      useEditorStore.getState().openTabInPane(tab, biggestPaneId)
-      return
-    }
-  }
-  useEditorStore.getState().openTab(tab)
+  useEditorStore.getState().openTab({ path, content: '', dirty: false })
 }

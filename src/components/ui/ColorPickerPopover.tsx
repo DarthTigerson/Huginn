@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { clampToViewport } from './clampToViewport'
 import { hexToHsv, hsvToHex, isValidHex } from '@/lib/color'
 import { getRecentColors, addRecentColor } from '@/lib/recentColors'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 export function ColorPickerPopover({ anchorRef, value, onChange, onClose }: {
   anchorRef: React.RefObject<HTMLElement>
@@ -10,6 +11,7 @@ export function ColorPickerPopover({ anchorRef, value, onChange, onClose }: {
   onChange: (hex: string) => void
   onClose: () => void
 }) {
+  useCoverNativeViews()
   const popoverRef = useRef<HTMLDivElement>(null)
   const svRef = useRef<HTMLDivElement>(null)
   const hueRef = useRef<HTMLDivElement>(null)

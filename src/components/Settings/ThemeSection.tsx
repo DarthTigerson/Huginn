@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useThemeStore, THEME_OPTIONS, familyOf } from '@/stores/themeStore'
 import { useCustomThemeStore, type CustomTheme, type CustomColorVar } from '@/stores/customThemeStore'
 import { RadioGroup } from '@/components/ui/RadioGroup'
-import { Section } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 import { CustomThemeEditor } from './CustomThemeEditor'
 import { CustomThemeContextMenu } from './CustomThemeContextMenu'
 
@@ -180,7 +180,7 @@ export function ThemeSection() {
   }
 
   return (
-    <Section label="Theme">
+    <FeatureBlock title="Theme" description="The colour family, and whether it follows your system’s light or dark mode.">
       <div className="pb-4 pl-3">
         <div className="mb-5">
           <span className="text-xs text-fg-muted mb-1.5 block">Appearance</span>
@@ -244,6 +244,6 @@ export function ThemeSection() {
 
         {editingId && <CustomThemeEditor themeId={editingId} onClose={() => setEditingId(null)} />}
       </div>
-    </Section>
+    </FeatureBlock>
   )
 }

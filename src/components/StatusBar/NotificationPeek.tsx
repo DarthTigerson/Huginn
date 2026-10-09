@@ -3,6 +3,7 @@ import { useVisibleNotificationItems } from '@/hooks/useVisibleNotificationItems
 import { useNotificationArrival } from '@/hooks/useNotificationArrival'
 import { useNotificationPanelStore } from '@/stores/notificationPanelStore'
 import { useNotificationAcknowledgedStore } from '@/stores/notificationAcknowledgedStore'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 // How long each peeked row stays up; matches the `notification-peek-drain`
 // keyframes duration in index.css.
@@ -75,6 +76,7 @@ export function NotificationPeek() {
   const rows = entries
     .map((entry) => ({ entry, item: visibleItems.find((item) => item.id === entry.id) }))
     .filter((row): row is { entry: PeekEntry; item: NonNullable<typeof row.item> } => !!row.item)
+  useCoverNativeViews(rows.length > 0 && !panelOpen)
   if (rows.length === 0 || panelOpen) return null
   const closing = rows.every((row) => row.entry.leaving)
   const others = visibleItems.length - rows.length

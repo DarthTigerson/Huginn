@@ -22,7 +22,7 @@ import { useBrowserMcpStore } from '@/stores/browserMcpStore'
 
 afterEach(() => {
   cleanup()
-  useBrowserSettingsStore.setState({ openInBiggestPane: true, closeSidePanelOnOpen: false })
+  useBrowserSettingsStore.setState({ closeSidePanelOnOpen: false })
   useBrowserMcpStore.setState({ enabled: false, pending: false, error: null })
 })
 
@@ -33,9 +33,9 @@ describe('BrowserSettingsPage', () => {
     expect(screen.queryByText('Default URL')).toBeNull()
   })
 
-  it('still renders the "Always open in biggest window" toggle', () => {
+  it('no longer has its own biggest-window switch (Settings › General › Open new tabs in covers it)', () => {
     render(<BrowserSettingsPage />)
-    expect(screen.getByRole('switch', { name: 'Always open in biggest window' })).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: /biggest/i })).toBeNull()
   })
 
   it('renders the "Close side panel when opening" toggle, off by default, and toggling it updates the store', () => {

@@ -16,7 +16,7 @@ export const EXCLUDED_CHANNELS = new Set<string>([
 
   // Desktop-only native features
   'devtools:attach', 'devtools:detach',    // native developer tools
-  'browserView:create', 'browserView:setBounds', 'browserView:setVisible', 'browserView:navigate',
+  'browserView:create', 'browserView:setBounds', 'browserView:setVisible', 'browserView:capture', 'browserView:navigate',
   'browserView:goBack', 'browserView:goForward', 'browserView:reload', 'browserView:zoomIn',
   'browserView:zoomOut', 'browserView:zoomReset', 'browserView:setMobileMode', 'browserView:clearCache',
   'browserView:clearCookies', 'browserView:destroy',  // native Electron BrowserView instances — composite ON THE MAC'S SCREEN, not visible to phone user

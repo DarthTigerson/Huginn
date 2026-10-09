@@ -17,6 +17,7 @@ import { pendingTerminalCommands } from '@/components/Terminal/TerminalTab'
 import { UndoToast } from '@/components/ui/UndoToast'
 import { copyToClipboard, pasteInto, dropExternalFiles } from '@/lib/fileClipboardActions'
 import { findNodeByPath, isExternalFileDrag } from './treeUtils'
+import { useCoverNativeViews } from '@/lib/nativeViewCover'
 
 const UNDO_TIMEOUT_MS = 10000
 
@@ -81,6 +82,7 @@ export function Sidebar() {
   const { projectRoot, tree, openFolder, refreshTree, expandDir, collapseAll, selectedPath } = useFileStore()
   const { openTab, activeTabPath } = useEditorStore()
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  useCoverNativeViews(!!menu)
   const [canPaste, setCanPaste] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const [prompt, setPrompt] = useState<TreePromptState | null>(null)
