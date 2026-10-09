@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { useEditorSettingsStore, type MarkdownOpenMode } from '@/stores/editorSettingsStore'
-import { Toggle } from '@/components/ui/Toggle'
+import { Switch } from '@/components/ui/Toggle'
 import { Select } from '@/components/ui/Select'
 import { LSP_SERVER_IDS } from '@/stores/lspSettingsStore'
 import { useLspStatusStore, subscribeLspInstallEvents } from '@/stores/lspStatusStore'
 import { LspServerRow } from './LspServerRow'
-import { Section, Row } from './SettingsLayout'
+import { FeatureBlock, SettingRow } from './FeatureBlock'
+import {
+  AutoSavePreview, WordWrapPreview, ContextMenuPreview, MarkdownPreview, GoToDefinitionPreview,
+} from './previews/editorPreviews'
 
 export function EditorSettingsPage() {
   const autoSaveEnabled = useEditorSettingsStore((s) => s.autoSaveEnabled)
@@ -24,81 +27,72 @@ export function EditorSettingsPage() {
   }, [refreshLspStatus])
 
   return (
-    <div className="h-full overflow-auto p-6 bg-panel">
-      <h1 className="text-base font-semibold text-fg mb-1">Editor</h1>
-      <p className="text-sm text-fg-muted mb-4">Editing behaviour for file tabs.</p>
+    <div className="h-full overflow-auto bg-panel p-6">
+      <div className="max-w-[1000px]">
+        <h1 className="mb-1 text-base font-semibold text-fg">Editor</h1>
+        <p className="mb-4 text-sm text-fg-muted">Editing behaviour for file tabs.</p>
 
-      <Section label="General">
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Auto Save"
-            description="Automatically save the active file shortly after changes."
-            checked={autoSaveEnabled}
-            onChange={setAutoSaveEnabled}
-          />
-        </Row>
+        <FeatureBlock
+          title="Auto save"
+          description="Save the active file a moment after you stop typing."
+          toggle={{ checked: autoSaveEnabled, onChange: setAutoSaveEnabled }}
+          preview={<AutoSavePreview />}
+        />
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label="Word Wrap"
-            description="Wrap long lines instead of scrolling horizontally. Also toggleable with ⌥Z. Shared with Git Log."
-            checked={wordWrapEnabled}
-            onChange={setWordWrapEnabled}
-          />
-        </Row>
+        <FeatureBlock
+          title="Word wrap"
+          description="Wrap long lines instead of scrolling sideways. Also ⌥Z, and shared with Git Log."
+          toggle={{ checked: wordWrapEnabled, onChange: setWordWrapEnabled }}
+          preview={<WordWrapPreview />}
+        />
 
-        <Row>
-          <Toggle
-            className="max-w-[60ch]"
-            label={'Show "Change All Occurrences" in right-click menu'}
-            description="⌘F2 still works either way — this only hides the menu entry."
-            checked={changeAllOccurrencesInMenu}
-            onChange={setChangeAllOccurrencesInMenu}
-          />
-        </Row>
-      </Section>
-
-      <Section label="Markdown">
-        <Row>
-          <p className="text-xs text-fg-muted max-w-[60ch] mb-3">
-            What clicking a .md file in the file tree does by default. The right-click menu's
-            "Open / Edit" and "View in Markdown Viewer" actions always do exactly what they say,
-            regardless of this setting.
-          </p>
-          <div className="max-w-xs">
-            <label htmlFor="markdown-open-mode" className="text-xs text-fg-muted mb-1.5 block">
-              Open .md files in
-            </label>
-            <Select
-              id="markdown-open-mode"
-              value={markdownOpenMode}
-              onChange={(v) => setMarkdownOpenMode(v as MarkdownOpenMode)}
-              options={[
-                { value: 'editor',  label: 'Editor' },
-                { value: 'preview', label: 'Preview' },
-                { value: 'split',   label: 'Both (editor left, preview right)' },
-              ]}
+        <FeatureBlock
+          title="Right-click menu"
+          description="⌘F2 changes all occurrences either way; this only decides whether the menu lists it."
+          preview={<ContextMenuPreview />}
+        >
+          <SettingRow label="Show Change All Occurrences">
+            <Switch
+              label={'Show "Change All Occurrences" in right-click menu'}
+              checked={changeAllOccurrencesInMenu}
+              onChange={setChangeAllOccurrencesInMenu}
             />
-          </div>
-        </Row>
-      </Section>
+          </SettingRow>
+        </FeatureBlock>
 
-      <Section label="Language Intelligence">
-        <Row>
-          <p className="text-sm text-fg-muted mb-3">
-            Cmd+click go-to-definition, backed by each language's own language server. Off by
-            default since a running server has a real memory cost — enable only the languages
-            you use.
-          </p>
-          <div className="flex flex-col gap-4">
+        <FeatureBlock
+          title="Markdown files"
+          description="What clicking a .md file in the file tree does. The right-click menu's Open / Edit and View in Markdown Viewer always do exactly what they say."
+          preview={<MarkdownPreview />}
+        >
+          <SettingRow label="Open .md files in" htmlFor="markdown-open-mode">
+            <div className="w-56">
+              <Select
+                id="markdown-open-mode"
+                value={markdownOpenMode}
+                onChange={(v) => setMarkdownOpenMode(v as MarkdownOpenMode)}
+                options={[
+                  { value: 'editor', label: 'Editor' },
+                  { value: 'preview', label: 'Preview' },
+                  { value: 'split', label: 'Both (editor left, preview right)' },
+                ]}
+              />
+            </div>
+          </SettingRow>
+        </FeatureBlock>
+
+        <FeatureBlock
+          title="Go to definition"
+          description="⌘-click a symbol to jump to where it's defined, backed by each language's own server. Off by default: a running server costs memory, so turn on only the languages you use."
+          preview={<GoToDefinitionPreview />}
+        >
+          <div className="flex max-w-[560px] flex-col gap-4 pt-1">
             {LSP_SERVER_IDS.map((id) => (
               <LspServerRow key={id} id={id} />
             ))}
           </div>
-        </Row>
-      </Section>
+        </FeatureBlock>
+      </div>
     </div>
   )
 }

@@ -13,12 +13,12 @@ describe('DisplayPage — memory usage', () => {
   it('reflects the current memory usage visibility', () => {
     useDisplayStore.setState({ memoryUsageVisible: false })
     render(<DisplayPage />)
-    expect(screen.getByRole('switch', { name: 'Show memory usage' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('switch', { name: 'Memory usage' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('toggling memory usage visibility updates the store', () => {
     render(<DisplayPage />)
-    fireEvent.click(screen.getByRole('switch', { name: 'Show memory usage' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Memory usage' }))
     expect(useDisplayStore.getState().memoryUsageVisible).toBe(false)
   })
 })

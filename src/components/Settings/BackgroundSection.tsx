@@ -1,6 +1,6 @@
 import { useDisplayStore, BACKGROUND_IMAGE_OPTIONS, type BackgroundImage } from '@/stores/displayStore'
 import { EMPTY_EDITOR_BACKGROUNDS } from '@/assets/emptyEditorBackgrounds'
-import { Section } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 
 // The bare card grid, with no Section wrapper — shared by the Display
 // settings page (wrapped in BackgroundSection below) and the setup wizard's
@@ -52,10 +52,10 @@ export function BackgroundGrid() {
 
 export function BackgroundSection() {
   return (
-    <Section label="Background">
+    <FeatureBlock title="Background" description="What sits behind the editor.">
       <div className="pb-4 pl-3">
         <BackgroundGrid />
       </div>
-    </Section>
+    </FeatureBlock>
   )
 }

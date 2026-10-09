@@ -1,6 +1,6 @@
 import { useDisplayStore, FONT_PRESETS } from '@/stores/displayStore'
 import { useFontSizeStore } from '@/stores/fontSizeStore'
-import { Section } from './SettingsLayout'
+import { FeatureBlock } from './FeatureBlock'
 
 // Same pill styling/icons as the footer's own font-size control
 // (StatusBar.tsx) — this is the same global useFontSizeStore, just also
@@ -27,7 +27,7 @@ export function FontSection() {
   const { fontSize, increase, decrease, reset } = useFontSizeStore()
 
   return (
-    <Section label="Font">
+    <FeatureBlock title="Font" description="The editor font and text size.">
       <div className="pb-4 pl-3">
         <div className="mb-5 flex items-center justify-between gap-4 -mx-2 px-2 py-1 rounded-lg transition-colors hover:bg-white/5">
           <div>
@@ -90,6 +90,6 @@ export function FontSection() {
           })}
         </div>
       </div>
-    </Section>
+    </FeatureBlock>
   )
 }

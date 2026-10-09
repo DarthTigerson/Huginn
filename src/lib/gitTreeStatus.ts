@@ -25,7 +25,7 @@ const STATUS_COLOR: Record<GitFileEntry['status'], string> = {
   '?': 'text-fg-subtle',
 }
 
-function toDecoration(code: GitFileEntry['status']): FileGitDecoration {
+export function toDecoration(code: GitFileEntry['status']): FileGitDecoration {
   return { code, letter: code === '?' ? 'U' : code, textClass: STATUS_COLOR[code] }
 }
 
