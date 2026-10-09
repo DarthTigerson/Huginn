@@ -79,6 +79,13 @@ describe('editorSettingsStore', () => {
     expect(useEditorSettingsStore.getState().inlineDiffCustomColors.modified).toBe('#123456')
   })
 
+  it('shows the inline diff footer icon by default and persists hiding it', () => {
+    expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(true)
+    useEditorSettingsStore.getState().setInlineDiffFooterIcon(false)
+    expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(false)
+    expect(store['vide:git:inlineDiffFooterIcon']).toBe('false')
+  })
+
   it('setChangeAllOccurrencesInMenu persists to localStorage', () => {
     useEditorSettingsStore.getState().setChangeAllOccurrencesInMenu(true)
     expect(useEditorSettingsStore.getState().changeAllOccurrencesInMenu).toBe(true)

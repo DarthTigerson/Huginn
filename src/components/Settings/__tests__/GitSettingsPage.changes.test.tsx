@@ -11,18 +11,16 @@ beforeEach(() => {
     gitBranches: vi.fn().mockResolvedValue([]),
   }
   useFileStore.setState({ projectRoot: null })
-  useEditorSettingsStore.setState({ inlineDiffEnabled: true, inlineDiffColors: 'default', inlineDiffStrength: 'medium' })
+  useEditorSettingsStore.setState({ inlineDiffEnabled: true, inlineDiffColors: 'default', inlineDiffStrength: 'medium', inlineDiffFooterIcon: true })
 })
 
 afterEach(cleanup)
 
 describe('GitSettingsPage — Changes section', () => {
-  it('shows Strength only while the inline diff highlight is on', () => {
-    const { rerender } = render(<GitSettingsPage />)
-    expect(screen.getByRole('radiogroup', { name: 'Inline diff strength' })).toBeInTheDocument()
+  it('shows Strength even while the inline diff highlight is off', () => {
     useEditorSettingsStore.setState({ inlineDiffEnabled: false })
-    rerender(<GitSettingsPage />)
-    expect(screen.queryByRole('radiogroup', { name: 'Inline diff strength' })).toBeNull()
+    render(<GitSettingsPage />)
+    expect(screen.getByRole('radiogroup', { name: 'Inline diff strength' })).toBeInTheDocument()
   })
 
   it('sets the strength', () => {
@@ -39,5 +37,12 @@ describe('GitSettingsPage — Changes section', () => {
     expect(screen.getByText('Added')).toBeInTheDocument()
     expect(screen.getByText('Modified')).toBeInTheDocument()
     expect(screen.getByText('Deleted')).toBeInTheDocument()
+  })
+
+  it('toggles the footer icon, even while the highlight is off', () => {
+    useEditorSettingsStore.setState({ inlineDiffEnabled: false })
+    render(<GitSettingsPage />)
+    fireEvent.click(screen.getByRole('switch', { name: /Show icon in footer/ }))
+    expect(useEditorSettingsStore.getState().inlineDiffFooterIcon).toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useGitReposStore } from '@/stores/gitReposStore'
 
 beforeEach(() => {
-  useEditorSettingsStore.setState({ inlineDiffEnabled: true })
+  useEditorSettingsStore.setState({ inlineDiffEnabled: true, inlineDiffFooterIcon: true })
   useGitReposStore.setState({ repos: ['/p'] })
 })
 
@@ -22,6 +22,12 @@ describe('InlineDiffToggle', () => {
 
   it('is hidden when the project has no git repo', () => {
     useGitReposStore.setState({ repos: [] })
+    render(<InlineDiffToggle />)
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('is hidden when Show icon in footer is off', () => {
+    useEditorSettingsStore.setState({ inlineDiffFooterIcon: false })
     render(<InlineDiffToggle />)
     expect(screen.queryByRole('button')).toBeNull()
   })

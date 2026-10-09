@@ -22,6 +22,7 @@ const KEYS = {
   inlineDiffColors: 'vide:git:inlineDiffColors',
   inlineDiffCustomColors: 'vide:git:inlineDiffCustomColors',
   inlineDiffStrength: 'vide:git:inlineDiffStrength',
+  inlineDiffFooterIcon: 'vide:git:inlineDiffFooterIcon',
 }
 
 export type MarkdownOpenMode = 'editor' | 'preview' | 'split'
@@ -95,6 +96,9 @@ interface EditorSettingsStore {
   setInlineDiffCustomColor: (kind: keyof ChangeColors, hex: string) => void
   inlineDiffStrength: ChangeStrength
   setInlineDiffStrength: (value: ChangeStrength) => void
+  // Whether the footer shows the inline diff on/off icon.
+  inlineDiffFooterIcon: boolean
+  setInlineDiffFooterIcon: (value: boolean) => void
 }
 
 export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => ({
@@ -184,6 +188,14 @@ export const useEditorSettingsStore = create<EditorSettingsStore>((set, get) => 
   setInlineDiffStrength: (value) => {
     localStorage.setItem(KEYS.inlineDiffStrength, value)
     set({ inlineDiffStrength: value })
+    notifySettingChanged()
+  },
+
+  inlineDiffFooterIcon: getBool(KEYS.inlineDiffFooterIcon, true),
+
+  setInlineDiffFooterIcon: (value) => {
+    localStorage.setItem(KEYS.inlineDiffFooterIcon, String(value))
+    set({ inlineDiffFooterIcon: value })
     notifySettingChanged()
   },
 }))

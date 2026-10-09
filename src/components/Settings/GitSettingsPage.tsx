@@ -44,6 +44,8 @@ export function GitSettingsPage() {
   const setInlineDiffCustomColor = useEditorSettingsStore((s) => s.setInlineDiffCustomColor)
   const inlineDiffStrength = useEditorSettingsStore((s) => s.inlineDiffStrength)
   const setInlineDiffStrength = useEditorSettingsStore((s) => s.setInlineDiffStrength)
+  const inlineDiffFooterIcon = useEditorSettingsStore((s) => s.inlineDiffFooterIcon)
+  const setInlineDiffFooterIcon = useEditorSettingsStore((s) => s.setInlineDiffFooterIcon)
 
   const projectRoot = useFileStore((s) => s.projectRoot)
   const [branches, setBranches] = useState<string[]>([])
@@ -210,22 +212,15 @@ export function GitSettingsPage() {
             checked={inlineDiffEnabled}
             onChange={setInlineDiffEnabled}
           />
-
-          {inlineDiffEnabled && (
-            <div className="mt-3 pl-4 border-l border-border/40">
-              <p className="text-xs text-fg-muted mb-1.5">Strength</p>
-              <RadioGroup<ChangeStrength>
-                ariaLabel="Inline diff strength"
-                value={inlineDiffStrength}
-                onChange={setInlineDiffStrength}
-                options={[
-                  { value: 'subtle', label: 'Subtle' },
-                  { value: 'medium', label: 'Medium' },
-                  { value: 'strong', label: 'Strong' },
-                ]}
-              />
-            </div>
-          )}
+        </Row>
+        <Row>
+          <Toggle
+            className="max-w-[60ch]"
+            label="Show icon in footer"
+            description="A highlighter button in the footer to switch the inline diff highlight on and off."
+            checked={inlineDiffFooterIcon}
+            onChange={setInlineDiffFooterIcon}
+          />
         </Row>
         <Row>
           <p className="text-sm text-fg mb-1">Change colours</p>
@@ -251,6 +246,18 @@ export function GitSettingsPage() {
               <ColorPickerRow label="Deleted" value={inlineDiffCustomColors.deleted} onChange={(hex) => setInlineDiffCustomColor('deleted', hex)} />
             </div>
           )}
+
+          <p className="text-xs text-fg-muted mt-4 mb-1.5">Strength</p>
+          <RadioGroup<ChangeStrength>
+            ariaLabel="Inline diff strength"
+            value={inlineDiffStrength}
+            onChange={setInlineDiffStrength}
+            options={[
+              { value: 'subtle', label: 'Subtle' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'strong', label: 'Strong' },
+            ]}
+          />
         </Row>
       </Section>
 

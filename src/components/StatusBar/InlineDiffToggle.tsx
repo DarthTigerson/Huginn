@@ -4,12 +4,13 @@ import { FooterTooltip } from './FooterTooltip'
 
 // Footer switch for the editor's inline diff highlight (line wash + changed
 // words). Same setting as Settings > Git, the palette's Show/Hide command
-// and the tab menu's entry. Hidden when the project has no git repo, since
-// there's nothing to diff against.
+// and the tab menu's entry. Hidden when turned off in Settings > Git, or when
+// the project has no git repo, since there's nothing to diff against.
 export function InlineDiffToggle() {
   const enabled = useEditorSettingsStore((s) => s.inlineDiffEnabled)
+  const showIcon = useEditorSettingsStore((s) => s.inlineDiffFooterIcon)
   const hasRepo = useGitReposStore((s) => s.repos.length > 0)
-  if (!hasRepo) return null
+  if (!showIcon || !hasRepo) return null
 
   return (
     <FooterTooltip label={enabled ? 'Inline diff: on' : 'Inline diff: off'}>
