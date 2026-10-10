@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom'
 import { clampToViewport } from '@/components/ui/clampToViewport'
 import { PreviousSessionIcon, ResumeSessionIcon, CompactIcon, ClearIcon } from './ActivityBar'
 import { useCoverNativeViews } from '@/lib/nativeViewCover'
+import type { AssistantKind } from '@/types/api'
 
 interface Props {
   x: number
   y: number
+  kind: AssistantKind
   onContinuePreviousSession: () => void
   onResumeSession: () => void
+  onRestorePrevious: () => void
   onCompact: () => void
   onClear: () => void
   onCloseSession: () => void
@@ -19,8 +22,10 @@ interface Props {
 export function ClaudeSessionContextMenu({
   x,
   y,
+  kind,
   onContinuePreviousSession,
   onResumeSession,
+  onRestorePrevious,
   onCompact,
   onClear,
   onCloseSession,
@@ -28,6 +33,7 @@ export function ClaudeSessionContextMenu({
   onClose,
 }: Props) {
   useCoverNativeViews()
+  const isClaude = kind === 'claude'
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -58,31 +64,46 @@ export function ClaudeSessionContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
-        onClick={() => { onContinuePreviousSession(); onClose() }}
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
-      >
-        <PreviousSessionIcon />
-        Continue Previous Session
-      </button>
-      <button
-        type="button"
-        onClick={() => { onResumeSession(); onClose() }}
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
-      >
-        <ResumeSessionIcon />
-        Resume Session…
-      </button>
+      {isClaude ? (
+        <>
+          <button
+            type="button"
+            onClick={() => { onContinuePreviousSession(); onClose() }}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
+          >
+            <PreviousSessionIcon />
+            Continue Previous Session
+          </button>
+          <button
+            type="button"
+            onClick={() => { onResumeSession(); onClose() }}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
+          >
+            <ResumeSessionIcon />
+            Resume Session…
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => { onRestorePrevious(); onClose() }}
+          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
+        >
+          <PreviousSessionIcon />
+          Restore Previous Conversation
+        </button>
+      )}
       <div className="my-1 h-px bg-border" />
-      <button
-        type="button"
-        onClick={() => { onCompact(); onClose() }}
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
-      >
-        <CompactIcon />
-        Compact
-      </button>
+      {isClaude && (
+        <button
+          type="button"
+          onClick={() => { onCompact(); onClose() }}
+          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-white/5 hover:text-fg"
+        >
+          <CompactIcon />
+          Compact
+        </button>
+      )}
       <button
         type="button"
         onClick={() => { onClear(); onClose() }}
